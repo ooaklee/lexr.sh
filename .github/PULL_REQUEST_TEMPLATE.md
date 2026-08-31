@@ -19,7 +19,7 @@ List the commands you ran and the results that give you confidence.
 
 - [ ] I ran `go fmt ./...`, `go test -race ./...`, `go vet ./...`, and `go run ./cmd/lexr-build`, or explained above why a check does not apply.
 - [ ] I updated user-facing documentation where behaviour or output changed.
-- [ ] I updated the [`Unreleased` changelog](https://github.com/ooaklee/lexr.sh/blob/main/CHANGELOG.md#010---unreleased) for a user-visible change, or this is an internal test or documentation-only change.
+- [ ] I updated the [`Unreleased` changelog](https://github.com/ooaklee/lexr.sh/blob/main/CHANGELOG.md#011---unreleased) for a user-visible change, or this is an internal test or documentation-only change.
 - [ ] I described any privacy, privilege, recovery, compatibility, persisted-data, or release impact above.
 - [ ] I did not commit generated images, build directories, private diagnostics, captured device data, or secrets.
 - [ ] I reviewed [`THIRD_PARTY_NOTICES.md`](https://github.com/ooaklee/lexr.sh/blob/main/THIRD_PARTY_NOTICES.md) for dependency or third-party material changes, or no such material changed.

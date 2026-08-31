@@ -161,8 +161,8 @@ func inspectArtifacts(ctx context.Context, transaction string, plan Plan, proven
 		})
 		artifacts = append(artifacts, Artifact{Role: role, Name: entry.Name(), Path: path, SHA256: digest, Size: size})
 	}
-	if roles[kernel.RoleHeaders] != roles[kernel.RoleCommonHeaders] {
-		return kernel.Bundle{}, nil, errors.New("generated ABI headers and common headers must be present together")
+	if !roles[kernel.RoleHeaders] || !roles[kernel.RoleCommonHeaders] {
+		return kernel.Bundle{}, nil, errors.New("generated native kernel build must include ABI headers and common headers")
 	}
 	bundle, err := kernel.NewBundle("build:"+provenance.Revision, plan.GitURL, packages)
 	if err != nil {

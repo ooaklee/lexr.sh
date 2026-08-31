@@ -3,6 +3,7 @@ package build
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -145,8 +146,17 @@ func TestNativeBuildPublishesVerifiedBundle(t *testing.T) {
 		t.Fatalf("Run() error = %v", err)
 	}
 	if !receipt.Published || !receipt.PublicationDurable || receipt.Provenance == nil ||
-		receipt.Provenance.Revision != strings.Repeat("a", 40) || receipt.Provenance.ToolchainSHA256 != strings.Repeat("c", 64) || len(receipt.Artifacts) != 2 {
+		receipt.Provenance.Revision != strings.Repeat("a", 40) || receipt.Provenance.ToolchainSHA256 != strings.Repeat("c", 64) || len(receipt.Artifacts) != 4 {
 		t.Fatalf("build receipt = %#v", receipt)
+	}
+	roles := make(map[kernel.PackageRole]bool, len(receipt.Artifacts))
+	for _, item := range receipt.Artifacts {
+		roles[item.Role] = true
+	}
+	for _, role := range []kernel.PackageRole{kernel.RoleImage, kernel.RoleModules, kernel.RoleHeaders, kernel.RoleCommonHeaders} {
+		if !roles[role] {
+			t.Errorf("build receipt lacks %s package: %#v", role, receipt.Artifacts)
+		}
 	}
 	if len(receipt.Executed) != 3 {
 		t.Fatalf("executed commands = %d, want 3: %#v", len(receipt.Executed), receipt.Executed)
@@ -171,6 +181,26 @@ func TestNativeBuildPublishesVerifiedBundle(t *testing.T) {
 		info, err := os.Lstat(filepath.Join(root, "output", "v19", name))
 		if err != nil || !info.Mode().IsRegular() {
 			t.Errorf("published manifest %s is unavailable: %v", name, err)
+		}
+	}
+	manifestData, err := os.ReadFile(filepath.Join(root, "output", "v19", bundleManifestName))
+	if err != nil {
+		t.Fatalf("read published bundle manifest: %v", err)
+	}
+	var manifest kernel.Bundle
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		t.Fatalf("decode published bundle manifest: %v", err)
+	}
+	manifestRoles := make(map[kernel.PackageRole]bool, len(manifest.Packages))
+	for _, item := range manifest.Packages {
+		manifestRoles[item.Role] = true
+	}
+	if len(manifest.Packages) != 4 {
+		t.Fatalf("published bundle manifest package count = %d, want 4", len(manifest.Packages))
+	}
+	for _, role := range []kernel.PackageRole{kernel.RoleImage, kernel.RoleModules, kernel.RoleHeaders, kernel.RoleCommonHeaders} {
+		if !manifestRoles[role] {
+			t.Errorf("published bundle manifest lacks %s package: %#v", role, manifest.Packages)
 		}
 	}
 	if _, err := os.Lstat(filepath.Join(root, "state", "kernel", buildLockDirectoryName)); !errors.Is(err, os.ErrNotExist) {
@@ -486,8 +516,9 @@ func TestHostilePackageNamePreventsPublication(t *testing.T) {
 		if err := writeFakeContainerOutput(command, transaction); err != nil {
 			return err
 		}
+		validName := "linux-image-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb"
 		name := "linux-image-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb\n" + strings.Repeat("0", 64) + "  forged.deb"
-		return os.WriteFile(filepath.Join(transaction, "artifacts", name), []byte("hostile"), 0o644)
+		return os.Rename(filepath.Join(transaction, "artifacts", validName), filepath.Join(transaction, "artifacts", name))
 	}
 	receipt, err := newTestBuildManager(runner).Run(context.Background(), Request{
 		RepositoryRoot: root, WorkDirectory: "work", OutputDirectory: "output",
@@ -500,19 +531,64 @@ func TestHostilePackageNamePreventsPublication(t *testing.T) {
 	}
 }
 
+// TestNativeBuildRejectsIncompleteHeaders verifies native compilation cannot
+// publish the generic runtime-only or half-paired bundle forms.
+func TestNativeBuildRejectsIncompleteHeaders(t *testing.T) {
+	abiHeaders := "linux-headers-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb"
+	commonHeaders := "linux-qcom-x1e-headers-" + strings.TrimSuffix(testKernelABI, "-qcom-x1e") + "_" + testKernelVersion + "_all.deb"
+	for _, test := range []struct {
+		name   string
+		remove []string
+	}{
+		{name: "missing ABI headers", remove: []string{abiHeaders}},
+		{name: "missing common headers", remove: []string{commonHeaders}},
+		{name: "missing both header packages", remove: []string{abiHeaders, commonHeaders}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			runner := &fakeBuildRunner{}
+			runner.container = func(_ context.Context, command platform.Command, transaction string) error {
+				if err := writeFakeContainerOutput(command, transaction); err != nil {
+					return err
+				}
+				for _, name := range test.remove {
+					if err := os.Remove(filepath.Join(transaction, "artifacts", name)); err != nil {
+						return err
+					}
+				}
+				return nil
+			}
+			receipt, err := newTestBuildManager(runner).Run(context.Background(), Request{
+				RepositoryRoot: root, WorkDirectory: "work", OutputDirectory: "output",
+			})
+			if err == nil || !strings.Contains(err.Error(), "must include ABI headers and common headers") {
+				t.Fatalf("incomplete header error = %v", err)
+			}
+			if receipt.Published {
+				t.Fatalf("incomplete header bundle was published: %#v", receipt)
+			}
+		})
+	}
+}
+
 // TestCompiledRecipeContainsOnlyNativeBuildPolicy verifies the released CLI no
 // longer calls repository helpers or carries retired install workarounds.
 func TestCompiledRecipeContainsOnlyNativeBuildPolicy(t *testing.T) {
 	for _, forbidden := range []string{
 		"/repo/", "scripts/", "build-sp11-qcom-x1e-kernel", "install-sp11", "touchscreen", "sudo", "reboot", "chmod -R a+rwX /exchange",
+		`awk '{print $1}' > "$provenance_dir/toolchain-sha256"`,
 	} {
 		if strings.Contains(containerRecipe, forbidden) {
 			t.Errorf("compiled recipe contains forbidden helper or host action %q", forbidden)
 		}
 	}
 	for _, required := range []string{
-		containerBuildTarget, "apt-get install -y --no-install-recommends", "mk-build-deps", "git ls-remote", "40 GiB",
+		containerCommonHeadersTarget, containerFlavourTarget,
+		"apt-get install -y --no-install-recommends", "mk-build-deps", "git ls-remote", "40 GiB",
 		`chmod -R a+rwX "$artifact_dir" "$provenance_dir"`,
+		`awk '{printf "%s", $1}' > "$provenance_dir/toolchain-sha256"`,
+		"linux-image-*-qcom-x1e_*_arm64.deb", "linux-modules-*-qcom-x1e_*_arm64.deb",
+		"linux-headers-*-qcom-x1e_*_arm64.deb", "linux-qcom-x1e-headers-*_all.deb",
 	} {
 		if !strings.Contains(containerRecipe, required) {
 			t.Errorf("compiled recipe is missing retained policy %q", required)
@@ -523,6 +599,11 @@ func TestCompiledRecipeContainsOnlyNativeBuildPolicy(t *testing.T) {
 	}
 	if !strings.Contains(containerRecipe, `find "$source_parent" -mindepth 1 -maxdepth 1`) || strings.Contains(containerRecipe, `find "$work_root"`) {
 		t.Errorf("compiled recipe does not isolate freshly generated packages")
+	}
+	commonHeaders := strings.Index(containerRecipe, `"$rules" `+containerCommonHeadersTarget)
+	flavour := strings.Index(containerRecipe, `"$rules" `+containerFlavourTarget)
+	if commonHeaders < 0 || flavour < 0 || commonHeaders >= flavour {
+		t.Errorf("compiled recipe does not build common headers before the flavour target")
 	}
 }
 
@@ -580,7 +661,7 @@ func transactionFromDockerArgs(arguments []string) (string, error) {
 	return "", errors.New("fake Docker command has no exchange mount")
 }
 
-// writeFakeContainerOutput emits bounded provenance and a coherent runtime pair.
+// writeFakeContainerOutput emits bounded provenance and a complete kernel bundle.
 func writeFakeContainerOutput(command platform.Command, transaction string) error {
 	arguments := command.Args
 	scriptIndex := -1
@@ -620,8 +701,10 @@ func writeFakeContainerOutput(command platform.Command, transaction string) erro
 		}
 	}
 	packages := map[string][]byte{
-		"linux-image-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb":   bytes.Repeat([]byte("image"), 128),
-		"linux-modules-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb": bytes.Repeat([]byte("modules"), 128),
+		"linux-image-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb":                                           bytes.Repeat([]byte("image"), 128),
+		"linux-modules-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb":                                         bytes.Repeat([]byte("modules"), 128),
+		"linux-headers-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb":                                         bytes.Repeat([]byte("headers"), 128),
+		"linux-qcom-x1e-headers-" + strings.TrimSuffix(testKernelABI, "-qcom-x1e") + "_" + testKernelVersion + "_all.deb": bytes.Repeat([]byte("common headers"), 128),
 	}
 	for name, content := range packages {
 		if err := os.WriteFile(filepath.Join(artifacts, name), content, 0o644); err != nil {

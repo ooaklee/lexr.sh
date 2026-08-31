@@ -8,8 +8,12 @@ import (
 )
 
 const (
-	// containerBuildTarget is the only Debian package target exposed by this CLI.
-	containerBuildTarget = "binary-qcom-x1e"
+	// containerCommonHeadersTarget packages the architecture-independent headers first.
+	containerCommonHeadersTarget = "binary-headers"
+	// containerFlavourTarget packages the flavour-specific headers and runtime pair.
+	containerFlavourTarget = "binary-qcom-x1e"
+	// containerBuildTarget records the ordered Debian package target set exposed by this CLI.
+	containerBuildTarget = containerCommonHeadersTarget + " " + containerFlavourTarget
 	// containerMinimumFreeGiB preserves the established kernel free-space guard.
 	containerMinimumFreeGiB = 40
 	// containerRecipeTemplate is the complete container-side build policy template.
@@ -146,14 +150,15 @@ fi
 dependency_dir="$(mktemp -d)"
 (cd "$dependency_dir" && mk-build-deps --install --remove \
   --tool 'apt-get -y --no-install-recommends' "$source_dir/debian/control")
-dpkg-query -W -f='${binary:Package}=${Version}\n' | LC_ALL=C sort | sha256sum | awk '{print $1}' > "$provenance_dir/toolchain-sha256"
+dpkg-query -W -f='${binary:Package}=${Version}\n' | LC_ALL=C sort | sha256sum | awk '{printf "%s", $1}' > "$provenance_dir/toolchain-sha256"
 
 export DEB_BUILD_OPTIONS="parallel=$jobs nocheck noautodbgsym"
 if [ "$skip_clean" != true ]; then
   (cd "$source_dir" && "$rules" clean)
 fi
 find "$source_parent" -mindepth 1 -maxdepth 1 -type f -name '*.deb' -delete
-(cd "$source_dir" && "$rules" {{BUILD_TARGET}})
+(cd "$source_dir" && "$rules" {{COMMON_HEADERS_TARGET}})
+(cd "$source_dir" && "$rules" {{FLAVOUR_TARGET}})
 
 find "$source_parent" -mindepth 1 -maxdepth 1 -type f -name '*.deb' -print0 |
   sort -z |
@@ -183,7 +188,8 @@ find "$source_parent" -mindepth 1 -maxdepth 1 -type f -name '*.deb' -print0 |
 
 // containerRecipe is the immutable recipe produced from compiled policy values.
 var containerRecipe = strings.NewReplacer(
-	"{{BUILD_TARGET}}", containerBuildTarget,
+	"{{COMMON_HEADERS_TARGET}}", containerCommonHeadersTarget,
+	"{{FLAVOUR_TARGET}}", containerFlavourTarget,
 	"{{MINIMUM_FREE_GIB}}", strconv.Itoa(containerMinimumFreeGiB),
 ).Replace(containerRecipeTemplate)
 

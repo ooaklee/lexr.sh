@@ -50,6 +50,13 @@ that do not apply.
 
 ---
 
+## [0.1.1] - Unreleased
+
+### Fixed
+
+- Made native kernel builds package the common and ABI-specific headers as a complete pair alongside the signed image and modules.
+- Emitted the installed-toolchain provenance digest without a trailing newline so strict bundle publication can validate it.
+
 ## [0.1.0] - 2026-08-31
 
 ### Added

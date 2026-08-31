@@ -443,7 +443,7 @@ A local bundle without an authoritative `SHA256SUMS` file is rejected unless `--
 
 The build subcommand works from a standalone released CLI as well as an OE checkout. Its private transaction and new output directory must be relative to the selected containment root; the output directory must not already exist. Source data persists in a Docker volume labelled for that exact work boundary, while generated packages cross through a private host transaction. `--reset-source` may clean only that managed volume source tree. The command builds packages but never installs them, elevates privileges, reboots, or publishes a release.
 
-Successful output contains the coherent signed image and modules pair, optional paired headers, `SHA256SUMS`, a normal kernel bundle manifest, and a source-provenance manifest. Review the complete non-mutating plan first:
+Successful output contains the coherent signed image and modules pair, complete common and ABI-specific headers, `SHA256SUMS`, a normal kernel bundle manifest, and a source-provenance manifest. Review the complete non-mutating plan first:
 
 ```sh
 lexr kernel build --dry-run

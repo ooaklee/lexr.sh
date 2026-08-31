@@ -79,7 +79,7 @@ type Plan struct {
 	DryRun bool `json:"dry_run"`
 	// ContainerImage is the compiled ARM64 build image reference.
 	ContainerImage string `json:"container_image"`
-	// BuildTarget is the only Debian rules target selected by compiled policy.
+	// BuildTarget is the ordered Debian rules target set selected by compiled policy.
 	BuildTarget string `json:"build_target"`
 	// MinimumFreeGiB is the managed-volume free-space guard in gibibytes.
 	MinimumFreeGiB int `json:"minimum_free_gib"`
