@@ -119,10 +119,12 @@ Kernel and hardware-support releases remain in
 This keeps `lexr image create`, `lexr kernel release list`, existing shared
 links, and the supported userspace catalogue on one established release
 channel. GitHub Releases in `ooaklee/lexr.sh` are reserved for the Lexr CLI and
-contain only six standalone platform executables and one versioned SHA-256
-manifest. Kernel, firmware, driver, userspace, catalogue, collector, and
-documentation assets are never published there. Release filenames follow one
-predictable raw-executable layout:
+contain six standalone platform executables, the three project legal documents,
+and one versioned SHA-256 manifest covering all nine payload files. Kernel,
+firmware, driver, userspace, catalogue, collector, and other project
+documentation are never published there. Release filenames follow one
+predictable raw-executable layout, with the legal documents retaining their
+repository names:
 
 ```text
 lexr-v<version>-darwin-amd64
@@ -131,6 +133,9 @@ lexr-v<version>-linux-amd64
 lexr-v<version>-linux-arm64
 lexr-v<version>-windows-amd64.exe
 lexr-v<version>-windows-arm64.exe
+LICENSE
+NOTICE
+THIRD_PARTY_NOTICES.md
 lexr-v<version>.sha256sums
 ```
 
@@ -277,9 +282,20 @@ collected device data. The portable receipt inside an IPTSD release verifies
 that component's relocatable files and is itself included in the outer
 inventory. It is not a second image manifest.
 
-The repository currently declares no project-wide redistribution terms for the CLI. A locally requested companion records `project_licence: not-declared` and prints a warning. Do not redistribute that companion image until the copyright holder publishes suitable project terms and the required third-party notices.
+Lexr is provided under `Apache-2.0`. A locally requested companion records
+`project_licence: declared`, inventories `LICENSE`, `NOTICE`, and
+`THIRD_PARTY_NOTICES.md`, and carries them both in its source archive and its
+on-media licence directory.
 
-Tag-based CLI publication is fail-closed for the same reason. The repository root is the single legal-document authority for both companion images and CLI releases. The companion builder requires the complete Git repository to be clean, inventories those root documents, and includes them in its source archive. The release job will not invoke GoReleaser unless the root contains a non-empty regular recognised project licence or copying document and a non-empty regular `THIRD_PARTY_NOTICES.md`. It then permits only the six raw Lexr platform executables and their versioned SHA-256 manifest as uploaded release assets. Neither legal document exists yet, so tag publication remains intentionally blocked. Supplying them requires an explicit copyright and dependency review; the CLI and workflow do not invent licensing terms.
+The repository root is the single legal-document authority for companion
+images and CLI releases. A Git-backed companion requires the complete
+repository to be clean so those documents match its recorded source revision.
+Tag publication likewise fails before GoReleaser if any of the three exact
+files is absent, empty, or symbolic. The release job publishes them alongside
+the six raw executables, extends the one versioned SHA-256 manifest to cover all
+nine payloads, and rejects anything outside the ten-file release set. The
+decision and its relationship to the kernel's separate terms are recorded in
+[ADR026](docs/adr/adr-026-apache-2.0-project-terms-and-release-notices.md).
 
 After booting the live image, copy the executable from the read-only medium to a writable executable filesystem before using it:
 
@@ -802,13 +818,28 @@ The executable and Bubble Tea UI are delivery layers. Feature packages own image
 
 Architecture decisions are recorded in [`docs/adr`](docs/adr/).
 
+## Licence and contributions
+
+Lexr is available under the [`Apache-2.0` project licence](LICENSE). The
+project attribution is in [`NOTICE`](NOTICE), and the complete audited
+dependency inventory and applicable terms are in
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+If you would like to help, start with the human-sized guide in
+[`CONTRIBUTING.md`](CONTRIBUTING.md) and please follow the
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). The current maintainer is listed in
+[`MAINTAINERS`](MAINTAINERS).
+
 ## Development
 
 ```sh
 go fmt ./...
+go test -race ./...
 go vet ./...
-go test ./...
 go run ./cmd/lexr-build
 ```
 
-Do not commit downloaded images, kernel packages, build workspaces, or generated output ISOs.
+Do not commit downloaded images, kernel packages, build workspaces, generated
+output ISOs, private diagnostics, or captured device data. See
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for the full development and privacy
+guidance.

@@ -1,0 +1,113 @@
+name: Bug report
+description: Tell us about a reproducible problem in Lexr.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. Please read the [contributing guide](https://github.com/ooaklee/lexr.sh/blob/main/CONTRIBUTING.md) and [code of conduct](https://github.com/ooaklee/lexr.sh/blob/main/CODE_OF_CONDUCT.md) first.
+
+        **If this is a security or privacy problem, do not post it here.** Report it privately to [leon@boasi.io](mailto:leon@boasi.io), following the [safe-reporting guidance](https://github.com/ooaklee/lexr.sh/blob/main/CONTRIBUTING.md#report-a-bug-safely).
+
+        Never include a Windows hand-off directory, diagnostic archive, firmware payload, raw device identifier, Bluetooth address, adapter instance ID, token, credential, private capture, local path, or personal detail. Inspect every attachment and log excerpt before posting it.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Choose the closest match. It is fine to say that you are unsure.
+      options:
+        - CLI or wizard
+        - Catalogues
+        - Image creation or removable media
+        - Kernel build, installation, or release
+        - Userspace or hardware support
+        - Diagnostics, hand-off, or clean-up
+        - Release automation or documentation
+        - Other or unsure
+    validations:
+      required: true
+
+  - type: input
+    id: lexr-version
+    attributes:
+      label: Lexr version
+      description: Paste the output of `lexr version`, or explain why it is unavailable.
+      placeholder: "lexr 0.1.0 (commit …, built …)"
+    validations:
+      required: true
+
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating system and architecture
+      description: Tell us about the host on which you ran Lexr.
+      placeholder: "Ubuntu 24.04 arm64"
+    validations:
+      required: true
+
+  - type: input
+    id: surface-model
+    attributes:
+      label: Surface Pro 11 model
+      description: If a device is involved, give its model only—never a serial number or unique identifier.
+      placeholder: "Surface Pro 11 (X1E-80-100), or not applicable"
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command or workflow
+      description: Show the precise redacted command or workflow that triggered the problem.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Give the smallest ordered set of steps that lets someone else see the problem.
+      placeholder: |
+        1. Run …
+        2. Observe …
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Smallest redacted log excerpt
+      description: Optional. Include only the few lines that show the problem, with local paths and personal details removed.
+      render: text
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Optional context that may help us understand or reproduce the problem.
+
+  - type: checkboxes
+    id: submission-checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues for this problem.
+          required: true
+        - label: I inspected every attachment and log excerpt, and none contains private device data, credentials, local paths, or personal details.
+          required: true

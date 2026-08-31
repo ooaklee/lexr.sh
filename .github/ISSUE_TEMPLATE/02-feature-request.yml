@@ -1,0 +1,80 @@
+name: Feature request
+description: Propose an improvement or check whether an idea belongs in Lexr.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement. Please read the [contributing guide](https://github.com/ooaklee/lexr.sh/blob/main/CONTRIBUTING.md) and [code of conduct](https://github.com/ooaklee/lexr.sh/blob/main/CODE_OF_CONDUCT.md) first.
+
+        Substantial features, architecture changes, persisted-data changes, and privileged workflows should be discussed before implementation. Once a direction is agreed, it may also need an [architecture decision record](https://github.com/ooaklee/lexr.sh/blob/main/docs/adr/_adr-XXXX-template.md).
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Choose the closest match, including "Other or unsure" when you want help finding the right boundary.
+      options:
+        - CLI or wizard
+        - Catalogues
+        - Image creation or removable media
+        - Kernel build, installation, or release
+        - Userspace or hardware support
+        - Diagnostics, hand-off, or clean-up
+        - Release automation or documentation
+        - Other or unsure
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or goal
+      description: What need are you trying to address? Describe the outcome rather than only an implementation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed outcome
+      description: What should happen once this is done, and how would someone notice?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional. What other approaches have you considered, and why did they not fit?
+
+  - type: textarea
+    id: project-boundary
+    attributes:
+      label: Project boundary
+      description: Explain why this belongs in Lexr, or where you are unsure whether it belongs in a separate kernel or hardware-support project.
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Safety and compatibility impact
+      description: Briefly note any effect on privacy, privilege, recovery, compatibility, persisted data, or release behaviour. Write "none" where nothing changes.
+      placeholder: |
+        Privacy: none
+        Privilege: none
+        Recovery: none
+        Compatibility: none
+        Persisted data: none
+        Release: none
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: submission-checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues for this idea.
+          required: true
+        - label: I agree to follow Lexr's Code of Conduct.
+          required: true

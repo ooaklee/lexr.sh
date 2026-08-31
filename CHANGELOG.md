@@ -2,9 +2,55 @@
 
 Notable changes to Lexr.sh and its `lexr` command are documented here. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-The current unreleased version is `0.1.0`. Before `1.0.0`, each release containing new features advances the minor version, while a release containing fixes only advances the patch version.
+Before `1.0.0`, each release containing new features advances the minor version, while a release containing fixes only advances the patch version.
 
-## [0.1.0] - Unreleased
+## Changelog entry template
+
+### Types of changes
+
+- `Added` for new features.
+- `Changed` for changes in existing functionality.
+- `Deprecated` for soon-to-be removed features.
+- `Removed` for now removed features.
+- `Fixed` for any bug fixes.
+- `Security` in case of vulnerabilities.
+
+Copy this template above the most recent release. Replace `x.y.z` with the planned
+version, leave `Unreleased` in place while work is ongoing, and replace it with
+the release date in `YYYY-MM-DD` format when publishing. Delete any subsections
+that do not apply.
+
+```markdown
+## [x.y.z] - Unreleased
+
+### Added
+
+- tbc
+
+### Changed
+
+- tbc
+
+### Deprecated
+
+- tbc
+
+### Removed
+
+- tbc
+
+### Fixed
+
+- tbc
+
+### Security
+
+- tbc
+```
+
+---
+
+## [0.1.0] - 2026-08-31
 
 ### Added
 
@@ -41,8 +87,11 @@ The current unreleased version is `0.1.0`. Before `1.0.0`, each release containi
 - Lexr-owned IPTSD integration and manually dispatched kernel build workflows which require no private credential in the OE repository.
 - Draft-first OE kernel prerelease publication with complete remote asset comparison and native validation before promotion.
 - A dedicated, repository-scoped OE release token confined to the hosted publication step, after independent validation of self-hosted build output.
-- An exact binary-only Lexr release allow-list for Linux, macOS and Windows on AMD64 and ARM64, with predictable hyphenated filenames, one versioned checksum manifest and no hardware-support or supplementary payloads.
+- An exact Lexr release allow-list for six raw Linux, macOS and Windows executables, three legal documents, and one versioned checksum manifest, with no hardware-support or unrelated documentation payloads.
 - A Go-native source builder which injects explicit Lexr version, revision and build-time metadata without relying on ambiguous automatic VCS discovery.
+- Explicit `Apache-2.0` project terms, a project notice, and an audited third-party inventory covering every linked release dependency, the Go runtime, and embedded Unicode data.
+- Human contribution and conduct guides plus a single-maintainer record for people who want to report a problem or help the project.
+- Structured bug and feature issue forms, a contribution-aware pull-request template, and grouped weekly dependency updates for Go modules and GitHub Actions.
 
 ### Changed
 
@@ -64,11 +113,11 @@ The current unreleased version is `0.1.0`. Before `1.0.0`, each release containi
 - Made `PermanentAddress` authoritative only when structured PnP ancestry reaches the exact built-in radio; optional BTHPORT evidence must corroborate that same value, and external or ambiguous Windows radios fail closed.
 - Kept the established OE repository as the publication and discovery channel for kernel and hardware-support releases while reserving Lexr releases for the CLI itself.
 - Routed heavyweight kernel compilation only to a dedicated `lexr-kernel` self-hosted Linux runner with explicit architecture, Docker, and free-space gates.
-- Replaced multi-file CLI release archives with directly downloadable Lexr executables while retaining fail-closed legal-document and checksum gates.
+- Replaced multi-file CLI release archives with directly downloadable Lexr executables, three accompanying legal documents, and one checksum manifest covering all nine payload files.
 
 ### Fixed
 
 - Corrected Ubuntu live-media discovery so a regenerated Casper initramfs cannot be published with a stale ISO UUID marker.
 - Restored offline installation compatibility with the immutable `sp11-iptsd-v1` archive while retaining exact operational-file identities and rejecting unreviewed documentation variants.
-- Kept legacy diagnostic captures ignored after retiring their generators, and made repository-root legal documents authoritative for CLI publication and mandatory inside each distributable companion inventory.
+- Kept legacy diagnostic captures ignored after retiring their generators, and made repository-root legal documents authoritative for CLI publication, accompanying release assets, and each distributable companion inventory.
 - Prevented a Git-submodule build from reporting the containing OE repository's revision as Lexr provenance.

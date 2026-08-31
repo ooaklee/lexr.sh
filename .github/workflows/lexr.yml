@@ -147,25 +147,18 @@ jobs:
           go-version-file: .tool-versions
           cache-dependency-path: go.sum
 
-      - name: Require publishable project licensing documents
+      - name: Require publishable project licence documents
         run: |
           set -euo pipefail
-          licence_document=""
-          for candidate in LICENCE LICENCE.md LICENCE.txt LICENSE LICENSE.md LICENSE.txt COPYING COPYING.md COPYING.txt; do
-            if [[ -f "${GITHUB_WORKSPACE}/${candidate}" && ! -L "${GITHUB_WORKSPACE}/${candidate}" && -s "${GITHUB_WORKSPACE}/${candidate}" ]]; then
-              licence_document="${GITHUB_WORKSPACE}/${candidate}"
-              break
+          legal_documents=(LICENSE NOTICE THIRD_PARTY_NOTICES.md)
+          for name in "${legal_documents[@]}"; do
+            document="${GITHUB_WORKSPACE}/${name}"
+            if [[ ! -f "${document}" || -L "${document}" || ! -s "${document}" ]]; then
+              printf 'CLI publication is blocked: %s must be a non-empty regular repository-root file.\n' "${name}" >&2
+              exit 1
             fi
           done
-          if [[ -z "$licence_document" ]]; then
-            printf 'CLI publication is blocked: add a non-empty project licence or copying document at the repository root.\n' >&2
-            exit 1
-          fi
-          if [[ ! -f "${GITHUB_WORKSPACE}/THIRD_PARTY_NOTICES.md" || -L "${GITHUB_WORKSPACE}/THIRD_PARTY_NOTICES.md" || ! -s "${GITHUB_WORKSPACE}/THIRD_PARTY_NOTICES.md" ]]; then
-            printf 'CLI publication is blocked: add a non-empty THIRD_PARTY_NOTICES.md at the repository root.\n' >&2
-            exit 1
-          fi
-          printf 'Release licensing documents are present: %s and THIRD_PARTY_NOTICES.md\n' "$(basename "$licence_document")"
+          printf 'Release licence documents are present: %s\n' "${legal_documents[*]}"
 
       - name: Validate release tag
         id: release-version
@@ -203,13 +196,13 @@ jobs:
           args: release --clean --skip=publish --config .goreleaser.yaml
           workdir: .
 
-      - name: Verify the binary-only release set
+      - name: Verify the exact CLI release set
         run: |
           set -euo pipefail
 
           release_dir="${RUNNER_TEMP}/lexr-release"
           mkdir -m 0700 "${release_dir}"
-          expected=(
+          expected_binaries=(
             "lexr-v${LEXR_VERSION}-darwin-amd64"
             "lexr-v${LEXR_VERSION}-darwin-arm64"
             "lexr-v${LEXR_VERSION}-linux-amd64"
@@ -217,6 +210,8 @@ jobs:
             "lexr-v${LEXR_VERSION}-windows-amd64.exe"
             "lexr-v${LEXR_VERSION}-windows-arm64.exe"
           )
+          legal_documents=(LICENSE NOTICE THIRD_PARTY_NOTICES.md)
+          expected_payloads=("${expected_binaries[@]}" "${legal_documents[@]}")
 
           mapfile -t artefacts < <(
             jq -er '.[] |
@@ -224,14 +219,14 @@ jobs:
               [.name, .path] | @tsv' dist/artifacts.json |
               LC_ALL=C sort
           )
-          if [[ ${#artefacts[@]} -ne ${#expected[@]} ]]; then
+          if [[ ${#artefacts[@]} -ne ${#expected_binaries[@]} ]]; then
             printf 'Expected six named Lexr binary artefacts, found %d.\n' "${#artefacts[@]}" >&2
             exit 1
           fi
 
-          expected_names="$(printf '%s\n' "${expected[@]}" | LC_ALL=C sort)"
+          expected_binary_names="$(printf '%s\n' "${expected_binaries[@]}" | LC_ALL=C sort)"
           artefact_names="$(printf '%s\n' "${artefacts[@]}" | cut -f1 | LC_ALL=C sort)"
-          if [[ "${artefact_names}" != "${expected_names}" ]]; then
+          if [[ "${artefact_names}" != "${expected_binary_names}" ]]; then
             printf 'GoReleaser named a binary outside the exact release allow-list.\n' >&2
             exit 1
           fi
@@ -256,7 +251,7 @@ jobs:
           checksum_name="lexr-v${LEXR_VERSION}.sha256sums"
           install -m 0644 -- "dist/${checksum_name}" "${release_dir}/${checksum_name}"
 
-          for name in "${expected[@]}"; do
+          for name in "${expected_binaries[@]}"; do
             binary="${release_dir}/${name}"
             if [[ ! -f "${binary}" || -L "${binary}" || ! -s "${binary}" || ! -x "${binary}" ]]; then
               printf 'Release binary is missing, empty, symbolic, or non-executable: %s\n' "${binary}" >&2
@@ -266,9 +261,33 @@ jobs:
               grep -F $'path\tgithub.com/ooaklee/lexr.sh/cmd/lexr' >/dev/null
           done
 
-          checksum_names="$(awk 'NF == 2 { print $2 }' "${release_dir}/${checksum_name}" | LC_ALL=C sort)"
-          if [[ "${checksum_names}" != "${expected_names}" ]]; then
+          binary_checksum_names="$(awk 'NF == 2 { print $2 }' "${release_dir}/${checksum_name}" | LC_ALL=C sort)"
+          if [[ "${binary_checksum_names}" != "${expected_binary_names}" ]]; then
             printf 'Checksum manifest does not cover exactly the six release binaries.\n' >&2
+            exit 1
+          fi
+          (
+            cd "${release_dir}"
+            sha256sum --strict --check "${checksum_name}"
+          )
+
+          for name in "${legal_documents[@]}"; do
+            source="${GITHUB_WORKSPACE}/${name}"
+            if [[ ! -f "${source}" || -L "${source}" || ! -s "${source}" ]]; then
+              printf 'Release licence document is missing, empty, or symbolic: %s\n' "${source}" >&2
+              exit 1
+            fi
+            install -m 0644 -- "${source}" "${release_dir}/${name}"
+          done
+          (
+            cd "${release_dir}"
+            sha256sum -- "${legal_documents[@]}" >> "${checksum_name}"
+          )
+
+          expected_payload_names="$(printf '%s\n' "${expected_payloads[@]}" | LC_ALL=C sort)"
+          checksum_names="$(awk 'NF == 2 { print $2 }' "${release_dir}/${checksum_name}" | LC_ALL=C sort)"
+          if [[ "${checksum_names}" != "${expected_payload_names}" ]]; then
+            printf 'Checksum manifest does not cover exactly the nine release payloads.\n' >&2
             exit 1
           fi
           (
@@ -278,8 +297,8 @@ jobs:
 
           shopt -s nullglob dotglob
           release_files=("${release_dir}"/*)
-          if [[ ${#release_files[@]} -ne 7 ]]; then
-            printf 'Binary-only release directory contains %d files, expected seven.\n' "${#release_files[@]}" >&2
+          if [[ ${#release_files[@]} -ne 10 ]]; then
+            printf 'Exact CLI release directory contains %d files, expected ten.\n' "${#release_files[@]}" >&2
             exit 1
           fi
 
@@ -293,7 +312,7 @@ jobs:
           {
             printf '# Lexr %s\n\n' "$LEXR_VERSION"
             # shellcheck disable=SC2016
-            printf 'This release contains only the six standalone Lexr platform executables and their versioned SHA-256 manifest. Kernel, firmware, driver, userspace, catalogue, collector, and documentation assets are not published here.\n\n'
+            printf 'This release contains the six standalone Lexr platform executables plus `LICENSE`, `NOTICE`, and `THIRD_PARTY_NOTICES.md`. The versioned SHA-256 manifest covers all nine payload files. Kernel, firmware, driver, userspace, catalogue, collector, and other project documentation are not published here.\n\n'
             printf '## Changes\n\n'
             if [[ -n "${PREVIOUS_LEXR_TAG:-}" ]]; then
               # shellcheck disable=SC2016
@@ -315,15 +334,18 @@ jobs:
             release_flags+=(--latest)
           fi
 
-          release_binaries=(
+          release_assets=(
             "${RUNNER_TEMP}/lexr-release/lexr-v${LEXR_VERSION}-darwin-amd64"
             "${RUNNER_TEMP}/lexr-release/lexr-v${LEXR_VERSION}-darwin-arm64"
             "${RUNNER_TEMP}/lexr-release/lexr-v${LEXR_VERSION}-linux-amd64"
             "${RUNNER_TEMP}/lexr-release/lexr-v${LEXR_VERSION}-linux-arm64"
             "${RUNNER_TEMP}/lexr-release/lexr-v${LEXR_VERSION}-windows-amd64.exe"
             "${RUNNER_TEMP}/lexr-release/lexr-v${LEXR_VERSION}-windows-arm64.exe"
+            "${RUNNER_TEMP}/lexr-release/LICENSE"
+            "${RUNNER_TEMP}/lexr-release/NOTICE"
+            "${RUNNER_TEMP}/lexr-release/THIRD_PARTY_NOTICES.md"
+            "${RUNNER_TEMP}/lexr-release/lexr-v${LEXR_VERSION}.sha256sums"
           )
           gh release create "$GITHUB_REF_NAME" \
-            "${release_binaries[@]}" \
-            "${RUNNER_TEMP}/lexr-release/lexr-v${LEXR_VERSION}.sha256sums" \
+            "${release_assets[@]}" \
             "${release_flags[@]}"
