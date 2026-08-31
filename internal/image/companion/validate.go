@@ -82,7 +82,7 @@ func ValidateRecord(record imagecontract.CompanionBundleRecord) error {
 		return errors.New("included companion bundle has no source archive")
 	}
 	expectedSourcePath := path.Join(
-		ISOFilesystemRoot, "source", fmt.Sprintf("linux-armer_%s_source.tar.gz", record.Tool.Version),
+		ISOFilesystemRoot, "source", fmt.Sprintf("lexr_%s_source.tar.gz", record.Tool.Version),
 	)
 	if record.SourceArchive.Path != expectedSourcePath {
 		return fmt.Errorf("companion source archive path must be %q", expectedSourcePath)

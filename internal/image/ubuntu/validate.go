@@ -98,7 +98,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 
 	extractErr := v.Docker.RunInWorkspace(ctx, toolsImage, workspace,
 		"xorriso", "-osirrox", "on", "-indev", "/work/image.iso",
-		"-extract", "/sp11/linux-armer-manifest.json", "/work/manifest.json",
+		"-extract", "/sp11/lexr-manifest.json", "/work/manifest.json",
 		"-extract", "/casper/vmlinuz", "/work/vmlinuz",
 		"-extract", "/casper/initrd", "/work/initrd",
 		"-extract", "/.disk/casper-uuid-generic", "/work/casper-uuid-generic",
@@ -603,7 +603,7 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 		record := findArtifact(manifest.BootArtifacts.DTBs, name)
 		for _, path := range []string{
 			filepath.Join(root, "boot", "dtbs", abi, "qcom", name),
-			filepath.Join(root, "usr", "lib", "linux-armer", "sp11", "dtb", name),
+			filepath.Join(root, "usr", "lib", "lexr", "sp11", "dtb", name),
 		} {
 			actual, err := artifact.HashFile(path)
 			if err != nil || record.SHA256 == "" || actual != record.SHA256 {
@@ -611,12 +611,12 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 			}
 		}
 	}
-	seedABI, seedABIErr := os.ReadFile(filepath.Join(root, "usr", "lib", "linux-armer", "sp11", "kernel-abi"))
+	seedABI, seedABIErr := os.ReadFile(filepath.Join(root, "usr", "lib", "lexr", "sp11", "kernel-abi"))
 	dtbPassed = dtbPassed && seedABIErr == nil && strings.TrimSpace(string(seedABI)) == abi
 	addCheck("installed-system-device-trees", dtbPassed, "versioned and refresh-seed X1E/X1P DTBs match the exact kernel ABI")
 
 	grubDefaults, defaultsErr := os.ReadFile(filepath.Join(root, "etc/default/grub.d/99-surface-pro-11.cfg"))
-	grubGenerator, generatorErr := os.ReadFile(filepath.Join(root, "etc/grub.d/09_linux_armer_sp11"))
+	grubGenerator, generatorErr := os.ReadFile(filepath.Join(root, "etc/grub.d/09_lexr_sp11"))
 	installedGrubText := string(grubDefaults) + string(grubGenerator)
 	grubSupportPassed := defaultsErr == nil && generatorErr == nil
 	for _, required := range []string{
@@ -634,36 +634,28 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 	grubSupportPassed = grubSupportPassed && !strings.Contains(installedGrubText, "qcom_q6v5_pas")
 	addCheck("installed-system-grub-support", grubSupportPassed, "explicit X1E/X1P entries use installed-system arguments without the live USB blacklist")
 
-	refresh, refreshErr := os.ReadFile(filepath.Join(root, "usr/local/sbin/linux-armer-refresh-sp11-boot"))
-	postInstall, postInstallErr := os.ReadFile(filepath.Join(root, "etc/kernel/postinst.d/05-linux-armer-sp11-dtb"))
-	postRemove, postRemoveErr := os.ReadFile(filepath.Join(root, "etc/kernel/postrm.d/05-linux-armer-sp11-dtb"))
+	refresh, refreshErr := os.ReadFile(filepath.Join(root, "usr/local/sbin/lexr-refresh-sp11-boot"))
+	postInstall, postInstallErr := os.ReadFile(filepath.Join(root, "etc/kernel/postinst.d/05-lexr-sp11-dtb"))
+	postRemove, postRemoveErr := os.ReadFile(filepath.Join(root, "etc/kernel/postrm.d/05-lexr-sp11-dtb"))
 	refreshText := string(refresh)
 	refreshPassed := refreshErr == nil && postInstallErr == nil && postRemoveErr == nil &&
 		strings.Contains(refreshText, "is_safe_abi") &&
 		strings.Contains(refreshText, "/usr/lib/firmware/$abi/device-tree/qcom/$name") &&
 		strings.Contains(refreshText, "/usr/lib/linux-image-$abi/qcom/$name") &&
-		strings.Contains(string(postInstall), "/usr/local/sbin/linux-armer-refresh-sp11-boot") &&
+		strings.Contains(string(postInstall), "/usr/local/sbin/lexr-refresh-sp11-boot") &&
 		strings.Contains(string(postRemove), `*[!A-Za-z0-9.+_~-]*`) &&
 		strings.Contains(string(postRemove), `rm -rf -- "/boot/dtbs/$abi"`) &&
-		!strings.Contains(string(postRemove), "/usr/local/sbin/linux-armer-refresh-sp11-boot") &&
+		!strings.Contains(string(postRemove), "/usr/local/sbin/lexr-refresh-sp11-boot") &&
 		!strings.Contains(refreshText+string(postInstall)+string(postRemove), "qcom_q6v5_pas")
 	addCheck("installed-system-kernel-refresh", refreshPassed, "bounded hooks refresh new ABI-paired DTBs and remove only the retired ABI directory")
 	return checks
 }
 
 // installedGrubModelTitlesPresent reports whether an installed-system GRUB
-// generator contains a complete pair of current or historical Surface model
-// titles. Historical schema-3 images remain valid, while new images emit only
-// the current Lexr titles.
+// generator contains the complete pair of current Lexr Surface model titles.
 func installedGrubModelTitlesPresent(content string) bool {
-	legacyProductName := "Linux" + " Armer"
-	for _, productName := range []string{"Lexr", legacyProductName} {
-		if strings.Contains(content, `title="`+productName+` Surface Pro 11 X1E/OLED`) &&
-			strings.Contains(content, `title="`+productName+` Surface Pro 11 X1P/LCD`) {
-			return true
-		}
-	}
-	return false
+	return strings.Contains(content, `title="Lexr Surface Pro 11 X1E/OLED`) &&
+		strings.Contains(content, `title="Lexr Surface Pro 11 X1P/LCD`)
 }
 
 // appendedESPOffset parses xorriso's GPT report and returns the byte offset of

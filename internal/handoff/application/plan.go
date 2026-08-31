@@ -21,7 +21,7 @@ import (
 
 const (
 	// applicationPlanDomain separates confirmation identity from payload digests.
-	applicationPlanDomain = "linux-armer.windows-handoff/application-plan/v1\x00"
+	applicationPlanDomain = "lexr.windows-handoff/application-plan/v1\x00"
 	// applicationConfirmationPrefix prevents blanket affirmative confirmation.
 	applicationConfirmationPrefix = "apply "
 )
@@ -74,13 +74,13 @@ type bluetoothConfig struct {
 // bluetoothUnit contains no private value and invokes only the fixed hidden command.
 var bluetoothUnit = []byte(`[Unit]
 Description=Apply the private Surface Pro 11 Bluetooth controller address
-ConditionPathExists=/etc/linux-armer/private/bluetooth-address.json
+ConditionPathExists=/etc/lexr/private/bluetooth-address.json
 Wants=bluetooth.service
 Before=bluetooth.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/linux-armer/linux-armer handoff internal-bluetooth-address
+ExecStart=/usr/libexec/lexr/lexr handoff internal-bluetooth-address
 TimeoutStartSec=9min
 NoNewPrivileges=true
 PrivateTmp=true
@@ -267,7 +267,7 @@ func buildDesiredActions(contract handoff.Contract, features []Feature, policy A
 		actions = append(actions,
 			staticFileAction("bluetooth-private-config", FeatureBluetooth, BluetoothConfigPath, 0o600, configBytes),
 			desiredAction{
-				change: Change{ID: "bluetooth-linux-armer-binary", Feature: FeatureBluetooth, Path: InstalledBinaryPath, Kind: ChangeFile},
+				change: Change{ID: "bluetooth-lexr-binary", Feature: FeatureBluetooth, Path: InstalledBinaryPath, Kind: ChangeFile},
 				mode:   0o755, source: sourceBinary, sha256: binary.sha256, size: binary.size,
 			},
 			staticFileAction("bluetooth-systemd-unit", FeatureBluetooth, BluetoothUnitPath, 0o644, bluetoothUnit),

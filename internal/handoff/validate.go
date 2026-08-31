@@ -44,7 +44,7 @@ var (
 	canonicalSMBIOSUUIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 )
 
-// Validate checks the exact v2 envelope, device binding, strict union states,
+// Validate checks the exact v3 envelope, device binding, strict union states,
 // compiled firmware mappings, provenance shapes, and private address policy.
 func Validate(contract Contract) error {
 	if contract.SchemaVersion != SchemaVersion {

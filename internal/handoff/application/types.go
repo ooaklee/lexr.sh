@@ -36,15 +36,15 @@ const (
 
 const (
 	// ReceiptDirectory is the fixed target-relative private receipt directory.
-	ReceiptDirectory = "var/lib/linux-armer/handoff/receipts"
+	ReceiptDirectory = "var/lib/lexr/handoff/receipts"
 	// BluetoothConfigPath is the fixed target-relative private address file.
-	BluetoothConfigPath = "etc/linux-armer/private/bluetooth-address.json"
+	BluetoothConfigPath = "etc/lexr/private/bluetooth-address.json"
 	// InstalledBinaryPath is the fixed target-relative Linux ARM64 helper copy.
-	InstalledBinaryPath = "usr/libexec/linux-armer/linux-armer"
+	InstalledBinaryPath = "usr/libexec/lexr/lexr"
 	// BluetoothUnitPath is the fixed target-relative systemd unit.
-	BluetoothUnitPath = "etc/systemd/system/linux-armer-sp11-bluetooth-address.service"
+	BluetoothUnitPath = "etc/systemd/system/lexr-sp11-bluetooth-address.service"
 	// BluetoothWantsPath is the fixed target-relative dependency link.
-	BluetoothWantsPath = "etc/systemd/system/bluetooth.service.wants/linux-armer-sp11-bluetooth-address.service"
+	BluetoothWantsPath = "etc/systemd/system/bluetooth.service.wants/lexr-sp11-bluetooth-address.service"
 	// DenaliGPULinkPath is the fixed compatibility link below the Denali directory.
 	DenaliGPULinkPath = "lib/firmware/qcom/x1e80100/microsoft/Denali/qcdxkmsuc8380.mbn"
 	// ActiveADSPPath is the canonical enabled aDSP DTB path.
@@ -55,7 +55,7 @@ const (
 
 const (
 	// bluetoothUnitName is fixed so no contract field becomes executable input.
-	bluetoothUnitName = "linux-armer-sp11-bluetooth-address.service"
+	bluetoothUnitName = "lexr-sp11-bluetooth-address.service"
 	// denaliGPULinkTarget is the reviewed root-relative firmware bridge.
 	denaliGPULinkTarget = "../qcdxkmsuc8380.mbn"
 	// bluetoothWantsTarget links the dependency directory to the fixed unit.

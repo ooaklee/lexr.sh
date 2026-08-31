@@ -19,7 +19,7 @@ import (
 const (
 	// purgePlanDomain separates a closed-set purge identity from every content
 	// digest used by the hand-off contract.
-	purgePlanDomain = "linux-armer.windows-handoff/purge-plan/v1\x00"
+	purgePlanDomain = "lexr.windows-handoff/purge-plan/v1\x00"
 	// purgeConfirmationPrefix makes a content-addressed confirmation distinct
 	// from blanket affirmative answers.
 	purgeConfirmationPrefix = "purge "
@@ -124,15 +124,15 @@ func Purge(ctx context.Context, plan PurgePlan, exactConfirmation string) error 
 		return cause
 	}
 
-	isolated, err := validateStoredEntryForMaintenance(ctx, quarantinePath, plan.ID)
+	isolated, err := validateStoredEntry(ctx, quarantinePath, plan.ID)
 	if err != nil {
 		return restore(fmt.Errorf("revalidate isolated Windows hand-off before purge: %w", err))
 	}
-	isolatedDigest := digestClosedSet(plan.ID, isolated)
+	isolatedDigest := digestClosedSet(plan.ID, isolated.auditedStoreEntry)
 	if isolatedDigest != plan.ClosedSetSHA256 || isolated.summary != plan.Summary {
 		return restore(errors.New("isolated Windows hand-off changed after purge planning"))
 	}
-	if err := removeValidatedEntry(quarantinePath, isolated); err != nil {
+	if err := removeValidatedEntry(quarantinePath, isolated.auditedStoreEntry); err != nil {
 		return fmt.Errorf("remove isolated Windows hand-off closed set: %w", err)
 	}
 	quarantineName := filepath.Base(quarantinePath)
@@ -159,7 +159,7 @@ func planPurgeResolved(ctx context.Context, resolvedStoreRoot, identifier string
 	if err != nil {
 		return PurgePlan{}, err
 	}
-	validated, err := validateStoredEntryForMaintenance(ctx, entryPath, identifier)
+	validated, err := validateStoredEntry(ctx, entryPath, identifier)
 	if err != nil {
 		return PurgePlan{}, fmt.Errorf("validate Windows hand-off selected for purge: %w", err)
 	}
@@ -167,7 +167,7 @@ func planPurgeResolved(ctx context.Context, resolvedStoreRoot, identifier string
 		StoreRoot:       resolvedStoreRoot,
 		ID:              identifier,
 		Path:            entryPath,
-		ClosedSetSHA256: digestClosedSet(identifier, validated),
+		ClosedSetSHA256: digestClosedSet(identifier, validated.auditedStoreEntry),
 		Confirmation:    purgeConfirmationPrefix + identifier,
 		Summary:         validated.summary,
 	}, nil

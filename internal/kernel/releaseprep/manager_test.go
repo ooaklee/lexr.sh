@@ -95,24 +95,6 @@ func TestPreparePublishesAndRevalidatesClosedRelease(t *testing.T) {
 	}
 }
 
-// TestValidateAcceptsHistoricalReleaseNotes proves the public validator keeps
-// accepting exact checksum-bound notes prepared before the command rename.
-func TestValidateAcceptsHistoricalReleaseNotes(t *testing.T) {
-	fixture := newReleaseFixture(t, false)
-	manager := New()
-	manager.now = func() time.Time { return time.Date(2026, time.August, 30, 12, 0, 0, 0, time.UTC) }
-	receipt, err := manager.Prepare(context.Background(), fixture.Request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	legacyNotes := renderLegacyReleaseNotes(Plan{Manifest: receipt.Plan.Manifest})
-	mustWriteFile(t, filepath.Join(fixture.Output, ReleaseNotesFileName), []byte(legacyNotes))
-	rewriteChecksums(t, fixture.Output)
-	if _, err := manager.Validate(context.Background(), fixture.Output); err != nil {
-		t.Fatalf("Validate() rejected historical release notes: %v", err)
-	}
-}
-
 // TestPrepareDryRunIsTruthfulAndReadOnly proves the dry run performs complete
 // validation while leaving both missing parents and output absent.
 func TestPrepareDryRunIsTruthfulAndReadOnly(t *testing.T) {

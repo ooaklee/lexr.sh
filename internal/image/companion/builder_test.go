@@ -142,7 +142,7 @@ func TestBuilderSnapshotsBeforeBuild(t *testing.T) {
 	}
 	archivePath := filepath.Join(destination, filepath.FromSlash(record.SourceArchive.Path))
 	files := readSourceArchive(t, archivePath)
-	if got := string(files["linux-armer/README.md"]); got != string(originalReadme) {
+	if got := string(files["lexr/README.md"]); got != string(originalReadme) {
 		t.Fatalf("archived README = %q, want immutable snapshot", got)
 	}
 }
@@ -260,16 +260,16 @@ func TestBuilderSourceArchiveIsDeterministic(t *testing.T) {
 	}
 	files := readSourceArchive(t, writeTemporaryArchive(t, archiveBytes[0]))
 	for _, forbidden := range []string{
-		"linux-armer/bin/lexr", "linux-armer/lexr", "linux-armer/output.iso",
+		"lexr/bin/lexr", "lexr/lexr", "lexr/output.iso",
 	} {
 		if _, found := files[forbidden]; found {
 			t.Errorf("source archive contains ignored output %q", forbidden)
 		}
 	}
-	if _, found := files["linux-armer/LICENSE"]; !found {
+	if _, found := files["lexr/LICENSE"]; !found {
 		t.Error("source archive omits discovered project licence")
 	}
-	if _, found := files["linux-armer/tools/collect-sp11-windows-handoff.ps1"]; !found {
+	if _, found := files["lexr/tools/collect-sp11-windows-handoff.ps1"]; !found {
 		t.Error("source archive omits the strict Windows hand-off collector")
 	}
 }

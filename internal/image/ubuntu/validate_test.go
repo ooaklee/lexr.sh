@@ -104,7 +104,7 @@ func TestValidateCompanionBundleRejectsMutatedContents(t *testing.T) {
 	workspace := t.TempDir()
 	companionRoot := filepath.Join(workspace, "companion")
 	record := writeCompanionValidationFixture(t, companionRoot)
-	sourcePath := filepath.Join(companionRoot, "source", "linux-armer_v1.2.3_source.tar.gz")
+	sourcePath := filepath.Join(companionRoot, "source", "lexr_v1.2.3_source.tar.gz")
 	if err := os.WriteFile(sourcePath, []byte("mutated source"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestValidateCompanionBundleRejectsMutatedContents(t *testing.T) {
 	)
 
 	check := assertValidationCheck(t, checks, "companion-bundle-contents", false)
-	if !strings.Contains(check.Details, "source/linux-armer_v1.2.3_source.tar.gz") {
+	if !strings.Contains(check.Details, "source/lexr_v1.2.3_source.tar.gz") {
 		t.Fatalf("contents details = %q, want mutated path", check.Details)
 	}
 }
@@ -285,10 +285,10 @@ func writeCompanionValidationFixture(t *testing.T, root string) imagecontract.Co
 		content  []byte
 		mode     os.FileMode
 	}{
-		{relative: "bin/linux-arm64/linux-armer", content: minimalAArch64ELF(), mode: 0o755},
+		{relative: "bin/linux-arm64/lexr", content: minimalAArch64ELF(), mode: 0o755},
 		{relative: "catalogues/supported-isos.json", content: []byte("{}\n"), mode: 0o644},
 		{relative: "catalogues/supported-userspace.json", content: []byte("{}\n"), mode: 0o644},
-		{relative: "source/linux-armer_v1.2.3_source.tar.gz", content: []byte("source snapshot"), mode: 0o644},
+		{relative: "source/lexr_v1.2.3_source.tar.gz", content: []byte("source snapshot"), mode: 0o644},
 	}
 	records := make(map[string]imagecontract.ArtifactRecord, len(files))
 	for _, file := range files {
@@ -309,8 +309,8 @@ func writeCompanionValidationFixture(t *testing.T, root string) imagecontract.Co
 			Size:   int64(len(file.content)),
 		}
 	}
-	executable := records["bin/linux-arm64/linux-armer"]
-	sourceArchive := records["source/linux-armer_v1.2.3_source.tar.gz"]
+	executable := records["bin/linux-arm64/lexr"]
+	sourceArchive := records["source/lexr_v1.2.3_source.tar.gz"]
 	return imagecontract.CompanionBundleRecord{
 		Included: true,
 		Root:     companion.ISOFilesystemRoot,
@@ -336,11 +336,9 @@ func writeCompanionValidationFixture(t *testing.T, root string) imagecontract.Co
 	}
 }
 
-// TestInstalledGrubModelTitlesPresentPreservesHistoricalImages verifies the
-// validator accepts the exact pre-rename menu pair without weakening its
-// requirement for both Surface models under one product identity.
-func TestInstalledGrubModelTitlesPresentPreservesHistoricalImages(t *testing.T) {
-	legacyProductName := "Linux" + " Armer"
+// TestInstalledGrubModelTitlesPresentRequiresCurrentBranding verifies the
+// validator requires both Surface models under the current product identity.
+func TestInstalledGrubModelTitlesPresentRequiresCurrentBranding(t *testing.T) {
 	for _, test := range []struct {
 		name    string
 		content string
@@ -353,20 +351,14 @@ func TestInstalledGrubModelTitlesPresentPreservesHistoricalImages(t *testing.T) 
 			want: true,
 		},
 		{
-			name: "historical pair",
-			content: `title="` + legacyProductName + ` Surface Pro 11 X1E/OLED (abi)"` + "\n" +
-				`title="` + legacyProductName + ` Surface Pro 11 X1P/LCD (abi)"`,
-			want: true,
-		},
-		{
 			name:    "incomplete pair",
 			content: `title="Lexr Surface Pro 11 X1E/OLED (abi)"`,
 			want:    false,
 		},
 		{
-			name: "mixed identities",
-			content: `title="Lexr Surface Pro 11 X1E/OLED (abi)"` + "\n" +
-				`title="` + legacyProductName + ` Surface Pro 11 X1P/LCD (abi)"`,
+			name: "different product pair",
+			content: `title="Other Surface Pro 11 X1E/OLED (abi)"` + "\n" +
+				`title="Other Surface Pro 11 X1P/LCD (abi)"`,
 			want: false,
 		},
 	} {

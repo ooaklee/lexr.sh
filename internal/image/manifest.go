@@ -17,7 +17,7 @@ import (
 
 // ManifestSchemaVersion identifies the on-media manifest contract understood by
 // this version of Lexr.
-const ManifestSchemaVersion = 3
+const ManifestSchemaVersion = 4
 
 // MaximumManifestSize bounds untrusted on-media JSON before decoding it.
 const MaximumManifestSize = 1 << 20

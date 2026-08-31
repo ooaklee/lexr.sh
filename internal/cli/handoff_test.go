@@ -119,7 +119,7 @@ func writeBluetoothOnlyHandoffSource(t *testing.T) (string, []string) {
 		PrivacyClassification: handoff.PrivacyClassification,
 		CreatedAt:             "2026-08-30T12:34:56Z",
 		Collector: handoff.CollectorRecord{
-			Name: handoff.CollectorName, Version: "2.0.0",
+			Name: handoff.CollectorName, Version: handoff.CollectorVersion,
 		},
 		Device: handoff.DeviceRecord{
 			PlatformID: handoff.PlatformID, Architecture: handoff.Architecture,

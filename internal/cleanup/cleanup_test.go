@@ -83,31 +83,6 @@ func TestApplyBacksUpOnlyRecognisedLegacyFiles(t *testing.T) {
 	}
 }
 
-// TestRestoreAcceptsCompletedHistoricalQuarantinePath proves an old completed
-// receipt remains recoverable even though its now-absent quarantine path uses
-// the exact pre-rename directory prefix.
-func TestRestoreAcceptsCompletedHistoricalQuarantinePath(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	target := filepath.Join(root, "etc", "modprobe.d", "sp11-touchscreen.conf")
-	writeCleanupFixture(t, root, "etc/modprobe.d/sp11-touchscreen.conf", 0o640, "mshw0485_touch\n")
-	report, err := Scan(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	receipt, err := Apply(report, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	receipt.Changes[0].QuarantinePath = historicalQuarantinePath(t, receipt.Changes[0].QuarantinePath)
-	if _, err := Restore(receipt, filepath.Join(receipt.Backup, "receipt.json"), true); err != nil {
-		t.Fatalf("Restore() rejected a completed historical receipt: %v", err)
-	}
-	if contents, err := os.ReadFile(target); err != nil || string(contents) != "mshw0485_touch\n" {
-		t.Fatalf("historical completed receipt restored %q, %v", contents, err)
-	}
-}
-
 // TestApplyPersistsRecoveryReceiptBeforeRemoval verifies an interrupted
 // transaction retains both backups and a prepared receipt describing every
 // target, including an entry not yet removed.
@@ -135,7 +110,7 @@ func TestApplyPersistsRecoveryReceiptBeforeRemoval(t *testing.T) {
 	receiptSeenBeforeRename := false
 	receipt, err := apply(report, true, applyOperations{
 		rename: func(sourceDirectory *os.File, source string, destinationDirectory *os.File, destination string) error {
-			matches, globErr := filepath.Glob(filepath.Join(root, "var", "lib", "linux-armer", "backups", "*", "receipt.pending.json"))
+			matches, globErr := filepath.Glob(filepath.Join(root, "var", "lib", "lexr", "backups", "*", "receipt.pending.json"))
 			if globErr != nil || len(matches) != 1 {
 				return fmt.Errorf("pending receipt before rename: matches=%v error=%w", matches, globErr)
 			}
@@ -510,18 +485,18 @@ func TestBluetoothCleanupIsPrivateReversibleAndNativeSafe(t *testing.T) {
 		writeCleanupFixture(t, root, logical, fixture.mode, fixture.content)
 	}
 	nativeFiles := []string{
-		"etc/linux-armer/private/bluetooth-address.json",
-		"usr/libexec/linux-armer/linux-armer",
-		"etc/systemd/system/linux-armer-sp11-bluetooth-address.service",
+		"etc/lexr/private/bluetooth-address.json",
+		"usr/libexec/lexr/lexr",
+		"etc/systemd/system/lexr-sp11-bluetooth-address.service",
 	}
 	for _, logical := range nativeFiles {
 		writeCleanupFixture(t, root, logical, 0o600, "native hand-off material")
 	}
-	nativeLink := filepath.Join(root, "etc/systemd/system/bluetooth.service.wants/linux-armer-sp11-bluetooth-address.service")
+	nativeLink := filepath.Join(root, "etc/systemd/system/bluetooth.service.wants/lexr-sp11-bluetooth-address.service")
 	if err := os.MkdirAll(filepath.Dir(nativeLink), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink("../linux-armer-sp11-bluetooth-address.service", nativeLink); err != nil {
+	if err := os.Symlink("../lexr-sp11-bluetooth-address.service", nativeLink); err != nil {
 		t.Fatal(err)
 	}
 
@@ -580,7 +555,7 @@ func TestBluetoothCleanupIsPrivateReversibleAndNativeSafe(t *testing.T) {
 			t.Fatalf("native hand-off path was changed: %s (%v)", logical, err)
 		}
 	}
-	if target, err := os.Readlink(nativeLink); err != nil || target != "../linux-armer-sp11-bluetooth-address.service" {
+	if target, err := os.Readlink(nativeLink); err != nil || target != "../lexr-sp11-bluetooth-address.service" {
 		t.Fatalf("native hand-off link = %q, %v", target, err)
 	}
 
@@ -609,7 +584,7 @@ func TestApplyRejectsAnUnsafePrivateBackupHierarchy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	applicationDirectory := filepath.Join(root, "var/lib/linux-armer")
+	applicationDirectory := filepath.Join(root, "var/lib/lexr")
 	if err := os.MkdirAll(filepath.Join(applicationDirectory, "backups"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -1029,59 +1004,6 @@ func TestRestoreUsesTheOpenedWorkspace(t *testing.T) {
 	if err != nil || len(second.AlreadyPresent) != 1 {
 		t.Fatalf("second Restore() = %#v, %v", second, err)
 	}
-}
-
-// TestRestoreFallsBackToVerifiedHistoricalQuarantine verifies a corrupt partial
-// backup cannot hide a pre-rename same-filesystem recovery copy in a prepared
-// transaction.
-func TestRestoreFallsBackToVerifiedHistoricalQuarantine(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	target := filepath.Join(root, "etc", "modprobe.d", "sp11-touchscreen.conf")
-	writeCleanupFixture(t, root, "etc/modprobe.d/sp11-touchscreen.conf", 0o640, "mshw0485_touch\n")
-	report, err := Scan(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	interrupted := errors.New("leave verified quarantine in place")
-	receipt, err := apply(report, true, applyOperations{
-		rename: renameAnchoredDirectories,
-		remove: func(_ *os.Root, _ string) error { return interrupted },
-	})
-	if !errors.Is(err, interrupted) || receipt.State != "prepared" {
-		t.Fatalf("apply() = %#v, %v", receipt, err)
-	}
-	currentDirectory := filepath.Dir(receipt.Changes[0].QuarantinePath)
-	historicalPath := historicalQuarantinePath(t, receipt.Changes[0].QuarantinePath)
-	if err := os.Rename(currentDirectory, filepath.Dir(historicalPath)); err != nil {
-		t.Fatal(err)
-	}
-	receipt.Changes[0].QuarantinePath = historicalPath
-	if err := os.WriteFile(receipt.Changes[0].BackupPath, []byte("corrupt\n"), 0o640); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Restore(receipt, filepath.Join(receipt.Backup, "receipt.pending.json"), true); err != nil {
-		t.Fatal(err)
-	}
-	restored, err := os.ReadFile(target)
-	if err != nil || string(restored) != "mshw0485_touch\n" {
-		t.Fatalf("quarantine restoration = %q, %v", restored, err)
-	}
-}
-
-// historicalQuarantinePath converts one generated Lexr quarantine path to the
-// exact pre-rename directory spelling while preserving its reviewed suffix and
-// leaf name.
-func historicalQuarantinePath(t *testing.T, current string) string {
-	t.Helper()
-	directory := filepath.Dir(current)
-	name := filepath.Base(directory)
-	if !strings.HasPrefix(name, ".lexr-cleanup-") {
-		t.Fatalf("current quarantine path has an unexpected name: %s", current)
-	}
-	legacyPrefix := "." + "linux" + "-armer-cleanup-"
-	legacyName := legacyPrefix + strings.TrimPrefix(name, ".lexr-cleanup-")
-	return filepath.Join(filepath.Dir(directory), legacyName, filepath.Base(current))
 }
 
 // TestRestoreLeavesAConcurrentSymlinkReplacementUntouched verifies ownership

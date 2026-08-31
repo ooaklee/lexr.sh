@@ -844,7 +844,7 @@ func assertRedactedJSON(t *testing.T, value any) {
 	for _, privateValue := range []string{
 		"10:20:30:40:50:60",
 		"000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
-		"094fb62588717c3c117b6a5ce3ada6a3d2c247c306239cd0f62f432ea688f600",
+		"1427c73166fa72e6d4eeab832ef2237d6d18f8e039af4919cb998ac4c0c83ad4",
 		"45cf6ef73487f756b500d61d3bdc68eb0b1cd32050559c91de1595d4b2294910",
 	} {
 		if bytes.Contains(encoded, []byte(privateValue)) {

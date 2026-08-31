@@ -71,7 +71,7 @@ func inspectTarget(ctx context.Context, root *os.Root, action desiredAction) (bo
 // targetObservation creates a domain-separated digest of private current-target state.
 func targetObservation(fields ...string) string {
 	digest := sha256.New()
-	writeTargetObservationField(digest, "linux-armer.windows-handoff/target-observation/v1\x00")
+	writeTargetObservationField(digest, "lexr.windows-handoff/target-observation/v1\x00")
 	for _, field := range fields {
 		writeTargetObservationField(digest, field)
 	}

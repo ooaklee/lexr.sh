@@ -8,10 +8,9 @@ description: Architecture decision for collecting, importing, retaining, and lat
 
 Superseded on 2026-08-30 by ADR021.
 
-Naming note: the current product is Lexr.sh and its command is `lexr`. This
-superseded record retains the historical Linux Armer wire name;
-[ADR023](adr-023-lexr-standalone-repository-and-compatibility.md) defines its
-compatibility status.
+Terminology and wire names in this superseded record have been normalised to
+Lexr.sh following
+[ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
 
 ## Context
 
@@ -23,7 +22,7 @@ Windows and Linux cannot share one executable collector, but they can share one 
 
 ## Decision
 
-The `handoff` domain will own a v1 private interchange contract whose canonical document is `linux-armer-windows-handoff.json`. The envelope fixes its schema version, kind, privacy classification, canonical UTC collection time, collector identity, Surface Pro 11 platform, ARM64 architecture, and audited Wi-Fi PCI identifier. Unknown, duplicated, missing, `null`, mis-cased, malformed, oversized, byte-order-marked, or trailing JSON input will be rejected.
+The `handoff` domain will own a v1 private interchange contract whose canonical document is `lexr-windows-handoff.json`. The envelope fixes its schema version, kind, privacy classification, canonical UTC collection time, collector identity, Surface Pro 11 platform, ARM64 architecture, and audited Wi-Fi PCI identifier. Unknown, duplicated, missing, `null`, mis-cased, malformed, oversized, byte-order-marked, or trailing JSON input will be rejected.
 
 Each collection will generate a fresh cryptographically random 32-byte salt. The collector will export neither the SMBIOS product UUID nor the selected Bluetooth adapter instance identifier. It will instead record domain-separated SHA-256 bindings over the raw salt and each canonical identifier. Reusing neither a bare hardware digest nor a salt prevents separate collections from becoming trivially linkable while allowing a future same-device apply transaction to re-derive the expected binding.
 

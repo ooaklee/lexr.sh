@@ -1,20 +1,21 @@
 ---
 id: adrs-adr023
-title: "ADR023: Lexr.sh standalone repository and compatibility boundary"
-description: Architecture decision for extracting the complete CLI history, adopting the Lexr.sh identity, and staging the OE repository cut-over without breaking established contracts.
+title: "ADR023: Lexr.sh standalone repository and naming boundary"
+description: Architecture decision for extracting the complete CLI history, adopting the Lexr.sh identity, and completing the OE repository cut-over.
 ---
 
 ## Status
 
-Accepted on 2026-08-31.
+Accepted and amended on 2026-08-31.
 
 ## Context
 
-The project began as Linux Armer beneath `cli/linux-armer` in the Surface Pro
-11 OE repository. Its command, source, tests, catalogues, architecture records,
-Windows collector and release automation became a cohesive product with an
-independent lifecycle. Keeping that product nested in the OE repository couples
-ordinary CLI development and releases to a larger integration repository.
+The project began as an embedded CLI beneath a differently named directory in
+the Surface Pro 11 OE repository. Its command, source, tests, catalogues,
+architecture records, Windows collector and release automation became a
+cohesive product with an independent lifecycle. Keeping that product nested in
+the OE repository couples ordinary CLI development and releases to a larger
+integration repository.
 
 The public product is now named Lexr.sh, its command is `lexr`, and its
 standalone repository is
@@ -23,12 +24,16 @@ tree would discard the reasoning and authorship needed to audit the tool.
 Moving the source without its workflow history would also separate release
 policy from the commits which introduced it.
 
-Some former product-name strings are more than presentation. They occur in
-versioned wire domains, schema-3 image paths, private state locations, installed
-system paths, unit names, bundle filenames and existing OE release provenance.
-Renaming those values in place would make old images or installations
-unreadable, invalidate domain-separated hashes, or require a risky state
-migration unrelated to the public rename.
+An initial migration plan retained some predecessor identifiers in versioned
+wire domains, media paths, private state, installed system paths, unit names and
+bundle filenames. That approach would leave the new standalone repository with
+two product identities before its first public release. It would also make new
+artefacts look only partly renamed and force every future contract to explain a
+pre-release identity indefinitely.
+
+Existing OE repository and release URLs are external provenance rather than
+Lexr-owned identifiers. They must remain accurate so kernel releases and shared
+links continue to resolve.
 
 ## Decision
 
@@ -40,10 +45,10 @@ directories, temporary workspaces and locally generated artefact names use the
 `lexr` name.
 
 The repository history is extracted from a fresh clone with `git filter-repo`.
-The filter selects both the complete `cli/linux-armer/` history and the
-dedicated release workflow, removes the CLI directory prefix so its contents
+The filter selects both the complete former embedded CLI history and the
+dedicated release workflow, removes the former directory prefix so its contents
 become the new repository root, and leaves the workflow beneath
-`.github/workflows/`. The rebrand is applied only after the filtered history is
+`.github/workflows/`. The rename is applied only after the filtered history is
 validated, as an ordinary follow-on commit. Rewriting necessarily changes
 commit object IDs, but it must not rewrite author or committer identities,
 timestamps or commit messages.
@@ -55,34 +60,38 @@ tip `04583868b513ab475c3b07832a3a1ff563bf1280`. It proves all of the following:
 - 35 source commits map in linear order, including both commits which changed
   the release workflow;
 - all 315 selected source paths are present at the standalone root;
-- each mapped tree is byte-equivalent after removing the historical
-  `cli/linux-armer/` prefix;
+- each mapped tree is byte-equivalent after removing the former embedded
+  directory prefix;
 - author and committer names, email addresses and timestamps, together with
   every commit message, compare exactly;
 - no Git replacement refs remain; and
 - `git fsck --full` reports a valid object graph.
 
-The following compatibility identifiers remain deliberately unchanged:
+Every active Lexr-owned identity uses the Lexr name. This includes the command,
+Go module, media inventory and companion paths, source archives, private
+hand-off stores and documents, hash domains, installed configuration and
+library paths, service units, kernel hooks, receipts, bundle manifests,
+provenance documents and release filenames. Current producers do not emit a
+predecessor identifier, and current readers do not silently reinterpret one as
+Lexr.
 
-- `/sp11/linux-armer-manifest.json`,
-  `/sp11/companion/bin/linux-arm64/linux-armer`, and the schema-3 companion
-  source-archive path;
-- `linux-armer.windows-handoff`, its manifest name, and every existing binding,
-  application, purge, restore and target-observation hash domain;
-- `.linux-armer-handoffs`, `/etc/linux-armer`,
-  `/usr/libexec/linux-armer`, `/usr/lib/linux-armer`,
-  `/var/lib/linux-armer/backups`, hand-off receipt paths, and existing
-  `linux-armer-sp11-*` units and kernel hooks;
-- established kernel and userspace bundle, provenance and release filenames;
-  and
-- OE repository and release URLs recorded by existing catalogues, manifests or
-  provenance records.
+Where an identifier participates in a serialised, installed or domain-separated
+contract, this rename is a deliberate breaking contract revision. The image
+manifest advances to schema 4, the Windows hand-off advances to schema 3 with
+collector `3.0.0`, and private hand-off application receipts advance to schema
+2. Validators reject mixed-identity documents, and generated digests use only
+the Lexr domain. This clean boundary is acceptable before `0.1.0`: pre-release
+images and hand-offs must be recreated or recollected, and installations must
+be reinstalled rather than silently migrated. Recovery receipts must not be
+recreated. They must instead be completed or restored with the exact predecessor
+binary before upgrading, or retained with that binary and their complete
+recovery material until recovery is no longer required. Any future migration
+reader requires its own bounded, reversible decision and must never cause a
+current producer to emit the former identity.
 
-These strings are compatibility contracts and are not the current public
-product name. New code must not reuse them for unrelated state. A future
-version may introduce a separately versioned migration, but must continue to
-read every supported existing contract or provide an explicit, reversible
-upgrade path.
+OE repository and release URLs recorded by catalogues, manifests or provenance
+remain unchanged because they identify the external kernel publication channel,
+not the Lexr product.
 
 The OE cut-over is staged. The standalone repository is populated and verified
 first. Only after a clean clone builds, tests pass, the release workflow is
@@ -99,11 +108,11 @@ because the filtered repository exists locally.
 > subsequent automation-ownership decision is recorded in
 > [ADR024](adr-024-lexr-owned-automation.md).
 
-Earlier accepted ADRs remain historical records of decisions made under the
-Linux Armer name. Their original product-name references are historical facts
-or stable compatibility identifiers. An additive naming note links each
-affected ADR to this decision without rewriting past context as though the
-Lexr.sh name existed at that time.
+Earlier accepted ADRs retain their technical decisions, but their product,
+command, path and wire terminology is normalised to Lexr. Each affected record
+links to this decision so readers can distinguish the technical history from
+the later standalone naming boundary without carrying the retired identity in
+the current tree.
 
 ## Consequences
 
@@ -112,10 +121,10 @@ Lexr.sh name existed at that time.
 - The full CLI feature and release-workflow history remains available for
   blame, audit and archaeology in the standalone repository. Earlier IPTSD and
   kernel workflow commits remain in OE history.
-- Existing image manifests, companion payloads, hand-offs, installations,
-  receipts and release provenance remain readable after the public rename.
-- Contributors must distinguish current branding from compatibility strings;
-  a remaining `linux-armer` value is not automatically a missed rename.
+- Every current product-owned path, wire value, manifest and example has one
+  unambiguous Lexr identity.
+- Pre-release artefacts using the predecessor identity are intentionally not
+  accepted as current Lexr contracts; operators must recreate them.
 - Filtered commits have different object IDs from their OE ancestors, so the
   verified mapping and immutable source tip are part of the migration evidence.
 - The two repositories briefly contained the same source during verification;

@@ -10,9 +10,8 @@ description: Architecture decision for deterministic, local-only preparation and
 
 Accepted on 2026-08-30.
 
-Naming note: the current product is Lexr.sh and its command is `lexr`. Commands
-below retain their accepted historical spelling; use `lexr` now. Established
-release filenames remain compatibility contracts under
+Terminology, commands and release filenames in this record have been
+normalised to Lexr.sh and `lexr` following
 [ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
 
 ## Context
@@ -38,18 +37,6 @@ source that changes after inspection.
 
 The `internal/audio/release` feature package owns the current FullIO v19c local
 release workflow. Cobra exposes the domain as:
-
-```text
-linux-armer userspace audio release prepare \
-  --source-root <SP11X1e-audio-checkout> \
-  --tag sp11-audio-v19c \
-  --kernel-tag <paired-kernel-tag> \
-  --kernel-abi <paired-qcom-x1e-ABI>
-linux-armer userspace audio release validate <release-directory>
-```
-
-Those commands record the accepted historical interface. The current
-equivalents are:
 
 ```text
 lexr userspace audio release prepare \

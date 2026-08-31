@@ -19,8 +19,8 @@ import (
 var archiveTimestamp = time.Unix(0, 0).UTC()
 
 // writeSourceArchive creates a deterministic gzip-compressed tar containing
-// only the prevalidated, allow-listed Lexr source files. The archive retains
-// its schema-3 root name so existing media readers remain compatible.
+// only the prevalidated, allow-listed Lexr source files beneath its current
+// product root.
 func writeSourceArchive(destination string, files []sourceFile) error {
 	if len(files) == 0 {
 		return errors.New("create companion source archive: maintained source set is empty")
@@ -84,7 +84,7 @@ func writeArchiveFiles(writer *tar.Writer, files []sourceFile) error {
 			)
 		}
 		header := &tar.Header{
-			Name:       path.Join("linux-armer", file.portablePath),
+			Name:       path.Join("lexr", file.portablePath),
 			Mode:       0o644,
 			Size:       file.size,
 			ModTime:    archiveTimestamp,

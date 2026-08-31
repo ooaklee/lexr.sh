@@ -30,9 +30,9 @@ const (
 	// checksumManifestName is the downstream local bundle trust manifest.
 	checksumManifestName = "SHA256SUMS"
 	// provenanceManifestName stores source and recipe identity beside packages.
-	provenanceManifestName = "linux-armer-kernel-build-provenance.json"
+	provenanceManifestName = "lexr-kernel-build-provenance.json"
 	// bundleManifestName stores the normal validated kernel bundle contract.
-	bundleManifestName = "linux-armer-kernel-bundle.json"
+	bundleManifestName = "lexr-kernel-bundle.json"
 )
 
 // gitObjectExpression accepts SHA-1 or SHA-256 Git object identifiers.

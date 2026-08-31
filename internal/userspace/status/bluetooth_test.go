@@ -113,17 +113,17 @@ func writeNativeBluetoothIntegrationFixture(t *testing.T, root, secret string) {
 	writeFile(t, root, handoffapplication.BluetoothConfigPath, 0o600, `{"schema_version":2,"controller_selector":"surface-pro-11-wcn7850-uart","address":"`+secret+`"}`)
 	writeSyntheticELF(t, root, handoffapplication.InstalledBinaryPath, debugelf.EM_AARCH64, "", nil)
 	writeFile(t, root, handoffapplication.BluetoothUnitPath, 0o644, `[Unit]
-ConditionPathExists=/etc/linux-armer/private/bluetooth-address.json
+ConditionPathExists=/etc/lexr/private/bluetooth-address.json
 Before=bluetooth.service
 [Service]
-ExecStart=/usr/libexec/linux-armer/linux-armer handoff internal-bluetooth-address
+ExecStart=/usr/libexec/lexr/lexr handoff internal-bluetooth-address
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 `)
 	link := filepath.Join(root, filepath.FromSlash(handoffapplication.BluetoothWantsPath))
 	mkdir(t, filepath.Dir(link))
-	if err := os.Symlink("../linux-armer-sp11-bluetooth-address.service", link); err != nil {
+	if err := os.Symlink("../lexr-sp11-bluetooth-address.service", link); err != nil {
 		t.Fatal(err)
 	}
 }

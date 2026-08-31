@@ -180,12 +180,12 @@ func includedCompanionFixture() imagecontract.CompanionBundleRecord {
 		ProjectLicence: "not-declared",
 		Executable: &imagecontract.ExecutableArtifactRecord{
 			Artifact: imagecontract.ArtifactRecord{
-				Path: "sp11/companion/bin/linux-arm64/linux-armer", SHA256: strings.Repeat("5", 64), Size: 1,
+				Path: "sp11/companion/bin/linux-arm64/lexr", SHA256: strings.Repeat("5", 64), Size: 1,
 			},
 			OperatingSystem: "linux", Architecture: "arm64", Format: "ELF", Mode: "0755",
 		},
 		SourceArchive: &imagecontract.ArtifactRecord{
-			Path:   "sp11/companion/source/linux-armer_v0.1.0-test_source.tar.gz",
+			Path:   "sp11/companion/source/lexr_v0.1.0-test_source.tar.gz",
 			SHA256: strings.Repeat("6", 64), Size: 1,
 		},
 		Catalogues: []imagecontract.ArtifactRecord{
@@ -255,31 +255,6 @@ func TestPrepareAndValidatePublishesExactRelease(t *testing.T) {
 		if strings.HasSuffix(entry.Name(), ".journal.json") {
 			t.Fatalf("private path-bearing journal was published: %s", entry.Name())
 		}
-	}
-}
-
-// TestValidateAcceptsHistoricalReleaseNotes proves the public validator keeps
-// accepting exact checksum-bound notes prepared before the command rename.
-func TestValidateAcceptsHistoricalReleaseNotes(t *testing.T) {
-	fixture := newFixture(t)
-	manager := New(fakeValidator{report: fixture.report}, fakeCompressor{})
-	receipt, err := manager.Prepare(context.Background(), Request{
-		RepositoryRoot: fixture.root, ImagePath: fixture.image,
-		ReleaseName: "historical-notes", PartSizeBytes: 31,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if receipt.Manifest == nil {
-		t.Fatal("Prepare() omitted the release manifest")
-	}
-	notesPath := filepath.Join(receipt.Plan.OutputDirectory, NotesName)
-	if err := os.WriteFile(notesPath, renderLegacyNotes(*receipt.Manifest), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	rewriteReleaseChecksums(t, receipt.Plan.OutputDirectory)
-	if _, err := manager.Validate(context.Background(), receipt.Plan.OutputDirectory); err != nil {
-		t.Fatalf("Validate() rejected historical release notes: %v", err)
 	}
 }
 

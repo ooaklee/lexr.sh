@@ -9,28 +9,27 @@ The first implemented image adapter targets the experimental Ubuntu Concept Reso
 > [!WARNING]
 > The generated media and its custom kernel are experimental. Keep another bootable recovery device available, back up important data, and disable Secure Boot before booting an unsigned custom kernel.
 
-## Naming and compatibility
+## Naming boundary
 
 Lexr.sh is the current project and repository name, and `lexr` is the current
-command. The project previously lived in the OE repository as Linux Armer. A
-small set of established `linux-armer` identifiers remains deliberately stable
-so existing images, private hand-offs, installations and release assets do not
-become unreadable during the rename:
+command. The project previously lived beneath a differently named CLI directory
+in the OE repository. The standalone repository now uses the Lexr identity
+consistently across commands, media paths, private state, installed integration,
+wire domains, manifests and release filenames:
 
-- schema-3 media paths, including `/sp11/linux-armer-manifest.json`,
-  `/sp11/companion/bin/linux-arm64/linux-armer`, and the corresponding
-  `linux-armer_<version>_source.tar.gz` archive name;
-- the `.linux-armer-handoffs` store, `linux-armer.windows-handoff` wire values,
-  and their binding, application, purge, restore and target-observation domains;
-- `/etc/linux-armer`, `/usr/libexec/linux-armer`, `/usr/lib/linux-armer`,
-  `/var/lib/linux-armer`, and existing `linux-armer-sp11-*` units and hooks;
-- existing `linux-armer-*.json` kernel and userspace bundle, provenance and
-  release filenames; and
-- OE repository and release URLs already recorded as external provenance.
+- schema-4 media paths use `/sp11/lexr-manifest.json`,
+  `/sp11/companion/bin/linux-arm64/lexr`, and
+  `lexr_<version>_source.tar.gz`;
+- private hand-offs use the `.lexr-handoffs` store and `lexr.windows-handoff`
+  wire domains;
+- installed integration uses `/etc/lexr`, `/usr/libexec/lexr`,
+  `/usr/lib/lexr`, `/var/lib/lexr`, and `lexr-sp11-*` units and hooks; and
+- kernel and userspace bundle, provenance and release filenames use the
+  `lexr-*.json` form.
 
-These are compatibility contracts, not stale branding. New command output,
-temporary workspaces and cache names use `lexr`. [ADR023](docs/adr/adr-023-lexr-standalone-repository-and-compatibility.md)
-records the standalone repository migration and naming boundary.
+Existing OE repository and release URLs remain valid external provenance rather
+than product branding. [ADR023](docs/adr/adr-023-lexr-standalone-repository-and-compatibility.md)
+records the standalone repository migration and the completed naming boundary.
 
 ## What it does
 
@@ -189,7 +188,7 @@ lexr image write <iso> --device <whole-device> --dry-run
 lexr image release prepare <iso> --dry-run
 lexr image release validate <release-directory>
 
-HANDOFF_STORE="${HOME}/.linux-armer-handoffs"
+HANDOFF_STORE="${HOME}/.lexr-handoffs"
 lexr handoff import <directory> --store "$HANDOFF_STORE"
 lexr handoff list --store "$HANDOFF_STORE"
 lexr handoff apply <id> --store "$HANDOFF_STORE" --target-root <path> --dry-run
@@ -213,7 +212,7 @@ lexr userspace camera release validate <release-directory> --authority-sha256 <s
 lexr clean scan
 lexr clean plan --output lexr-cleanup-plan.json
 lexr clean apply --plan lexr-cleanup-plan.json --yes
-lexr clean restore /var/lib/linux-armer/backups/<transaction>/receipt.json --yes
+lexr clean restore /var/lib/lexr/backups/<transaction>/receipt.json --yes
 ```
 
 Use `lexr <command> --help` for the complete option set. Machine-readable JSON is available where a command advertises a `--json` option.
@@ -266,13 +265,13 @@ lexr image create \
 `--companion-source-dir` must identify a complete `lexr` source tree and requires a working host Go toolchain. Keep the image output, its sidecars, and any explicit `--workspace-dir` outside that source tree, as in the example. The source is snapshotted before its binary and archive are built, and a clean Git-backed tree must match the CLI's recorded commit. `--companion-userspace` is repeatable, but the initial offline allow-list accepts only `iptsd`. `recommended`, restricted audio, platform firmware, and experimental camera packages are not accepted for on-media inclusion.
 
 The payload is stored under `/sp11/companion`. The embedded
-`/sp11/linux-armer-manifest.json` and the ISO-adjacent
+`/sp11/lexr-manifest.json` and the ISO-adjacent
 `*.iso.manifest.json` sidecar are byte-identical copies of the only image
 inventory; their mandatory `companion_bundle` attribute records every
 companion file. The deterministic
 source archive includes the strict Windows hand-off collector at
-`linux-armer/tools/collect-sp11-windows-handoff.ps1`. The first path component
-is the stable schema-3 archive root retained for compatibility; the archive
+`lexr/tools/collect-sp11-windows-handoff.ps1`. The first path component
+is the schema-4 archive root; the archive
 never contains
 collected device data. The portable receipt inside an IPTSD release verifies
 that component's relocatable files and is itself included in the outer
@@ -289,7 +288,7 @@ COMPANION_ROOT=/cdrom/sp11/companion
 TOOL=/tmp/lexr
 
 install -m 0755 \
-  "$COMPANION_ROOT/bin/linux-arm64/linux-armer" \
+  "$COMPANION_ROOT/bin/linux-arm64/lexr" \
   "$TOOL"
 
 "$TOOL" version
@@ -300,8 +299,8 @@ install -m 0755 \
 "$TOOL" doctor userspace
 ```
 
-The source path keeps the schema-3 companion filename for compatibility; the
-copy is invoked as `lexr` through the writable `$TOOL` path.
+The source path uses the schema-4 companion filename; the copy is invoked as
+`lexr` through the writable `$TOOL` path.
 
 A non-zero userspace doctor result means support is still missing; it does not by itself mean the companion is damaged. If IPTSD was included, first verify its installation plan and then apply it to the live session:
 
@@ -506,9 +505,9 @@ Mark an entry `implemented` only when its named adapter can create and validate 
 
 Some Surface Pro 11 platform firmware and the Bluetooth public controller address must come from an authorised Windows installation on the same device. They are private device data, not a userspace release and not an ISO companion. Do not add a collected hand-off directory, its manifest, or any of its payloads to an image, release, issue, diagnostic archive, or source checkout.
 
-The canonical Windows collector is `tools/collect-sp11-windows-handoff.ps1` in the CLI source tree and emits one strict directory. It is also present in the companion source archive, so a user can extract that ordinary non-private script from the live medium before running it in Windows. Contract version 2 and collector `2.0.0` use a fresh random salt and a domain-separated SMBIOS UUID binding for same-device application. The raw SMBIOS UUID is never exported. A selected Bluetooth adapter instance identifier remains private in-memory collection evidence and is not exported as either raw text or a digest. Platform firmware is an all-or-absent eleven-file set with fixed destinations, copied-byte digests, and Windows DriverStore provenance; every file must come from its exact compiled original INF basename rather than a mutable `oemN.inf` alias or a filename-only match. Windows Wi-Fi firmware is deliberately excluded because Linux board firmware remains owned by the distribution firmware package.
+The canonical Windows collector is `tools/collect-sp11-windows-handoff.ps1` in the CLI source tree and emits one strict directory. It is also present in the companion source archive, so a user can extract that ordinary non-private script from the live medium before running it in Windows. Contract version 3 and collector `3.0.0` use a fresh random salt and a domain-separated SMBIOS UUID binding for same-device application. The raw SMBIOS UUID is never exported. A selected Bluetooth adapter instance identifier remains private in-memory collection evidence and is not exported as either raw text or a digest. Platform firmware is an all-or-absent eleven-file set with fixed destinations, copied-byte digests, and Windows DriverStore provenance; every file must come from its exact compiled original INF basename rather than a mutable `oemN.inf` alias or a filename-only match. Windows Wi-Fi firmware is deliberately excluded because Linux board firmware remains owned by the distribution firmware package.
 
-Contract version 2 is an unpublished pre-release cut-over, not an import, application, or migration compatibility extension. The CLI never imports or applies version 1 material. An exact version 1 entry already held in the content-addressed private store remains visible as schema `1` through `handoff list` and can be removed only through the reviewed `handoff purge` transaction below. Purge each such entry before recollecting with collector `2.0.0`; do not bypass the closed-set checks with recursive deletion. A transferred version 1 source directory is not valid version 2 input and must not be reused.
+Contract versions 1 and 2 were unpublished pre-release shapes. The current CLI does not import, list, purge or apply them, and it never silently treats their state as Lexr state. Before upgrading, use the exact predecessor binary which created any stored pre-release entry to complete its reviewed purge, then recollect with collector `3.0.0`. A transferred version 1 or version 2 source directory is not valid version 3 input and must not be reused.
 
 ### Collect on Windows
 
@@ -586,7 +585,7 @@ The removable copy is private even when its filesystem cannot preserve Windows A
 Copy the completed hand-off directory from the private medium to the Linux system, then import it as the same unprivileged user who will manage it:
 
 ```sh
-HANDOFF_STORE="${HOME}/.linux-armer-handoffs"
+HANDOFF_STORE="${HOME}/.lexr-handoffs"
 lexr handoff import <windows-handoff-directory> --store "$HANDOFF_STORE"
 lexr handoff list --store "$HANDOFF_STORE"
 ```
@@ -635,6 +634,12 @@ sudo lexr handoff restore <receipt-id> \
 
 Do not delete a retained receipt or its private backup directory until application, boot validation, and any necessary restoration have completed. `--json` is available for redacted automation output on both commands.
 
+The current Lexr restore path accepts only schema-2 application receipts. Before
+upgrading, use the exact predecessor binary which created a schema-1 receipt to
+finish restoration. If restoration must be deferred, retain that exact binary
+together with the receipt, backups and target until recovery is complete; a
+schema-1 receipt cannot be recreated safely from current state.
+
 Review retention before deleting an entry from the same explicit private store:
 
 ```sh
@@ -642,7 +647,14 @@ lexr handoff purge <id> --store "$HANDOFF_STORE" --dry-run
 lexr handoff purge <id> --store "$HANDOFF_STORE" --confirm 'purge <id>'
 ```
 
-Purge accepts only the complete content-addressed phrase, revalidates the private closed set, atomically isolates that exact direct child, revalidates it again, and removes only the verified files and directories. This is also the sole supported removal path for an exact pre-release version 1 store entry; version 1 remains ineligible for import, migration, and application. Purging a stored entry does not remove application receipts or backups from a target root; recover or deliberately retain those records independently.
+Purge accepts only the complete content-addressed phrase, revalidates the private
+closed set, atomically isolates that exact direct child, revalidates it again,
+and removes only the verified files and directories. The current command
+accepts only Lexr's version 3 store entries. Use the exact predecessor binary
+which created a version 1 or version 2 entry to purge that state before
+upgrading; recursive manual deletion is not a supported substitute. Purging a
+current stored entry does not remove application receipts or backups from a
+target root; recover or deliberately retain those records independently.
 
 Host-independent tests do not replace maintained-hardware qualification. Successful collection on supported Windows, private transfer, same-device Linux import and application, Bluetooth address programming, firmware loading, cold boot, and restoration on the same physical Surface Pro 11 remain release gates. [ADR022](docs/adr/adr-022-privileged-windows-collection-and-controller-authority.md) records the privileged storage and controller-authority decision together with the reviewed Microsoft driver-package evidence.
 
@@ -763,18 +775,24 @@ sudo lexr clean apply \
 
 The scanner considers only a fixed set of known legacy paths. Required content markers must match before a regular file is considered recognised. A known service-enablement link must resolve to the exact retired unit. Other links, unusual files, changed content, and entries created after planning are left for manual review.
 
-Applying a plan requires `--yes`. Before the first original path changes, the CLI writes and flushes a prepared recovery receipt below `/var/lib/linux-armer/backups`. Each reviewed entry is then atomically moved into a private same-filesystem quarantine, verified again, copied into its durable backup, and removed from quarantine. A completed receipt is published only after every entry succeeds. If the operation is interrupted, `receipt.pending.json` maps any original, quarantine, and backup locations.
+Applying a plan requires `--yes`. Before the first original path changes, the CLI writes and flushes a prepared recovery receipt below `/var/lib/lexr/backups`. Each reviewed entry is then atomically moved into a private same-filesystem quarantine, verified again, copied into its durable backup, and removed from quarantine. A completed receipt is published only after every entry succeeds. If the operation is interrupted, `receipt.pending.json` maps any original, quarantine, and backup locations.
 
 Restore a prepared or completed transaction with the receipt path printed by `clean apply` or included in an interruption error:
 
 ```sh
 sudo lexr clean restore \
-  /var/lib/linux-armer/backups/<transaction>/receipt.json \
+  /var/lib/lexr/backups/<transaction>/receipt.json \
   --root / \
   --yes
 ```
 
 Restoration verifies regular-file digests or exact symbolic-link text and refuses to overwrite locally changed content. Recovery copies remain available after a successful restore.
+
+Current `clean restore` accepts only receipts and quarantine names created in
+Lexr's recovery hierarchy. Before upgrading, restore any predecessor clean-up
+transaction with the exact binary which created it. If recovery must be
+deferred, retain that binary together with its receipt, backups, quarantine
+content and target; do not rename those paths into the Lexr hierarchy.
 
 The allow-list currently covers selected system-wide audio routing helpers, in-tree touchscreen configuration hooks, and G6 service enablement. It does not automatically remove arbitrary out-of-tree modules, rebuild contaminated historical initramfs images, delete per-user configuration, or remove unfamiliar UCM data. Those findings require explicit manual diagnosis. A future kernel change can also make a workaround relevant again, so removal remains an operator decision.
 

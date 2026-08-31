@@ -181,7 +181,7 @@ Describe 'Surface Pro 11 Windows hand-off collector contract' {
         $matching[0].OriginalINFName | Should -BeExactly 'qcnspmcdm_ext_cdsp8380.inf'
     }
 
-    It 'emits the exact strict version 2 manifest shape' {
+    It 'emits the exact strict version 3 manifest shape' {
         $firmware = [ordered]@{
             included = $true
             files = @([ordered]@{
@@ -209,8 +209,8 @@ Describe 'Surface Pro 11 Windows hand-off collector contract' {
             -BluetoothPublicAddress ([ordered]@{ included = $true; address = '10:20:30:40:50:60'; source = 'net-adapter-permanent-address' })
 
         ($manifest.Keys -join '|') | Should -BeExactly 'schema_version|kind|privacy_classification|created_at|collector|device|platform_firmware|bluetooth_public_address'
-        $manifest.schema_version | Should -Be 2
-        $manifest.collector.version | Should -BeExactly '2.0.0'
+        $manifest.schema_version | Should -Be 3
+        $manifest.collector.version | Should -BeExactly '3.0.0'
         ($manifest.platform_firmware.files[0].windows_source.Keys -join '|') | Should -BeExactly 'driver_store_path|published_inf|original_inf|driver_version|catalogue_sha256|catalogue_signature'
         $manifest.platform_firmware.files[0].windows_source.original_inf | Should -BeExactly 'qcdx8380.inf'
         $json = $manifest | ConvertTo-Json -Depth 12

@@ -301,21 +301,9 @@ func (manager *Manager) prepareReceipt(ctx context.Context, root *os.Root, plan 
 
 // transactionSiblingPaths returns deterministic hidden names in the same parent.
 func transactionSiblingPaths(targetPath, planSHA256 string, index int) (string, string) {
-	return transactionSiblingPathsForProduct(targetPath, planSHA256, index, "lexr")
-}
-
-// legacyTransactionSiblingPaths returns the exact pre-rename hidden names
-// needed to validate and recover existing private receipts.
-func legacyTransactionSiblingPaths(targetPath, planSHA256 string, index int) (string, string) {
-	return transactionSiblingPathsForProduct(targetPath, planSHA256, index, "linux"+"-armer")
-}
-
-// transactionSiblingPathsForProduct returns deterministic hidden names for
-// one reviewed current or historical product marker.
-func transactionSiblingPathsForProduct(targetPath, planSHA256 string, index int, product string) (string, string) {
 	parent := path.Dir(targetPath)
 	base := path.Base(targetPath)
-	prefix := fmt.Sprintf(".%s.%s-%s-%02d", base, product, planSHA256[:16], index)
+	prefix := fmt.Sprintf(".%s.lexr-%s-%02d", base, planSHA256[:16], index)
 	return path.Join(parent, prefix+".new"), path.Join(parent, prefix+".backup")
 }
 

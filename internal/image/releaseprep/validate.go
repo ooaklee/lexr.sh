@@ -228,7 +228,7 @@ func (manager *Manager) validateDirectory(ctx context.Context, directory string)
 	if err != nil {
 		return Manifest{}, err
 	}
-	if !bytes.Equal(renderNotes(manifest), notesData) && !bytes.Equal(renderLegacyNotes(manifest), notesData) {
+	if !bytes.Equal(renderNotes(manifest), notesData) {
 		return Manifest{}, errors.New("release notes differ from the manifest-derived contract")
 	}
 	if err := validateDeclaredRecords(records, manifest); err != nil {

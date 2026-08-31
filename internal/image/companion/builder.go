@@ -42,7 +42,7 @@ const (
 	userspaceCatalogueName = "supported-userspace.json"
 	// userspaceReceiptName is the portable receipt published by the verified
 	// userspace release downloader.
-	userspaceReceiptName = "linux-armer-userspace-bundle.json"
+	userspaceReceiptName = "lexr-userspace-bundle.json"
 	// projectLicenceDeclared records that the source root contains a recognised
 	// project-level redistribution document.
 	projectLicenceDeclared = "declared"
@@ -53,7 +53,7 @@ const (
 	executableMode = "0755"
 	// executableRelativePath is the stable path of the Linux ARM64 CLI beneath
 	// ISOFilesystemRoot.
-	executableRelativePath = "bin/linux-arm64/linux-armer"
+	executableRelativePath = "bin/linux-arm64/lexr"
 	// buildPackage is the maintained Go command built for the companion bundle.
 	buildPackage = "./cmd/lexr"
 	// linkerVersionVariable is the fully qualified release-version variable set
@@ -535,7 +535,7 @@ func (b *Builder) stageExecutable(ctx context.Context, request BuildRequest, tem
 // stageSourceArchive creates the deterministic gzip-compressed tar archive and
 // returns its immutable artefact record.
 func stageSourceArchive(prepared preparedRequest, temporaryRoot string) (imagecontract.ArtifactRecord, error) {
-	name := fmt.Sprintf("linux-armer_%s_source.tar.gz", prepared.request.Version)
+	name := fmt.Sprintf("lexr_%s_source.tar.gz", prepared.request.Version)
 	relative := path.Join("source", name)
 	destination := filepath.Join(temporaryRoot, filepath.FromSlash(relative))
 	if err := writeSourceArchive(destination, prepared.sourceFiles); err != nil {

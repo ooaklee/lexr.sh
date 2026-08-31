@@ -6,11 +6,13 @@ description: Architecture decision for the strict version 2 Windows hand-off, SM
 
 ## Status
 
-Accepted on 2026-08-30. Supersedes ADR011's version 1 interchange contract.
+Accepted on 2026-08-30. Superseded as the current interchange version by
+[ADR023](adr-023-lexr-standalone-repository-and-compatibility.md) on
+2026-08-31; its original-INF and privacy decisions remain current in version 3.
 
-Naming note: the current product is Lexr.sh and its command is `lexr`. The
-Linux Armer wire, store and archive names below remain compatibility contracts
-under [ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
+Terminology, wire names, store paths and archive names in this record have been
+normalised to Lexr.sh following
+[ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
 
 ## Context
 
@@ -22,7 +24,14 @@ The contract is still unpublished, so correcting both issues before a supported 
 
 ## Decision
 
-The hand-off contract moves directly to schema version 2. Collector `2.0.0` is its first canonical producer, and the import and application decoder accepts only version 2 documents. There is no version 1 import, application, or migration claim.
+At acceptance, the hand-off contract moved directly to schema version 2. Collector `2.0.0` was its first canonical producer, and that decoder accepted only version 2 documents. There was no version 1 import, application, or migration claim.
+
+> **Implementation amendment (2026-08-31):** The complete Lexr naming boundary
+> advances the active hand-off to schema version 3 and collector `3.0.0`.
+> Versions 1 and 2 are unpublished predecessor contracts and are not accepted
+> by the current importer, store, purge or application paths. The strict
+> original-INF authority, privacy limits and physical-controller selection in
+> this decision remain unchanged.
 
 Every platform firmware policy fixes an authoritative canonical lowercase original INF basename in addition to the source filename, payload path, and Linux destination:
 
@@ -36,13 +45,16 @@ Version 2 removes `bluetooth_public_address.adapter_instance_id_binding_sha256`.
 
 The fresh random salt and domain-separated SMBIOS product UUID binding remain unchanged. Application re-derives this binding from the chosen identity root and treats it as the same-device boundary for both firmware and Bluetooth operations. The CLI does not claim cryptographic correspondence between a Windows adapter instance and a particular Linux controller. Instead, ADR022 gives Linux an independent compiled device-tree selector for the built-in radio and removes numeric HCI enumeration order from the application contract.
 
-An exact pre-release version 1 entry that an older CLI already placed in the content-addressed private store remains available only to `handoff list` and `handoff purge`. A separate unexported maintenance decoder enforces the complete historical field set, unions, mappings, payload identities, private modes, and closed directory layout, then returns only the ordinary redacted summary and schema number. It never returns application material and is not used by import, migration, or application.
+The version 2 implementation temporarily retained a maintenance-only path for
+an exact pre-release version 1 store entry. Version 3 removes that decoder so
+the standalone tree has one product and wire identity. Operators with version
+1 or version 2 state must use the exact predecessor binary which created it to
+complete a reviewed purge before upgrading, then recollect with `3.0.0`.
+Recursive manual deletion is not a supported cut-over step.
 
-Operators identify schema `1` entries with `handoff list`, review each content-addressed purge plan, supply the exact `purge <id>` confirmation, and purge them before recollecting with collector `2.0.0`. Purge retains the existing revalidation, quarantine, second validation, and component-wise no-follow deletion contract; recursive manual deletion is not a supported cut-over step. A version 1 source directory remains invalid version 2 input and must not be reused.
+Windows CI runs the collector's host-independent self-test under Windows PowerShell and the pinned Pester contract suite under PowerShell 7. The tests pin the complete Go-aligned policy, duplicate-source-name disambiguation, the emitted version 3 manifest shape, built-in radio selection, protected output transactions, file copying, encoding, and binding vector. Go tests pin strict current decoding, mandatory original-INF fields, exact policy validation, rejection of predecessor schemas and the retired adapter-digest field, and device-tree selection which cannot be captured by an external `hci0`.
 
-Windows CI runs the collector's host-independent self-test under Windows PowerShell and the pinned Pester contract suite under PowerShell 7. The tests pin the complete Go-aligned policy, duplicate-source-name disambiguation, the emitted version 2 manifest shape, built-in radio selection, protected output transactions, file copying, encoding, and binding vector. Go tests pin strict current decoding, mandatory original-INF fields, exact policy validation, rejection of the retired adapter-digest field by version 2, rejection of version 1 import and application, maintenance-only listing and purge of an exact historical closed set, and device-tree selection which cannot be captured by an external `hci0`.
-
-Every GoReleaser platform archive includes the ordinary non-private collector script alongside the Linux Armer binary, catalogues, and documentation. Collected hand-off manifests and proprietary payloads remain prohibited from release archives and ISO companion bundles.
+Every GoReleaser platform archive includes the ordinary non-private collector script alongside the Lexr binary, catalogues, and documentation. Collected hand-off manifests and proprietary payloads remain prohibited from release archives and ISO companion bundles.
 
 > **Implementation amendment (2026-08-31):** ADR024 supersedes the release-
 > archive delivery clause above. Lexr Releases now contain only raw Lexr
@@ -55,6 +67,6 @@ Every GoReleaser platform archive includes the ordinary non-private collector sc
 - Stable original INF identity, rather than a mutable published alias or duplicate filename, becomes firmware selection authority.
 - The exported contract contains no unused opaque adapter-identity digest and makes only the same-device claim that Linux actually enforces.
 - Privileged collection storage and physical Bluetooth selection remain explicit policy under ADR022 rather than implicit assumptions inside the interchange schema.
-- Operators with pre-release version 1 store entries can identify and purge them safely before recollection; automated migration could incorrectly preserve ambiguous provenance and is deliberately unavailable.
+- Operators must purge pre-release version 1 or version 2 state with the exact predecessor binary before upgrading and recollecting; automated migration could incorrectly preserve ambiguous provenance and is deliberately unavailable.
 - Windows contract drift blocks CLI releases through the dedicated CI job, while the matching collector remains available from the tagged source and companion source archive.
 - Host-independent CI does not establish maintained-hardware success. Collection from a supported Windows installation, transfer, import, same-device application, Bluetooth programming, firmware loading, restoration, and cold-boot behaviour remain explicit Surface Pro 11 release gates.

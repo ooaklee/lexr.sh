@@ -14,7 +14,7 @@ import (
 
 const (
 	// restorePlanDomain separates private receipt recovery from application plans.
-	restorePlanDomain = "linux-armer.windows-handoff/restore-plan/v1\x00"
+	restorePlanDomain = "lexr.windows-handoff/restore-plan/v1\x00"
 	// restoreConfirmationPrefix prevents a generic affirmative from restoring data.
 	restoreConfirmationPrefix = "restore "
 )

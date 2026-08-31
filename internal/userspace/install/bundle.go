@@ -16,7 +16,7 @@ import (
 )
 
 // bundleManifestName is the receipt emitted by the bounded release downloader.
-const bundleManifestName = "linux-armer-userspace-bundle.json"
+const bundleManifestName = "lexr-userspace-bundle.json"
 
 // maxBundleManifestBytes bounds receipt memory use before strict decoding.
 const maxBundleManifestBytes = 1 << 20

@@ -92,8 +92,7 @@ func validateDirectory(ctx context.Context, path string) (Manifest, error) {
 	}
 	notes, err := readStableIdentity(notesIdentity, maximumTextBytes)
 	currentNotes := renderReleaseNotes(Plan{Manifest: manifest})
-	legacyNotes := renderLegacyReleaseNotes(Plan{Manifest: manifest})
-	if err != nil || (string(notes) != currentNotes && string(notes) != legacyNotes) {
+	if err != nil || string(notes) != currentNotes {
 		return Manifest{}, errors.New("release notes differ from the manifest-derived British-English contract")
 	}
 	return manifest, nil

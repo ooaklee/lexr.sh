@@ -165,8 +165,8 @@ jobs:
           set -euo pipefail
 
           build_dir="build/lexr/kernel-ci"
-          provenance_file="${build_dir}/linux-armer-kernel-build-provenance.json"
-          bundle_file="${build_dir}/linux-armer-kernel-bundle.json"
+          provenance_file="${build_dir}/lexr-kernel-build-provenance.json"
+          bundle_file="${build_dir}/lexr-kernel-bundle.json"
 
           source_url="$(jq -er '.git_url | strings' "${provenance_file}")"
           source_revision="$(jq -er '.revision | strings' "${provenance_file}")"

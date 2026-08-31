@@ -885,7 +885,7 @@ func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manife
 			return err
 		}
 	}
-	if err := writeNewSyncedFile(filepath.Join(sp11, "linux-armer-manifest.json"), manifestBytes, 0o644); err != nil {
+	if err := writeNewSyncedFile(filepath.Join(sp11, "lexr-manifest.json"), manifestBytes, 0o644); err != nil {
 		return err
 	}
 	companionNote := "No companion CLI bundle was requested for this image."

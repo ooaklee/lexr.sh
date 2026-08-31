@@ -8,8 +8,8 @@ description: Architecture decision for removing and restoring obsolete Surface P
 
 Accepted on 2026-08-30.
 
-Naming note: the current product is Lexr.sh and its command is `lexr`. Any
-`linux-armer` state paths below remain compatibility contracts under
+Terminology and state paths in this record have been normalised to Lexr.sh and
+`lexr` following
 [ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
 
 ## Context
@@ -24,9 +24,17 @@ Clean-up will use a fixed, reviewed list of repository-owned legacy paths and ex
 
 A regular file will be recognised only when its required content markers match. A service-enablement symbolic link will be recognised only when it resolves to the exact retired unit compiled into its rule. Other file types, unexpected links, and marker mismatches will be reported for manual review and never removed automatically.
 
-Applying clean-up will require the explicit `--yes` flag and a reviewed plan file. Before the first original path changes, the CLI will create and flush a prepared receipt below `/var/lib/linux-armer/backups`. Each entry will then be atomically renamed into a private directory on the original filesystem, verified against the plan, copied into its durable central backup, and removed from quarantine. This sequence ensures the entry removed from its original name is the entry preserved for recovery. Nested backup directories and receipt entries will be flushed before their corresponding destructive boundary.
+Applying clean-up will require the explicit `--yes` flag and a reviewed plan file. Before the first original path changes, the CLI will create and flush a prepared receipt below `/var/lib/lexr/backups`. Each entry will then be atomically renamed into a private directory on the original filesystem, verified against the plan, copied into its durable central backup, and removed from quarantine. This sequence ensures the entry removed from its original name is the entry preserved for recovery. Nested backup directories and receipt entries will be flushed before their corresponding destructive boundary.
 
 A completed receipt will replace the prepared receipt only after every planned entry succeeds. An interrupted transaction will retain `receipt.pending.json`, any same-filesystem quarantine entry, and any completed backup paths. `clean restore` will accept either prepared or completed receipts, revalidate their compiled paths and recovery contents, and recreate missing entries without overwriting locally changed content. Recovery copies will remain after restoration.
+
+> **Implementation amendment (2026-08-31):** ADR023 moves the recovery
+> hierarchy and quarantine identity to Lexr. Current restore paths accept only
+> receipts created under that identity. A predecessor clean-up transaction must
+> be restored with the exact binary which created it before upgrading, or that
+> binary and its complete recovery material must be retained until recovery is
+> no longer required. Renaming old recovery paths into the Lexr hierarchy is not
+> a supported migration.
 
 Clean-up will remain a separate command group and never be an implicit part of image creation or userspace installation.
 

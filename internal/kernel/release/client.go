@@ -191,7 +191,7 @@ func (c *Client) DownloadBundle(ctx context.Context, repository, ref, directory 
 	if err != nil {
 		return kernel.Bundle{}, err
 	}
-	manifestPath := filepath.Join(directory, "linux-armer-kernel-bundle.json")
+	manifestPath := filepath.Join(directory, "lexr-kernel-bundle.json")
 	file, err := os.OpenFile(manifestPath+".tmp", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
 	if err != nil {
 		return kernel.Bundle{}, fmt.Errorf("create kernel bundle manifest: %w", err)

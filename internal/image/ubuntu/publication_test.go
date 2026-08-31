@@ -133,7 +133,7 @@ func TestPublishImageOutputsPreserveExactManifestBytes(t *testing.T) {
 		t.Fatalf("publishImageOutputs() error = %v", err)
 	}
 
-	embeddedBytes, err := os.ReadFile(filepath.Join(directory, "sp11", "linux-armer-manifest.json"))
+	embeddedBytes, err := os.ReadFile(filepath.Join(directory, "sp11", "lexr-manifest.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

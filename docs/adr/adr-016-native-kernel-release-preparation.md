@@ -10,9 +10,8 @@ description: Architecture decision for preparing path-free, closed kernel releas
 
 Accepted on 2026-08-30.
 
-Naming note: the current product is Lexr.sh and its command is `lexr`. Commands
-below retain their accepted historical spelling; use `lexr` now. Established
-bundle filenames remain compatibility contracts under
+Terminology, commands and bundle filenames in this record have been normalised
+to Lexr.sh and `lexr` following
 [ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
 
 ## Context
@@ -43,14 +42,6 @@ become implicit authority to create a remote release.
 
 The `internal/kernel/releaseprep` domain owns local kernel release preparation
 and validation. Cobra exposes it as:
-
-```text
-linux-armer kernel release prepare
-linux-armer kernel release validate <release-directory>
-```
-
-Those commands record the accepted historical interface. The current
-equivalents are:
 
 ```text
 lexr kernel release prepare

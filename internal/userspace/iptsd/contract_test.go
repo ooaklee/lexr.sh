@@ -35,12 +35,6 @@ func TestCurrentLexrDocumentationIdentityRemainsInstallable(t *testing.T) {
 	testDocumentationIdentity(t, "sp11-iptsd-lexr-readme.fixture", "af2f4657a15125a1288f2453162954bbf3ee958c2935935d28302e503a45fdf3", 3540)
 }
 
-// TestPreLexrDocumentationAlternativeRemainsInstallable proves that an OE
-// checkout from immediately before the migration retains a reviewed identity.
-func TestPreLexrDocumentationAlternativeRemainsInstallable(t *testing.T) {
-	testDocumentationIdentity(t, "sp11-iptsd-pre-lexr-readme.fixture", "bbe4bbc0306636dadfa1679b349b2f79059de51f35cab95db15347b605d776c3", 3575)
-}
-
 // TestPublishedV1DocumentationAlternativeRemainsInstallable proves that the
 // immutable release's historical README identity remains accepted.
 func TestPublishedV1DocumentationAlternativeRemainsInstallable(t *testing.T) {

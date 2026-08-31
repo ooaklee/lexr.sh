@@ -418,7 +418,7 @@ func writeBundleManifest(directory string, bundle Bundle) error {
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(directory, "linux-armer-userspace-bundle.json")
+	path := filepath.Join(directory, "lexr-userspace-bundle.json")
 	file, err := os.CreateTemp(directory, ".lexr-userspace-bundle-*.tmp")
 	if err != nil {
 		return fmt.Errorf("create userspace bundle manifest: %w", err)

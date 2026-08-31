@@ -46,10 +46,10 @@ func TestDownloadRequiresExactAssetSetAndChecksums(t *testing.T) {
 			t.Fatalf("file %s was not verified", file.Name)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(bundle.Directory, "linux-armer-userspace-bundle.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(bundle.Directory, "lexr-userspace-bundle.json")); err != nil {
 		t.Fatal(err)
 	}
-	receiptData, err := os.ReadFile(filepath.Join(bundle.Directory, "linux-armer-userspace-bundle.json"))
+	receiptData, err := os.ReadFile(filepath.Join(bundle.Directory, "lexr-userspace-bundle.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

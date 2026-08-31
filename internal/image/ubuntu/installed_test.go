@@ -21,10 +21,10 @@ func TestStageInstalledSupportFiles(t *testing.T) {
 		mode os.FileMode
 	}{
 		{name: "99-surface-pro-11.cfg", mode: 0o644},
-		{name: "09_linux_armer_sp11", mode: 0o755},
-		{name: "linux-armer-refresh-sp11-boot", mode: 0o755},
-		{name: "05-linux-armer-sp11-dtb", mode: 0o755},
-		{name: "05-linux-armer-sp11-dtb-remove", mode: 0o755},
+		{name: "09_lexr_sp11", mode: 0o755},
+		{name: "lexr-refresh-sp11-boot", mode: 0o755},
+		{name: "05-lexr-sp11-dtb", mode: 0o755},
+		{name: "05-lexr-sp11-dtb-remove", mode: 0o755},
 		{name: "kernel-abi", mode: 0o644},
 	} {
 		info, err := os.Stat(filepath.Join(workspace, "installed-support", expected.name))
@@ -109,7 +109,7 @@ func TestInstalledGrubGeneratorProvidesExplicitModels(t *testing.T) {
 func TestInstalledKernelHooksSeparateInstallAndRemoval(t *testing.T) {
 	postInstall := installedKernelPostInstallHook()
 	postRemove := installedKernelPostRemoveHook()
-	if !strings.Contains(postInstall, "linux-armer-refresh-sp11-boot") {
+	if !strings.Contains(postInstall, "lexr-refresh-sp11-boot") {
 		t.Fatal("post-install hook does not refresh the installed kernel's DTBs")
 	}
 	for _, required := range []string{
@@ -120,7 +120,7 @@ func TestInstalledKernelHooksSeparateInstallAndRemoval(t *testing.T) {
 			t.Errorf("post-remove hook does not contain %q", required)
 		}
 	}
-	if strings.Contains(postRemove, "linux-armer-refresh-sp11-boot") {
+	if strings.Contains(postRemove, "lexr-refresh-sp11-boot") {
 		t.Fatal("post-remove hook unexpectedly refreshes another kernel")
 	}
 }

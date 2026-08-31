@@ -1,17 +1,17 @@
 {
-  "schema_version": 2,
-  "kind": "linux-armer.windows-handoff",
+  "schema_version": 3,
+  "kind": "lexr.windows-handoff",
   "privacy_classification": "private-device-bound",
   "created_at": "2026-08-30T12:34:56Z",
   "collector": {
     "name": "collect-sp11-windows-handoff.ps1",
-    "version": "2.0.0"
+    "version": "3.0.0"
   },
   "device": {
     "platform_id": "microsoft-surface-pro-11",
     "architecture": "arm64",
     "binding_salt": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
-    "smbios_product_uuid_binding_sha256": "094fb62588717c3c117b6a5ce3ada6a3d2c247c306239cd0f62f432ea688f600",
+    "smbios_product_uuid_binding_sha256": "1427c73166fa72e6d4eeab832ef2237d6d18f8e039af4919cb998ac4c0c83ad4",
     "wifi_pci_id": "17cb:1107"
   },
   "platform_firmware": {

@@ -16,11 +16,11 @@ const (
 	// ChecksumFileName is the sole checksum authority in a prepared directory.
 	ChecksumFileName = "SHA256SUMS"
 	// BundleFileName is the path-independent kernel bundle manifest.
-	BundleFileName = "linux-armer-kernel-bundle.json"
+	BundleFileName = "lexr-kernel-bundle.json"
 	// BuildProvenanceFileName is the private native-build provenance input.
-	BuildProvenanceFileName = "linux-armer-kernel-build-provenance.json"
+	BuildProvenanceFileName = "lexr-kernel-build-provenance.json"
 	// ReleaseManifestFileName records public source and asset provenance.
-	ReleaseManifestFileName = "linux-armer-kernel-release-manifest.json"
+	ReleaseManifestFileName = "lexr-kernel-release-manifest.json"
 	// ReleaseNotesFileName contains the human-readable installation and safety notes.
 	ReleaseNotesFileName = "RELEASE-NOTES.md"
 )

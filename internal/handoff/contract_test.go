@@ -100,12 +100,12 @@ func TestDecodeRejectsStrictJSONViolations(t *testing.T) {
 		message  string
 	}{
 		{name: "unknown field", document: []byte(replaceOnce(t, golden, `"created_at":`, `"unexpected":true,"created_at":`)), message: "unknown or mis-cased"},
-		{name: "duplicate field", document: []byte(replaceOnce(t, golden, `"kind": "linux-armer.windows-handoff"`, `"kind":"linux-armer.windows-handoff","kind":"other"`)), message: "duplicate field"},
+		{name: "duplicate field", document: []byte(replaceOnce(t, golden, `"kind": "lexr.windows-handoff"`, `"kind":"lexr.windows-handoff","kind":"other"`)), message: "duplicate field"},
 		{name: "mis-cased field", document: []byte(replaceOnce(t, golden, `"privacy_classification"`, `"Privacy_Classification"`)), message: "unknown or mis-cased"},
 		{name: "retired adapter digest field", document: []byte(replaceOnce(t, golden, `"source": "net-adapter-permanent-address"`, `"source":"net-adapter-permanent-address","adapter_instance_id_binding_sha256":"1111111111111111111111111111111111111111111111111111111111111111"`)), message: "unknown or mis-cased"},
 		{name: "missing required field", document: []byte(replaceOnce(t, golden, "  \"privacy_classification\": \"private-device-bound\",\n", ``)), message: "required field"},
 		{name: "missing original INF", document: []byte(replaceOnce(t, golden, "          \"original_inf\": \"qcdx8380.inf\",\n", ``)), message: "required field"},
-		{name: "retired version 1 envelope", document: []byte(replaceOnce(t, golden, `"schema_version": 2`, `"schema_version": 1`)), message: "schema_version"},
+		{name: "retired version 2 envelope", document: []byte(replaceOnce(t, golden, `"schema_version": 3`, `"schema_version": 2`)), message: "schema_version"},
 		{name: "null top-level object", document: []byte(`null`), message: "must not be null"},
 		{name: "null collector", document: []byte(replaceObjectWithNull(t, golden, `"collector"`)), message: "must not be null"},
 		{name: "null firmware files", document: []byte(replaceOnce(t, golden, `"files": [`, `"files": null,"discarded": [`)), message: "must not be null"},
@@ -148,7 +148,7 @@ func TestValidateRejectsEnvelopeAndDeviceViolations(t *testing.T) {
 		{name: "timestamp fraction", mutate: func(contract *Contract) { contract.CreatedAt = "2026-08-30T12:34:56.1Z" }, message: "created_at"},
 		{name: "collector name", mutate: func(contract *Contract) { contract.Collector.Name = "other.ps1" }, message: "collector name"},
 		{name: "collector version", mutate: func(contract *Contract) { contract.Collector.Version = "v1" }, message: "collector version"},
-		{name: "different semantic collector version", mutate: func(contract *Contract) { contract.Collector.Version = "2.0.1" }, message: CollectorVersion},
+		{name: "different semantic collector version", mutate: func(contract *Contract) { contract.Collector.Version = "3.0.1" }, message: CollectorVersion},
 		{name: "platform", mutate: func(contract *Contract) { contract.Device.PlatformID = "other" }, message: "platform_id"},
 		{name: "architecture", mutate: func(contract *Contract) { contract.Device.Architecture = "amd64" }, message: "architecture"},
 		{name: "short salt", mutate: func(contract *Contract) { contract.Device.BindingSalt = "01" }, message: "binding_salt"},
@@ -181,7 +181,7 @@ func TestDeriveDeviceBinding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first != "094fb62588717c3c117b6a5ce3ada6a3d2c247c306239cd0f62f432ea688f600" {
+	if first != "1427c73166fa72e6d4eeab832ef2237d6d18f8e039af4919cb998ac4c0c83ad4" {
 		t.Fatalf("DeriveDeviceBinding() = %s, want pinned vector", first)
 	}
 	secondSalt := "1f1e1d1c1b1a191817161514131211100f0e0d0c0b0a09080706050403020100"
@@ -408,17 +408,17 @@ func TestValidatePortablePathRejectsAlternateSemantics(t *testing.T) {
 	}
 }
 
-// readGoldenDocument returns the immutable v2 fixture bytes.
+// readGoldenDocument returns the immutable v3 fixture bytes.
 func readGoldenDocument(t *testing.T) []byte {
 	t.Helper()
-	data, err := os.ReadFile("testdata/windows-handoff-v2.golden.json")
+	data, err := os.ReadFile("testdata/windows-handoff-v3.golden.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	return data
 }
 
-// decodeGoldenContract decodes a fresh deep copy of the v2 fixture for one test.
+// decodeGoldenContract decodes a fresh deep copy of the v3 fixture for one test.
 func decodeGoldenContract(t *testing.T) Contract {
 	t.Helper()
 	contract, err := Decode(bytes.NewReader(readGoldenDocument(t)))

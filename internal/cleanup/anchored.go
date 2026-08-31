@@ -334,7 +334,7 @@ func ensureAnchoredBackupParent(root *os.Root, publicRoot string) error {
 	}{
 		{component: "var", mode: 0o755},
 		{component: "lib", mode: 0o755},
-		{component: "linux-armer", mode: 0o700},
+		{component: "lexr", mode: 0o700},
 		{component: "backups", mode: 0o700},
 	}
 	current := root
@@ -847,7 +847,7 @@ func removeAnchoredEmptyDirectories(paths []anchoredQuarantine) {
 func openAnchoredBackupRoot(target *os.Root, publicRoot, backupRelative string) (*os.Root, error) {
 	clean := filepath.Clean(backupRelative)
 	parts := strings.Split(clean, string(filepath.Separator))
-	want := []string{"var", "lib", "linux-armer", "backups"}
+	want := []string{"var", "lib", "lexr", "backups"}
 	if len(parts) != len(want)+1 || parts[len(parts)-1] == "" || parts[len(parts)-1] == "." || parts[len(parts)-1] == ".." {
 		return nil, fmt.Errorf("cleanup backup has an unsafe transaction path: %s", backupRelative)
 	}
@@ -862,7 +862,7 @@ func openAnchoredBackupRoot(target *os.Root, publicRoot, backupRelative string) 
 // openAnchoredBackupParentRoot opens the fixed private backups directory one
 // validated component at a time for safe transaction creation.
 func openAnchoredBackupParentRoot(target *os.Root, publicRoot string) (*os.Root, error) {
-	return openValidatedBackupComponents(target, publicRoot, []string{"var", "lib", "linux-armer", "backups"})
+	return openValidatedBackupComponents(target, publicRoot, []string{"var", "lib", "lexr", "backups"})
 }
 
 // openValidatedBackupComponents advances through already existing recovery

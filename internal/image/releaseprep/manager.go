@@ -452,14 +452,8 @@ func renderNotes(manifest Manifest) []byte {
 	return renderNotesForCommand(manifest, "lexr")
 }
 
-// renderLegacyNotes reproduces the exact pre-rename note bytes so existing
-// checksum-bound release directories remain independently verifiable.
-func renderLegacyNotes(manifest Manifest) []byte {
-	return renderNotesForCommand(manifest, "linux"+"-armer")
-}
-
 // renderNotesForCommand returns deterministic path-free release guidance using
-// the selected current or historical command name.
+// the selected command name.
 func renderNotesForCommand(manifest Manifest, commandName string) []byte {
 	var output strings.Builder
 	_, _ = fmt.Fprintf(&output, "# Surface Pro 11 ARM64 installation image\n\n")

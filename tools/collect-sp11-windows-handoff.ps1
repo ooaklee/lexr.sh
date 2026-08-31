@@ -3,7 +3,7 @@
 Collects a private Surface Pro 11 Windows hand-off for Lexr.
 
 .DESCRIPTION
-Creates the strict version 2 Windows hand-off directory consumed by
+Creates the strict version 3 Windows hand-off directory consumed by
 `lexr handoff import`. The collector can include the complete audited
 eleven-file platform firmware set, the same-device Bluetooth public address,
 or both. It never exports Windows Wi-Fi firmware.
@@ -52,7 +52,7 @@ requested.
 powershell -NoProfile -ExecutionPolicy Bypass -File .\collect-sp11-windows-handoff.ps1 -SelfTest
 
 Checks that this script's contract implementation matches the Go contract's
-pinned values and strict version 2 manifest shape.
+pinned values and strict version 3 manifest shape.
 #>
 [CmdletBinding(DefaultParameterSetName = 'Collect')]
 param(
@@ -76,9 +76,9 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 $script:CollectorName = 'collect-sp11-windows-handoff.ps1'
-$script:CollectorVersion = '2.0.0'
-$script:ManifestFilename = 'linux-armer-windows-handoff.json'
-$script:DeviceBindingDomain = 'linux-armer.windows-handoff/device-binding/v1'
+$script:CollectorVersion = '3.0.0'
+$script:ManifestFilename = 'lexr-windows-handoff.json'
+$script:DeviceBindingDomain = 'lexr.windows-handoff/device-binding/v1'
 $script:MaximumManifestBytes = 1MB
 $script:MaximumFirmwareFileBytes = 512MB
 $script:MaximumFirmwareTotalBytes = 1GB
@@ -404,7 +404,7 @@ function Assert-BindingSelfTest {
     $salt = ConvertFrom-LowerHex -Value '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f'
     try {
         $device = Get-DomainSeparatedBinding -Domain $script:DeviceBindingDomain -Salt $salt -CanonicalValue '12345678-1234-5678-9abc-def012345678'
-        if ($device -cne '094fb62588717c3c117b6a5ce3ada6a3d2c247c306239cd0f62f432ea688f600') {
+        if ($device -cne '1427c73166fa72e6d4eeab832ef2237d6d18f8e039af4919cb998ac4c0c83ad4') {
             throw 'The device-binding self-test did not match the Go contract.'
         }
     } finally {
@@ -450,13 +450,13 @@ function Assert-PortableFileSelfTest {
             -PlatformFirmware ([ordered]@{ included = $false; reason = 'not-requested' }) `
             -BluetoothPublicAddress ([ordered]@{ included = $true; address = '10:20:30:40:50:60'; source = 'net-adapter-permanent-address' })
         if (($manifest.Keys -join '|') -cne 'schema_version|kind|privacy_classification|created_at|collector|device|platform_firmware|bluetooth_public_address' -or
-            $manifest.schema_version -ne 2 -or $manifest.collector.version -cne '2.0.0' -or
+            $manifest.schema_version -ne 3 -or $manifest.collector.version -cne '3.0.0' -or
             ($manifest.bluetooth_public_address.Keys -join '|') -cne 'included|address|source') {
-            throw 'The strict version 2 manifest-shape self-test did not match its pinned fields.'
+            throw 'The strict version 3 manifest-shape self-test did not match its pinned fields.'
         }
         $manifestJSON = $manifest | ConvertTo-Json -Depth 12
         if ($manifestJSON.IndexOf('adapter_instance_id_binding_sha256', [System.StringComparison]::Ordinal) -ge 0) {
-            throw 'The strict version 2 manifest-shape self-test found a retired field.'
+            throw 'The strict version 3 manifest-shape self-test found a retired field.'
         }
     } finally {
         if ([System.IO.Directory]::Exists($temporaryRoot)) {
@@ -1920,7 +1920,7 @@ function Write-NewUTF8File {
 
 <#
 .SYNOPSIS
-Creates the exact strict version 2 Windows hand-off manifest envelope.
+Creates the exact strict version 3 Windows hand-off manifest envelope.
 
 .DESCRIPTION
 Combines already validated collection evidence into the closed JSON shape
@@ -1948,8 +1948,8 @@ function New-HandoffManifest {
     )
 
     return [ordered]@{
-        schema_version = 2
-        kind = 'linux-armer.windows-handoff'
+        schema_version = 3
+        kind = 'lexr.windows-handoff'
         privacy_classification = 'private-device-bound'
         created_at = $CreatedAt
         collector = [ordered]@{

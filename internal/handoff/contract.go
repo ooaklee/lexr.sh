@@ -12,22 +12,22 @@ import (
 const (
 	// SchemaVersion identifies the only current Windows hand-off contract
 	// accepted for import and application by this implementation.
-	SchemaVersion = 2
+	SchemaVersion = 3
 	// ContractKind distinguishes this private interchange document from image
 	// manifests, userspace receipts, and diagnostic archives.
-	ContractKind = "linux-armer.windows-handoff"
+	ContractKind = "lexr.windows-handoff"
 	// PrivacyClassification marks the entire document and its payloads as private,
 	// device-bound material unsuitable for logs, ISO inclusion, or redistribution.
 	PrivacyClassification = "private-device-bound"
 	// DeviceBindingDomain is prepended to every salted SMBIOS UUID binding. The
 	// terminating NUL prevents concatenation with any future textual domain.
-	DeviceBindingDomain = "linux-armer.windows-handoff/device-binding/v1\x00"
+	DeviceBindingDomain = "lexr.windows-handoff/device-binding/v1\x00"
 	// CollectorName identifies the canonical PowerShell exporter permitted to
 	// claim this contract shape.
 	CollectorName = "collect-sp11-windows-handoff.ps1"
 	// CollectorVersion identifies the sole exporter release permitted to claim
 	// the current schema's exact collection and provenance semantics.
-	CollectorVersion = "2.0.0"
+	CollectorVersion = "3.0.0"
 	// PlatformID identifies the hardware family to which the compiled mappings
 	// and Bluetooth policy apply.
 	PlatformID = "microsoft-surface-pro-11"
@@ -41,7 +41,7 @@ const (
 	MaximumDocumentSize = 1 << 20
 	// ManifestFilename is the sole canonical JSON filename at the root of a
 	// Windows hand-off source or private store entry.
-	ManifestFilename = "linux-armer-windows-handoff.json"
+	ManifestFilename = "lexr-windows-handoff.json"
 )
 
 // AbsentReason is a stable explanation for deliberately omitted or unavailable

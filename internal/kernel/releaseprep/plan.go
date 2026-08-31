@@ -321,7 +321,7 @@ func validateBuildProvenance(provenance build.Provenance) error {
 		!digestExpression.MatchString(provenance.ToolchainSHA256) || !immutableImageExpression.MatchString(provenance.ContainerImage) {
 		return errors.New("native build provenance contains invalid policy or toolchain identity")
 	}
-	if !regexp.MustCompile(`^(?:lexr|linux-armer)-kernel-build-[0-9a-f]{16}$`).MatchString(provenance.WorkVolume) {
+	if !regexp.MustCompile(`^lexr-kernel-build-[0-9a-f]{16}$`).MatchString(provenance.WorkVolume) {
 		return errors.New("native build provenance contains invalid private volume identity")
 	}
 	return nil

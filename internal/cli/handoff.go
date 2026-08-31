@@ -361,7 +361,7 @@ func resolveHandoffStoreFlag(value string) (string, error) {
 	if strings.TrimSpace(home) == "" {
 		return "", errors.New("resolve default Windows hand-off store: user home directory is empty")
 	}
-	return filepath.Join(home, ".linux-armer-handoffs"), nil
+	return filepath.Join(home, ".lexr-handoffs"), nil
 }
 
 // readHandoffApplyConfirmation prompts only an interactive terminal and keeps

@@ -8,13 +8,13 @@ description: Architecture decision for same-device application, recovery, firmwa
 
 Accepted on 2026-08-30.
 
-Naming note: the current product is Lexr.sh and its command is `lexr`. The
-`linux-armer` installed paths below remain compatibility contracts under
+Terminology and installed paths in this record have been normalised to Lexr.sh
+and `lexr` following
 [ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
 
 ## Context
 
-ADR011 originally defined a private, device-bound Windows hand-off and deliberately withheld mutation authority from import, list, and purge operations. ADR021 replaces that interchange shape with version 2 while retaining the SMBIOS binding as this transaction's same-device boundary. Applying the material remains a separate security boundary. It can overwrite firmware used during boot, retain a persistent Bluetooth controller address, install an executable with system privileges, and alter systemd ordering. A valid imported document therefore cannot be treated as sufficient authority to modify either the running system or a mounted target.
+ADR011 originally defined a private, device-bound Windows hand-off and deliberately withheld mutation authority from import, list, and purge operations. ADR021 replaced that interchange shape with version 2 while retaining the SMBIOS binding as this transaction's same-device boundary. ADR023 subsequently advances the current Lexr interchange to version 3 without changing that application boundary. Applying the material remains a separate security boundary. It can overwrite firmware used during boot, retain a persistent Bluetooth controller address, install an executable with system privileges, and alter systemd ordering. A valid imported document therefore cannot be treated as sufficient authority to modify either the running system or a mounted target.
 
 The identity source and installation target are also different concepts. An operator may use the running Surface Pro 11 identity while preparing an installed root or live USB mounted elsewhere. Reading identity from the target would either fail for an offline root or allow target-controlled content to impersonate the physical device. Conversely, using the running filesystem as an implicit target would make an otherwise read-only inspection unexpectedly dangerous.
 
@@ -34,11 +34,20 @@ Mutation requires effective root, but a dry run and an already-satisfied idempot
 
 Firmware application is an all-or-nothing policy of eleven validated records. Each payload is reopened through the revalidated private-store handle, copied through a bounded reader, and checked again for exact size and SHA-256 before publication. Regular firmware files use mode `0644`. The workflow also manages the fixed Denali GPU compatibility link and the selected active or inactive aDSP path. Explicit omission of firmware grants no authority over any firmware destination.
 
-Bluetooth application writes a fixed mode-`0600` private configuration, copies the current Linux ARM64 `linux-armer` ELF executable to a fixed mode-`0755` libexec path, writes a fixed mode-`0644` systemd oneshot unit, and installs its fixed dependency link before `bluetooth.service`. Planning may report an incompatible development-host executable, but mutation rejects it. The unit reads the private configuration from its fixed path; neither the address nor an address-bearing command line is placed in the unit, process arguments, ordinary output, JSON, or errors.
+Bluetooth application writes a fixed mode-`0600` private configuration, copies the current Linux ARM64 `lexr` ELF executable to a fixed mode-`0755` libexec path, writes a fixed mode-`0644` systemd oneshot unit, and installs its fixed dependency link before `bluetooth.service`. Planning may report an incompatible development-host executable, but mutation rejects it. The unit reads the private configuration from its fixed path; neither the address nor an address-bearing command line is placed in the unit, process arguments, ordinary output, JSON, or errors.
 
 The hidden boot entry point uses a native Linux package rather than invoking `btmgmt` or a shell pipeline. It waits for only the selected `hciN` controller within a compiled deadline, opens a fresh close-on-exec raw `AF_BLUETOOTH` management socket for each bounded retry, sets a receive timeout, sends only `MGMT_OP_SET_PUBLIC_ADDRESS`, and accepts only a matching command-complete or command-status event. It never formats or logs the address.
 
 Before the first target replacement, the application writes a private mode-`0600` receipt beneath a fixed mode-`0700` directory. The receipt records the compiled action set, desired fingerprints, safely inspected original fingerprints, same-parent staging and backup names, created directories, and transaction state. It is private operational recovery data and is never embedded in an ISO, returned as JSON, or treated as a public manifest attribute.
+
+> **Implementation amendment (2026-08-31):** ADR023 advances the current
+> private application receipt to schema 2 as part of the Lexr naming boundary.
+> Current restore paths reject schema-1 receipts because their action identities,
+> installed paths and deterministic transaction names belong to the predecessor
+> contract. An operator must use the exact predecessor binary to complete
+> restoration before upgrading, or retain that binary with the receipt, backups
+> and target until recovery is complete. Recreating a recovery receipt from
+> current state is not safe.
 
 Each changed object is staged and flushed in its destination directory. Any original regular file or symbolic link is moved to a deterministic same-parent quarantine name, the directory is synchronised, the journal is updated, the desired object is renamed into place, and both target and journal are synchronised again. Successful completion revalidates the private source closed set, verifies every selected final object, and marks the receipt committed. Reapplying an already satisfied policy is a no-op.
 

@@ -50,7 +50,7 @@ func (installer *Installer) Audio(_ context.Context, options Options) (Result, e
 		RebootRequired: true,
 	}
 	stamp := installer.now().UTC().Format("20060102T150405.000000000Z")
-	backupRelative := filepath.ToSlash(filepath.Join("var/lib/linux-armer/backups/userspace", stamp, AudioComponent))
+	backupRelative := filepath.ToSlash(filepath.Join("var/lib/lexr/backups/userspace", stamp, AudioComponent))
 	backupSentinel, err := resolveTarget(options.Root, filepath.ToSlash(filepath.Join(backupRelative, ".sentinel")))
 	if err != nil {
 		return Result{}, err

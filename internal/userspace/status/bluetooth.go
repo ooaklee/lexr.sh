@@ -35,9 +35,9 @@ var nativeBluetoothPaths = []string{
 // nativeBluetoothUnitMarkers identify the compiled service contract without
 // coupling status to harmless description or timeout wording changes.
 var nativeBluetoothUnitMarkers = []string{
-	"ConditionPathExists=/etc/linux-armer/private/bluetooth-address.json",
+	"ConditionPathExists=/etc/lexr/private/bluetooth-address.json",
 	"Before=bluetooth.service",
-	"ExecStart=/usr/libexec/linux-armer/linux-armer handoff internal-bluetooth-address",
+	"ExecStart=/usr/libexec/lexr/lexr handoff internal-bluetooth-address",
 	"NoNewPrivileges=true",
 	"PrivateTmp=true",
 	"ProtectHome=true",
@@ -173,7 +173,7 @@ func inspectNativeBluetoothWantsLink(fs *rootedFS) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if target != "../linux-armer-sp11-bluetooth-address.service" {
+	if target != "../lexr-sp11-bluetooth-address.service" {
 		return []string{"native Bluetooth dependency link has an unexpected target"}, nil
 	}
 	if _, err := fs.resolve(logical, true); err != nil {

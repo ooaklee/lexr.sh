@@ -262,15 +262,8 @@ func renderReleaseNotes(plan Plan) string {
 	return renderReleaseNotesForCommand(plan, "lexr")
 }
 
-// renderLegacyReleaseNotes reproduces the exact pre-rename release-note bytes
-// so existing checksum-bound release directories remain independently
-// verifiable.
-func renderLegacyReleaseNotes(plan Plan) string {
-	return renderReleaseNotesForCommand(plan, "linux"+"-armer")
-}
-
 // renderReleaseNotesForCommand produces deterministic guidance using the
-// selected current or historical command name.
+// selected command name.
 func renderReleaseNotesForCommand(plan Plan, commandName string) string {
 	var sourceNames, licenceNames []string
 	for _, asset := range plan.Manifest.Assets {

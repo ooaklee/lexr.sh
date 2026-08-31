@@ -46,14 +46,21 @@ The current unreleased version is `0.1.0`. Before `1.0.0`, each release containi
 
 ### Changed
 
-- Renamed the public package and executable from Linux Armer to Lexr.sh and `lexr` respectively.
+- Renamed the predecessor package and executable to Lexr.sh and `lexr`
+  respectively.
 - Moved the tool to the root of its standalone repository and changed source-checkout, build and contribution guidance accordingly.
-- Kept established schema-3 on-media paths, private state paths, wire domains, system integration paths, legacy bundle filenames, and OE release references stable so existing artefacts remain usable after the rename.
+- Completed the Lexr rename across schema-4 on-media paths, private state paths,
+  wire domains, system integration paths, and bundle filenames while retaining
+  OE release references as external provenance.
 - Removed the unsafe live-USB aDSP menu entry; every live entry now retains the USB-protection blacklist while installed systems remain unaffected.
-- Advanced the image manifest to schema v3 so `companion_bundle` is always explicit without creating a second ISO inventory.
+- Advanced the image manifest to schema v4 so `companion_bundle` remains explicit while every media identity is Lexr-only.
+- Advanced the Windows hand-off to schema v3 and collector `3.0.0`, and advanced private application receipts to schema v2, so mixed-identity pre-release state fails closed.
 - Made verified userspace release receipts relocatable so an offline bundle remains installable after being copied to installation media.
 - Retired the legacy root script directory, shell tests, helper tools, and their obsolete workflow after recording each native owner or intentional scope boundary.
-- Replaced the unpublished Windows hand-off v1 shape with v2, removing an opaque adapter digest and requiring exact original-INF authority; pre-release v1 collections must be removed and recollected.
+- Introduced exact original-INF authority and removed an opaque adapter digest
+  in the unpublished Windows hand-off v2 shape; v3 retains those policies, and
+  v1 or v2 store entries must be purged with their exact creating binary before
+  recollection.
 - Made `PermanentAddress` authoritative only when structured PnP ancestry reaches the exact built-in radio; optional BTHPORT evidence must corroborate that same value, and external or ambiguous Windows radios fail closed.
 - Kept the established OE repository as the publication and discovery channel for kernel and hardware-support releases while reserving Lexr releases for the CLI itself.
 - Routed heavyweight kernel compilation only to a dedicated `lexr-kernel` self-hosted Linux runner with explicit architecture, Docker, and free-space gates.

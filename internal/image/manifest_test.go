@@ -157,14 +157,14 @@ func manifestWithIncludedCompanion() Manifest {
 		},
 		ProjectLicence: "declared",
 		Executable: &ExecutableArtifactRecord{
-			Artifact:        testManifestArtifact("sp11/companion/bin/linux-armer"),
+			Artifact:        testManifestArtifact("sp11/companion/bin/lexr"),
 			OperatingSystem: "linux",
 			Architecture:    "arm64",
 			Format:          "ELF",
 			Mode:            "0755",
 		},
 		SourceArchive: &ArtifactRecord{
-			Path: "sp11/companion/source/linux-armer.tar.gz", SHA256: strings.Repeat("a", 64), Size: 1,
+			Path: "sp11/companion/source/lexr.tar.gz", SHA256: strings.Repeat("a", 64), Size: 1,
 		},
 		Catalogues: []ArtifactRecord{testManifestArtifact("sp11/companion/catalogues/supported-isos.json")},
 		Licences:   []ArtifactRecord{testManifestArtifact("sp11/companion/licences/LICENSE")},
@@ -193,10 +193,10 @@ func TestDecodeManifestRejectsSchemaExpansion(t *testing.T) {
 	t.Parallel()
 
 	for _, document := range []string{
-		`{"schema_version":3,"companion_bundle":{},"unknown":true}`,
-		`{"schema_version":3,"companion_bundle":{}} {"schema_version":3,"companion_bundle":{}}`,
-		`{"schema_version":3}`,
-		`{"schema_version":3,"companion_bundle":{},"companion_bundle":{}}`,
+		`{"schema_version":4,"companion_bundle":{},"unknown":true}`,
+		`{"schema_version":4,"companion_bundle":{}} {"schema_version":4,"companion_bundle":{}}`,
+		`{"schema_version":4}`,
+		`{"schema_version":4,"companion_bundle":{},"companion_bundle":{}}`,
 	} {
 		if _, err := DecodeManifest(strings.NewReader(document)); err == nil {
 			t.Errorf("DecodeManifest(%q) succeeded, want error", document)

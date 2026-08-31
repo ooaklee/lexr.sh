@@ -142,7 +142,7 @@ func (installer *Installer) IPTSD(ctx context.Context, options Options) (Result,
 		return Result{}, err
 	}
 	stamp := installer.now().UTC().Format("20060102T150405.000000000Z")
-	backupRelative := filepath.ToSlash(filepath.Join("var/lib/linux-armer/backups/userspace", stamp, IPTSDComponent))
+	backupRelative := filepath.ToSlash(filepath.Join("var/lib/lexr/backups/userspace", stamp, IPTSDComponent))
 	plans, mask, result, err := planIPTSDTransaction(options, release, backupRelative, installer.isLiveRoot(options.Root))
 	if err != nil {
 		return Result{}, err

@@ -145,9 +145,9 @@ type auditedStoreEntry struct {
 }
 
 // validatedStoreEntry is the private result of a complete current-schema audit
-// and retains the version 2 contract required by application workflows.
+// and retains the version 3 contract required by application workflows.
 type validatedStoreEntry struct {
-	// contract is the strict decoded version 2 private contract.
+	// contract is the strict decoded version 3 private contract.
 	contract Contract
 	// auditedStoreEntry contains the schema-neutral verified inventory.
 	auditedStoreEntry
@@ -315,8 +315,8 @@ func importWithHooks(ctx context.Context, sourceDirectory, storeRoot string, hoo
 	return ImportResult{ID: identifier, Path: finalPath, Existing: false, Summary: validated.summary}, nil
 }
 
-// List validates every current or exact retained version 1 direct store entry
-// and returns only redacted summaries in content-address order.
+// List validates every current direct store entry and returns only redacted
+// summaries in content-address order.
 func List(ctx context.Context, storeRoot string) ([]StoredSummary, error) {
 	if ctx == nil {
 		return nil, errors.New("list Windows hand-offs: context is nil")
@@ -342,7 +342,7 @@ func List(ctx context.Context, storeRoot string) ([]StoredSummary, error) {
 		if err != nil {
 			return nil, err
 		}
-		validated, err := validateStoredEntryForMaintenance(ctx, entryPath, identifier)
+		validated, err := validateStoredEntry(ctx, entryPath, identifier)
 		if err != nil {
 			return nil, fmt.Errorf("validate stored Windows hand-off %s: %w", identifier, err)
 		}

@@ -824,7 +824,7 @@ func validateReceipt(receipt Receipt) error {
 	if len(receipt.Changes) == 0 && receipt.Backup == "" {
 		return nil
 	}
-	backupParent := filepath.Join(receipt.Root, filepath.FromSlash("var/lib/linux-armer/backups"))
+	backupParent := filepath.Join(receipt.Root, filepath.FromSlash("var/lib/lexr/backups"))
 	if filepath.Dir(filepath.Clean(receipt.Backup)) != backupParent {
 		return fmt.Errorf("cleanup receipt backup is outside the standard backup directory: %s", receipt.Backup)
 	}
@@ -913,11 +913,9 @@ func validateQuarantinePath(change ReceiptItem) error {
 }
 
 // supportedCleanupQuarantineDirectory reports whether a receipt names the
-// current quarantine prefix or the exact pre-rename prefix needed to recover
-// an interrupted historical transaction.
+// current Lexr quarantine prefix.
 func supportedCleanupQuarantineDirectory(name string) bool {
-	legacyPrefix := "." + "linux" + "-armer-cleanup-"
-	return strings.HasPrefix(name, ".lexr-cleanup-") || strings.HasPrefix(name, legacyPrefix)
+	return strings.HasPrefix(name, ".lexr-cleanup-")
 }
 
 // Apply backs up and removes recognised findings. Unrecognised content is
@@ -962,7 +960,7 @@ func apply(report ScanReport, yes bool, operations applyOperations) (Receipt, er
 		}, nil
 	}
 	stamp := time.Now().UTC().Format("20060102T150405.000000000Z")
-	backupParentRelative := filepath.FromSlash("var/lib/linux-armer/backups")
+	backupParentRelative := filepath.FromSlash("var/lib/lexr/backups")
 	if err := ensureAnchoredBackupParent(roots.target, report.Root); err != nil {
 		return Receipt{}, fmt.Errorf("create cleanup backup parent: %w", err)
 	}

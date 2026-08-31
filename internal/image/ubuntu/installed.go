@@ -31,10 +31,10 @@ func stageInstalledSupportFiles(workspace, abi string) error {
 	}
 	files := []installedSupportFile{
 		{name: "99-surface-pro-11.cfg", mode: 0o644, data: installedGrubDefaults()},
-		{name: "09_linux_armer_sp11", mode: 0o755, data: installedGrubGenerator()},
-		{name: "linux-armer-refresh-sp11-boot", mode: 0o755, data: installedBootRefresh()},
-		{name: "05-linux-armer-sp11-dtb", mode: 0o755, data: installedKernelPostInstallHook()},
-		{name: "05-linux-armer-sp11-dtb-remove", mode: 0o755, data: installedKernelPostRemoveHook()},
+		{name: "09_lexr_sp11", mode: 0o755, data: installedGrubGenerator()},
+		{name: "lexr-refresh-sp11-boot", mode: 0o755, data: installedBootRefresh()},
+		{name: "05-lexr-sp11-dtb", mode: 0o755, data: installedKernelPostInstallHook()},
+		{name: "05-lexr-sp11-dtb-remove", mode: 0o755, data: installedKernelPostRemoveHook()},
 		{name: "kernel-abi", mode: 0o644, data: abi + "\n"},
 	}
 	for _, file := range files {
@@ -174,13 +174,13 @@ install -d -m 0755 \
 	"$root/etc/kernel/postinst.d" \
 	"$root/etc/kernel/postrm.d" \
 	"$root/usr/local/sbin" \
-	"$root/usr/lib/linux-armer/sp11/dtb"
+	"$root/usr/lib/lexr/sp11/dtb"
 install -m 0644 "$support/99-surface-pro-11.cfg" "$root/etc/default/grub.d/99-surface-pro-11.cfg"
-install -m 0755 "$support/09_linux_armer_sp11" "$root/etc/grub.d/09_linux_armer_sp11"
-install -m 0755 "$support/linux-armer-refresh-sp11-boot" "$root/usr/local/sbin/linux-armer-refresh-sp11-boot"
-install -m 0755 "$support/05-linux-armer-sp11-dtb" "$root/etc/kernel/postinst.d/05-linux-armer-sp11-dtb"
-install -m 0755 "$support/05-linux-armer-sp11-dtb-remove" "$root/etc/kernel/postrm.d/05-linux-armer-sp11-dtb"
-install -m 0644 "$support/kernel-abi" "$root/usr/lib/linux-armer/sp11/kernel-abi"
+install -m 0755 "$support/09_lexr_sp11" "$root/etc/grub.d/09_lexr_sp11"
+install -m 0755 "$support/lexr-refresh-sp11-boot" "$root/usr/local/sbin/lexr-refresh-sp11-boot"
+install -m 0755 "$support/05-lexr-sp11-dtb" "$root/etc/kernel/postinst.d/05-lexr-sp11-dtb"
+install -m 0755 "$support/05-lexr-sp11-dtb-remove" "$root/etc/kernel/postrm.d/05-lexr-sp11-dtb"
+install -m 0644 "$support/kernel-abi" "$root/usr/lib/lexr/sp11/kernel-abi"
 
 for name in x1e80100-microsoft-denali-oled.dtb x1p64100-microsoft-denali.dtb; do
 	source="$root/usr/lib/firmware/$abi/device-tree/qcom/$name"
@@ -188,10 +188,10 @@ for name in x1e80100-microsoft-denali-oled.dtb x1p64100-microsoft-denali.dtb; do
 		echo "installed-system hand-off is missing $source" >&2
 		exit 66
 	}
-	install -m 0644 "$source" "$root/usr/lib/linux-armer/sp11/dtb/$name"
+	install -m 0644 "$source" "$root/usr/lib/lexr/sp11/dtb/$name"
 done
 
-chroot "$root" /usr/local/sbin/linux-armer-refresh-sp11-boot "$abi"
+chroot "$root" /usr/local/sbin/lexr-refresh-sp11-boot "$abi"
 test -x "$root/usr/sbin/update-initramfs"
 rm -f -- "$root/boot/initrd.img-$abi"
 chroot "$root" update-initramfs -c -k "$abi"
@@ -286,7 +286,7 @@ is_safe_abi() {
 	esac
 }
 
-seed_abi=$(cat /usr/lib/linux-armer/sp11/kernel-abi)
+seed_abi=$(cat /usr/lib/lexr/sp11/kernel-abi)
 is_safe_abi "$seed_abi" || {
 	echo "Lexr seed kernel ABI is invalid" >&2
 	exit 65
@@ -320,7 +320,7 @@ for name in x1e80100-microsoft-denali-oled.dtb x1p64100-microsoft-denali.dtb; do
 		fi
 	done
 	if [ -z "$source" ] && [ "$abi" = "$seed_abi" ]; then
-		candidate="/usr/lib/linux-armer/sp11/dtb/$name"
+		candidate="/usr/lib/lexr/sp11/dtb/$name"
 		[ ! -s "$candidate" ] || source=$candidate
 	fi
 	[ -n "$source" ] || {
@@ -337,7 +337,7 @@ done
 func installedKernelPostInstallHook() string {
 	return `#!/bin/sh
 set -eu
-exec /usr/local/sbin/linux-armer-refresh-sp11-boot "${1:-}"
+exec /usr/local/sbin/lexr-refresh-sp11-boot "${1:-}"
 `
 }
 
@@ -369,13 +369,13 @@ func installedSupportPaths(abi string) []string {
 		"boot/dtbs/" + abi + "/qcom/x1e80100-microsoft-denali-oled.dtb",
 		"boot/dtbs/" + abi + "/qcom/x1p64100-microsoft-denali.dtb",
 		"etc/default/grub.d/99-surface-pro-11.cfg",
-		"etc/grub.d/09_linux_armer_sp11",
-		"etc/kernel/postinst.d/05-linux-armer-sp11-dtb",
-		"etc/kernel/postrm.d/05-linux-armer-sp11-dtb",
-		"usr/local/sbin/linux-armer-refresh-sp11-boot",
-		"usr/lib/linux-armer/sp11/kernel-abi",
-		"usr/lib/linux-armer/sp11/dtb/x1e80100-microsoft-denali-oled.dtb",
-		"usr/lib/linux-armer/sp11/dtb/x1p64100-microsoft-denali.dtb",
+		"etc/grub.d/09_lexr_sp11",
+		"etc/kernel/postinst.d/05-lexr-sp11-dtb",
+		"etc/kernel/postrm.d/05-lexr-sp11-dtb",
+		"usr/local/sbin/lexr-refresh-sp11-boot",
+		"usr/lib/lexr/sp11/kernel-abi",
+		"usr/lib/lexr/sp11/dtb/x1e80100-microsoft-denali-oled.dtb",
+		"usr/lib/lexr/sp11/dtb/x1p64100-microsoft-denali.dtb",
 		"var/lib/dpkg/status",
 	}
 	for _, packageName := range installedPackageNames(abi) {

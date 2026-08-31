@@ -21,9 +21,9 @@ import (
 
 const (
 	// receiptSchemaVersion selects the only private transaction journal shape.
-	receiptSchemaVersion = 1
+	receiptSchemaVersion = 2
 	// receiptKind distinguishes this private journal from public result JSON.
-	receiptKind = "linux-armer.windows-handoff-application-receipt"
+	receiptKind = "lexr.windows-handoff-application-receipt"
 	// maximumReceiptBytes bounds strict local journal decoding.
 	maximumReceiptBytes int64 = 1 << 20
 )
@@ -241,7 +241,6 @@ func validateReceipt(receipt privateReceipt, expectedID string) error {
 	}
 	policies := handoffReceiptActionPolicies()
 	seen := make(map[string]bool, len(receipt.Actions))
-	transactionPathStyle := ""
 	for index, action := range receipt.Actions {
 		if action.ID == "" || validateCompiledPath(action.Path) != nil {
 			return errors.New("private hand-off receipt action is invalid")
@@ -274,7 +273,6 @@ func validateReceipt(receipt privateReceipt, expectedID string) error {
 			return errors.New("private hand-off receipt original kind is invalid")
 		}
 		expectedStage, expectedBackup := transactionSiblingPaths(action.Path, receipt.PlanSHA256, index)
-		legacyStage, legacyBackup := legacyTransactionSiblingPaths(action.Path, receipt.PlanSHA256, index)
 		if !action.Required {
 			if action.StagePath != "" || action.BackupPath != "" || action.Applied || action.BackupCreated {
 				return errors.New("private hand-off receipt unchanged action state is invalid")
@@ -283,27 +281,12 @@ func validateReceipt(receipt privateReceipt, expectedID string) error {
 		}
 		if action.DesiredKind == ChangeAbsent {
 			expectedStage = ""
-			legacyStage = ""
 		}
 		if action.OriginalKind == originalAbsent {
 			expectedBackup = ""
-			legacyBackup = ""
 		}
-		currentPaths := action.StagePath == expectedStage && action.BackupPath == expectedBackup
-		legacyPaths := action.StagePath == legacyStage && action.BackupPath == legacyBackup
-		if !currentPaths && !legacyPaths {
+		if action.StagePath != expectedStage || action.BackupPath != expectedBackup {
 			return errors.New("private hand-off receipt transaction paths are invalid")
-		}
-		if action.StagePath != "" || action.BackupPath != "" {
-			actionStyle := "current"
-			if legacyPaths && !currentPaths {
-				actionStyle = "historical"
-			}
-			if transactionPathStyle == "" {
-				transactionPathStyle = actionStyle
-			} else if transactionPathStyle != actionStyle {
-				return errors.New("private hand-off receipt mixes transaction path generations")
-			}
 		}
 		if action.BackupCreated && action.OriginalKind == originalAbsent {
 			return errors.New("private hand-off receipt backup state is invalid")
@@ -360,7 +343,7 @@ func handoffReceiptActionPolicies() map[string]receiptActionPolicy {
 	policies["bluetooth-private-config"] = receiptActionPolicy{
 		paths: map[string]bool{BluetoothConfigPath: true}, kind: ChangeFile, mode: 0o600,
 	}
-	policies["bluetooth-linux-armer-binary"] = receiptActionPolicy{
+	policies["bluetooth-lexr-binary"] = receiptActionPolicy{
 		paths: map[string]bool{InstalledBinaryPath: true}, kind: ChangeFile, mode: 0o755,
 	}
 	policies["bluetooth-systemd-unit"] = receiptActionPolicy{
@@ -397,7 +380,7 @@ func validateReceiptFeatureSets(seen map[string]bool, actions []receiptAction) e
 			return errors.New("private hand-off receipt aDSP policy is incomplete")
 		}
 	}
-	bluetoothIDs := []string{"bluetooth-private-config", "bluetooth-linux-armer-binary", "bluetooth-systemd-unit", "bluetooth-systemd-wants-link"}
+	bluetoothIDs := []string{"bluetooth-private-config", "bluetooth-lexr-binary", "bluetooth-systemd-unit", "bluetooth-systemd-wants-link"}
 	bluetoothCount := 0
 	for _, identifier := range bluetoothIDs {
 		if seen[identifier] {

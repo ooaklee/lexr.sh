@@ -1,7 +1,7 @@
 ---
 id: adrs-adr010
 title: "ADR010: Native CLI ownership of maintained workflows"
-description: Architecture decision for replacing legacy repository scripts with typed, testable linux-armer domains while preserving specialist and historical context.
+description: Architecture decision for replacing legacy repository scripts with typed, testable Lexr domains while preserving specialist and historical context.
 ---
 
 ## Status
@@ -13,8 +13,7 @@ the final native owner, explicit retirement, or specialist rehoming outcome
 for that historical material. Completion of the software migration does not
 claim that every physical hardware gate has passed.
 
-Naming note: the current product is Lexr.sh and its command is `lexr`. This
-record retains historical Linux Armer paths and terminology; see
+Terminology in this record has been normalised to Lexr.sh and `lexr` following
 [ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
 
 ## Context

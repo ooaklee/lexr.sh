@@ -486,7 +486,7 @@ func TestCleanApplyRequiresExplicitConfirmation(t *testing.T) {
 	if string(content) != legacyContent {
 		t.Fatalf("legacy file content changed without confirmation: %q", content)
 	}
-	if _, statErr := os.Stat(filepath.Join(root, "var", "lib", "linux-armer", "backups")); !os.IsNotExist(statErr) {
+	if _, statErr := os.Stat(filepath.Join(root, "var", "lib", "lexr", "backups")); !os.IsNotExist(statErr) {
 		t.Fatalf("backup directory was created without confirmation: %v", statErr)
 	}
 }
