@@ -91,6 +91,20 @@ type DeviceTree struct {
 	TargetPath string `json:"target_path"`
 }
 
+// HeaderEvidence proves that one selected development-header package left its
+// exact, non-symlink source tree and a non-empty top-level Makefile installed.
+type HeaderEvidence struct {
+	// Role distinguishes the ABI-specific and common development-header trees.
+	Role kernel.PackageRole `json:"role"`
+	// DebianPackage is the exact package name whose successful command is being
+	// corroborated by filesystem evidence.
+	DebianPackage string `json:"debian_package"`
+	// TreePath is the exact non-symlink directory installed beneath /usr/src.
+	TreePath string `json:"tree_path"`
+	// Marker is the hashed, non-empty top-level Makefile inside TreePath.
+	Marker FileEvidence `json:"marker"`
+}
+
 // FileEvidence records the identity of one safety-critical regular file.
 type FileEvidence struct {
 	// Kind distinguishes kernel images, initramfs files, module indexes, and DTBs.
@@ -177,6 +191,8 @@ type Receipt struct {
 	Installed *BootEvidence `json:"installed,omitempty"`
 	// DeviceTrees contains verified installed DTB evidence.
 	DeviceTrees []FileEvidence `json:"device_trees,omitempty"`
+	// Headers contains post-install evidence for every selected development-header package.
+	Headers []HeaderEvidence `json:"headers,omitempty"`
 	// Rollback records recovery work after a failed mutating operation.
 	Rollback *RollbackReceipt `json:"rollback,omitempty"`
 	// RebootRequired is true only after a successful non-dry-run installation.

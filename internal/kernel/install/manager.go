@@ -200,6 +200,10 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	if err != nil {
 		return manager.failAndRollback(plan, backup, receipt, err)
 	}
+	headers, err := verifyInstalledHeaders(ctx, plan.Root, plan.TargetABI, plan.Packages)
+	if err != nil {
+		return manager.failAndRollback(plan, backup, receipt, err)
+	}
 	currentFallback, err = verifyFallback(ctx, plan.Root, plan.FallbackABI)
 	if err != nil {
 		return manager.failAndRollback(plan, backup, receipt, err)
@@ -209,6 +213,7 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	}
 	receipt.Installed = &installed
 	receipt.DeviceTrees = trees
+	receipt.Headers = headers
 	receipt.RebootRequired = true
 	return receipt, nil
 }

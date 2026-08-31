@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
 
 const (
@@ -221,6 +223,66 @@ func isKernelModule(path string) bool {
 	return strings.HasSuffix(path, ".ko") || strings.HasSuffix(path, ".ko.xz") || strings.HasSuffix(path, ".ko.zst")
 }
 
+// verifyInstalledHeaders corroborates a successful package-manager command
+// with exact filesystem evidence for every selected development-header role.
+func verifyInstalledHeaders(ctx context.Context, root, abi string, packages []Package) ([]HeaderEvidence, error) {
+	selected := make(map[kernel.PackageRole]Package, 2)
+	for _, item := range packages {
+		switch item.Role {
+		case kernel.RoleHeaders, kernel.RoleCommonHeaders:
+			selected[item.Role] = item
+		}
+	}
+	if len(selected) == 0 {
+		return nil, nil
+	}
+	if len(selected) != 2 {
+		return nil, errors.New("installed kernel header verification requires the complete header package pair")
+	}
+
+	base := strings.TrimSuffix(abi, "-qcom-x1e")
+	trees := []struct {
+		role     kernel.PackageRole
+		relative string
+	}{
+		{role: kernel.RoleCommonHeaders, relative: "usr/src/linux-qcom-x1e-headers-" + base},
+		{role: kernel.RoleHeaders, relative: "usr/src/linux-headers-" + abi},
+	}
+	evidence := make([]HeaderEvidence, 0, len(trees))
+	for _, tree := range trees {
+		packageItem := selected[tree.role]
+		treePath, err := rootPath(root, tree.relative)
+		if err != nil {
+			return nil, err
+		}
+		if err := validateTargetRoute(root, treePath, false); err != nil {
+			return nil, fmt.Errorf("inspect installed %s header tree %s: %w", tree.role, treePath, err)
+		}
+		info, err := os.Lstat(treePath)
+		if err != nil {
+			return nil, fmt.Errorf("inspect installed %s header tree %s: %w", tree.role, treePath, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return nil, fmt.Errorf("installed %s header tree must be a non-symlink directory: %s", tree.role, treePath)
+		}
+		markerPath := filepath.Join(treePath, "Makefile")
+		if err := validateTargetRoute(root, markerPath, false); err != nil {
+			return nil, fmt.Errorf("inspect installed %s header marker %s: %w", tree.role, markerPath, err)
+		}
+		marker, err := requireRegularEvidence(ctx, string(tree.role)+"-makefile", markerPath)
+		if err != nil {
+			return nil, err
+		}
+		evidence = append(evidence, HeaderEvidence{
+			Role:          tree.role,
+			DebianPackage: packageItem.DebianPackage,
+			TreePath:      treePath,
+			Marker:        marker,
+		})
+	}
+	return evidence, nil
+}
+
 // verifyTargetAbsent requires a fresh ABI before package-manager mutation.
 func verifyTargetAbsent(ctx context.Context, root, abi string) error {
 	paths := []string{
@@ -230,7 +292,7 @@ func verifyTargetAbsent(ctx context.Context, root, abi string) error {
 		"boot/config-" + abi,
 		"usr/lib/firmware/" + abi,
 		"usr/src/linux-headers-" + abi,
-		"usr/src/linux-headers-" + strings.TrimSuffix(abi, "-qcom-x1e"),
+		"usr/src/linux-qcom-x1e-headers-" + strings.TrimSuffix(abi, "-qcom-x1e"),
 	}
 	for _, relative := range paths {
 		target, err := rootPath(root, relative)

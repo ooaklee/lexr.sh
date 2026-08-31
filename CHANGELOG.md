@@ -55,6 +55,7 @@ that do not apply.
 ### Added
 
 - Added an explicit, build-and-release-provenance-recorded SP11 Stubble mode with packaged PE-section and Denali device-tree validation while retaining source-owned boot-image policy by default.
+- Added closed `all` and `runtime` local kernel package-set selection. Inspection and installation now select every exact ABI/version-matched package from the emitted bundle declaration by default, include a coherent development-header pair when declared, fail if a complete declaration loses either header, preserve intentional runtime-only downloads, and verify both selected header trees after installation; `--package-set runtime` deliberately retains the image-and-modules-only path.
 
 ### Fixed
 

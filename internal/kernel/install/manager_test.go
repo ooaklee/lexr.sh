@@ -171,6 +171,18 @@ func fixtureEnvironment(t *testing.T) (string, kernel.Bundle) {
 	return root, bundle
 }
 
+// fixtureBundleWithHeaders adds the coherent development-header pair emitted by
+// complete native kernel builds.
+func fixtureBundleWithHeaders(t *testing.T, bundle kernel.Bundle) kernel.Bundle {
+	t.Helper()
+	directory := filepath.Dir(bundle.Packages[0].Path)
+	bundle.Packages = append(bundle.Packages,
+		fixturePackage(t, directory, kernel.RoleHeaders, "flavour headers"),
+		fixturePackage(t, directory, kernel.RoleCommonHeaders, "common headers"),
+	)
+	return bundle
+}
+
 // fixturePackage writes one package-shaped immutable fixture and records its digest.
 func fixturePackage(t *testing.T, directory string, role kernel.PackageRole, content string) kernel.Package {
 	t.Helper()
@@ -265,8 +277,28 @@ func installFixtureTarget(root string) error {
 	return nil
 }
 
+// installFixtureHeaders simulates the exact non-symlink source trees and
+// top-level marker files installed by the two development-header packages.
+func installFixtureHeaders(root string) error {
+	base := strings.TrimSuffix(fixtureTargetABI, "-qcom-x1e")
+	files := map[string]string{
+		filepath.Join(root, "usr/src/linux-headers-"+fixtureTargetABI, "Makefile"): "flavour header makefile",
+		filepath.Join(root, "usr/src/linux-qcom-x1e-headers-"+base, "Makefile"):    "common header makefile",
+	}
+	for path, content := range files {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // removeFixtureTarget simulates purging only the failed target ABI packages.
 func removeFixtureTarget(root string) error {
+	base := strings.TrimSuffix(fixtureTargetABI, "-qcom-x1e")
 	paths := []string{
 		filepath.Join(root, "boot/vmlinuz-"+fixtureTargetABI),
 		filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI),
@@ -274,6 +306,8 @@ func removeFixtureTarget(root string) error {
 		filepath.Join(root, "boot/config-"+fixtureTargetABI),
 		filepath.Join(root, "usr/lib/modules", fixtureTargetABI),
 		filepath.Join(root, "usr/lib/firmware", fixtureTargetABI),
+		filepath.Join(root, "usr/src/linux-headers-"+fixtureTargetABI),
+		filepath.Join(root, "usr/src/linux-qcom-x1e-headers-"+base),
 	}
 	for _, path := range paths {
 		if err := os.RemoveAll(path); err != nil {
@@ -384,6 +418,131 @@ func TestInstallStagesPackagesAndVerifiesBootEvidence(t *testing.T) {
 	}
 	if len(receipt.Executed) != 2 || receipt.Rollback != nil {
 		t.Fatalf("unexpected command receipt: %+v", receipt)
+	}
+}
+
+// TestInstallFourPackageSetVerifiesHeaderTrees exercises immutable staging,
+// dependency-friendly ordering, and post-install evidence for both headers.
+func TestInstallFourPackageSetVerifiesHeaderTrees(t *testing.T) {
+	root, bundle := fixtureEnvironment(t)
+	bundle = fixtureBundleWithHeaders(t, bundle)
+	runner := &fakeRunner{root: root}
+	runner.runHook = func(_ context.Context, command platform.Command) error {
+		switch {
+		case slicesContain(command.Args, "--install"):
+			var packages []string
+			for _, argument := range command.Args {
+				if strings.HasSuffix(argument, ".deb") {
+					if !strings.Contains(argument, stagingPrefix) {
+						return fmt.Errorf("package was not staged: %s", argument)
+					}
+					packages = append(packages, filepath.Base(argument))
+				}
+			}
+			expected := expectedPackageNames(fixtureTargetABI)
+			want := []string{
+				expected[kernel.RoleModules] + "_" + fixtureVersion + "_arm64.deb",
+				expected[kernel.RoleImage] + "_" + fixtureVersion + "_arm64.deb",
+				expected[kernel.RoleCommonHeaders] + "_" + fixtureVersion + "_all.deb",
+				expected[kernel.RoleHeaders] + "_" + fixtureVersion + "_arm64.deb",
+			}
+			if strings.Join(packages, "\n") != strings.Join(want, "\n") {
+				return fmt.Errorf("package order = %v, want %v", packages, want)
+			}
+			if err := installFixtureTarget(root); err != nil {
+				return err
+			}
+			if err := installFixtureHeaders(root); err != nil {
+				return err
+			}
+			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(true))
+		case command.Name == chrootCommand && slicesContain(command.Args, updateInitramfsCommand):
+			writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+		}
+		return nil
+	}
+	manager := fixtureManager(runner)
+	manager.effectiveUID = func() int { return 0 }
+	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(receipt.Headers) != 2 || receipt.Headers[0].Role != kernel.RoleCommonHeaders || receipt.Headers[1].Role != kernel.RoleHeaders {
+		t.Fatalf("unexpected header evidence: %+v", receipt.Headers)
+	}
+	for _, header := range receipt.Headers {
+		if header.DebianPackage == "" || header.TreePath == "" || header.Marker.Size <= 0 || header.Marker.SHA256 == "" {
+			t.Errorf("incomplete header evidence: %+v", header)
+		}
+	}
+}
+
+// TestMissingSelectedHeadersRollsBackFourPackages proves an apparently
+// successful package command cannot leave an unverified development bundle.
+func TestMissingSelectedHeadersRollsBackFourPackages(t *testing.T) {
+	root, bundle := fixtureEnvironment(t)
+	bundle = fixtureBundleWithHeaders(t, bundle)
+	originalGRUB, err := os.ReadFile(filepath.Join(root, "boot/grub/grub.cfg"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &fakeRunner{root: root}
+	runner.runHook = func(_ context.Context, command platform.Command) error {
+		switch {
+		case slicesContain(command.Args, "--install"):
+			if err := installFixtureTarget(root); err != nil {
+				return err
+			}
+			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(true))
+		case command.Name == chrootCommand && slicesContain(command.Args, updateInitramfsCommand):
+			writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+		case slicesContain(command.Args, "--purge"):
+			return removeFixtureTarget(root)
+		}
+		return nil
+	}
+	manager := fixtureManager(runner)
+	manager.effectiveUID = func() int { return 0 }
+	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	if err == nil || !strings.Contains(err.Error(), "linux-qcom-x1e-headers-") {
+		t.Fatalf("missing-header error = %v", err)
+	}
+	if receipt.Rollback == nil || !receipt.Rollback.GRUBRestored || receipt.Rollback.Error != "" || len(receipt.Rollback.Commands) != 1 {
+		t.Fatalf("unexpected rollback receipt: %+v", receipt.Rollback)
+	}
+	purge := receipt.Rollback.Commands[0]
+	for _, item := range receipt.Plan.Packages {
+		if !slicesContain(purge.Args, item.DebianPackage) {
+			t.Errorf("rollback omitted %s: %+v", item.DebianPackage, purge)
+		}
+	}
+	restored, readErr := os.ReadFile(filepath.Join(root, "boot/grub/grub.cfg"))
+	if readErr != nil || string(restored) != string(originalGRUB) {
+		t.Fatalf("GRUB was not restored: %q, %v", restored, readErr)
+	}
+}
+
+// TestPreflightRejectsStaleHeaderTrees verifies freshness uses both exact
+// package-installed /usr/src names, including the qcom common-header prefix.
+func TestPreflightRejectsStaleHeaderTrees(t *testing.T) {
+	base := strings.TrimSuffix(fixtureTargetABI, "-qcom-x1e")
+	tests := []string{
+		"usr/src/linux-headers-" + fixtureTargetABI,
+		"usr/src/linux-qcom-x1e-headers-" + base,
+	}
+	for _, relative := range tests {
+		t.Run(filepath.Base(relative), func(t *testing.T) {
+			root, bundle := fixtureEnvironment(t)
+			writeFixtureFile(t, filepath.Join(root, relative, "Makefile"), "stale header tree")
+			runner := &fakeRunner{root: root}
+			_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+			if err == nil || !strings.Contains(err.Error(), filepath.Join(root, relative)) {
+				t.Fatalf("stale-header error = %v", err)
+			}
+			if len(runner.runs) != 0 {
+				t.Fatalf("stale-header preflight mutated target: %+v", runner.runs)
+			}
+		})
 	}
 }
 
