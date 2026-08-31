@@ -59,10 +59,10 @@ jobs:
 
       - name: Build Linux amd64 with explicit source metadata
         run: |
-          go run ./cmd/lexr-build --output build/lexr-ci/lexr-linux-amd64
-          build/lexr-ci/lexr-linux-amd64 version |
+          go run ./cmd/lexr-build --output "${RUNNER_TEMP}/lexr-linux-amd64"
+          "${RUNNER_TEMP}/lexr-linux-amd64" version |
             grep -F "commit: ${GITHUB_SHA}"
-          if go version -m build/lexr-ci/lexr-linux-amd64 |
+          if go version -m "${RUNNER_TEMP}/lexr-linux-amd64" |
              grep -F $'\tbuild\tvcs.'; then
             printf 'The source builder retained ambiguous automatic VCS metadata.\n' >&2
             exit 1
