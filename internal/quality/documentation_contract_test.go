@@ -154,6 +154,40 @@ func TestGeneratedOutputRemainsIgnored(t *testing.T) {
 	}
 }
 
+// TestSourceBuildUsesExplicitLexrProvenance prevents local and submodule builds
+// from trusting a containing repository's automatic Go VCS metadata.
+func TestSourceBuildUsesExplicitLexrProvenance(t *testing.T) {
+	repositoryRoot := lexrRepositoryRoot(t)
+	readme := readBoundedRepositoryFile(t, repositoryRoot, "README.md")
+	workflow := readBoundedRepositoryFile(t, repositoryRoot, ".github/workflows/lexr.yml")
+	builder := readBoundedRepositoryFile(t, repositoryRoot, "cmd/lexr-build/main.go")
+	versionSource := readBoundedRepositoryFile(t, repositoryRoot, "internal/version/version.go")
+
+	for path, content := range map[string][]byte{
+		"README.md":                  readme,
+		".github/workflows/lexr.yml": workflow,
+	} {
+		if !bytes.Contains(content, []byte("go run ./cmd/lexr-build")) {
+			t.Errorf("%s does not use the explicit source-build helper", path)
+		}
+	}
+	for _, required := range [][]byte{
+		[]byte("-buildvcs=false"),
+		[]byte("internal/version.Version"),
+		[]byte("internal/version.Commit"),
+		[]byte("internal/version.Date"),
+	} {
+		if !bytes.Contains(builder, required) {
+			t.Errorf("source-build helper omits %q", required)
+		}
+	}
+	for _, forbidden := range [][]byte{[]byte("vcs.revision"), []byte("vcs.time")} {
+		if bytes.Contains(versionSource, forbidden) {
+			t.Errorf("version package trusts ambiguous automatic metadata %q", forbidden)
+		}
+	}
+}
+
 // lexrRepositoryRoot returns the canonical standalone module root and fails if
 // the package is accidentally tested from an unrelated source arrangement.
 func lexrRepositoryRoot(t *testing.T) string {

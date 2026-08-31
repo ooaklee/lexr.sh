@@ -68,10 +68,15 @@ Clone the standalone repository and build the command from its root:
 ```sh
 git clone https://github.com/ooaklee/lexr.sh.git
 cd lexr.sh
-mkdir -p bin
-go build -o bin/lexr ./cmd/lexr
+go run ./cmd/lexr-build
 ./bin/lexr doctor
 ```
+
+The Go-native source builder records the selected Lexr checkout explicitly and
+disables Go's automatic VCS stamping. This matters when Lexr is a Git submodule:
+Go can otherwise walk past its `.git` pointer file and stamp the containing
+repository's revision. An exported source archive remains buildable and reports
+an honest `unknown` commit instead of inventing provenance.
 
 ## Workflow ownership
 
@@ -785,7 +790,7 @@ Architecture decisions are recorded in [`docs/adr`](docs/adr/).
 go fmt ./...
 go vet ./...
 go test ./...
-go build ./cmd/lexr
+go run ./cmd/lexr-build
 ```
 
 Do not commit downloaded images, kernel packages, build workspaces, or generated output ISOs.

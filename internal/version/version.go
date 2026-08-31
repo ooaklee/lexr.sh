@@ -1,4 +1,4 @@
-// Package version contains build metadata populated by release linker flags.
+// Package version contains build metadata populated by trusted linker flags.
 package version
 
 import "runtime/debug"
@@ -12,26 +12,22 @@ var (
 	Date = "unknown"
 )
 
-// Info returns build metadata, using Go module metadata for local builds when
-// linker-provided values are unavailable.
+// Info returns linker-provided build metadata and may use only the main Go
+// module version as a local-build fallback. Automatic VCS commit and timestamp
+// settings are deliberately ignored because Go can discover a containing
+// superproject rather than a Git submodule's pointer-file repository.
 func Info() (version, commit, date string) {
-	version, commit, date = Version, Commit, Date
-	if info, ok := debug.ReadBuildInfo(); ok {
-		if version == "dev" && info.Main.Version != "" && info.Main.Version != "(devel)" {
-			version = info.Main.Version
-		}
-		for _, setting := range info.Settings {
-			switch setting.Key {
-			case "vcs.revision":
-				if commit == "unknown" {
-					commit = setting.Value
-				}
-			case "vcs.time":
-				if date == "unknown" {
-					date = setting.Value
-				}
-			}
-		}
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return Version, Commit, Date
+	}
+	return resolve(Version, Commit, Date, info)
+}
+
+// resolve applies the narrow trusted fallback to explicit metadata values.
+func resolve(version, commit, date string, info *debug.BuildInfo) (string, string, string) {
+	if info != nil && version == "dev" && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		version = info.Main.Version
 	}
 	return version, commit, date
 }

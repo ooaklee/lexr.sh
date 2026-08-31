@@ -57,8 +57,16 @@ jobs:
       - name: Run go vet
         run: go vet ./...
 
-      - name: Build Linux amd64 binary without CGO
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o "${RUNNER_TEMP}/lexr-linux-amd64" ./cmd/lexr
+      - name: Build Linux amd64 with explicit source metadata
+        run: |
+          go run ./cmd/lexr-build --output build/lexr-ci/lexr-linux-amd64
+          build/lexr-ci/lexr-linux-amd64 version |
+            grep -F "commit: ${GITHUB_SHA}"
+          if go version -m build/lexr-ci/lexr-linux-amd64 |
+             grep -F $'\tbuild\tvcs.'; then
+            printf 'The source builder retained ambiguous automatic VCS metadata.\n' >&2
+            exit 1
+          fi
 
       - name: Verify the immutable published IPTSD release
         env:

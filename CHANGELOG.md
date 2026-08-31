@@ -27,7 +27,7 @@ The current unreleased version is `0.1.0`. Before `1.0.0`, each release containi
 - A named Linux Docker volume for remaster filesystems so device nodes, ownership, case-sensitive paths, and extended attributes survive on every supported host.
 - Deterministic installed-system hand-off with exact dpkg registration, a non-Casper initramfs, paired versioned device trees, explicit X1E/X1P GRUB entries, and bounded kernel lifecycle hooks.
 - Repository-wide documentation quality gates covering all Go declarations, including tests, and British-English comments and public prose.
-- Cross-platform GoReleaser configuration for Linux and macOS on AMD64 and ARM64.
+- Cross-platform GoReleaser configuration for Linux, macOS and Windows on AMD64 and ARM64.
 - Adapter-owned live-media discovery metadata with exact Casper initramfs and ISO UUID synchronisation.
 - A manifest-tracked on-media companion containing a static Linux ARM64 CLI, its corresponding source archive, validated catalogues, and optionally the redistribution-eligible IPTSD release.
 - Closed-set companion validation that rehashes every extracted file and rejects absent, extra, malformed, or incorrectly permissioned payloads.
@@ -42,6 +42,7 @@ The current unreleased version is `0.1.0`. Before `1.0.0`, each release containi
 - Draft-first OE kernel prerelease publication with complete remote asset comparison and native validation before promotion.
 - A dedicated, repository-scoped OE release token confined to the hosted publication step, after independent validation of self-hosted build output.
 - An exact binary-only Lexr release allow-list for Linux, macOS and Windows on AMD64 and ARM64, with predictable hyphenated filenames, one versioned checksum manifest and no hardware-support or supplementary payloads.
+- A Go-native source builder which injects explicit Lexr version, revision and build-time metadata without relying on ambiguous automatic VCS discovery.
 
 ### Changed
 
@@ -63,3 +64,4 @@ The current unreleased version is `0.1.0`. Before `1.0.0`, each release containi
 - Corrected Ubuntu live-media discovery so a regenerated Casper initramfs cannot be published with a stale ISO UUID marker.
 - Restored offline installation compatibility with the immutable `sp11-iptsd-v1` archive while retaining exact operational-file identities and rejecting unreviewed documentation variants.
 - Kept legacy diagnostic captures ignored after retiring their generators, and made repository-root legal documents authoritative for CLI publication and mandatory inside each distributable companion inventory.
+- Prevented a Git-submodule build from reporting the containing OE repository's revision as Lexr provenance.

@@ -35,8 +35,9 @@ migration unrelated to the public rename.
 The standalone repository owns the Lexr.sh source, issues, documentation,
 catalogues, test suites and release workflow. The Go module is
 `github.com/ooaklee/lexr.sh`, the source command is `./cmd/lexr`, and published
-archives expose the `lexr` executable. New command output, cache directories,
-temporary workspaces and locally generated artefact names use the `lexr` name.
+release assets expose the raw `lexr` executables. New command output, cache
+directories, temporary workspaces and locally generated artefact names use the
+`lexr` name.
 
 The repository history is extracted from a fresh clone with `git filter-repo`.
 The filter selects both the complete `cli/linux-armer/` history and the
