@@ -157,7 +157,7 @@ func containerCommand(plan Plan, transactionDirectory, containerName string) Com
 		"--env", "LEXR_RECIPE_SHA256=" + plan.RecipeSHA256,
 		plan.ContainerImage,
 		"/bin/bash", "/exchange/build-policy.sh",
-		plan.GitURL, plan.GitRef, strconv.Itoa(plan.Jobs), strconv.FormatBool(plan.ResetSource), strconv.FormatBool(plan.SkipClean),
+		plan.GitURL, plan.GitRef, strconv.Itoa(plan.Jobs), strconv.FormatBool(plan.ResetSource), strconv.FormatBool(plan.SkipClean), string(plan.BootImageMode),
 	}}
 }
 

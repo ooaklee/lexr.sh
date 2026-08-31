@@ -2,8 +2,10 @@ package kernel
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +19,10 @@ const (
 	// localChecksumManifest is the optional authoritative digest file accepted
 	// beside local packages.
 	localChecksumManifest = "SHA256SUMS"
+	// localBundleManifest records the package set intentionally emitted by Lexr.
+	localBundleManifest = "lexr-kernel-bundle.json"
+	// maximumLocalBundleManifestBytes bounds local package-set authority.
+	maximumLocalBundleManifestBytes int64 = 64 << 10
 	// localReleasePrefix distinguishes locally discovered bundles from release
 	// tags in serialised output.
 	localReleasePrefix = "local:"
@@ -39,11 +45,37 @@ type localCandidate struct {
 	version string
 }
 
+// LocalPackageSet selects one closed group of version-bound local packages.
+type LocalPackageSet string
+
+const (
+	// LocalPackageSetRuntime selects only the mandatory image and modules pair.
+	LocalPackageSetRuntime LocalPackageSet = "runtime"
+	// LocalPackageSetAll adds the coherent development-header pair when present.
+	LocalPackageSetAll LocalPackageSet = "all"
+)
+
+// LocalBundleOptions selects the closed package set local discovery may add to
+// the mandatory runtime pair.
+type LocalBundleOptions struct {
+	// PackageSet selects all exact available roles or the runtime pair only.
+	PackageSet LocalPackageSet
+}
+
 // DiscoverLocalBundle finds one version-bound Surface Pro 11 linux-image and
 // linux-modules package pair in directory. If SHA256SUMS is present, both
 // packages must be covered by it and match their declared digests. Without a
 // manifest the packages are still hashed, but are marked as unverified.
 func DiscoverLocalBundle(directory string) (Bundle, error) {
+	return DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetRuntime})
+}
+
+// DiscoverLocalBundleWithOptions finds one version-bound Surface Pro 11 runtime
+// pair and optionally includes its exact coherent development-header pair.
+func DiscoverLocalBundleWithOptions(directory string, options LocalBundleOptions) (Bundle, error) {
+	if options.PackageSet != LocalPackageSetRuntime && options.PackageSet != LocalPackageSetAll {
+		return Bundle{}, fmt.Errorf("discover local kernel bundle: package set must be %q or %q, got %q", LocalPackageSetAll, LocalPackageSetRuntime, options.PackageSet)
+	}
 	if strings.TrimSpace(directory) == "" {
 		return Bundle{}, errors.New("discover local kernel bundle: directory is required")
 	}
@@ -65,11 +97,13 @@ func DiscoverLocalBundle(directory string) (Bundle, error) {
 		return Bundle{}, fmt.Errorf("discover local kernel bundle: read directory %q: %w", absoluteDirectory, err)
 	}
 	candidates := map[PackageRole][]localCandidate{
-		RoleImage:   nil,
-		RoleModules: nil,
+		RoleImage:         nil,
+		RoleModules:       nil,
+		RoleHeaders:       nil,
+		RoleCommonHeaders: nil,
 	}
 	for _, entry := range entries {
-		candidate, applicable, candidateErr := inspectLocalCandidate(absoluteDirectory, entry)
+		candidate, applicable, candidateErr := inspectLocalCandidate(absoluteDirectory, entry, options.PackageSet)
 		if candidateErr != nil {
 			return Bundle{}, fmt.Errorf("discover local kernel bundle: %w", candidateErr)
 		}
@@ -105,19 +139,46 @@ func DiscoverLocalBundle(directory string) (Bundle, error) {
 		)
 	}
 
-	checksums, manifestPresent, err := loadLocalChecksums(absoluteDirectory)
+	checksums, checksumManifestPresent, err := loadLocalChecksums(absoluteDirectory)
 	if err != nil {
 		return Bundle{}, fmt.Errorf("discover local kernel bundle: %w", err)
 	}
+	declaredBundle, bundleManifestPresent, err := loadLocalBundleManifest(absoluteDirectory)
+	if err != nil {
+		return Bundle{}, fmt.Errorf("discover local kernel bundle: %w", err)
+	}
+	declaredPackageSet := LocalPackageSet("")
+	if bundleManifestPresent {
+		declaredPackageSet, err = validateLocalBundleManifest(declaredBundle, image, modules, checksums, checksumManifestPresent)
+		if err != nil {
+			return Bundle{}, fmt.Errorf("discover local kernel bundle: %w", err)
+		}
+	}
 
 	selected := []localCandidate{image, modules}
+	if options.PackageSet == LocalPackageSetAll && (!bundleManifestPresent || declaredPackageSet == LocalPackageSetAll) {
+		headers, err := selectLocalHeaderPair(candidates, image, checksums, checksumManifestPresent, bundleManifestPresent)
+		if err != nil {
+			return Bundle{}, fmt.Errorf("discover local kernel bundle: %w", err)
+		}
+		selected = append(selected, headers...)
+	}
 	packages := make([]Package, 0, len(selected))
 	for _, candidate := range selected {
 		digest, size, hashErr := hashLocalPackage(candidate.path)
 		if hashErr != nil {
 			return Bundle{}, fmt.Errorf("discover local kernel bundle: %w", hashErr)
 		}
-		if manifestPresent {
+		if bundleManifestPresent {
+			declared, declaredRole := declaredBundle.Package(candidate.role)
+			if !declaredRole || declared.Name != candidate.name {
+				return Bundle{}, fmt.Errorf("discover local kernel bundle: %s does not declare selected package %s", localBundleManifest, candidate.name)
+			}
+			if declared.SHA256 != digest || declared.Size != size {
+				return Bundle{}, fmt.Errorf("discover local kernel bundle: package %s bytes disagree with %s", candidate.name, localBundleManifest)
+			}
+		}
+		if checksumManifestPresent {
 			expected, covered := checksums[candidate.name]
 			if !covered {
 				return Bundle{}, fmt.Errorf("discover local kernel bundle: %s does not cover %s", localChecksumManifest, candidate.name)
@@ -137,7 +198,7 @@ func DiscoverLocalBundle(directory string) (Bundle, error) {
 			Path:     candidate.path,
 			SHA256:   digest,
 			Size:     size,
-			Verified: manifestPresent,
+			Verified: checksumManifestPresent,
 		})
 	}
 
@@ -152,16 +213,32 @@ func DiscoverLocalBundle(directory string) (Bundle, error) {
 	return bundle, nil
 }
 
-// inspectLocalCandidate accepts only regular, top-level Surface image or
-// modules packages and ignores unrelated directory entries.
-func inspectLocalCandidate(directory string, entry os.DirEntry) (localCandidate, bool, error) {
+// inspectLocalCandidate accepts only regular, top-level Surface runtime or
+// header packages and ignores unrelated directory entries.
+func inspectLocalCandidate(directory string, entry os.DirEntry, packageSet LocalPackageSet) (localCandidate, bool, error) {
 	name := entry.Name()
 	if name == localChecksumManifest || !strings.HasSuffix(name, ".deb") {
 		return localCandidate{}, false, nil
 	}
 
 	role, abi, version, err := ParsePackageName(name)
-	if err != nil || (role != RoleImage && role != RoleModules) || !isSurfaceABI(abi) {
+	if err != nil {
+		return localCandidate{}, false, nil
+	}
+	switch role {
+	case RoleImage, RoleModules:
+		if !isSurfaceABI(abi) {
+			return localCandidate{}, false, nil
+		}
+	case RoleHeaders:
+		if packageSet != LocalPackageSetAll || !isSurfaceABI(abi) {
+			return localCandidate{}, false, nil
+		}
+	case RoleCommonHeaders:
+		if packageSet != LocalPackageSetAll {
+			return localCandidate{}, false, nil
+		}
+	default:
 		return localCandidate{}, false, nil
 	}
 	if entry.Type()&os.ModeSymlink != 0 {
@@ -182,6 +259,164 @@ func inspectLocalCandidate(directory string, entry os.DirEntry) (localCandidate,
 		abi:     abi,
 		version: version,
 	}, true, nil
+}
+
+// selectLocalHeaderPair returns only the two exact header filenames bound to
+// runtime. Other versions in the directory are unrelated and remain ignored.
+// An authoritative checksum declaration binds discovery to the complete pair,
+// so removing both declared files cannot silently downgrade an all-package
+// transaction to the runtime pair.
+func selectLocalHeaderPair(candidates map[PackageRole][]localCandidate, runtime localCandidate, checksums map[string]string, checksumManifestPresent, bundleManifestRequiresPair bool) ([]localCandidate, error) {
+	base := strings.TrimSuffix(runtime.abi, surfaceABISuffix)
+	expectedHeaders := "linux-headers-" + runtime.abi + "_" + runtime.version + "_arm64.deb"
+	expectedCommon := "linux-qcom-x1e-headers-" + base + "_" + runtime.version + "_all.deb"
+
+	headers, hasHeaders := localCandidateByName(candidates[RoleHeaders], expectedHeaders)
+	common, hasCommon := localCandidateByName(candidates[RoleCommonHeaders], expectedCommon)
+	_, headersDeclared := checksums[expectedHeaders]
+	_, commonDeclared := checksums[expectedCommon]
+	manifestRequiresPair := bundleManifestRequiresPair || checksumManifestPresent && (headersDeclared || commonDeclared)
+	if !hasHeaders && !hasCommon && !manifestRequiresPair {
+		return nil, nil
+	}
+	if !hasHeaders || !hasCommon {
+		missing := make([]string, 0, 2)
+		if !hasHeaders {
+			missing = append(missing, expectedHeaders)
+		}
+		if !hasCommon {
+			missing = append(missing, expectedCommon)
+		}
+		return nil, fmt.Errorf("matching kernel headers must be supplied as a complete pair; missing %s", strings.Join(missing, ", "))
+	}
+	return []localCandidate{headers, common}, nil
+}
+
+// loadLocalBundleManifest safely decodes the optional Lexr package-set
+// declaration without trusting any recorded package path.
+func loadLocalBundleManifest(directory string) (Bundle, bool, error) {
+	path := filepath.Join(directory, localBundleManifest)
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return Bundle{}, false, nil
+	}
+	if err != nil {
+		return Bundle{}, false, fmt.Errorf("inspect %s: %w", localBundleManifest, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return Bundle{}, false, fmt.Errorf("%s must be a regular file, not a symbolic link", localBundleManifest)
+	}
+	if !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > maximumLocalBundleManifestBytes {
+		return Bundle{}, false, fmt.Errorf("%s must be a non-empty regular file no larger than %d bytes", localBundleManifest, maximumLocalBundleManifestBytes)
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return Bundle{}, false, fmt.Errorf("open %s: %w", localBundleManifest, err)
+	}
+	opened, statErr := file.Stat()
+	if statErr != nil || !opened.Mode().IsRegular() || !os.SameFile(info, opened) {
+		_ = file.Close()
+		return Bundle{}, false, fmt.Errorf("%s changed before it was read", localBundleManifest)
+	}
+	data, readErr := io.ReadAll(io.LimitReader(file, maximumLocalBundleManifestBytes+1))
+	closeErr := file.Close()
+	current, currentErr := os.Lstat(path)
+	if err := errors.Join(readErr, closeErr, currentErr); err != nil {
+		return Bundle{}, false, fmt.Errorf("read %s: %w", localBundleManifest, err)
+	}
+	if int64(len(data)) != info.Size() || int64(len(data)) > maximumLocalBundleManifestBytes ||
+		current.Mode()&os.ModeSymlink != 0 || !os.SameFile(opened, current) || current.Size() != info.Size() {
+		return Bundle{}, false, fmt.Errorf("%s changed while it was read", localBundleManifest)
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	var bundle Bundle
+	if err := decoder.Decode(&bundle); err != nil {
+		return Bundle{}, false, fmt.Errorf("decode %s: %w", localBundleManifest, err)
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		if err == nil {
+			err = errors.New("multiple JSON values")
+		}
+		return Bundle{}, false, fmt.Errorf("decode %s trailing data: %w", localBundleManifest, err)
+	}
+	return bundle, true, nil
+}
+
+// validateLocalBundleManifest proves that a decoded declaration is exactly the
+// two-package runtime set or the coherent four-package set for runtime.
+func validateLocalBundleManifest(manifest Bundle, image, modules localCandidate, checksums map[string]string, checksumManifestPresent bool) (LocalPackageSet, error) {
+	if manifest.SchemaVersion != BundleSchemaVersion {
+		return "", fmt.Errorf("%s schema is %d, expected %d", localBundleManifest, manifest.SchemaVersion, BundleSchemaVersion)
+	}
+	if len(manifest.Packages) != 2 && len(manifest.Packages) != 4 {
+		return "", fmt.Errorf("%s must declare exactly the runtime pair or runtime and header pairs; found %d packages", localBundleManifest, len(manifest.Packages))
+	}
+	normalized, err := NewBundle(manifest.Release, manifest.Repository, manifest.Packages)
+	if err != nil {
+		return "", fmt.Errorf("validate %s packages: %w", localBundleManifest, err)
+	}
+	if manifest.ABI != image.abi || normalized.ABI != image.abi || manifest.Version != image.version || normalized.Version != image.version || manifest.Architecture != "arm64" {
+		return "", fmt.Errorf("%s identity does not match runtime ABI %s version %s", localBundleManifest, image.abi, image.version)
+	}
+	if len(manifest.DeviceTrees) != len(normalized.DeviceTrees) {
+		return "", fmt.Errorf("%s device-tree declaration is incomplete", localBundleManifest)
+	}
+	for index := range normalized.DeviceTrees {
+		if manifest.DeviceTrees[index] != normalized.DeviceTrees[index] {
+			return "", fmt.Errorf("%s device-tree declaration differs from the current bundle contract", localBundleManifest)
+		}
+	}
+
+	base := strings.TrimSuffix(image.abi, surfaceABISuffix)
+	expected := map[PackageRole]string{
+		RoleImage:         image.name,
+		RoleModules:       modules.name,
+		RoleHeaders:       "linux-headers-" + image.abi + "_" + image.version + "_arm64.deb",
+		RoleCommonHeaders: "linux-qcom-x1e-headers-" + base + "_" + image.version + "_all.deb",
+	}
+	roles := map[PackageRole]bool{RoleImage: true, RoleModules: true}
+	packageSet := LocalPackageSetRuntime
+	if len(manifest.Packages) == 4 {
+		roles[RoleHeaders] = true
+		roles[RoleCommonHeaders] = true
+		packageSet = LocalPackageSetAll
+	}
+	for _, item := range manifest.Packages {
+		if !roles[item.Role] || item.Name != expected[item.Role] {
+			return "", fmt.Errorf("%s contains unexpected %s package %q", localBundleManifest, item.Role, item.Name)
+		}
+		if len(item.SHA256) != sha256.Size*2 || strings.ToLower(item.SHA256) != item.SHA256 {
+			return "", fmt.Errorf("%s package %s has a non-canonical SHA-256", localBundleManifest, item.Name)
+		}
+		if _, err := hex.DecodeString(item.SHA256); err != nil {
+			return "", fmt.Errorf("%s package %s has an invalid SHA-256: %w", localBundleManifest, item.Name, err)
+		}
+		if item.Size <= 0 {
+			return "", fmt.Errorf("%s package %s has an invalid size", localBundleManifest, item.Name)
+		}
+		if checksumManifestPresent {
+			expectedDigest, covered := checksums[item.Name]
+			if !covered || expectedDigest != item.SHA256 {
+				return "", fmt.Errorf("%s package %s disagrees with %s", localBundleManifest, item.Name, localChecksumManifest)
+			}
+		}
+	}
+	return packageSet, nil
+}
+
+// localCandidateByName locates one exact package basename in an already bounded
+// role collection.
+func localCandidateByName(candidates []localCandidate, name string) (localCandidate, bool) {
+	for _, candidate := range candidates {
+		if candidate.name == name {
+			return candidate, true
+		}
+	}
+	return localCandidate{}, false
 }
 
 // isSurfaceABI reports whether abi has a non-empty version followed by the

@@ -287,6 +287,7 @@ qcom-x1e kernel installed and keep recovery media available.
 - Release: %s
 - ABI: %s
 - Package version: %s
+- Boot image mode: %s
 - Source revision: %s
 - Source tree: %s
 - Corresponding source: %s
@@ -316,6 +317,7 @@ sudo %s kernel install <downloaded-release-directory> --root / --fallback-abi <r
 Reboot manually only when ready. Retain the fallback kernel until the new
 kernel, device trees and required hardware have been tested on the Surface.
 `, plan.Manifest.ReleaseName, plan.Manifest.ABI, plan.Manifest.Version,
+		plan.Manifest.Source.BootImageMode,
 		plan.Manifest.Source.Revision, plan.Manifest.Source.Tree,
 		strings.Join(sourceNames, ", "), strings.Join(licenceNames, ", "),
 		commandName, commandName, commandName)

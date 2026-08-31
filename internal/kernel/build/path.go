@@ -37,6 +37,8 @@ type resolvedRequest struct {
 	gitURL string
 	// gitRef is the validated branch or tag.
 	gitRef string
+	// bootImageMode is the validated source policy or explicit override.
+	bootImageMode BootImageMode
 	// jobs is zero or the requested bounded parallelism.
 	jobs int
 	// resetSource permits reset inside the owned volume only.
@@ -65,6 +67,13 @@ func resolveRequest(request Request) (resolvedRequest, error) {
 		gitRef = DefaultGitBranch
 	}
 	if err := validateGitRef(gitRef); err != nil {
+		return resolvedRequest{}, err
+	}
+	bootImageMode := request.BootImageMode
+	if bootImageMode == "" {
+		bootImageMode = BootImageModeSource
+	}
+	if err := validateBootImageMode(bootImageMode); err != nil {
 		return resolvedRequest{}, err
 	}
 	if request.Jobs < 0 || request.Jobs > maximumBuildJobs {
@@ -98,11 +107,23 @@ func resolveRequest(request Request) (resolvedRequest, error) {
 		outputDirectory: output,
 		gitURL:          gitURL,
 		gitRef:          gitRef,
+		bootImageMode:   bootImageMode,
 		jobs:            request.Jobs,
 		resetSource:     request.ResetSource,
 		skipClean:       request.SkipClean,
 		dryRun:          request.DryRun,
 	}, nil
+}
+
+// validateBootImageMode accepts only the closed source, Stubble, and raw-image
+// policy set exposed by the command-line interface.
+func validateBootImageMode(value BootImageMode) error {
+	switch value {
+	case BootImageModeSource, BootImageModeStubble, BootImageModeNoStubble:
+		return nil
+	default:
+		return fmt.Errorf("kernel boot-image mode must be source, stubble, or nostubble, got %q", value)
+	}
 }
 
 // resolveRepositoryRoot returns an explicit directory, the nearest OE checkout,

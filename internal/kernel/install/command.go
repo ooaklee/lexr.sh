@@ -26,8 +26,6 @@ const (
 	dpkgDebCommand = "/usr/bin/dpkg-deb"
 	// unameCommand is the trusted live-kernel ABI reader.
 	unameCommand = "/usr/bin/uname"
-	// updateGRUBCommand is the trusted live-root GRUB generator.
-	updateGRUBCommand = "/usr/sbin/update-grub"
 	// updateInitramfsCommand is the trusted live-root initramfs generator.
 	updateInitramfsCommand = "/usr/sbin/update-initramfs"
 )
@@ -52,7 +50,6 @@ var permittedCommands = map[string]bool{
 	dpkgCommand:            true,
 	dpkgDebCommand:         true,
 	unameCommand:           true,
-	updateGRUBCommand:      true,
 	updateInitramfsCommand: true,
 }
 
@@ -122,25 +119,21 @@ func (manager *Manager) captureCommand(ctx context.Context, command Command, max
 	return append([]byte(nil), stdout.bytes...), nil
 }
 
-// installationCommands constructs the fixed package, initramfs, and GRUB sequence.
+// installationCommands constructs the fixed package and initramfs sequence.
+// Kernel package lifecycle hooks own GRUB generation so a later generic
+// regeneration cannot discard device-tree injection performed by postinst.
 func installationCommands(root, abi string, packagePaths []string) ([]Command, error) {
-	commands := make([]Command, 0, 3)
+	commands := make([]Command, 0, 2)
 	if root == string(filepath.Separator) {
 		args := []string{"--assume-yes", "--no-install-recommends", "--no-remove", "--reinstall", "install"}
 		args = append(args, packagePaths...)
 		commands = append(commands, Command{Operation: OperationInstallPackages, Name: aptGetCommand, Args: args})
-		commands = append(commands,
-			Command{Operation: OperationUpdateInitramfs, Name: updateInitramfsCommand, Args: []string{"-u", "-k", abi}},
-			Command{Operation: OperationUpdateGRUB, Name: updateGRUBCommand},
-		)
+		commands = append(commands, Command{Operation: OperationUpdateInitramfs, Name: updateInitramfsCommand, Args: []string{"-u", "-k", abi}})
 	} else {
 		args := []string{root, dpkgCommand, "--install"}
 		args = append(args, packagePaths...)
 		commands = append(commands, Command{Operation: OperationInstallPackages, Name: chrootCommand, Args: args})
-		commands = append(commands,
-			Command{Operation: OperationUpdateInitramfs, Name: chrootCommand, Args: []string{root, updateInitramfsCommand, "-u", "-k", abi}},
-			Command{Operation: OperationUpdateGRUB, Name: chrootCommand, Args: []string{root, updateGRUBCommand}},
-		)
+		commands = append(commands, Command{Operation: OperationUpdateInitramfs, Name: chrootCommand, Args: []string{root, updateInitramfsCommand, "-u", "-k", abi}})
 	}
 	for _, command := range commands {
 		if err := validateCommand(command); err != nil {

@@ -3,6 +3,7 @@ package build
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -90,6 +91,7 @@ func TestDryRunPlanIsCompleteAndReadOnly(t *testing.T) {
 		RepositoryRoot:  root,
 		GitURL:          "https://example.invalid/owner/kernel;literal",
 		GitBranch:       "sp11/test-v19",
+		BootImageMode:   BootImageModeStubble,
 		WorkDirectory:   "private/work",
 		OutputDirectory: "packages/new-v19",
 		Jobs:            12,
@@ -109,6 +111,7 @@ func TestDryRunPlanIsCompleteAndReadOnly(t *testing.T) {
 	}
 	if receipt.Plan.SchemaVersion != SchemaVersion || len(receipt.Plan.Commands) != 3 ||
 		receipt.Plan.GitURL != request.GitURL || receipt.Plan.GitRef != request.GitBranch ||
+		receipt.Plan.BootImageMode != request.BootImageMode ||
 		receipt.Plan.Jobs != request.Jobs || !receipt.Plan.ResetSource || !receipt.Plan.SkipClean ||
 		receipt.Plan.BuildTarget != containerBuildTarget || receipt.Plan.MinimumFreeGiB != containerMinimumFreeGiB {
 		t.Fatalf("dry-run plan = %#v", receipt.Plan)
@@ -120,9 +123,46 @@ func TestDryRunPlanIsCompleteAndReadOnly(t *testing.T) {
 	if !strings.Contains(joined, "\n"+request.GitURL+"\n") || !strings.Contains(joined, "\n"+request.GitBranch+"\n") {
 		t.Fatalf("source inputs are not distinct Docker arguments: %q", joined)
 	}
+	if !strings.HasSuffix(joined, "\n"+string(BootImageModeStubble)) {
+		t.Fatalf("boot-image mode is not a distinct final recipe argument: %q", joined)
+	}
 	second, err := manager.Plan(context.Background(), request)
 	if err != nil || !reflect.DeepEqual(receipt.Plan, second) {
 		t.Fatalf("plan is not deterministic: error=%v\nfirst=%#v\nsecond=%#v", err, receipt.Plan, second)
+	}
+}
+
+// TestBootImageModesDefaultAndValidate verifies source policy remains the
+// compatibility default and invalid or explicit values fail closed.
+func TestBootImageModesDefaultAndValidate(t *testing.T) {
+	root := t.TempDir()
+	for _, test := range []struct {
+		name       string
+		configured BootImageMode
+		want       BootImageMode
+	}{
+		{name: "default source", want: BootImageModeSource},
+		{name: "explicit source", configured: BootImageModeSource, want: BootImageModeSource},
+		{name: "explicit Stubble", configured: BootImageModeStubble, want: BootImageModeStubble},
+		{name: "explicit no Stubble", configured: BootImageModeNoStubble, want: BootImageModeNoStubble},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			plan, err := newTestBuildManager(&fakeBuildRunner{}).Plan(context.Background(), Request{
+				RepositoryRoot: root, WorkDirectory: "work-" + strings.ReplaceAll(test.name, " ", "-"),
+				OutputDirectory: "output-" + strings.ReplaceAll(test.name, " ", "-"), BootImageMode: test.configured,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if plan.BootImageMode != test.want || plan.Commands[2].Args[len(plan.Commands[2].Args)-1] != string(test.want) {
+				t.Fatalf("boot-image plan = %+v", plan)
+			}
+		})
+	}
+	if _, err := newTestBuildManager(&fakeBuildRunner{}).Plan(context.Background(), Request{
+		RepositoryRoot: root, WorkDirectory: "invalid-work", OutputDirectory: "invalid-output", BootImageMode: "automatic",
+	}); err == nil || !strings.Contains(err.Error(), "boot-image mode") {
+		t.Fatalf("invalid boot-image mode error = %v", err)
 	}
 }
 
@@ -145,8 +185,17 @@ func TestNativeBuildPublishesVerifiedBundle(t *testing.T) {
 		t.Fatalf("Run() error = %v", err)
 	}
 	if !receipt.Published || !receipt.PublicationDurable || receipt.Provenance == nil ||
-		receipt.Provenance.Revision != strings.Repeat("a", 40) || receipt.Provenance.ToolchainSHA256 != strings.Repeat("c", 64) || len(receipt.Artifacts) != 2 {
+		receipt.Provenance.Revision != strings.Repeat("a", 40) || receipt.Provenance.ToolchainSHA256 != strings.Repeat("c", 64) || len(receipt.Artifacts) != 4 {
 		t.Fatalf("build receipt = %#v", receipt)
+	}
+	roles := make(map[kernel.PackageRole]bool, len(receipt.Artifacts))
+	for _, item := range receipt.Artifacts {
+		roles[item.Role] = true
+	}
+	for _, role := range []kernel.PackageRole{kernel.RoleImage, kernel.RoleModules, kernel.RoleHeaders, kernel.RoleCommonHeaders} {
+		if !roles[role] {
+			t.Errorf("build receipt lacks %s package: %#v", role, receipt.Artifacts)
+		}
 	}
 	if len(receipt.Executed) != 3 {
 		t.Fatalf("executed commands = %d, want 3: %#v", len(receipt.Executed), receipt.Executed)
@@ -171,6 +220,26 @@ func TestNativeBuildPublishesVerifiedBundle(t *testing.T) {
 		info, err := os.Lstat(filepath.Join(root, "output", "v19", name))
 		if err != nil || !info.Mode().IsRegular() {
 			t.Errorf("published manifest %s is unavailable: %v", name, err)
+		}
+	}
+	manifestData, err := os.ReadFile(filepath.Join(root, "output", "v19", bundleManifestName))
+	if err != nil {
+		t.Fatalf("read published bundle manifest: %v", err)
+	}
+	var manifest kernel.Bundle
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		t.Fatalf("decode published bundle manifest: %v", err)
+	}
+	manifestRoles := make(map[kernel.PackageRole]bool, len(manifest.Packages))
+	for _, item := range manifest.Packages {
+		manifestRoles[item.Role] = true
+	}
+	if len(manifest.Packages) != 4 {
+		t.Fatalf("published bundle manifest package count = %d, want 4", len(manifest.Packages))
+	}
+	for _, role := range []kernel.PackageRole{kernel.RoleImage, kernel.RoleModules, kernel.RoleHeaders, kernel.RoleCommonHeaders} {
+		if !manifestRoles[role] {
+			t.Errorf("published bundle manifest lacks %s package: %#v", role, manifest.Packages)
 		}
 	}
 	if _, err := os.Lstat(filepath.Join(root, "state", "kernel", buildLockDirectoryName)); !errors.Is(err, os.ErrNotExist) {
@@ -401,6 +470,7 @@ func TestHostileInputsFailBeforeMutation(t *testing.T) {
 		"control Git ref":    {RepositoryRoot: baseRoot, GitBranch: "sp11/main\nnext", WorkDirectory: "work-k", OutputDirectory: "out-k"},
 		"negative jobs":      {RepositoryRoot: baseRoot, Jobs: -1, WorkDirectory: "work-l", OutputDirectory: "out-l"},
 		"excessive jobs":     {RepositoryRoot: baseRoot, Jobs: maximumBuildJobs + 1, WorkDirectory: "work-m", OutputDirectory: "out-m"},
+		"boot image mode":    {RepositoryRoot: baseRoot, BootImageMode: "stubble=true", WorkDirectory: "work-mode", OutputDirectory: "out-mode"},
 	}
 	for name, request := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -477,6 +547,28 @@ func TestMalformedContainerProvenancePreventsPublication(t *testing.T) {
 	}
 }
 
+// TestMismatchedBootImageModePreventsPublication verifies container evidence
+// cannot weaken or replace the operator-reviewed boot-image policy.
+func TestMismatchedBootImageModePreventsPublication(t *testing.T) {
+	root := t.TempDir()
+	runner := &fakeBuildRunner{}
+	runner.container = func(_ context.Context, command platform.Command, transaction string) error {
+		if err := writeFakeContainerOutput(command, transaction); err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(transaction, "provenance", "boot-image-mode"), []byte(BootImageModeNoStubble), 0o644)
+	}
+	receipt, err := newTestBuildManager(runner).Run(context.Background(), Request{
+		RepositoryRoot: root, WorkDirectory: "work", OutputDirectory: "output", BootImageMode: BootImageModeStubble,
+	})
+	if err == nil || !strings.Contains(err.Error(), "boot-image mode differs") {
+		t.Fatalf("mismatched boot-image mode error = %v", err)
+	}
+	if receipt.Published {
+		t.Fatalf("mismatched boot-image mode was published: %#v", receipt)
+	}
+}
+
 // TestHostilePackageNamePreventsPublication verifies a container cannot forge
 // checksum-manifest records with filename control characters.
 func TestHostilePackageNamePreventsPublication(t *testing.T) {
@@ -486,8 +578,9 @@ func TestHostilePackageNamePreventsPublication(t *testing.T) {
 		if err := writeFakeContainerOutput(command, transaction); err != nil {
 			return err
 		}
+		validName := "linux-image-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb"
 		name := "linux-image-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb\n" + strings.Repeat("0", 64) + "  forged.deb"
-		return os.WriteFile(filepath.Join(transaction, "artifacts", name), []byte("hostile"), 0o644)
+		return os.Rename(filepath.Join(transaction, "artifacts", validName), filepath.Join(transaction, "artifacts", name))
 	}
 	receipt, err := newTestBuildManager(runner).Run(context.Background(), Request{
 		RepositoryRoot: root, WorkDirectory: "work", OutputDirectory: "output",
@@ -500,29 +593,93 @@ func TestHostilePackageNamePreventsPublication(t *testing.T) {
 	}
 }
 
+// TestNativeBuildRejectsIncompleteHeaders verifies native compilation cannot
+// publish the generic runtime-only or half-paired bundle forms.
+func TestNativeBuildRejectsIncompleteHeaders(t *testing.T) {
+	abiHeaders := "linux-headers-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb"
+	commonHeaders := "linux-qcom-x1e-headers-" + strings.TrimSuffix(testKernelABI, "-qcom-x1e") + "_" + testKernelVersion + "_all.deb"
+	for _, test := range []struct {
+		name   string
+		remove []string
+	}{
+		{name: "missing ABI headers", remove: []string{abiHeaders}},
+		{name: "missing common headers", remove: []string{commonHeaders}},
+		{name: "missing both header packages", remove: []string{abiHeaders, commonHeaders}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			runner := &fakeBuildRunner{}
+			runner.container = func(_ context.Context, command platform.Command, transaction string) error {
+				if err := writeFakeContainerOutput(command, transaction); err != nil {
+					return err
+				}
+				for _, name := range test.remove {
+					if err := os.Remove(filepath.Join(transaction, "artifacts", name)); err != nil {
+						return err
+					}
+				}
+				return nil
+			}
+			receipt, err := newTestBuildManager(runner).Run(context.Background(), Request{
+				RepositoryRoot: root, WorkDirectory: "work", OutputDirectory: "output",
+			})
+			if err == nil || !strings.Contains(err.Error(), "must include ABI headers and common headers") {
+				t.Fatalf("incomplete header error = %v", err)
+			}
+			if receipt.Published {
+				t.Fatalf("incomplete header bundle was published: %#v", receipt)
+			}
+		})
+	}
+}
+
 // TestCompiledRecipeContainsOnlyNativeBuildPolicy verifies the released CLI no
 // longer calls repository helpers or carries retired install workarounds.
 func TestCompiledRecipeContainsOnlyNativeBuildPolicy(t *testing.T) {
 	for _, forbidden := range []string{
 		"/repo/", "scripts/", "build-sp11-qcom-x1e-kernel", "install-sp11", "touchscreen", "sudo", "reboot", "chmod -R a+rwX /exchange",
+		`awk '{print $1}' > "$provenance_dir/toolchain-sha256"`,
 	} {
 		if strings.Contains(containerRecipe, forbidden) {
 			t.Errorf("compiled recipe contains forbidden helper or host action %q", forbidden)
 		}
 	}
 	for _, required := range []string{
-		containerBuildTarget, "apt-get install -y --no-install-recommends", "mk-build-deps", "git ls-remote", "40 GiB",
+		containerCommonHeadersTarget, containerFlavourTarget,
+		"apt-get install -y --no-install-recommends", "binutils", "mk-build-deps", "git ls-remote", "40 GiB",
 		`chmod -R a+rwX "$artifact_dir" "$provenance_dir"`,
+		`awk '{printf "%s", $1}' > "$provenance_dir/toolchain-sha256"`,
+		"linux-image-*-qcom-x1e_*_arm64.deb", "linux-modules-*-qcom-x1e_*_arm64.deb",
+		"linux-headers-*-qcom-x1e_*_arm64.deb", "linux-qcom-x1e-headers-*_all.deb",
+		`stubble) flavour_make_args=(do_stubble=true)`, `nostubble) flavour_make_args=(do_stubble=false)`,
+		`"$rules" "${flavour_make_args[@]}" ` + containerFlavourTarget,
+		`dpkg-deb --fsys-tarfile`, `objdump -h`, `".linux"`, `".hwids"`, `".dtbauto"`,
+		`[ "$linux_sections" -ne 1 ]`, `[ "$hwids_sections" -ne 1 ]`, `[ "$dtbauto_sections" -lt 1 ]`,
+		`x1e80100-microsoft-denali-oled\.dtb`, `iflag=skip_bytes,count_bytes`, `cmp -s "$inspection_dtb" "$section_candidate"`,
+		`[ "$denali_dtbauto_sections" -ne 1 ]`,
+		`[ "$dtbauto_sections" -ne 0 ]`,
 	} {
 		if !strings.Contains(containerRecipe, required) {
 			t.Errorf("compiled recipe is missing retained policy %q", required)
 		}
+	}
+	if !strings.Contains(containerRecipe, `"$rules" `+containerCommonHeadersTarget) ||
+		strings.Contains(containerRecipe, `"$rules" "${flavour_make_args[@]}" `+containerCommonHeadersTarget) {
+		t.Error("compiled recipe applies the Stubble override outside flavour packaging")
+	}
+	if !strings.Contains(containerRecipe, `[ "$boot_image_mode" != source ]`) {
+		t.Error("compiled recipe does not preserve source-owned boot-image behaviour")
 	}
 	if strings.Count(containerRecipe, "rm -rf") != 1 || !strings.Contains(containerRecipe, `rm -rf -- "$source_dir"`) {
 		t.Errorf("compiled recipe has an unexpected reset boundary")
 	}
 	if !strings.Contains(containerRecipe, `find "$source_parent" -mindepth 1 -maxdepth 1`) || strings.Contains(containerRecipe, `find "$work_root"`) {
 		t.Errorf("compiled recipe does not isolate freshly generated packages")
+	}
+	commonHeaders := strings.Index(containerRecipe, `"$rules" `+containerCommonHeadersTarget)
+	flavour := strings.Index(containerRecipe, `"$rules" "${flavour_make_args[@]}" `+containerFlavourTarget)
+	if commonHeaders < 0 || flavour < 0 || commonHeaders >= flavour {
+		t.Errorf("compiled recipe does not build common headers before the flavour target")
 	}
 }
 
@@ -580,7 +737,7 @@ func transactionFromDockerArgs(arguments []string) (string, error) {
 	return "", errors.New("fake Docker command has no exchange mount")
 }
 
-// writeFakeContainerOutput emits bounded provenance and a coherent runtime pair.
+// writeFakeContainerOutput emits bounded provenance and a complete kernel bundle.
 func writeFakeContainerOutput(command platform.Command, transaction string) error {
 	arguments := command.Args
 	scriptIndex := -1
@@ -590,11 +747,12 @@ func writeFakeContainerOutput(command platform.Command, transaction string) erro
 			break
 		}
 	}
-	if scriptIndex < 0 || scriptIndex+5 >= len(arguments) {
+	if scriptIndex < 0 || scriptIndex+6 >= len(arguments) {
 		return errors.New("fake Docker command has incomplete recipe arguments")
 	}
 	gitURL := arguments[scriptIndex+1]
 	gitRef := arguments[scriptIndex+2]
+	bootImageMode := arguments[scriptIndex+6]
 	recipe := valueFollowing(arguments, "--env", "LEXR_RECIPE_SHA256=")
 	provenance := filepath.Join(transaction, "provenance")
 	artifacts := filepath.Join(transaction, "artifacts")
@@ -607,6 +765,7 @@ func writeFakeContainerOutput(command platform.Command, transaction string) erro
 	fields := map[string]string{
 		"git-url":          gitURL,
 		"git-ref":          gitRef,
+		"boot-image-mode":  bootImageMode,
 		"ref-kind":         "branch",
 		"revision":         strings.Repeat("a", 40),
 		"tree":             strings.Repeat("b", 40),
@@ -620,8 +779,10 @@ func writeFakeContainerOutput(command platform.Command, transaction string) erro
 		}
 	}
 	packages := map[string][]byte{
-		"linux-image-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb":   bytes.Repeat([]byte("image"), 128),
-		"linux-modules-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb": bytes.Repeat([]byte("modules"), 128),
+		"linux-image-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb":                                           bytes.Repeat([]byte("image"), 128),
+		"linux-modules-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb":                                         bytes.Repeat([]byte("modules"), 128),
+		"linux-headers-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb":                                         bytes.Repeat([]byte("headers"), 128),
+		"linux-qcom-x1e-headers-" + strings.TrimSuffix(testKernelABI, "-qcom-x1e") + "_" + testKernelVersion + "_all.deb": bytes.Repeat([]byte("common headers"), 128),
 	}
 	for name, content := range packages {
 		if err := os.WriteFile(filepath.Join(artifacts, name), content, 0o644); err != nil {

@@ -133,7 +133,8 @@ func (c *Client) Resolve(ctx context.Context, repository, ref string) (Release, 
 
 // DownloadBundle acquires an exact release, verifies every selected package
 // against SHA256SUMS and any GitHub digest, then atomically publishes a bundle
-// manifest. Headers are omitted unless includeHeaders is true.
+// manifest. Headers are omitted unless includeHeaders is true, in which case
+// both the ABI-specific and common headers packages are required.
 func (c *Client) DownloadBundle(ctx context.Context, repository, ref, directory string, includeHeaders bool) (kernel.Bundle, error) {
 	selected, err := c.Resolve(ctx, repository, ref)
 	if err != nil {
@@ -160,7 +161,11 @@ func (c *Client) DownloadBundle(ctx context.Context, repository, ref, directory 
 	if err != nil {
 		return kernel.Bundle{}, err
 	}
-	var packages []kernel.Package
+	type selectedPackage struct {
+		asset Asset
+		role  kernel.PackageRole
+	}
+	packageAssets := make([]selectedPackage, 0, 4)
 	for _, asset := range selected.Assets {
 		role, _, _, parseErr := kernel.ParsePackageName(asset.Name)
 		if parseErr != nil {
@@ -169,6 +174,33 @@ func (c *Client) DownloadBundle(ctx context.Context, repository, ref, directory 
 		if !includeHeaders && role != kernel.RoleImage && role != kernel.RoleModules {
 			continue
 		}
+		packageAssets = append(packageAssets, selectedPackage{asset: asset, role: role})
+	}
+	selectionPackages := make([]kernel.Package, 0, len(packageAssets))
+	for _, candidate := range packageAssets {
+		selectionPackages = append(selectionPackages, kernel.Package{
+			Role: candidate.role, Name: candidate.asset.Name, SHA256: "selection-pending",
+		})
+	}
+	selectionBundle, err := kernel.NewBundle(selected.TagName, repository, selectionPackages)
+	if err != nil {
+		return kernel.Bundle{}, fmt.Errorf("select kernel release packages: %w", err)
+	}
+	if includeHeaders {
+		_, hasHeaders := selectionBundle.Package(kernel.RoleHeaders)
+		commonHeaders, hasCommonHeaders := selectionBundle.Package(kernel.RoleCommonHeaders)
+		if !hasHeaders || !hasCommonHeaders {
+			return kernel.Bundle{}, errors.New("including headers requires both ABI-specific headers and common headers packages")
+		}
+		expectedCommonHeaders := "linux-qcom-x1e-headers-" + strings.TrimSuffix(selectionBundle.ABI, "-qcom-x1e") + "_" + selectionBundle.Version + "_all.deb"
+		if commonHeaders.Name != expectedCommonHeaders {
+			return kernel.Bundle{}, fmt.Errorf("including headers requires common headers package %s, got %s", expectedCommonHeaders, commonHeaders.Name)
+		}
+	}
+
+	var packages []kernel.Package
+	for _, candidate := range packageAssets {
+		asset := candidate.asset
 		expected, exists := checksums[asset.Name]
 		if !exists {
 			return kernel.Bundle{}, fmt.Errorf("SHA256SUMS does not cover %s", asset.Name)
@@ -183,7 +215,7 @@ func (c *Client) DownloadBundle(ctx context.Context, repository, ref, directory 
 			return kernel.Bundle{}, fmt.Errorf("download %s: %w", asset.Name, err)
 		}
 		packages = append(packages, kernel.Package{
-			Role: role, Name: asset.Name, Path: result.Path, URL: asset.DownloadURL,
+			Role: candidate.role, Name: asset.Name, Path: result.Path, URL: asset.DownloadURL,
 			SHA256: result.SHA256, Size: result.Size, Verified: result.Verified,
 		})
 	}

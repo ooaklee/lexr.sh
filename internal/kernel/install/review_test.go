@@ -64,8 +64,13 @@ func TestLiveRootCommandsUseAptWithoutACommandShell(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(commands) != 3 || filepath.Base(commands[0].Name) != "apt-get" || filepath.Base(commands[1].Name) != "update-initramfs" || filepath.Base(commands[2].Name) != "update-grub" {
+	if len(commands) != 2 || filepath.Base(commands[0].Name) != "apt-get" || filepath.Base(commands[1].Name) != "update-initramfs" {
 		t.Fatalf("unexpected live-root commands: %+v", commands)
+	}
+	for _, command := range commands {
+		if filepath.Base(command.Name) == "update-grub" {
+			t.Fatalf("redundant GRUB regeneration would discard package postinst changes: %+v", commands)
+		}
 	}
 	for _, command := range commands {
 		if filepath.Base(command.Name) == "sh" || filepath.Base(command.Name) == "bash" || slicesContain(command.Args, "-c") {

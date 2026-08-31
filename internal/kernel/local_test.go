@@ -86,6 +86,335 @@ func TestDiscoverLocalBundleWithoutChecksumManifest(t *testing.T) {
 	}
 }
 
+// TestDiscoverLocalBundleWithOptionsIncludesMatchingHeaders verifies complete
+// local installs select every exact package for the runtime ABI and version.
+func TestDiscoverLocalBundleWithOptionsIncludesMatchingHeaders(t *testing.T) {
+	t.Parallel()
+
+	directory := t.TempDir()
+	imageName, modulesName := writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+	headersName, commonName := writeLocalHeaderPair(t, directory, testLocalABI, testLocalVersion)
+	contents := map[string]string{
+		imageName:   "image package",
+		modulesName: "modules package",
+		headersName: "headers package",
+		commonName:  "common headers package",
+	}
+	manifestLines := make([]string, 0, len(contents))
+	for name, content := range contents {
+		manifestLines = append(manifestLines, localDigest(content)+"  "+name)
+	}
+	writeLocalFile(t, filepath.Join(directory, localChecksumManifest), strings.Join(manifestLines, "\n")+"\n")
+
+	bundle, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+	if err != nil {
+		t.Fatalf("DiscoverLocalBundleWithOptions() error = %v", err)
+	}
+	if len(bundle.Packages) != 4 {
+		t.Fatalf("Packages length = %d, want 4", len(bundle.Packages))
+	}
+	for _, role := range []PackageRole{RoleImage, RoleModules, RoleHeaders, RoleCommonHeaders} {
+		pkg, ok := bundle.Package(role)
+		if !ok {
+			t.Errorf("Package(%q) not found", role)
+			continue
+		}
+		if !pkg.Verified {
+			t.Errorf("Package(%q).Verified = false with matching %s", role, localChecksumManifest)
+		}
+	}
+}
+
+// TestDiscoverLocalBundleWithOptionsRequiresCoherentHeaders verifies exact
+// matching headers are optional as a pair but never partially selected.
+func TestDiscoverLocalBundleWithOptionsRequiresCoherentHeaders(t *testing.T) {
+	t.Parallel()
+
+	t.Run("matching ABI headers only", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		headersName, _ := localHeaderPackageNames(testLocalABI, testLocalVersion)
+		writeLocalFile(t, filepath.Join(directory, headersName), "headers")
+
+		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		assertLocalErrorContains(t, err, "complete pair", "linux-qcom-x1e-headers")
+	})
+
+	t.Run("matching common headers only", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		_, commonName := localHeaderPackageNames(testLocalABI, testLocalVersion)
+		writeLocalFile(t, filepath.Join(directory, commonName), "common headers")
+
+		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		assertLocalErrorContains(t, err, "complete pair", "linux-headers")
+	})
+
+	t.Run("both matching headers absent but declared", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		imageName, modulesName := writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		headersName, commonName := localHeaderPackageNames(testLocalABI, testLocalVersion)
+		manifest := fmt.Sprintf(
+			"%s  %s\n%s  %s\n%s  %s\n%s  %s\n",
+			localDigest("image package"), imageName,
+			localDigest("modules package"), modulesName,
+			localDigest("headers package"), headersName,
+			localDigest("common headers package"), commonName,
+		)
+		writeLocalFile(t, filepath.Join(directory, localChecksumManifest), manifest)
+
+		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		assertLocalErrorContains(t, err, "complete pair", headersName, commonName)
+	})
+
+	t.Run("one matching header declared while both are absent", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		imageName, modulesName := writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		headersName, commonName := localHeaderPackageNames(testLocalABI, testLocalVersion)
+		manifest := fmt.Sprintf(
+			"%s  %s\n%s  %s\n%s  %s\n",
+			localDigest("image package"), imageName,
+			localDigest("modules package"), modulesName,
+			localDigest("headers package"), headersName,
+		)
+		writeLocalFile(t, filepath.Join(directory, localChecksumManifest), manifest)
+
+		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		assertLocalErrorContains(t, err, "complete pair", headersName, commonName)
+	})
+
+	t.Run("runtime selection ignores declared headers deliberately", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		imageName, modulesName := writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		headersName, commonName := localHeaderPackageNames(testLocalABI, testLocalVersion)
+		manifest := fmt.Sprintf(
+			"%s  %s\n%s  %s\n%s  %s\n%s  %s\n",
+			localDigest("image package"), imageName,
+			localDigest("modules package"), modulesName,
+			localDigest("headers package"), headersName,
+			localDigest("common headers package"), commonName,
+		)
+		writeLocalFile(t, filepath.Join(directory, localChecksumManifest), manifest)
+
+		bundle, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetRuntime})
+		if err != nil {
+			t.Fatalf("DiscoverLocalBundleWithOptions() error = %v", err)
+		}
+		if len(bundle.Packages) != 2 {
+			t.Fatalf("Packages length = %d, want runtime pair", len(bundle.Packages))
+		}
+	})
+
+	t.Run("other version is unrelated", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		writeLocalHeaderPair(t, directory, testLocalABI, testLocalVersion+".1")
+
+		bundle, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		if err != nil {
+			t.Fatalf("DiscoverLocalBundleWithOptions() error = %v", err)
+		}
+		if len(bundle.Packages) != 2 {
+			t.Fatalf("Packages length = %d, want runtime pair", len(bundle.Packages))
+		}
+	})
+}
+
+// TestDiscoverLocalBundleManifestPackageSet verifies a Lexr-emitted bundle
+// declaration distinguishes an intentional runtime download from a complete
+// native build without weakening explicit runtime selection.
+func TestDiscoverLocalBundleManifestPackageSet(t *testing.T) {
+	t.Parallel()
+
+	t.Run("downloaded runtime manifest ignores undeployed header assets", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		writeLocalCompleteChecksumManifest(t, directory, testLocalABI, testLocalVersion)
+		writeLocalBundleManifest(t, directory, testLocalABI, testLocalVersion, false)
+
+		bundle, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		if err != nil {
+			t.Fatalf("DiscoverLocalBundleWithOptions() error = %v", err)
+		}
+		if len(bundle.Packages) != 2 {
+			t.Fatalf("Packages length = %d, want intentional runtime pair", len(bundle.Packages))
+		}
+		for _, item := range bundle.Packages {
+			if !item.Verified {
+				t.Errorf("runtime package %s was not checksum verified", item.Name)
+			}
+		}
+	})
+
+	t.Run("complete manifest remains fail closed when headers vanish", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		writeLocalCompleteChecksumManifest(t, directory, testLocalABI, testLocalVersion)
+		writeLocalBundleManifest(t, directory, testLocalABI, testLocalVersion, true)
+		headersName, commonName := localHeaderPackageNames(testLocalABI, testLocalVersion)
+
+		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		assertLocalErrorContains(t, err, "complete pair", headersName, commonName)
+	})
+
+	t.Run("runtime override accepts a complete manifest without local headers", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		writeLocalCompleteChecksumManifest(t, directory, testLocalABI, testLocalVersion)
+		writeLocalBundleManifest(t, directory, testLocalABI, testLocalVersion, true)
+
+		bundle, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetRuntime})
+		if err != nil {
+			t.Fatalf("DiscoverLocalBundleWithOptions() error = %v", err)
+		}
+		if len(bundle.Packages) != 2 {
+			t.Fatalf("Packages length = %d, want explicit runtime pair", len(bundle.Packages))
+		}
+	})
+
+	t.Run("runtime manifest bounds stray matching headers", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		writeLocalHeaderPair(t, directory, testLocalABI, testLocalVersion)
+		writeLocalCompleteChecksumManifest(t, directory, testLocalABI, testLocalVersion)
+		writeLocalBundleManifest(t, directory, testLocalABI, testLocalVersion, false)
+
+		bundle, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		if err != nil {
+			t.Fatalf("DiscoverLocalBundleWithOptions() error = %v", err)
+		}
+		if len(bundle.Packages) != 2 {
+			t.Fatalf("Packages length = %d, want manifest-bound runtime pair", len(bundle.Packages))
+		}
+	})
+}
+
+// TestDiscoverLocalBundleRejectsUnsafeBundleManifest keeps the optional local
+// package-set authority bounded, strict, regular, and semantically coherent.
+func TestDiscoverLocalBundleRejectsUnsafeBundleManifest(t *testing.T) {
+	t.Parallel()
+
+	t.Run("malformed JSON", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		writeLocalFile(t, filepath.Join(directory, localBundleManifest), "{not-json")
+
+		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		assertLocalErrorContains(t, err, localBundleManifest, "decode")
+	})
+
+	t.Run("unknown field", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		writeLocalFile(t, filepath.Join(directory, localBundleManifest), `{"schema_version":1,"unknown":true}`)
+
+		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		assertLocalErrorContains(t, err, localBundleManifest, "unknown field")
+	})
+
+	t.Run("trailing JSON value", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		writeLocalBundleManifest(t, directory, testLocalABI, testLocalVersion, false)
+		file, err := os.OpenFile(filepath.Join(directory, localBundleManifest), os.O_APPEND|os.O_WRONLY, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := file.WriteString("{}\n"); err != nil {
+			_ = file.Close()
+			t.Fatal(err)
+		}
+		if err := file.Close(); err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		assertLocalErrorContains(t, err, localBundleManifest, "trailing")
+	})
+
+	t.Run("oversized", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		writeLocalFile(t, filepath.Join(directory, localBundleManifest), strings.Repeat("x", int(maximumLocalBundleManifestBytes)+1))
+
+		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		assertLocalErrorContains(t, err, localBundleManifest, "no larger")
+	})
+
+	t.Run("directory", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		if err := os.Mkdir(filepath.Join(directory, localBundleManifest), 0o700); err != nil {
+			t.Fatal(err)
+		}
+
+		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		assertLocalErrorContains(t, err, localBundleManifest, "regular file")
+	})
+
+	t.Run("symbolic link", func(t *testing.T) {
+		t.Parallel()
+		if runtime.GOOS == "windows" {
+			t.Skip("symbolic link creation is not reliably available on Windows")
+		}
+		directory := t.TempDir()
+		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		target := filepath.Join(directory, "bundle-target.json")
+		writeLocalFile(t, target, "{}")
+		if err := os.Symlink(target, filepath.Join(directory, localBundleManifest)); err != nil {
+			t.Fatal(err)
+		}
+
+		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		assertLocalErrorContains(t, err, localBundleManifest, "symbolic link")
+	})
+
+	t.Run("runtime identity mismatch", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		writeLocalBundleManifest(t, directory, "7.3.0-other-qcom-x1e", "7.3.0-other", false)
+
+		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		assertLocalErrorContains(t, err, localBundleManifest, "does not match runtime ABI")
+	})
+
+	t.Run("package bytes disagree without checksum manifest", func(t *testing.T) {
+		t.Parallel()
+		directory := t.TempDir()
+		imageName, _ := writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		writeLocalBundleManifest(t, directory, testLocalABI, testLocalVersion, false)
+		writeLocalFile(t, filepath.Join(directory, imageName), "modified image package")
+
+		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		assertLocalErrorContains(t, err, imageName, localBundleManifest, "bytes disagree")
+	})
+}
+
+// TestDiscoverLocalBundleWithOptionsRejectsUnknownPackageSet keeps local
+// selection a closed policy instead of accepting caller-supplied expressions.
+func TestDiscoverLocalBundleWithOptionsRejectsUnknownPackageSet(t *testing.T) {
+	t.Parallel()
+
+	_, err := DiscoverLocalBundleWithOptions(t.TempDir(), LocalBundleOptions{PackageSet: LocalPackageSet("linux-.*")})
+	assertLocalErrorContains(t, err, "package set", "all", "runtime")
+}
+
 // TestDiscoverLocalBundleVerifiesChecksumManifest verifies both selected runtime
 // packages become verified when SHA256SUMS contains matching digests.
 func TestDiscoverLocalBundleVerifiesChecksumManifest(t *testing.T) {
@@ -391,6 +720,60 @@ func writeLocalPair(t *testing.T, directory, abi, version string) (string, strin
 	return imageName, modulesName
 }
 
+// writeLocalHeaderPair creates the exact ABI-specific and common development
+// header fixtures for one runtime ABI and Debian version.
+func writeLocalHeaderPair(t *testing.T, directory, abi, version string) (string, string) {
+	t.Helper()
+
+	headersName, commonName := localHeaderPackageNames(abi, version)
+	writeLocalFile(t, filepath.Join(directory, headersName), "headers package")
+	writeLocalFile(t, filepath.Join(directory, commonName), "common headers package")
+	return headersName, commonName
+}
+
+// writeLocalCompleteChecksumManifest records the complete four-package release
+// checksum set whether or not every package was downloaded into directory.
+func writeLocalCompleteChecksumManifest(t *testing.T, directory, abi, version string) {
+	t.Helper()
+	imageName, modulesName := localPackageNames(abi, version)
+	headersName, commonName := localHeaderPackageNames(abi, version)
+	manifest := fmt.Sprintf(
+		"%s  %s\n%s  %s\n%s  %s\n%s  %s\n",
+		localDigest("image package"), imageName,
+		localDigest("modules package"), modulesName,
+		localDigest("headers package"), headersName,
+		localDigest("common headers package"), commonName,
+	)
+	writeLocalFile(t, filepath.Join(directory, localChecksumManifest), manifest)
+}
+
+// writeLocalBundleManifest emits the exact two- or four-package declaration
+// used by native builds and downloaded bundles.
+func writeLocalBundleManifest(t *testing.T, directory, abi, version string, includeHeaders bool) {
+	t.Helper()
+	imageName, modulesName := localPackageNames(abi, version)
+	packages := []Package{
+		{Role: RoleImage, Name: imageName, SHA256: localDigest("image package"), Size: int64(len("image package")), Verified: true},
+		{Role: RoleModules, Name: modulesName, SHA256: localDigest("modules package"), Size: int64(len("modules package")), Verified: true},
+	}
+	if includeHeaders {
+		headersName, commonName := localHeaderPackageNames(abi, version)
+		packages = append(packages,
+			Package{Role: RoleHeaders, Name: headersName, SHA256: localDigest("headers package"), Size: int64(len("headers package")), Verified: true},
+			Package{Role: RoleCommonHeaders, Name: commonName, SHA256: localDigest("common headers package"), Size: int64(len("common headers package")), Verified: true},
+		)
+	}
+	bundle, err := NewBundle("fixture", "https://example.invalid/kernel.git", packages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output strings.Builder
+	if err := bundle.WriteJSON(&output); err != nil {
+		t.Fatal(err)
+	}
+	writeLocalFile(t, filepath.Join(directory, localBundleManifest), output.String())
+}
+
 // writeLocalRuntimePackage creates one role-specific Debian package fixture and
 // returns the generated package filename.
 func writeLocalRuntimePackage(t *testing.T, directory string, role PackageRole, abi, version, content string) string {
@@ -410,6 +793,14 @@ func writeLocalRuntimePackage(t *testing.T, directory string, role PackageRole, 
 func localPackageNames(abi, version string) (string, string) {
 	return "linux-image-" + abi + "_" + version + "_arm64.deb",
 		"linux-modules-" + abi + "_" + version + "_arm64.deb"
+}
+
+// localHeaderPackageNames returns the flavour and common header filenames for a
+// test ABI and Debian package version.
+func localHeaderPackageNames(abi, version string) (string, string) {
+	base := strings.TrimSuffix(abi, surfaceABISuffix)
+	return "linux-headers-" + abi + "_" + version + "_arm64.deb",
+		"linux-qcom-x1e-headers-" + base + "_" + version + "_all.deb"
 }
 
 // writeLocalFile writes a private regular-file fixture and fails the current test

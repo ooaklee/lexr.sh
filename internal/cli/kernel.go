@@ -177,13 +177,14 @@ func (a *application) newKernelPreflightCommand() *cobra.Command {
 	var fallbackABI string
 	var runningABI string
 	var allowUnverified bool
+	packageSet := string(kernel.LocalPackageSetAll)
 	var asJSON bool
 	command := &cobra.Command{
 		Use:   "preflight <bundle-directory>",
 		Short: "Validate a native kernel installation without changing the target",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
-			request, err := kernelInstallationRequest(args[0], root, fallbackABI, runningABI, true, allowUnverified)
+			request, err := kernelInstallationRequest(args[0], root, fallbackABI, runningABI, true, allowUnverified, packageSet)
 			if err != nil {
 				return err
 			}
@@ -191,13 +192,14 @@ func (a *application) newKernelPreflightCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return a.writeKernelPreflight(plan, asJSON)
+			return a.writeKernelPreflight(plan, kernel.LocalPackageSet(packageSet), asJSON)
 		},
 	}
 	command.Flags().StringVar(&root, "root", "", "explicit absolute target Linux root filesystem")
 	command.Flags().StringVar(&fallbackABI, "fallback-abi", "", "currently running Surface kernel ABI to preserve")
 	command.Flags().StringVar(&runningABI, "running-abi", "", "running ABI evidence for an alternate-root fixture only")
 	command.Flags().BoolVar(&allowUnverified, "allow-unverified", false, "accept a locally hashed bundle without an authoritative checksum manifest")
+	command.Flags().StringVar(&packageSet, "package-set", string(kernel.LocalPackageSetAll), "packages to select: all exact-version packages (including matching headers when available), or runtime image/modules only")
 	command.Flags().BoolVar(&asJSON, "json", false, "write the machine-readable installation plan")
 	_ = command.MarkFlagRequired("root")
 	_ = command.MarkFlagRequired("fallback-abi")
@@ -212,6 +214,7 @@ func (a *application) newKernelInstallCommand() *cobra.Command {
 	var runningABI string
 	var allowUnverified bool
 	var dryRun bool
+	packageSet := string(kernel.LocalPackageSetAll)
 	var yes bool
 	var asJSON bool
 	command := &cobra.Command{
@@ -222,12 +225,12 @@ func (a *application) newKernelInstallCommand() *cobra.Command {
 			if !dryRun && !yes {
 				return errors.New("kernel install requires --yes for target filesystem changes; run kernel preflight or kernel install --dry-run first")
 			}
-			request, err := kernelInstallationRequest(args[0], root, fallbackABI, runningABI, dryRun, allowUnverified)
+			request, err := kernelInstallationRequest(args[0], root, fallbackABI, runningABI, dryRun, allowUnverified, packageSet)
 			if err != nil {
 				return err
 			}
 			receipt, installErr := a.kernelInstallerForCommand().Install(command.Context(), request)
-			return a.writeKernelInstallReceipt(receipt, asJSON, installErr)
+			return a.writeKernelInstallReceipt(receipt, kernel.LocalPackageSet(packageSet), asJSON, installErr)
 		},
 	}
 	command.Flags().StringVar(&root, "root", "", "explicit absolute target Linux root filesystem")
@@ -235,6 +238,7 @@ func (a *application) newKernelInstallCommand() *cobra.Command {
 	command.Flags().StringVar(&runningABI, "running-abi", "", "running ABI evidence for an alternate-root fixture only")
 	command.Flags().BoolVar(&allowUnverified, "allow-unverified", false, "accept a locally hashed bundle without an authoritative checksum manifest")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "perform complete preflight without privileged changes")
+	command.Flags().StringVar(&packageSet, "package-set", string(kernel.LocalPackageSetAll), "packages to select: all exact-version packages (including matching headers when available), or runtime image/modules only")
 	command.Flags().BoolVar(&yes, "yes", false, "confirm the reviewed target filesystem changes")
 	command.Flags().BoolVar(&asJSON, "json", false, "write the machine-readable installation receipt")
 	_ = command.MarkFlagRequired("root")
@@ -244,11 +248,11 @@ func (a *application) newKernelInstallCommand() *cobra.Command {
 
 // kernelInstallationRequest discovers the caller-selected local bundle and
 // enforces the alternate-root boundary for supplied running-ABI evidence.
-func kernelInstallationRequest(bundleDirectory, root, fallbackABI, runningABI string, dryRun, allowUnverified bool) (kernelinstall.Request, error) {
+func kernelInstallationRequest(bundleDirectory, root, fallbackABI, runningABI string, dryRun, allowUnverified bool, packageSet string) (kernelinstall.Request, error) {
 	if filepath.Clean(root) == string(filepath.Separator) && strings.TrimSpace(runningABI) != "" {
 		return kernelinstall.Request{}, errors.New("--running-abi is permitted only with an alternate target root")
 	}
-	bundle, err := kernel.DiscoverLocalBundle(bundleDirectory)
+	bundle, err := kernel.DiscoverLocalBundleWithOptions(bundleDirectory, kernel.LocalBundleOptions{PackageSet: kernel.LocalPackageSet(packageSet)})
 	if err != nil {
 		return kernelinstall.Request{}, err
 	}
@@ -273,7 +277,7 @@ func (a *application) kernelInstallerForCommand() kernelInstallationManager {
 
 // writeKernelPreflight renders one successful read-only plan without changing
 // its machine-readable representation.
-func (a *application) writeKernelPreflight(plan kernelinstall.Plan, asJSON bool) error {
+func (a *application) writeKernelPreflight(plan kernelinstall.Plan, requestedPackageSet kernel.LocalPackageSet, asJSON bool) error {
 	if asJSON {
 		return a.writeJSON(plan)
 	}
@@ -282,14 +286,23 @@ func (a *application) writeKernelPreflight(plan kernelinstall.Plan, asJSON bool)
 		verification = "explicitly accepted local hashes"
 	}
 	_, err := fmt.Fprintf(a.out,
-		"kernel installation preflight passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nversion: %s\npackages: %d\ndevice trees: %d\nverification: %s\nplanned commands: %d\nno changes were made\n",
-		plan.Root, plan.TargetABI, plan.FallbackABI, plan.Version, len(plan.Packages), len(plan.DeviceTrees), verification, len(plan.Commands))
+		"kernel installation preflight passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nversion: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\ndevice trees: %d\nverification: %s\nplanned commands: %d\nno changes were made\n",
+		plan.Root, plan.TargetABI, plan.FallbackABI, plan.Version, requestedPackageSet, effectiveKernelPackageSet(len(plan.Packages)), len(plan.Packages), len(plan.DeviceTrees), verification, len(plan.Commands))
 	return err
+}
+
+// effectiveKernelPackageSet reports the closed role set represented by the
+// packages selected from a validated local bundle.
+func effectiveKernelPackageSet(packageCount int) kernel.LocalPackageSet {
+	if packageCount == 4 {
+		return kernel.LocalPackageSetAll
+	}
+	return kernel.LocalPackageSetRuntime
 }
 
 // writeKernelInstallReceipt preserves a structured partial receipt on failure
 // and otherwise renders concise dry-run or reboot guidance.
-func (a *application) writeKernelInstallReceipt(receipt kernelinstall.Receipt, asJSON bool, installErr error) error {
+func (a *application) writeKernelInstallReceipt(receipt kernelinstall.Receipt, requestedPackageSet kernel.LocalPackageSet, asJSON bool, installErr error) error {
 	if asJSON {
 		return errors.Join(installErr, a.writeJSON(receipt))
 	}
@@ -298,13 +311,13 @@ func (a *application) writeKernelInstallReceipt(receipt kernelinstall.Receipt, a
 	}
 	if receipt.Plan.DryRun {
 		_, err := fmt.Fprintf(a.out,
-			"kernel installation dry run passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\npackages: %d\nplanned commands: %d\nno changes were made\n",
-			receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, len(receipt.Plan.Packages), len(receipt.Plan.Commands))
+			"kernel installation dry run passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\nplanned commands: %d\nno changes were made\n",
+			receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), len(receipt.Plan.Packages), len(receipt.Plan.Commands))
 		return err
 	}
 	_, err := fmt.Fprintf(a.out,
-		"kernel installed\nroot: %s\ntarget ABI: %s\nfallback ABI retained: %s\ndevice trees verified: %d\nreboot required: %t\nReboot manually when ready; retain the fallback kernel until the new kernel has been tested.\n",
-		receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, len(receipt.DeviceTrees), receipt.RebootRequired)
+		"kernel installed\nroot: %s\ntarget ABI: %s\nfallback ABI retained: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\ndevice trees verified: %d\nheader trees verified: %d\nreboot required: %t\nReboot manually when ready; retain the fallback kernel until the new kernel has been tested.\n",
+		receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), len(receipt.Plan.Packages), len(receipt.DeviceTrees), len(receipt.Headers), receipt.RebootRequired)
 	return err
 }
 
@@ -376,23 +389,25 @@ func (a *application) newKernelReleaseDownloadCommand() *cobra.Command {
 
 // newKernelInspectCommand proves that local packages form one coherent Surface ABI.
 func (a *application) newKernelInspectCommand() *cobra.Command {
+	packageSet := string(kernel.LocalPackageSetAll)
 	var asJSON bool
 	command := &cobra.Command{
 		Use:   "inspect <directory>",
 		Short: "Validate local kernel packages as one ABI-bound bundle",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			bundle, err := kernel.DiscoverLocalBundle(args[0])
+			bundle, err := kernel.DiscoverLocalBundleWithOptions(args[0], kernel.LocalBundleOptions{PackageSet: kernel.LocalPackageSet(packageSet)})
 			if err != nil {
 				return err
 			}
 			if asJSON {
 				return a.writeJSON(bundle)
 			}
-			_, err = fmt.Fprintf(a.out, "kernel bundle valid\nrelease: %s\nABI: %s\nversion: %s\npackages: %d\n", bundle.Release, bundle.ABI, bundle.Version, len(bundle.Packages))
+			_, err = fmt.Fprintf(a.out, "kernel bundle valid\nrelease: %s\nABI: %s\nversion: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\n", bundle.Release, bundle.ABI, bundle.Version, packageSet, effectiveKernelPackageSet(len(bundle.Packages)), len(bundle.Packages))
 			return err
 		},
 	}
+	command.Flags().StringVar(&packageSet, "package-set", string(kernel.LocalPackageSetAll), "packages to select: all exact-version packages (including matching headers when available), or runtime image/modules only")
 	command.Flags().BoolVar(&asJSON, "json", false, "write machine-readable JSON")
 	return command
 }
@@ -400,12 +415,14 @@ func (a *application) newKernelInspectCommand() *cobra.Command {
 // newKernelBuildCommand exposes the compiled native ARM64 container policy.
 func (a *application) newKernelBuildCommand() *cobra.Command {
 	request := kernelbuild.Request{}
+	bootImageMode := string(kernelbuild.BootImageModeSource)
 	command := &cobra.Command{
 		Use:   "build",
 		Short: "Build the custom SP11 kernel with the native container policy",
 		Long:  "Build the custom SP11 kernel using lexr's compiled ARM64 container policy. Work and new output directories must remain inside the selected repository root.",
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
+			request.BootImageMode = kernelbuild.BootImageMode(bootImageMode)
 			receipt, err := kernelbuild.New(nil).Run(command.Context(), request)
 			if err != nil {
 				if receipt.Cleanup != nil && a.errOut != nil {
@@ -419,6 +436,7 @@ func (a *application) newKernelBuildCommand() *cobra.Command {
 	command.Flags().StringVar(&request.RepositoryRoot, "repository-root", "", "repository containment root (the OE root is auto-detected when present)")
 	command.Flags().StringVar(&request.GitURL, "git-url", kernelbuild.DefaultGitURL, "kernel source repository")
 	command.Flags().StringVar(&request.GitBranch, "git-branch", kernelbuild.DefaultGitBranch, "kernel source branch or tag")
+	command.Flags().StringVar(&bootImageMode, "boot-image-mode", string(kernelbuild.BootImageModeSource), "boot image policy: source, stubble, or nostubble")
 	command.Flags().StringVar(&request.WorkDirectory, "work-dir", kernelbuild.DefaultWorkDirectory, "repository-relative kernel build directory")
 	command.Flags().StringVar(&request.OutputDirectory, "output-dir", kernelbuild.DefaultOutputDirectory, "new repository-relative package output directory")
 	command.Flags().IntVar(&request.Jobs, "jobs", 0, "parallel build jobs (zero lets the container choose)")
@@ -433,8 +451,9 @@ func (a *application) newKernelBuildCommand() *cobra.Command {
 func (a *application) writeKernelBuildReceipt(receipt kernelbuild.Receipt) error {
 	if receipt.Plan.DryRun {
 		_, err := fmt.Fprintf(a.out,
-			"kernel build dry run\nrepository root: %s\nsource: %s\nref: %s\nwork directory: %s\noutput directory: %s\ncontainer: %s\nbuild target: %s\nminimum free space: %d GiB\nwork volume: %s\nrecipe SHA-256: %s\njobs: %d\nreset source: %t\nskip clean: %t\nno changes were made\n",
+			"kernel build dry run\nrepository root: %s\nsource: %s\nref: %s\nboot image mode: %s\nwork directory: %s\noutput directory: %s\ncontainer: %s\nbuild target: %s\nminimum free space: %d GiB\nwork volume: %s\nrecipe SHA-256: %s\njobs: %d\nreset source: %t\nskip clean: %t\nno changes were made\n",
 			receipt.Plan.RepositoryRoot, receipt.Plan.GitURL, receipt.Plan.GitRef,
+			receipt.Plan.BootImageMode,
 			receipt.Plan.WorkDirectory, receipt.Plan.OutputDirectory, receipt.Plan.ContainerImage,
 			receipt.Plan.BuildTarget, receipt.Plan.MinimumFreeGiB,
 			receipt.Plan.WorkVolume, receipt.Plan.RecipeSHA256, receipt.Plan.Jobs,
@@ -445,8 +464,8 @@ func (a *application) writeKernelBuildReceipt(receipt kernelbuild.Receipt) error
 		return errors.New("kernel build completed without source provenance")
 	}
 	_, err := fmt.Fprintf(a.out,
-		"kernel build complete\nsource revision: %s\nsource tree: %s\nrecipe SHA-256: %s\npackages: %d\noutput directory: %s\n",
-		receipt.Provenance.Revision, receipt.Provenance.Tree, receipt.Provenance.RecipeSHA256,
+		"kernel build complete\nsource revision: %s\nsource tree: %s\nboot image mode: %s\nrecipe SHA-256: %s\npackages: %d\noutput directory: %s\n",
+		receipt.Provenance.Revision, receipt.Provenance.Tree, receipt.Provenance.BootImageMode, receipt.Provenance.RecipeSHA256,
 		len(receipt.Artifacts), receipt.Plan.OutputDirectory)
 	return err
 }

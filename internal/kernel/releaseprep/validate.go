@@ -170,7 +170,7 @@ func validateManifest(manifest Manifest) error {
 // validatePublicProvenance rejects local paths, credentials, mutable images, and malformed identities.
 func validatePublicProvenance(provenance SourceProvenance) error {
 	private := build.Provenance{
-		GitURL: provenance.GitURL, GitRef: provenance.GitRef, RefKind: provenance.RefKind,
+		GitURL: provenance.GitURL, GitRef: provenance.GitRef, BootImageMode: provenance.BootImageMode, RefKind: provenance.RefKind,
 		Revision: provenance.Revision, Tree: provenance.Tree, CommitTime: provenance.CommitTime,
 		RecipeSHA256: provenance.RecipeSHA256, ContainerImage: provenance.ContainerImage,
 		ToolchainSHA256: provenance.ToolchainSHA256, WorkVolume: "lexr-kernel-build-0000000000000000",

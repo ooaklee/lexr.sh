@@ -12,7 +12,7 @@ import (
 
 const (
 	// SchemaVersion identifies the native kernel build plan and receipt contract.
-	SchemaVersion = 1
+	SchemaVersion = 2
 	// DefaultGitURL is the maintained Surface Pro 11 kernel source.
 	DefaultGitURL = "https://github.com/ooaklee/linux_ms_dev_kit-sp11"
 	// DefaultGitBranch is the maintained integration branch used by default.
@@ -25,6 +25,17 @@ const (
 	ContainerImage = "docker.io/library/ubuntu@sha256:61b65dc6bddff5e68c552f22126fe77496395f956ff2e983e05d8a52efd63e55"
 )
 
+// BootImageMode selects whether package rules retain their source policy or
+// receive one explicit Stubble command-line override.
+type BootImageMode string
+
+// Supported boot-image modes keep source policy as the compatibility default.
+const (
+	BootImageModeSource    BootImageMode = "source"
+	BootImageModeStubble   BootImageMode = "stubble"
+	BootImageModeNoStubble BootImageMode = "nostubble"
+)
+
 // Request contains the complete caller-selected native kernel build inputs.
 type Request struct {
 	// RepositoryRoot contains both the private work and new output directories.
@@ -33,6 +44,8 @@ type Request struct {
 	GitURL string
 	// GitBranch selects one branch or tag from the source repository.
 	GitBranch string
+	// BootImageMode selects source policy or an explicit Stubble override.
+	BootImageMode BootImageMode
 	// WorkDirectory stores private transactions relative to RepositoryRoot.
 	WorkDirectory string
 	// OutputDirectory names a new publication directory relative to RepositoryRoot.
@@ -69,6 +82,8 @@ type Plan struct {
 	GitURL string `json:"git_url"`
 	// GitRef is the validated requested branch or tag.
 	GitRef string `json:"git_ref"`
+	// BootImageMode records the reviewed source policy or explicit override.
+	BootImageMode BootImageMode `json:"boot_image_mode"`
 	// Jobs is the requested parallelism, or zero for container auto-detection.
 	Jobs int `json:"jobs"`
 	// ResetSource permits cleanup only inside the labelled work volume.
@@ -79,7 +94,7 @@ type Plan struct {
 	DryRun bool `json:"dry_run"`
 	// ContainerImage is the compiled ARM64 build image reference.
 	ContainerImage string `json:"container_image"`
-	// BuildTarget is the only Debian rules target selected by compiled policy.
+	// BuildTarget is the ordered Debian rules target set selected by compiled policy.
 	BuildTarget string `json:"build_target"`
 	// MinimumFreeGiB is the managed-volume free-space guard in gibibytes.
 	MinimumFreeGiB int `json:"minimum_free_gib"`
@@ -100,6 +115,8 @@ type Provenance struct {
 	GitURL string `json:"git_url"`
 	// GitRef is the caller-selected branch or tag.
 	GitRef string `json:"git_ref"`
+	// BootImageMode records the source policy or validated explicit override.
+	BootImageMode BootImageMode `json:"boot_image_mode"`
 	// RefKind distinguishes a fetched branch from a fetched tag.
 	RefKind string `json:"ref_kind"`
 	// Revision is the exact fetched commit object.

@@ -12,7 +12,7 @@ import (
 
 const (
 	// SchemaVersion identifies the native kernel release manifest contract.
-	SchemaVersion = 1
+	SchemaVersion = 2
 	// ChecksumFileName is the sole checksum authority in a prepared directory.
 	ChecksumFileName = "SHA256SUMS"
 	// BundleFileName is the path-independent kernel bundle manifest.
@@ -80,6 +80,8 @@ type SourceProvenance struct {
 	GitURL string `json:"git_url"`
 	// GitRef is the branch or tag selected for the build.
 	GitRef string `json:"git_ref"`
+	// BootImageMode records the source policy or explicit Stubble override.
+	BootImageMode build.BootImageMode `json:"boot_image_mode"`
 	// RefKind distinguishes a fetched branch from a fetched tag.
 	RefKind string `json:"ref_kind"`
 	// Revision is the exact source commit that was built.
@@ -187,7 +189,7 @@ func (manager *Manager) Validate(ctx context.Context, directory string) (Manifes
 // publicProvenance removes local build-volume identity from a validated receipt.
 func publicProvenance(provenance build.Provenance) SourceProvenance {
 	return SourceProvenance{
-		GitURL: provenance.GitURL, GitRef: provenance.GitRef, RefKind: provenance.RefKind,
+		GitURL: provenance.GitURL, GitRef: provenance.GitRef, BootImageMode: provenance.BootImageMode, RefKind: provenance.RefKind,
 		Revision: provenance.Revision, Tree: provenance.Tree, CommitTime: provenance.CommitTime,
 		RecipeSHA256: provenance.RecipeSHA256, ContainerImage: provenance.ContainerImage,
 		ToolchainSHA256: provenance.ToolchainSHA256,
