@@ -64,7 +64,7 @@ type fileSpec struct {
 var integrationFiles = []fileSpec{
 	{path: "LICENSE.integration", sha256: "f8126478d63d42239b27e3364ac188d56b5abb0716c021271c1265c556ceed65", size: 1067},
 	{path: "PAYLOAD.sha256", sha256: payloadManifestDigest, size: payloadManifestSize},
-	{path: "README.md", sha256: "bbe4bbc0306636dadfa1679b349b2f79059de51f35cab95db15347b605d776c3", size: 3575},
+	{path: "README.md", sha256: "af2f4657a15125a1288f2453162954bbf3ee958c2935935d28302e503a45fdf3", size: 3540},
 	{path: "SOURCE.env", sha256: "1ff7395738b95a0ef4ffd780a9b6415733e7003040ae0b56b4b984c3bcd25278", size: 336},
 	{path: "config/surface-pro-11-0c80.conf", sha256: "e629f67248df412d69952accc874b848e3e45ad3d8b31cbec4626f85c12c8c34", size: 98},
 	{path: "config/surface-pro-11-0c83.conf", sha256: "358953d2171b36879043dc46084cc9344ea2c28cc718ff75690acd479214bf59", size: 98},
@@ -73,11 +73,12 @@ var integrationFiles = []fileSpec{
 	{path: "packaging/sp11-iptsd@.service.in", sha256: "7c30ee0d7aba247fc96cda0289da5385f0a876c5a7974ed0df3f314b2edbecaa", size: 340},
 }
 
-// legacyIntegrationAlternatives records reviewed, non-operational documentation
-// from the immutable published v1 archive. Operational configurations, templates,
+// legacyIntegrationAlternatives records reviewed historical identities for
+// non-operational documentation. Operational configurations, templates,
 // provenance, and payload authority still have one exact accepted identity.
 var legacyIntegrationAlternatives = map[string][]fileSpec{
 	"README.md": {
+		{path: "README.md", sha256: "bbe4bbc0306636dadfa1679b349b2f79059de51f35cab95db15347b605d776c3", size: 3575},
 		{path: "README.md", sha256: "69a92f448f64f3d16b59770869bb7a5411470dd153770765fce97f68c41bd687", size: 3204},
 	},
 }
@@ -180,8 +181,8 @@ func ValidateRelease(archiveRoot string) (Release, error) {
 	return Release{PayloadRoot: payloadRoot, IntegrationRoot: integrationRoot, Files: files}, nil
 }
 
-// ValidateIntegration checks the exact fixed configuration and template tree
-// against the published sp11-iptsd-v1 release contract.
+// ValidateIntegration checks the exact fixed integration tree against the
+// current contract and its explicitly reviewed historical documentation.
 func ValidateIntegration(root string) error {
 	_, err := validateIntegration(root)
 	return err
