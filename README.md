@@ -68,6 +68,7 @@ Clone the standalone repository and build the command from its root:
 ```sh
 git clone https://github.com/ooaklee/lexr.sh.git
 cd lexr.sh
+mkdir -p bin
 go build -o bin/lexr ./cmd/lexr
 ./bin/lexr doctor
 ```
