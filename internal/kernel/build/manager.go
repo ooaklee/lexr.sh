@@ -52,6 +52,7 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 		OutputDirectory:   resolved.outputDirectory,
 		GitURL:            resolved.gitURL,
 		GitRef:            resolved.gitRef,
+		BootImageMode:     resolved.bootImageMode,
 		Jobs:              resolved.jobs,
 		ResetSource:       resolved.resetSource,
 		SkipClean:         resolved.skipClean,

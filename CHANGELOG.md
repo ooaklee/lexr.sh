@@ -50,12 +50,17 @@ that do not apply.
 
 ---
 
-## [0.1.1] - Unreleased
+## [0.2.0] - Unreleased
+
+### Added
+
+- Added an explicit, build-and-release-provenance-recorded SP11 Stubble mode with packaged PE-section and Denali device-tree validation while retaining source-owned boot-image policy by default.
 
 ### Fixed
 
 - Made native kernel builds package the common and ABI-specific headers as a complete pair alongside the signed image and modules.
 - Emitted the installed-toolchain provenance digest without a trailing newline so strict bundle publication can validate it.
+- Preserved package-postinst Surface device-tree injection by avoiding a redundant final GRUB regeneration after native kernel installation.
 
 ## [0.1.0] - 2026-08-31
 

@@ -25,8 +25,6 @@ const (
 	OperationInstallPackages Operation = "install-packages"
 	// OperationUpdateInitramfs refreshes the initramfs for the exact target ABI.
 	OperationUpdateInitramfs Operation = "update-initramfs"
-	// OperationUpdateGRUB regenerates the target system's GRUB configuration.
-	OperationUpdateGRUB Operation = "update-grub"
 	// OperationRollbackPackages purges only target packages from a failed run.
 	OperationRollbackPackages Operation = "rollback-packages"
 )

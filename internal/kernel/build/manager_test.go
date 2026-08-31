@@ -91,6 +91,7 @@ func TestDryRunPlanIsCompleteAndReadOnly(t *testing.T) {
 		RepositoryRoot:  root,
 		GitURL:          "https://example.invalid/owner/kernel;literal",
 		GitBranch:       "sp11/test-v19",
+		BootImageMode:   BootImageModeStubble,
 		WorkDirectory:   "private/work",
 		OutputDirectory: "packages/new-v19",
 		Jobs:            12,
@@ -110,6 +111,7 @@ func TestDryRunPlanIsCompleteAndReadOnly(t *testing.T) {
 	}
 	if receipt.Plan.SchemaVersion != SchemaVersion || len(receipt.Plan.Commands) != 3 ||
 		receipt.Plan.GitURL != request.GitURL || receipt.Plan.GitRef != request.GitBranch ||
+		receipt.Plan.BootImageMode != request.BootImageMode ||
 		receipt.Plan.Jobs != request.Jobs || !receipt.Plan.ResetSource || !receipt.Plan.SkipClean ||
 		receipt.Plan.BuildTarget != containerBuildTarget || receipt.Plan.MinimumFreeGiB != containerMinimumFreeGiB {
 		t.Fatalf("dry-run plan = %#v", receipt.Plan)
@@ -121,9 +123,46 @@ func TestDryRunPlanIsCompleteAndReadOnly(t *testing.T) {
 	if !strings.Contains(joined, "\n"+request.GitURL+"\n") || !strings.Contains(joined, "\n"+request.GitBranch+"\n") {
 		t.Fatalf("source inputs are not distinct Docker arguments: %q", joined)
 	}
+	if !strings.HasSuffix(joined, "\n"+string(BootImageModeStubble)) {
+		t.Fatalf("boot-image mode is not a distinct final recipe argument: %q", joined)
+	}
 	second, err := manager.Plan(context.Background(), request)
 	if err != nil || !reflect.DeepEqual(receipt.Plan, second) {
 		t.Fatalf("plan is not deterministic: error=%v\nfirst=%#v\nsecond=%#v", err, receipt.Plan, second)
+	}
+}
+
+// TestBootImageModesDefaultAndValidate verifies source policy remains the
+// compatibility default and invalid or explicit values fail closed.
+func TestBootImageModesDefaultAndValidate(t *testing.T) {
+	root := t.TempDir()
+	for _, test := range []struct {
+		name       string
+		configured BootImageMode
+		want       BootImageMode
+	}{
+		{name: "default source", want: BootImageModeSource},
+		{name: "explicit source", configured: BootImageModeSource, want: BootImageModeSource},
+		{name: "explicit Stubble", configured: BootImageModeStubble, want: BootImageModeStubble},
+		{name: "explicit no Stubble", configured: BootImageModeNoStubble, want: BootImageModeNoStubble},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			plan, err := newTestBuildManager(&fakeBuildRunner{}).Plan(context.Background(), Request{
+				RepositoryRoot: root, WorkDirectory: "work-" + strings.ReplaceAll(test.name, " ", "-"),
+				OutputDirectory: "output-" + strings.ReplaceAll(test.name, " ", "-"), BootImageMode: test.configured,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if plan.BootImageMode != test.want || plan.Commands[2].Args[len(plan.Commands[2].Args)-1] != string(test.want) {
+				t.Fatalf("boot-image plan = %+v", plan)
+			}
+		})
+	}
+	if _, err := newTestBuildManager(&fakeBuildRunner{}).Plan(context.Background(), Request{
+		RepositoryRoot: root, WorkDirectory: "invalid-work", OutputDirectory: "invalid-output", BootImageMode: "automatic",
+	}); err == nil || !strings.Contains(err.Error(), "boot-image mode") {
+		t.Fatalf("invalid boot-image mode error = %v", err)
 	}
 }
 
@@ -431,6 +470,7 @@ func TestHostileInputsFailBeforeMutation(t *testing.T) {
 		"control Git ref":    {RepositoryRoot: baseRoot, GitBranch: "sp11/main\nnext", WorkDirectory: "work-k", OutputDirectory: "out-k"},
 		"negative jobs":      {RepositoryRoot: baseRoot, Jobs: -1, WorkDirectory: "work-l", OutputDirectory: "out-l"},
 		"excessive jobs":     {RepositoryRoot: baseRoot, Jobs: maximumBuildJobs + 1, WorkDirectory: "work-m", OutputDirectory: "out-m"},
+		"boot image mode":    {RepositoryRoot: baseRoot, BootImageMode: "stubble=true", WorkDirectory: "work-mode", OutputDirectory: "out-mode"},
 	}
 	for name, request := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -504,6 +544,28 @@ func TestMalformedContainerProvenancePreventsPublication(t *testing.T) {
 	}
 	if receipt.Published {
 		t.Fatalf("malformed provenance was published: %#v", receipt)
+	}
+}
+
+// TestMismatchedBootImageModePreventsPublication verifies container evidence
+// cannot weaken or replace the operator-reviewed boot-image policy.
+func TestMismatchedBootImageModePreventsPublication(t *testing.T) {
+	root := t.TempDir()
+	runner := &fakeBuildRunner{}
+	runner.container = func(_ context.Context, command platform.Command, transaction string) error {
+		if err := writeFakeContainerOutput(command, transaction); err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(transaction, "provenance", "boot-image-mode"), []byte(BootImageModeNoStubble), 0o644)
+	}
+	receipt, err := newTestBuildManager(runner).Run(context.Background(), Request{
+		RepositoryRoot: root, WorkDirectory: "work", OutputDirectory: "output", BootImageMode: BootImageModeStubble,
+	})
+	if err == nil || !strings.Contains(err.Error(), "boot-image mode differs") {
+		t.Fatalf("mismatched boot-image mode error = %v", err)
+	}
+	if receipt.Published {
+		t.Fatalf("mismatched boot-image mode was published: %#v", receipt)
 	}
 }
 
@@ -584,15 +646,29 @@ func TestCompiledRecipeContainsOnlyNativeBuildPolicy(t *testing.T) {
 	}
 	for _, required := range []string{
 		containerCommonHeadersTarget, containerFlavourTarget,
-		"apt-get install -y --no-install-recommends", "mk-build-deps", "git ls-remote", "40 GiB",
+		"apt-get install -y --no-install-recommends", "binutils", "mk-build-deps", "git ls-remote", "40 GiB",
 		`chmod -R a+rwX "$artifact_dir" "$provenance_dir"`,
 		`awk '{printf "%s", $1}' > "$provenance_dir/toolchain-sha256"`,
 		"linux-image-*-qcom-x1e_*_arm64.deb", "linux-modules-*-qcom-x1e_*_arm64.deb",
 		"linux-headers-*-qcom-x1e_*_arm64.deb", "linux-qcom-x1e-headers-*_all.deb",
+		`stubble) flavour_make_args=(do_stubble=true)`, `nostubble) flavour_make_args=(do_stubble=false)`,
+		`"$rules" "${flavour_make_args[@]}" ` + containerFlavourTarget,
+		`dpkg-deb --fsys-tarfile`, `objdump -h`, `".linux"`, `".hwids"`, `".dtbauto"`,
+		`[ "$linux_sections" -ne 1 ]`, `[ "$hwids_sections" -ne 1 ]`, `[ "$dtbauto_sections" -lt 1 ]`,
+		`x1e80100-microsoft-denali-oled\.dtb`, `iflag=skip_bytes,count_bytes`, `cmp -s "$inspection_dtb" "$section_candidate"`,
+		`[ "$denali_dtbauto_sections" -ne 1 ]`,
+		`[ "$dtbauto_sections" -ne 0 ]`,
 	} {
 		if !strings.Contains(containerRecipe, required) {
 			t.Errorf("compiled recipe is missing retained policy %q", required)
 		}
+	}
+	if !strings.Contains(containerRecipe, `"$rules" `+containerCommonHeadersTarget) ||
+		strings.Contains(containerRecipe, `"$rules" "${flavour_make_args[@]}" `+containerCommonHeadersTarget) {
+		t.Error("compiled recipe applies the Stubble override outside flavour packaging")
+	}
+	if !strings.Contains(containerRecipe, `[ "$boot_image_mode" != source ]`) {
+		t.Error("compiled recipe does not preserve source-owned boot-image behaviour")
 	}
 	if strings.Count(containerRecipe, "rm -rf") != 1 || !strings.Contains(containerRecipe, `rm -rf -- "$source_dir"`) {
 		t.Errorf("compiled recipe has an unexpected reset boundary")
@@ -601,7 +677,7 @@ func TestCompiledRecipeContainsOnlyNativeBuildPolicy(t *testing.T) {
 		t.Errorf("compiled recipe does not isolate freshly generated packages")
 	}
 	commonHeaders := strings.Index(containerRecipe, `"$rules" `+containerCommonHeadersTarget)
-	flavour := strings.Index(containerRecipe, `"$rules" `+containerFlavourTarget)
+	flavour := strings.Index(containerRecipe, `"$rules" "${flavour_make_args[@]}" `+containerFlavourTarget)
 	if commonHeaders < 0 || flavour < 0 || commonHeaders >= flavour {
 		t.Errorf("compiled recipe does not build common headers before the flavour target")
 	}
@@ -671,11 +747,12 @@ func writeFakeContainerOutput(command platform.Command, transaction string) erro
 			break
 		}
 	}
-	if scriptIndex < 0 || scriptIndex+5 >= len(arguments) {
+	if scriptIndex < 0 || scriptIndex+6 >= len(arguments) {
 		return errors.New("fake Docker command has incomplete recipe arguments")
 	}
 	gitURL := arguments[scriptIndex+1]
 	gitRef := arguments[scriptIndex+2]
+	bootImageMode := arguments[scriptIndex+6]
 	recipe := valueFollowing(arguments, "--env", "LEXR_RECIPE_SHA256=")
 	provenance := filepath.Join(transaction, "provenance")
 	artifacts := filepath.Join(transaction, "artifacts")
@@ -688,6 +765,7 @@ func writeFakeContainerOutput(command platform.Command, transaction string) erro
 	fields := map[string]string{
 		"git-url":          gitURL,
 		"git-ref":          gitRef,
+		"boot-image-mode":  bootImageMode,
 		"ref-kind":         "branch",
 		"revision":         strings.Repeat("a", 40),
 		"tree":             strings.Repeat("b", 40),

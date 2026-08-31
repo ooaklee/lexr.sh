@@ -311,6 +311,11 @@ func validateBuildProvenance(provenance build.Provenance) error {
 			return errors.New("native build provenance contains an unsafe source URL")
 		}
 	}
+	switch provenance.BootImageMode {
+	case build.BootImageModeSource, build.BootImageModeStubble, build.BootImageModeNoStubble:
+	default:
+		return errors.New("native build provenance contains an unsupported boot-image mode")
+	}
 	if provenance.RefKind != "branch" && provenance.RefKind != "tag" {
 		return errors.New("native build provenance contains an unsupported ref kind")
 	}

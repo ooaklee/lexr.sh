@@ -400,12 +400,14 @@ func (a *application) newKernelInspectCommand() *cobra.Command {
 // newKernelBuildCommand exposes the compiled native ARM64 container policy.
 func (a *application) newKernelBuildCommand() *cobra.Command {
 	request := kernelbuild.Request{}
+	bootImageMode := string(kernelbuild.BootImageModeSource)
 	command := &cobra.Command{
 		Use:   "build",
 		Short: "Build the custom SP11 kernel with the native container policy",
 		Long:  "Build the custom SP11 kernel using lexr's compiled ARM64 container policy. Work and new output directories must remain inside the selected repository root.",
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
+			request.BootImageMode = kernelbuild.BootImageMode(bootImageMode)
 			receipt, err := kernelbuild.New(nil).Run(command.Context(), request)
 			if err != nil {
 				if receipt.Cleanup != nil && a.errOut != nil {
@@ -419,6 +421,7 @@ func (a *application) newKernelBuildCommand() *cobra.Command {
 	command.Flags().StringVar(&request.RepositoryRoot, "repository-root", "", "repository containment root (the OE root is auto-detected when present)")
 	command.Flags().StringVar(&request.GitURL, "git-url", kernelbuild.DefaultGitURL, "kernel source repository")
 	command.Flags().StringVar(&request.GitBranch, "git-branch", kernelbuild.DefaultGitBranch, "kernel source branch or tag")
+	command.Flags().StringVar(&bootImageMode, "boot-image-mode", string(kernelbuild.BootImageModeSource), "boot image policy: source, stubble, or nostubble")
 	command.Flags().StringVar(&request.WorkDirectory, "work-dir", kernelbuild.DefaultWorkDirectory, "repository-relative kernel build directory")
 	command.Flags().StringVar(&request.OutputDirectory, "output-dir", kernelbuild.DefaultOutputDirectory, "new repository-relative package output directory")
 	command.Flags().IntVar(&request.Jobs, "jobs", 0, "parallel build jobs (zero lets the container choose)")
@@ -433,8 +436,9 @@ func (a *application) newKernelBuildCommand() *cobra.Command {
 func (a *application) writeKernelBuildReceipt(receipt kernelbuild.Receipt) error {
 	if receipt.Plan.DryRun {
 		_, err := fmt.Fprintf(a.out,
-			"kernel build dry run\nrepository root: %s\nsource: %s\nref: %s\nwork directory: %s\noutput directory: %s\ncontainer: %s\nbuild target: %s\nminimum free space: %d GiB\nwork volume: %s\nrecipe SHA-256: %s\njobs: %d\nreset source: %t\nskip clean: %t\nno changes were made\n",
+			"kernel build dry run\nrepository root: %s\nsource: %s\nref: %s\nboot image mode: %s\nwork directory: %s\noutput directory: %s\ncontainer: %s\nbuild target: %s\nminimum free space: %d GiB\nwork volume: %s\nrecipe SHA-256: %s\njobs: %d\nreset source: %t\nskip clean: %t\nno changes were made\n",
 			receipt.Plan.RepositoryRoot, receipt.Plan.GitURL, receipt.Plan.GitRef,
+			receipt.Plan.BootImageMode,
 			receipt.Plan.WorkDirectory, receipt.Plan.OutputDirectory, receipt.Plan.ContainerImage,
 			receipt.Plan.BuildTarget, receipt.Plan.MinimumFreeGiB,
 			receipt.Plan.WorkVolume, receipt.Plan.RecipeSHA256, receipt.Plan.Jobs,
@@ -445,8 +449,8 @@ func (a *application) writeKernelBuildReceipt(receipt kernelbuild.Receipt) error
 		return errors.New("kernel build completed without source provenance")
 	}
 	_, err := fmt.Fprintf(a.out,
-		"kernel build complete\nsource revision: %s\nsource tree: %s\nrecipe SHA-256: %s\npackages: %d\noutput directory: %s\n",
-		receipt.Provenance.Revision, receipt.Provenance.Tree, receipt.Provenance.RecipeSHA256,
+		"kernel build complete\nsource revision: %s\nsource tree: %s\nboot image mode: %s\nrecipe SHA-256: %s\npackages: %d\noutput directory: %s\n",
+		receipt.Provenance.Revision, receipt.Provenance.Tree, receipt.Provenance.BootImageMode, receipt.Provenance.RecipeSHA256,
 		len(receipt.Artifacts), receipt.Plan.OutputDirectory)
 	return err
 }

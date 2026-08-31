@@ -65,7 +65,7 @@ func TestPreparePublishesAndRevalidatesClosedRelease(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Validate() error = %v", err)
 	}
-	if manifest.ABI != fixtureABI || manifest.Version != fixtureVersion || manifest.HardwareQualified || !manifest.Experimental {
+	if manifest.ABI != fixtureABI || manifest.Version != fixtureVersion || manifest.Source.BootImageMode != build.BootImageModeStubble || manifest.HardwareQualified || !manifest.Experimental {
 		t.Fatalf("validated manifest = %#v", manifest)
 	}
 	entries, err := os.ReadDir(fixture.Output)
@@ -88,7 +88,7 @@ func TestPreparePublishesAndRevalidatesClosedRelease(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, expected := range []string{"licence evidence", "hardware-qualified", "does not make it"} {
+	for _, expected := range []string{"Boot image mode: stubble", "licence evidence", "hardware-qualified", "does not make it"} {
 		if !strings.Contains(string(notes), expected) {
 			t.Errorf("release notes do not contain %q:\n%s", expected, notes)
 		}
@@ -231,6 +231,16 @@ func TestPlanRejectsNonNativeAndUnsafeInputs(t *testing.T) {
 			provenance.ContainerImage = "ubuntu:latest"
 			mustWriteJSON(t, filepath.Join(fixture.Build, BuildProvenanceFileName), provenance)
 		}, want: "policy or toolchain"},
+		{name: "missing boot-image mode", mutate: func(t *testing.T, fixture *releaseFixture) {
+			provenance := readProvenance(t, fixture.Build)
+			provenance.BootImageMode = ""
+			mustWriteJSON(t, filepath.Join(fixture.Build, BuildProvenanceFileName), provenance)
+		}, want: "boot-image mode"},
+		{name: "unsupported boot-image mode", mutate: func(t *testing.T, fixture *releaseFixture) {
+			provenance := readProvenance(t, fixture.Build)
+			provenance.BootImageMode = "automatic"
+			mustWriteJSON(t, filepath.Join(fixture.Build, BuildProvenanceFileName), provenance)
+		}, want: "boot-image mode"},
 		{name: "invalid private volume", mutate: func(t *testing.T, fixture *releaseFixture) {
 			provenance := readProvenance(t, fixture.Build)
 			provenance.WorkVolume = "foreign-volume"
@@ -413,6 +423,8 @@ func TestValidateManifestRejectsSemanticDrift(t *testing.T) {
 		}},
 		{name: "credential URL", mutate: func(manifest *Manifest) { manifest.Source.GitURL = "https://token@example.invalid/kernel" }},
 		{name: "mutable image", mutate: func(manifest *Manifest) { manifest.Source.ContainerImage = "ubuntu:latest" }},
+		{name: "missing boot-image mode", mutate: func(manifest *Manifest) { manifest.Source.BootImageMode = "" }},
+		{name: "unsupported boot-image mode", mutate: func(manifest *Manifest) { manifest.Source.BootImageMode = "automatic" }},
 		{name: "missing source", mutate: func(manifest *Manifest) { manifest.Assets = withoutKind(manifest.Assets, AssetSource) }},
 		{name: "missing licence", mutate: func(manifest *Manifest) { manifest.Assets = withoutKind(manifest.Assets, AssetLicence) }},
 		{name: "case-folded asset collision", mutate: func(manifest *Manifest) {
@@ -482,7 +494,7 @@ func newReleaseFixture(t *testing.T, headers bool) releaseFixture {
 	}
 	mustWriteJSON(t, filepath.Join(buildDirectory, BundleFileName), bundle)
 	mustWriteJSON(t, filepath.Join(buildDirectory, BuildProvenanceFileName), build.Provenance{
-		GitURL: fixtureGitURL, GitRef: "sp11/integration-7.2.x", RefKind: "branch",
+		GitURL: fixtureGitURL, GitRef: "sp11/integration-7.2.x", BootImageMode: build.BootImageModeStubble, RefKind: "branch",
 		Revision: revision, Tree: strings.Repeat("2", 40),
 		CommitTime:     time.Date(2026, time.August, 29, 10, 0, 0, 0, time.UTC),
 		RecipeSHA256:   strings.Repeat("3", 64),

@@ -411,7 +411,7 @@ A usable kernel bundle contains, at minimum:
 
 The bundle records its release, repository, ABI, version, package digests, and expected device-tree paths. `lexr` derives the ABI and version from package filenames and rejects a bundle if required packages are absent, versions are mixed, or a local file no longer matches its recorded digest. Headers are optional for live-image creation.
 
-`kernel build` owns a compiled ARM64 Docker build policy and does not require a repository helper script. By default it builds the [`sp11/integration-7.2.x`](https://github.com/ooaklee/linux_ms_dev_kit-sp11/tree/sp11/integration-7.2.x) branch of the custom kernel; `--git-url` and `--git-branch` select another HTTPS source and branch or tag. The policy pins the Ubuntu 26.04 ARM64 base image by digest and records the exact fetched revision and tree, its own recipe digest, and an installed-toolchain digest beside the packages. `kernel release download` resolves candidate release assets from the established OE release channel by default and verifies the publisher checksum manifest before writing a local bundle manifest. Its explicit `--repository` option remains available for a compatible alternate release channel.
+`kernel build` owns a compiled ARM64 Docker build policy and does not require a repository helper script. By default it builds the [`sp11/integration-7.2.x`](https://github.com/ooaklee/linux_ms_dev_kit-sp11/tree/sp11/integration-7.2.x) branch of the custom kernel; `--git-url` and `--git-branch` select another HTTPS source and branch or tag. The default `--boot-image-mode source` leaves the selected source's Stubble policy unchanged. The explicit `stubble` and `nostubble` modes pass a GNU Make command-line override only to flavour packaging, without editing the managed checkout, and validate the resulting packaged boot image across both runtime packages. Stubble mode requires exactly one `.linux` section, one `.hwids` section, at least one embedded `.dtbauto` section, and an embedded Surface Pro 11 Denali device tree; nostubble mode rejects embedded device trees. The selected mode is retained in build and release provenance. The policy pins the Ubuntu 26.04 ARM64 base image by digest and records the exact fetched revision and tree, its own recipe digest, and an installed-toolchain digest beside the packages. `kernel release download` resolves candidate release assets from the established OE release channel by default and verifies the publisher checksum manifest before writing a local bundle manifest. Its explicit `--repository` option remains available for a compatible alternate release channel.
 
 `kernel release prepare` accepts only that exact closed native build output, one or more corresponding-source archives, explicit licence text, a tag-like release identity, and a fresh output path. Its dry run hashes and validates all inputs without creating a parent or output. A real run revalidates the build, copies through private staging, produces one path-free public manifest and British-English notes, checksums the complete set, validates it, and atomically publishes the new local directory. `kernel release validate` performs the same closed-directory structural checks without contacting a remote service. Neither command publishes, installs, elevates privilege, or makes a hardware-qualified claim. The retired `sp11v3` ABI and separate out-of-tree touchscreen modules are rejected because the maintained kernel carries that stack in-tree.
 
@@ -452,6 +452,19 @@ lexr kernel build \
   --git-url https://github.com/ooaklee/linux_ms_dev_kit-sp11 \
   --git-branch sp11/integration-7.2.x \
   --output-dir build/lexr/kernel-v19
+```
+
+Use the explicit Stubble mode only for an SP11 build whose selected source
+policy would otherwise emit a raw boot image. Omit the flag to preserve the
+branch's policy for other devices:
+
+```sh
+lexr kernel build \
+  --repository-root <build-root> \
+  --git-url https://github.com/ooaklee/linux_ms_dev_kit-sp11 \
+  --git-branch <sp11-test-branch> \
+  --boot-image-mode stubble \
+  --output-dir build/lexr/kernel-sp11-stubble
 ```
 
 After materialising the exact recorded source revision and its licence text,

@@ -299,10 +299,10 @@ func TestPreflightProducesExactDryRunPlan(t *testing.T) {
 	if len(plan.Packages) != 2 || plan.Packages[0].Role != kernel.RoleModules || plan.Packages[1].Role != kernel.RoleImage {
 		t.Fatalf("unexpected package order: %+v", plan.Packages)
 	}
-	if len(plan.DeviceTrees) != 2 || len(plan.Commands) != 3 {
+	if len(plan.DeviceTrees) != 2 || len(plan.Commands) != 2 {
 		t.Fatalf("unexpected plan coverage: %+v", plan)
 	}
-	if filepath.Base(plan.Commands[0].Name) != "chroot" || filepath.Base(plan.Commands[1].Name) != "chroot" || filepath.Base(plan.Commands[2].Name) != "chroot" {
+	if filepath.Base(plan.Commands[0].Name) != "chroot" || filepath.Base(plan.Commands[1].Name) != "chroot" {
 		t.Fatalf("alternate-root commands = %+v", plan.Commands)
 	}
 	if len(plan.Commands[0].Args) < 3 || plan.Commands[0].Args[1] != "/usr/bin/dpkg" || plan.Commands[0].Args[2] != "--install" {
@@ -364,11 +364,12 @@ func TestInstallStagesPackagesAndVerifiesBootEvidence(t *testing.T) {
 					return fmt.Errorf("package was not staged: %s", argument)
 				}
 			}
-			return installFixtureTarget(root)
+			if err := installFixtureTarget(root); err != nil {
+				return err
+			}
+			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(true))
 		case command.Name == chrootCommand && slicesContain(command.Args, updateInitramfsCommand):
 			writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
-		case command.Name == chrootCommand && slicesContain(command.Args, updateGRUBCommand):
-			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(true))
 		}
 		return nil
 	}
@@ -381,8 +382,50 @@ func TestInstallStagesPackagesAndVerifiesBootEvidence(t *testing.T) {
 	if receipt.Installed == nil || receipt.Installed.ABI != fixtureTargetABI || len(receipt.DeviceTrees) != 2 || !receipt.RebootRequired {
 		t.Fatalf("unexpected install receipt: %+v", receipt)
 	}
-	if len(receipt.Executed) != 3 || receipt.Rollback != nil {
+	if len(receipt.Executed) != 2 || receipt.Rollback != nil {
 		t.Fatalf("unexpected command receipt: %+v", receipt)
+	}
+}
+
+// TestInstallPreservesPackagePostinstDeviceTree verifies Lexr does not run a
+// redundant final update-grub that would erase a package hook's DTB injection.
+func TestInstallPreservesPackagePostinstDeviceTree(t *testing.T) {
+	root, bundle := fixtureEnvironment(t)
+	injected := " devicetree /boot/sp11-denali.dtb\n"
+	postinstGRUB := strings.Replace(
+		fixtureGRUB(true),
+		" initrd /boot/initrd.img-"+fixtureTargetABI+"\n",
+		injected+" initrd /boot/initrd.img-"+fixtureTargetABI+"\n",
+		1,
+	)
+	runner := &fakeRunner{root: root}
+	runner.runHook = func(_ context.Context, command platform.Command) error {
+		switch {
+		case slicesContain(command.Args, "--install"):
+			if err := installFixtureTarget(root); err != nil {
+				return err
+			}
+			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), postinstGRUB)
+		case command.Name == chrootCommand && slicesContain(command.Args, updateInitramfsCommand):
+			writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+		}
+		return nil
+	}
+	manager := fixtureManager(runner)
+	manager.effectiveUID = func() int { return 0 }
+	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	grub, err := os.ReadFile(filepath.Join(root, "boot/grub/grub.cfg"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(grub), injected) {
+		t.Fatalf("package postinst DTB injection was not preserved: %q", grub)
+	}
+	if len(receipt.Executed) != 2 {
+		t.Fatalf("install executed redundant commands: %+v", receipt.Executed)
 	}
 }
 

@@ -45,9 +45,10 @@ var packageFileNameExpression = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9.+_~%-
 func readProvenance(transaction string, plan Plan) (Provenance, error) {
 	directory := filepath.Join(transaction, "provenance")
 	fields := map[string]*string{}
-	var gitURL, gitRef, refKind, revision, tree, commitTime, recipe, toolchain string
+	var gitURL, gitRef, bootImageMode, refKind, revision, tree, commitTime, recipe, toolchain string
 	fields["git-url"] = &gitURL
 	fields["git-ref"] = &gitRef
+	fields["boot-image-mode"] = &bootImageMode
 	fields["ref-kind"] = &refKind
 	fields["revision"] = &revision
 	fields["tree"] = &tree
@@ -63,6 +64,9 @@ func readProvenance(transaction string, plan Plan) (Provenance, error) {
 	}
 	if gitURL != plan.GitURL || gitRef != plan.GitRef {
 		return Provenance{}, errors.New("container source remote or ref differs from the reviewed plan")
+	}
+	if BootImageMode(bootImageMode) != plan.BootImageMode {
+		return Provenance{}, errors.New("container boot-image mode differs from the reviewed plan")
 	}
 	if refKind != "branch" && refKind != "tag" {
 		return Provenance{}, fmt.Errorf("container returned unsupported Git ref kind %q", refKind)
@@ -81,7 +85,7 @@ func readProvenance(transaction string, plan Plan) (Provenance, error) {
 		return Provenance{}, fmt.Errorf("parse kernel source commit time: %w", err)
 	}
 	return Provenance{
-		GitURL: gitURL, GitRef: gitRef, RefKind: refKind, Revision: revision, Tree: tree,
+		GitURL: gitURL, GitRef: gitRef, BootImageMode: BootImageMode(bootImageMode), RefKind: refKind, Revision: revision, Tree: tree,
 		CommitTime: committed.UTC(), RecipeSHA256: recipe,
 		ContainerImage: plan.ContainerImage, WorkVolume: plan.WorkVolume, ToolchainSHA256: toolchain,
 	}, nil
