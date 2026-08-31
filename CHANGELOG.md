@@ -2,9 +2,55 @@
 
 Notable changes to Lexr.sh and its `lexr` command are documented here. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-The current unreleased version is `0.1.0`. Before `1.0.0`, each release containing new features advances the minor version, while a release containing fixes only advances the patch version.
+Before `1.0.0`, each release containing new features advances the minor version, while a release containing fixes only advances the patch version.
 
-## [0.1.0] - Unreleased
+## Changelog entry template
+
+### Types of changes
+
+- `Added` for new features.
+- `Changed` for changes in existing functionality.
+- `Deprecated` for soon-to-be removed features.
+- `Removed` for now removed features.
+- `Fixed` for any bug fixes.
+- `Security` in case of vulnerabilities.
+
+Copy this template above the most recent release. Replace `x.y.z` with the planned
+version, leave `Unreleased` in place while work is ongoing, and replace it with
+the release date in `YYYY-MM-DD` format when publishing. Delete any subsections
+that do not apply.
+
+```markdown
+## [x.y.z] - Unreleased
+
+### Added
+
+- tbc
+
+### Changed
+
+- tbc
+
+### Deprecated
+
+- tbc
+
+### Removed
+
+- tbc
+
+### Fixed
+
+- tbc
+
+### Security
+
+- tbc
+```
+
+---
+
+## [0.1.0] - 2026-08-31
 
 ### Added
 
