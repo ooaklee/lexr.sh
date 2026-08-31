@@ -10,7 +10,7 @@ import (
 
 // currentOperatorDocuments is the standalone repository's maintained public
 // entry-point set.
-var currentOperatorDocuments = []string{"README.md", "CHANGELOG.md"}
+var currentOperatorDocuments = []string{"README.md", "CHANGELOG.md", "CODE_OF_CONDUCT.md", "CONTRIBUTING.md"}
 
 // privateOutputContract connects one ignored private-output shape to the glob
 // used by the current workflow's tracked-file guard.
@@ -50,6 +50,42 @@ func TestMaintainedDocumentationReferencesLexr(t *testing.T) {
 	if !bytes.Contains(readme, []byte("https://github.com/ooaklee/lexr.sh")) {
 		t.Error("README.md does not identify the standalone Lexr repository")
 	}
+	projectDocumentContracts := []struct {
+		path     string
+		required [][]byte
+	}{
+		{path: "LICENSE", required: [][]byte{[]byte("Apache License"), []byte("Version 2.0, January 2004"), []byte("Copyright © 2026, Leon Silcott <leon@boasi.io> and other contributors.")}},
+		{path: "NOTICE", required: [][]byte{[]byte("Lexr.sh"), []byte("Copyright © 2026, Leon Silcott <leon@boasi.io> and other contributors.")}},
+		{path: "THIRD_PARTY_NOTICES.md", required: [][]byte{[]byte("github.com/spf13/cobra"), []byte("golang.org/x/sys"), []byte("UNICODE LICENSE V3")}},
+		{path: "MAINTAINERS", required: [][]byte{[]byte("Leon Silcott   leon@boasi.io  github.com/ooaklee")}},
+	}
+	for _, contract := range projectDocumentContracts {
+		document := readBoundedRepositoryFile(t, repositoryRoot, contract.path)
+		for _, required := range contract.required {
+			if !bytes.Contains(document, required) {
+				t.Errorf("project document %s omits %q", contract.path, required)
+			}
+		}
+	}
+	noticeProse := strings.Join(strings.Fields(string(readBoundedRepositoryFile(t, repositoryRoot, "THIRD_PARTY_NOTICES.md"))), " ")
+	for _, required := range []string{
+		"During active development, it may briefly lag behind a dependency update.",
+		"Before each release, it must be reviewed against every supported binary.",
+		"It must be updated before publication.",
+	} {
+		if !strings.Contains(noticeProse, required) {
+			t.Errorf("THIRD_PARTY_NOTICES.md omits maintenance policy %q", required)
+		}
+	}
+	licence := readBoundedRepositoryFile(t, repositoryRoot, "LICENSE")
+	for _, placeholder := range [][]byte{
+		[]byte("Copyright [yyyy] [name of copyright owner]"),
+		[]byte("fields enclosed by brackets"),
+	} {
+		if bytes.Contains(licence, placeholder) {
+			t.Errorf("LICENSE retains Apache application-template text %q", placeholder)
+		}
+	}
 	workflowContracts := []struct {
 		path     string
 		required [][]byte
@@ -87,10 +123,10 @@ func TestMaintainedDocumentationReferencesLexr(t *testing.T) {
 	}
 }
 
-// TestCLIReleaseContainsOnlyBinariesAndChecksums prevents Lexr's own GitHub
-// Release from becoming a second channel for hardware support or supplementary
-// project resources.
-func TestCLIReleaseContainsOnlyBinariesAndChecksums(t *testing.T) {
+// TestCLIReleaseContainsBinariesNoticesAndChecksums prevents Lexr's own GitHub
+// Release from omitting legal documents or becoming a second channel for
+// hardware support and unrelated project resources.
+func TestCLIReleaseContainsBinariesNoticesAndChecksums(t *testing.T) {
 	repositoryRoot := lexrRepositoryRoot(t)
 	configuration := readBoundedRepositoryFile(t, repositoryRoot, ".goreleaser.yaml")
 	workflow := readBoundedRepositoryFile(t, repositoryRoot, ".github/workflows/lexr.yml")
@@ -104,11 +140,16 @@ func TestCLIReleaseContainsOnlyBinariesAndChecksums(t *testing.T) {
 		[]byte("lexr-v${LEXR_VERSION}-linux-arm64"),
 		[]byte("lexr-v${LEXR_VERSION}-windows-amd64.exe"),
 		[]byte("lexr-v${LEXR_VERSION}-windows-arm64.exe"),
+		[]byte("${RUNNER_TEMP}/lexr-release/LICENSE"),
+		[]byte("${RUNNER_TEMP}/lexr-release/NOTICE"),
+		[]byte("${RUNNER_TEMP}/lexr-release/THIRD_PARTY_NOTICES.md"),
 		[]byte("${RUNNER_TEMP}/lexr-release/lexr-v${LEXR_VERSION}.sha256sums"),
+		[]byte("Checksum manifest does not cover exactly the nine release payloads."),
+		[]byte("expected ten"),
 		[]byte("sha256sum --strict --check"),
 	} {
 		if !bytes.Contains(releaseContract, required) {
-			t.Errorf("binary-only CLI release contract omits %q", required)
+			t.Errorf("exact CLI release contract omits %q", required)
 		}
 	}
 	for _, forbidden := range [][]byte{
@@ -120,8 +161,72 @@ func TestCLIReleaseContainsOnlyBinariesAndChecksums(t *testing.T) {
 		[]byte("src: tools/collect-sp11-windows-handoff.ps1"),
 	} {
 		if bytes.Contains(releaseContract, forbidden) {
-			t.Errorf("binary-only CLI release contract contains %q", forbidden)
+			t.Errorf("exact CLI release contract contains %q", forbidden)
 		}
+	}
+}
+
+// TestContributionEntryPointsPreserveSafetyAndDependencyReview keeps the
+// repository's public forms and automation aligned with CONTRIBUTING.md.
+func TestContributionEntryPointsPreserveSafetyAndDependencyReview(t *testing.T) {
+	repositoryRoot := lexrRepositoryRoot(t)
+	contracts := []struct {
+		path     string
+		required [][]byte
+	}{
+		{
+			path: ".github/ISSUE_TEMPLATE/01-bug-report.yml",
+			required: [][]byte{
+				[]byte("If this is a security or privacy problem, do not post it here."),
+				[]byte("leon@boasi.io"),
+				[]byte("I inspected every attachment and log excerpt"),
+			},
+		},
+		{
+			path: ".github/ISSUE_TEMPLATE/02-feature-request.yml",
+			required: [][]byte{
+				[]byte("architecture decision record"),
+				[]byte("privacy, privilege, recovery, compatibility, persisted data, or release behaviour"),
+			},
+		},
+		{
+			path: ".github/ISSUE_TEMPLATE/config.yml",
+			required: [][]byte{
+				[]byte("blank_issues_enabled: false"),
+				[]byte("CONTRIBUTING.md#report-a-bug-safely"),
+			},
+		},
+		{
+			path: ".github/PULL_REQUEST_TEMPLATE.md",
+			required: [][]byte{
+				[]byte("go test -race ./..."),
+				[]byte("THIRD_PARTY_NOTICES.md"),
+				[]byte("private diagnostics"),
+			},
+		},
+	}
+	for _, contract := range contracts {
+		content := readBoundedRepositoryFile(t, repositoryRoot, contract.path)
+		for _, required := range contract.required {
+			if !bytes.Contains(content, required) {
+				t.Errorf("contribution entry point %s omits %q", contract.path, required)
+			}
+		}
+	}
+
+	dependabot := readBoundedRepositoryFile(t, repositoryRoot, ".github/dependabot.yml")
+	for _, required := range [][]byte{
+		[]byte("package-ecosystem: \"gomod\""),
+		[]byte("package-ecosystem: \"github-actions\""),
+		[]byte("prefix: \"chore(deps)\""),
+		[]byte("THIRD_PARTY_NOTICES.md"),
+	} {
+		if !bytes.Contains(dependabot, required) {
+			t.Errorf("Dependabot configuration omits %q", required)
+		}
+	}
+	if bytes.Contains(dependabot, []byte("package-ecosystem: \"docker\"")) {
+		t.Error("Dependabot configures Docker updates without a Docker dependency manifest")
 	}
 }
 

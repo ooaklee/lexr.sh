@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security or private report
+    url: https://github.com/ooaklee/lexr.sh/blob/main/CONTRIBUTING.md#report-a-bug-safely
+    about: Report vulnerabilities and sensitive problems privately rather than in a public issue.
