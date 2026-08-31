@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/manager"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/tui"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/version"
+	"github.com/ooaklee/lexr.sh/internal/manager"
+	"github.com/ooaklee/lexr.sh/internal/tui"
+	"github.com/ooaklee/lexr.sh/internal/version"
 )
 
 // newWizardCommand starts the guided Bubble Tea image workflow explicitly.
@@ -24,7 +24,7 @@ func (a *application) newWizardCommand() *cobra.Command {
 			return a.runWizardWithRequest(command.Context(), request)
 		},
 	}
-	command.Flags().StringVarP(&request.Output, "output", "o", "linux-armer-sp11.iso", "output ISO path")
+	command.Flags().StringVarP(&request.Output, "output", "o", "lexr-sp11.iso", "output ISO path")
 	command.Flags().StringVar(&request.Source, "source", "", "source ISO path or HTTPS URL")
 	command.Flags().StringVar(&request.SourceSHA256, "source-sha256", "", "expected source ISO SHA-256")
 	command.Flags().StringVar(&request.KernelDirectory, "kernel-dir", "", "directory containing local kernel packages")
@@ -37,7 +37,7 @@ func (a *application) newWizardCommand() *cobra.Command {
 func (a *application) runWizard(ctx context.Context) error {
 	return a.runWizardWithRequest(ctx, manager.CreateImageRequest{
 		CatalogPath: a.catalogPath,
-		Output:      "linux-armer-sp11.iso",
+		Output:      "lexr-sp11.iso",
 	})
 }
 
@@ -77,7 +77,7 @@ func describeWizardKernel(request manager.CreateImageRequest) string {
 		return fmt.Sprintf("local bundle %s (validated before building)", request.KernelDirectory)
 	}
 	if request.KernelRelease == "" || request.KernelRelease == "latest" {
-		return "latest linux-armer release (verified before building)"
+		return "latest Surface Pro 11 kernel release (verified before building)"
 	}
 	return fmt.Sprintf("release %s (verified before building)", request.KernelRelease)
 }

@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"path"
 
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
-	userspacepolicy "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/policy"
-	userspacerelease "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/release"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	userspacepolicy "github.com/ooaklee/lexr.sh/internal/userspace/policy"
+	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
 )
 
 // iptsdOfflineReleaseContract is the package-private compiled trust anchor used

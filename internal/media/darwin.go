@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // darwinListDocument models diskutil's device-list plist after JSON conversion.

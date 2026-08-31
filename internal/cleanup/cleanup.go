@@ -917,11 +917,19 @@ func validateQuarantinePath(change ReceiptItem) error {
 		return fmt.Errorf("cleanup receipt has invalid quarantine path for rule %s", change.RuleID)
 	}
 	directoryName := filepath.Base(quarantineDirectory)
-	if !strings.HasPrefix(directoryName, ".linux-armer-cleanup-") ||
+	if !supportedCleanupQuarantineDirectory(directoryName) ||
 		!strings.HasSuffix(directoryName, "-"+change.RuleID) {
 		return fmt.Errorf("cleanup receipt has unexpected quarantine directory for rule %s", change.RuleID)
 	}
 	return nil
+}
+
+// supportedCleanupQuarantineDirectory reports whether a receipt names the
+// current quarantine prefix or the exact pre-rename prefix needed to recover
+// an interrupted historical transaction.
+func supportedCleanupQuarantineDirectory(name string) bool {
+	legacyPrefix := "." + "linux" + "-armer-cleanup-"
+	return strings.HasPrefix(name, ".lexr-cleanup-") || strings.HasPrefix(name, legacyPrefix)
 }
 
 // Apply backs up and removes recognised findings. Unrecognised content is
@@ -1067,7 +1075,7 @@ func apply(report ScanReport, yes bool, operations applyOperations) (Receipt, er
 			return Receipt{}, fmt.Errorf("unsafe cleanup path %s", finding.Path)
 		}
 		backupPath := filepath.Join(backup, relative)
-		quarantineDirectoryName := ".linux-armer-cleanup-" + stamp + "-" + finding.Rule.ID
+		quarantineDirectoryName := ".lexr-cleanup-" + stamp + "-" + finding.Rule.ID
 		quarantineDirectory := filepath.Join(parent.location.publicBase, quarantineDirectoryName)
 		if err := parent.location.root.Mkdir(quarantineDirectoryName, 0o700); err != nil {
 			removeAnchoredEmptyDirectories(quarantineDirectories)

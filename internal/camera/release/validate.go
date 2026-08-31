@@ -15,8 +15,8 @@ import (
 	"sort"
 	"strings"
 
-	camerabuild "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/build"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/jsonstrict"
+	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
+	"github.com/ooaklee/lexr.sh/internal/camera/jsonstrict"
 )
 
 // Validate retains the release-validation entry point using static proof only.

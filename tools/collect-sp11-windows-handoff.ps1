@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-Collects a private Surface Pro 11 Windows hand-off for linux-armer.
+Collects a private Surface Pro 11 Windows hand-off for Lexr.
 
 .DESCRIPTION
 Creates the strict version 2 Windows hand-off directory consumed by
-`linux-armer handoff import`. The collector can include the complete audited
+`lexr handoff import`. The collector can include the complete audited
 eleven-file platform firmware set, the same-device Bluetooth public address,
 or both. It never exports Windows Wi-Fi firmware.
 
@@ -38,12 +38,12 @@ collecting device data. This parameter set does not require Windows or
 administrator privileges.
 
 .EXAMPLE
-powershell -NoProfile -ExecutionPolicy Bypass -File .\collect-sp11-windows-handoff.ps1 -OutputDirectory (Join-Path $env:ProgramFiles 'linux-armer-private\sp11-handoff')
+powershell -NoProfile -ExecutionPolicy Bypass -File .\collect-sp11-windows-handoff.ps1 -OutputDirectory (Join-Path $env:ProgramFiles 'lexr-private\sp11-handoff')
 
 Collects both supported sections into a new directory.
 
 .EXAMPLE
-powershell -NoProfile -ExecutionPolicy Bypass -File .\collect-sp11-windows-handoff.ps1 -OutputDirectory (Join-Path $env:ProgramFiles 'linux-armer-private\sp11-handoff') -Components PlatformFirmware
+powershell -NoProfile -ExecutionPolicy Bypass -File .\collect-sp11-windows-handoff.ps1 -OutputDirectory (Join-Path $env:ProgramFiles 'lexr-private\sp11-handoff') -Components PlatformFirmware
 
 Collects only the complete platform firmware set and records Bluetooth as not
 requested.
@@ -106,7 +106,7 @@ function Initialize-WindowsFileIdentityReader {
     if ($env:OS -cne 'Windows_NT') {
         throw 'Windows file-object identity is available only on Windows.'
     }
-    if ($null -ne ('LinuxArmer.WindowsFileIdentityReader' -as [type])) {
+    if ($null -ne ('Lexr.WindowsFileIdentityReader' -as [type])) {
         return
     }
 
@@ -117,7 +117,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-namespace LinuxArmer
+namespace Lexr
 {
     /// <summary>Describes one opened Windows filesystem object without exposing a mutable path as identity.</summary>
     public sealed class WindowsFileIdentity
@@ -232,7 +232,7 @@ function Get-WindowsFileObjectIdentity {
     )
 
     Initialize-WindowsFileIdentityReader
-    $identity = [LinuxArmer.WindowsFileIdentityReader]::Read([System.IO.Path]::GetFullPath($Path))
+    $identity = [Lexr.WindowsFileIdentityReader]::Read([System.IO.Path]::GetFullPath($Path))
     if (($identity.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
         throw 'A privileged Windows hand-off path became a reparse point.'
     }
@@ -425,7 +425,7 @@ function Assert-PortableFileSelfTest {
     [CmdletBinding()]
     param()
 
-    $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('linux-armer-handoff-self-test-' + [guid]::NewGuid().ToString('N'))
+    $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('lexr-handoff-self-test-' + [guid]::NewGuid().ToString('N'))
     [void][System.IO.Directory]::CreateDirectory($temporaryRoot)
     try {
         $sourcePath = Join-Path $temporaryRoot 'source.bin'
@@ -1042,7 +1042,7 @@ function New-OutputTransaction {
     }
 
     for ($attempt = 0; $attempt -lt 32; $attempt++) {
-        $stagingName = '.linux-armer-collecting-' + [guid]::NewGuid().ToString('N')
+        $stagingName = '.lexr-collecting-' + [guid]::NewGuid().ToString('N')
         if (Test-ImmediateDirectoryEntry -ParentPath $parentInfo.FullName -Name $stagingName) {
             continue
         }
@@ -1924,7 +1924,7 @@ Creates the exact strict version 2 Windows hand-off manifest envelope.
 
 .DESCRIPTION
 Combines already validated collection evidence into the closed JSON shape
-consumed by linux-armer. The only exported device identity is a freshly salted
+consumed by Lexr. The only exported device identity is a freshly salted
 SMBIOS product UUID binding; a Bluetooth adapter instance identifier never
 enters this manifest.
 #>
@@ -2168,7 +2168,7 @@ try {
 
     Write-Host 'Windows hand-off collection complete.'
     Write-Host "Private output directory: $($transaction.FinalPath)"
-    Write-Host 'Import it with linux-armer, then purge every unneeded copy.'
+    Write-Host 'Import it with lexr, then purge every unneeded copy.'
 } catch {
     $collectionError = $_
     if ($stagingActive -and $null -ne $transaction) {

@@ -8,6 +8,10 @@ description: Architecture decision for same-device application, recovery, firmwa
 
 Accepted on 2026-08-30.
 
+Naming note: the current product is Lexr.sh and its command is `lexr`. The
+`linux-armer` installed paths below remain compatibility contracts under
+[ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
+
 ## Context
 
 ADR011 originally defined a private, device-bound Windows hand-off and deliberately withheld mutation authority from import, list, and purge operations. ADR021 replaces that interchange shape with version 2 while retaining the SMBIOS binding as this transaction's same-device boundary. Applying the material remains a separate security boundary. It can overwrite firmware used during boot, retain a persistent Bluetooth controller address, install an executable with system privileges, and alter systemd ordering. A valid imported document therefore cannot be treated as sufficient authority to modify either the running system or a mounted target.

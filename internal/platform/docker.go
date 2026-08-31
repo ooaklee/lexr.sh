@@ -12,7 +12,7 @@ import (
 
 // workVolumePrefix distinguishes generated temporary work volumes from
 // user-managed Docker storage.
-const workVolumePrefix = "linux-armer-work-"
+const workVolumePrefix = "lexr-work-"
 
 // toolsDockerfile defines the reproducible ARM64 tool environment used for
 // filesystem and boot-media operations.
@@ -55,11 +55,11 @@ func (d *Docker) Check(ctx context.Context) error {
 // it for ARM64 only when that exact definition is not already available.
 func (d *Docker) EnsureToolsImage(ctx context.Context) (string, error) {
 	digest := sha256.Sum256([]byte(toolsDockerfile))
-	name := fmt.Sprintf("linux-armer-builder:%x", digest[:6])
+	name := fmt.Sprintf("lexr-builder:%x", digest[:6])
 	if _, err := d.Runner.Capture(ctx, Command{Name: "docker", Args: []string{"image", "inspect", name}}); err == nil {
 		return name, nil
 	}
-	contextDir, err := os.MkdirTemp("", "linux-armer-docker-context-")
+	contextDir, err := os.MkdirTemp("", "lexr-docker-context-")
 	if err != nil {
 		return "", fmt.Errorf("create Docker build context: %w", err)
 	}
@@ -119,7 +119,7 @@ func (d *Docker) CreateWorkVolume(ctx context.Context) (string, error) {
 	name := fmt.Sprintf("%s%x", workVolumePrefix, token)
 	created, err := d.Runner.Capture(ctx, Command{
 		Name: "docker",
-		Args: []string{"volume", "create", "--driver", "local", "--label", "io.linux-armer.temporary=true", name},
+		Args: []string{"volume", "create", "--driver", "local", "--label", "io.lexr.temporary=true", name},
 	})
 	if err != nil {
 		return "", fmt.Errorf("create Docker work volume %s failed; retention state is unknown: %w", name, err)
@@ -137,7 +137,7 @@ func (d *Docker) CreateWorkVolume(ctx context.Context) (string, error) {
 	return name, nil
 }
 
-// RemoveWorkVolume removes only volumes bearing linux-armer's generated name.
+// RemoveWorkVolume removes only volumes bearing lexr's generated name.
 func (d *Docker) RemoveWorkVolume(ctx context.Context, name string) error {
 	if !validWorkVolumeName(name) {
 		return fmt.Errorf("refuse to remove unrecognised Docker work volume %q", name)
@@ -159,7 +159,7 @@ func (d *Docker) inspectWorkVolume(ctx context.Context, name string) error {
 	}
 	inspected, err := d.Runner.Capture(ctx, Command{
 		Name: "docker",
-		Args: []string{"volume", "inspect", "--format", "{{.Name}} {{.Driver}} {{index .Labels \"io.linux-armer.temporary\"}}", name},
+		Args: []string{"volume", "inspect", "--format", "{{.Name}} {{.Driver}} {{index .Labels \"io.lexr.temporary\"}}", name},
 	})
 	if err != nil {
 		return fmt.Errorf("inspect identity: %w", err)

@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/releaseprep"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/ubuntu"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/image/releaseprep"
+	"github.com/ooaklee/lexr.sh/internal/image/ubuntu"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // newImageReleaseCommand groups local-only release preparation and validation.
@@ -59,7 +59,7 @@ func (a *application) newImageReleasePrepareCommand() *cobra.Command {
 			return err
 		},
 	}
-	command.Flags().StringVar(&request.RepositoryRoot, "repository-root", ".", "support repository root containing the source ISO")
+	command.Flags().StringVar(&request.RepositoryRoot, "repository-root", ".", "containment root holding the source ISO and build/release output")
 	command.Flags().StringVar(&request.ReleaseName, "release-name", "", "portable release name (defaults to the ISO stem)")
 	command.Flags().StringVar(&request.OutputDirectory, "out-dir", "", "fresh build/release/<release-name> directory")
 	command.Flags().Int64Var(&request.PartSizeBytes, "part-size-bytes", releaseprep.DefaultPartSizeBytes, "maximum compressed part size below the hosted asset limit")

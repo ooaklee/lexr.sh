@@ -69,7 +69,7 @@ func (e *ValidationError) Error() string {
 	return message.String()
 }
 
-// NormalizeArchitecture maps the accepted ARM64 spellings to linux-armer's
+// NormalizeArchitecture maps the accepted ARM64 spellings to lexr's
 // canonical architecture value.
 func NormalizeArchitecture(value string) (Architecture, error) {
 	switch strings.ToLower(strings.TrimSpace(value)) {

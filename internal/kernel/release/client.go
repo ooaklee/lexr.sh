@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/artifact"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/artifact"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
 
 // DefaultRepository is the release source used when callers do not select a
@@ -217,7 +217,7 @@ func (c *Client) getJSON(ctx context.Context, endpoint string, destination any) 
 	}
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-	request.Header.Set("User-Agent", "linux-armer")
+	request.Header.Set("User-Agent", "lexr")
 	if c.Token != "" {
 		request.Header.Set("Authorization", "Bearer "+c.Token)
 	}

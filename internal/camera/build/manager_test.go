@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -16,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // testBase is the exact source authority used by isolated Git fixtures.
@@ -377,6 +378,40 @@ func TestFakeRunnerEndToEndBuild(t *testing.T) {
 		if command.Name == "bash" || command.Name == "sh" {
 			t.Fatalf("host shell invocation escaped compiled policy: %+v", command)
 		}
+	}
+}
+
+// TestValidateBundleAcceptsHistoricalRecipeAuthority proves a schema-1 build
+// receipt using the exact pre-rename recipe identity remains readable.
+func TestValidateBundleAcceptsHistoricalRecipeAuthority(t *testing.T) {
+	root, tuning := makeCameraRepository(t)
+	runner := &fakeCameraRunner{tuning: tuning}
+	manager := newExecutableTestManager(runner)
+	receipt, err := manager.Run(context.Background(), Request{RepositoryRoot: root, Jobs: 4, MinimumFreeGiB: 1, NoPull: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorityPath := filepath.Join(receipt.OutputDirectory, ReceiptName)
+	authority, err := os.ReadFile(authorityPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundle, err := decodeBundleReceipt(authority)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundle.Builder.RecipeSHA256 = legacyRecipeSHA256
+	encoded, err := json.MarshalIndent(bundle, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(authorityPath, append(encoded, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ValidateBundle(context.Background(), runner, ValidationRequest{
+		RepositoryRoot: root, Directory: receipt.OutputDirectory,
+	}); err != nil {
+		t.Fatalf("ValidateBundle() rejected the historical recipe identity: %v", err)
 	}
 }
 

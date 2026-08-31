@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -12,9 +11,9 @@ import (
 // TestPinnedReleaseFixture validates the complete published release when its
 // securely extracted root is supplied by an integration test environment.
 func TestPinnedReleaseFixture(t *testing.T) {
-	root := os.Getenv("LINUX_ARMER_TEST_IPTSD_RELEASE_ROOT")
+	root := os.Getenv("LEXR_TEST_IPTSD_RELEASE_ROOT")
 	if root == "" {
-		t.Skip("set LINUX_ARMER_TEST_IPTSD_RELEASE_ROOT to an extracted sp11-iptsd-v1 root")
+		t.Skip("set LEXR_TEST_IPTSD_RELEASE_ROOT to an extracted sp11-iptsd-v1 root")
 	}
 	release, err := ValidateRelease(root)
 	if err != nil {
@@ -34,29 +33,26 @@ func TestPinnedReleaseFixture(t *testing.T) {
 // immutable release's historical README identity is accepted, propagated into
 // the copy plan, and does not weaken rejection of any unreviewed third variant.
 func TestPublishedV1DocumentationAlternativeRemainsInstallable(t *testing.T) {
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("locate IPTSD contract test source")
-	}
-	repositoryRoot := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", "..", "..", ".."))
-	integrationRoot := copyTree(t, filepath.Join(repositoryRoot, "userspace", "iptsd-sp11"))
-	legacyREADME, err := os.ReadFile(filepath.Join(filepath.Dir(sourceFile), "testdata", "sp11-iptsd-v1-readme.fixture"))
+	legacyREADME, err := os.ReadFile(filepath.Join("testdata", "sp11-iptsd-v1-readme.fixture"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	integrationRoot := t.TempDir()
 	readmePath := filepath.Join(integrationRoot, "README.md")
 	if err := os.WriteFile(readmePath, legacyREADME, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	manifest, err := validateIntegration(integrationRoot)
+	current := integrationFileSpecification(t, "README.md")
+	alternatives := append([]fileSpec{current}, legacyIntegrationAlternatives["README.md"]...)
+	matched, err := validateFileAlternatives(readmePath, alternatives)
 	if err != nil {
-		t.Fatalf("validate published v1 integration: %v", err)
+		t.Fatalf("validate published v1 documentation fixture: %v", err)
 	}
-	matched := manifest["README.md"]
 	if matched.sha256 != "69a92f448f64f3d16b59770869bb7a5411470dd153770765fce97f68c41bd687" || matched.size != 3204 {
 		t.Fatalf("matched README identity = %+v", matched)
 	}
+	manifest := map[string]fileSpec{"README.md": matched}
 	planned := integrationInstallFile(integrationRoot, manifest, "README.md", "usr/local/share/doc/sp11-iptsd/README.md", 0o644)
 	if planned.SHA256 != matched.sha256 || planned.Size != matched.size {
 		t.Fatalf("planned README identity = %s/%d, want %s/%d", planned.SHA256, planned.Size, matched.sha256, matched.size)
@@ -65,17 +61,30 @@ func TestPublishedV1DocumentationAlternativeRemainsInstallable(t *testing.T) {
 	if err := os.WriteFile(readmePath, append(legacyREADME, '!'), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := ValidateIntegration(integrationRoot); err == nil || !strings.Contains(err.Error(), "approved contract") {
+	if _, err := validateFileAlternatives(readmePath, alternatives); err == nil || !strings.Contains(err.Error(), "approved contract") {
 		t.Fatalf("unreviewed README error = %v", err)
 	}
+}
+
+// integrationFileSpecification returns one compiled integration identity so
+// focused fixture tests do not depend on the separate OE repository checkout.
+func integrationFileSpecification(t *testing.T, name string) fileSpec {
+	t.Helper()
+	for _, specification := range integrationFiles {
+		if specification.path == name {
+			return specification
+		}
+	}
+	t.Fatalf("compiled IPTSD integration omits %q", name)
+	return fileSpec{}
 }
 
 // TestPayloadRejectsMutationAndUnexpectedShape verifies that binary changes,
 // extra files, and payload links cannot survive the fixed checksum authority.
 func TestPayloadRejectsMutationAndUnexpectedShape(t *testing.T) {
-	fixture := os.Getenv("LINUX_ARMER_TEST_IPTSD_RELEASE_ROOT")
+	fixture := os.Getenv("LEXR_TEST_IPTSD_RELEASE_ROOT")
 	if fixture == "" {
-		t.Skip("set LINUX_ARMER_TEST_IPTSD_RELEASE_ROOT to exercise payload mutations")
+		t.Skip("set LEXR_TEST_IPTSD_RELEASE_ROOT to exercise payload mutations")
 	}
 	source := filepath.Join(fixture, filepath.FromSlash(PayloadRelative))
 	integration := filepath.Join(fixture, filepath.FromSlash(IntegrationRelative))
@@ -163,9 +172,9 @@ func TestAArch64ELFRejectsWrongMachineAndLinks(t *testing.T) {
 // TestIntegrationRejectsLinksAndMutation verifies that released human text and
 // templates cannot be substituted after the compiled contract is reviewed.
 func TestIntegrationRejectsLinksAndMutation(t *testing.T) {
-	fixture := os.Getenv("LINUX_ARMER_TEST_IPTSD_RELEASE_ROOT")
+	fixture := os.Getenv("LEXR_TEST_IPTSD_RELEASE_ROOT")
 	if fixture == "" {
-		t.Skip("set LINUX_ARMER_TEST_IPTSD_RELEASE_ROOT to exercise release mutations")
+		t.Skip("set LEXR_TEST_IPTSD_RELEASE_ROOT to exercise release mutations")
 	}
 	source := filepath.Join(fixture, filepath.FromSlash(IntegrationRelative))
 	t.Run("mutated template", func(t *testing.T) {

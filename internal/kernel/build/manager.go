@@ -18,9 +18,9 @@ import (
 
 const (
 	// transactionPrefix identifies private host-side container exchanges.
-	transactionPrefix = ".linux-armer-kernel-build-"
+	transactionPrefix = ".lexr-kernel-build-"
 	// buildLockDirectoryName serialises processes sharing one persistent volume.
-	buildLockDirectoryName = ".linux-armer-kernel-build.lock"
+	buildLockDirectoryName = ".lexr-kernel-build.lock"
 	// buildLockOwnerPrefix distinguishes the private per-acquisition marker.
 	buildLockOwnerPrefix = ".owner-"
 	// buildLockOwnerBytes provides a collision-resistant ownership identity.

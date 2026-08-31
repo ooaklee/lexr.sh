@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // installedSupportFile describes one host-staged installed-system support
@@ -148,7 +148,7 @@ grep -Fx "$expected_modules" /linux-work/kernel-package-status >/dev/null
 grep -Fx "$expected_image" /linux-work/kernel-package-status >/dev/null
 `
 	if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume,
-		"bash", "-ceu", script, "linux-armer-install-kernel", bundle.ABI, bundle.Version,
+		"bash", "-ceu", script, "lexr-install-kernel", bundle.ABI, bundle.Version,
 		"/work/kernel/"+modulesPackage.Name, "/work/kernel/"+imagePackage.Name); err != nil {
 		return fmt.Errorf("register custom kernel packages in remastered root: %w", err)
 	}
@@ -198,7 +198,7 @@ chroot "$root" update-initramfs -c -k "$abi"
 test -s "$root/boot/initrd.img-$abi"
 `
 	if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume,
-		"bash", "-ceu", script, "linux-armer-installed-support", bundle.ABI); err != nil {
+		"bash", "-ceu", script, "lexr-installed-support", bundle.ABI); err != nil {
 		return fmt.Errorf("install installed-system kernel, DTB, GRUB, and initramfs support: %w", err)
 	}
 	return nil
@@ -254,11 +254,11 @@ for kernel in $(find /boot -maxdepth 1 -type f -name 'vmlinuz-*-qcom-x1e' -print
 	for model in x1e x1p; do
 		case "$model" in
 			x1e)
-				title="Linux Armer Surface Pro 11 X1E/OLED ($abi)"
+				title="Lexr Surface Pro 11 X1E/OLED ($abi)"
 				dtb_path="$relative_boot/dtbs/$abi/qcom/x1e80100-microsoft-denali-oled.dtb"
 				;;
 			x1p)
-				title="Linux Armer Surface Pro 11 X1P/LCD ($abi)"
+				title="Lexr Surface Pro 11 X1P/LCD ($abi)"
 				dtb_path="$relative_boot/dtbs/$abi/qcom/x1p64100-microsoft-denali.dtb"
 				;;
 		esac
@@ -288,7 +288,7 @@ is_safe_abi() {
 
 seed_abi=$(cat /usr/lib/linux-armer/sp11/kernel-abi)
 is_safe_abi "$seed_abi" || {
-	echo "linux-armer seed kernel ABI is invalid" >&2
+	echo "Lexr seed kernel ABI is invalid" >&2
 	exit 65
 }
 

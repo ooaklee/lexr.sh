@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/artifact"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/companion"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/artifact"
+	"github.com/ooaklee/lexr.sh/internal/image/companion"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // retainedVolumeRunner records Docker commands and deliberately fails the

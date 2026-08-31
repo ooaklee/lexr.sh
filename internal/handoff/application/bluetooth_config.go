@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/bluetoothmgmt"
+	"github.com/ooaklee/lexr.sh/internal/bluetoothmgmt"
 )
 
 const (

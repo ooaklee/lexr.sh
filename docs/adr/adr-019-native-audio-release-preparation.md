@@ -10,6 +10,11 @@ description: Architecture decision for deterministic, local-only preparation and
 
 Accepted on 2026-08-30.
 
+Naming note: the current product is Lexr.sh and its command is `lexr`. Commands
+below retain their accepted historical spelling; use `lexr` now. Established
+release filenames remain compatibility contracts under
+[ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
+
 ## Context
 
 The Surface Pro 11 audio companion comprises protected vendor-derived topology
@@ -41,6 +46,18 @@ linux-armer userspace audio release prepare \
   --kernel-tag <paired-kernel-tag> \
   --kernel-abi <paired-qcom-x1e-ABI>
 linux-armer userspace audio release validate <release-directory>
+```
+
+Those commands record the accepted historical interface. The current
+equivalents are:
+
+```text
+lexr userspace audio release prepare \
+  --source-root <SP11X1e-audio-checkout> \
+  --tag sp11-audio-v19c \
+  --kernel-tag <paired-kernel-tag> \
+  --kernel-abi <paired-qcom-x1e-ABI>
+lexr userspace audio release validate <release-directory>
 ```
 
 All four preparation identities are compiled policy: the FullIO v19c topology,

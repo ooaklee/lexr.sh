@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "description": "Audited Surface Pro 11 userspace and firmware components. Support actions describe bounded linux-armer capabilities; they are data flags, not executable instructions.",
+  "description": "Audited Surface Pro 11 userspace and firmware components. Support actions describe bounded lexr capabilities; they are data flags, not executable instructions.",
   "components": [
     {
       "id": "audio-fullio-v19c",
@@ -72,7 +72,7 @@
       "compatibility_evidence": "source_integrated_prior_validation",
       "notes": [
         "Qualcomm platform, GPU, audio DSP, camera, and wireless firmware is required before the related devices can initialise.",
-        "Windows-derived firmware remains outside distributable linux-armer artefacts and enters Linux only through a strict, private, same-device hand-off."
+        "Windows-derived firmware remains outside distributable lexr artefacts and enters Linux only through a strict, private, same-device hand-off."
       ],
       "remediation": "Run the strict Windows hand-off collector on the same device, use handoff import, review the handoff apply preview for the firmware feature with an explicit aDSP policy, apply the confirmed plan, and use handoff restore if recovery is required."
     },

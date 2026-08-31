@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/doctor"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/hardwaredoctor"
+	"github.com/ooaklee/lexr.sh/internal/doctor"
+	"github.com/ooaklee/lexr.sh/internal/hardwaredoctor"
 )
 
 // hardwareDoctorWorkflow is the delivery layer's narrow view of live hardware

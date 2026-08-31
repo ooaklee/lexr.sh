@@ -68,7 +68,7 @@ func resolveTargetDepth(root, relative string, depth int) (string, error) {
 			if err != nil {
 				return "", fmt.Errorf("resolve userspace target parent %s: %w", candidate, err)
 			}
-			resolvedSentinel, err := resolveTargetDepth(root, filepath.ToSlash(filepath.Join(linkRelative, ".linux-armer-link-sentinel")), depth+1)
+			resolvedSentinel, err := resolveTargetDepth(root, filepath.ToSlash(filepath.Join(linkRelative, ".lexr-link-sentinel")), depth+1)
 			if err != nil {
 				return "", err
 			}
@@ -159,7 +159,7 @@ func atomicCopyVerified(source, destination string, mode os.FileMode, expectedDi
 	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
 		return fmt.Errorf("create target directory: %w", err)
 	}
-	temporary, err := os.CreateTemp(filepath.Dir(destination), ".linux-armer-install-*")
+	temporary, err := os.CreateTemp(filepath.Dir(destination), ".lexr-install-*")
 	if err != nil {
 		return fmt.Errorf("create atomic install file: %w", err)
 	}

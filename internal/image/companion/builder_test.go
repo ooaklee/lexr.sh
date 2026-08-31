@@ -18,11 +18,11 @@ import (
 	"strings"
 	"testing"
 
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
-	userspacecatalog "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/catalog"
-	userspacepolicy "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/policy"
-	userspacerelease "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/release"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/platform"
+	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
+	userspacepolicy "github.com/ooaklee/lexr.sh/internal/userspace/policy"
+	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
 )
 
 // fakeRunner records argument-separated commands and emits a minimal synthetic
@@ -234,9 +234,9 @@ func TestBuilderSourceArchiveIsDeterministic(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, content := range map[string]string{
-		filepath.Join("bin", "linux-armer"): "ignored binary",
-		"linux-armer":                       "ignored root binary",
-		"output.iso":                        "ignored image",
+		filepath.Join("bin", "lexr"): "ignored binary",
+		"lexr":                       "ignored root binary",
+		"output.iso":                 "ignored image",
 	} {
 		if err := os.WriteFile(filepath.Join(source, name), []byte(content), 0o755); err != nil {
 			t.Fatal(err)
@@ -260,7 +260,7 @@ func TestBuilderSourceArchiveIsDeterministic(t *testing.T) {
 	}
 	files := readSourceArchive(t, writeTemporaryArchive(t, archiveBytes[0]))
 	for _, forbidden := range []string{
-		"linux-armer/bin/linux-armer", "linux-armer/linux-armer", "linux-armer/output.iso",
+		"linux-armer/bin/lexr", "linux-armer/lexr", "linux-armer/output.iso",
 	} {
 		if _, found := files[forbidden]; found {
 			t.Errorf("source archive contains ignored output %q", forbidden)
@@ -666,7 +666,7 @@ func TestDiscoverLicenceFilesUsesGitRootAuthority(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(repositoryRoot, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	sourceRoot := filepath.Join(repositoryRoot, "cli", "linux-armer")
+	sourceRoot := filepath.Join(repositoryRoot, "lexr")
 	if err := os.MkdirAll(sourceRoot, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -707,7 +707,7 @@ func TestVerifySourceRevisionChecksWholeRepository(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(repositoryRoot, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	sourceRoot := filepath.Join(repositoryRoot, "cli", "linux-armer")
+	sourceRoot := filepath.Join(repositoryRoot, "lexr")
 	if err := os.MkdirAll(sourceRoot, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -909,22 +909,22 @@ func assertPublishedDirectoryModes(t *testing.T, root string) {
 func makeTestSource(t *testing.T, withLicence bool) string {
 	t.Helper()
 	root := t.TempDir()
-	for _, directory := range []string{filepath.Join("cmd", "linux-armer"), "docs", "internal", "tools"} {
+	for _, directory := range []string{filepath.Join("cmd", "lexr"), "docs", "internal", "tools"} {
 		if err := os.MkdirAll(filepath.Join(root, directory), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
 	files := map[string]string{
-		"go.mod":     "module example.invalid/linux-armer\n\ngo 1.26\n",
-		"go.sum":     "",
-		"catalog.go": "package linuxarmer\n",
-		filepath.Join("cmd", "linux-armer", "main.go"):             "package main\nfunc main() {}\n",
-		filepath.Join("internal", "logic.go"):                      "package internal\n",
-		filepath.Join("docs", "README.md"):                         "# Documentation\n",
+		"go.mod":                                "module example.invalid/lexr\n\ngo 1.26\n",
+		"go.sum":                                "",
+		"catalog.go":                            "package lexr\n",
+		filepath.Join("cmd", "lexr", "main.go"): "package main\nfunc main() {}\n",
+		filepath.Join("internal", "logic.go"):   "package internal\n",
+		filepath.Join("docs", "README.md"):      "# Documentation\n",
 		filepath.Join("tools", "collect-sp11-windows-handoff.ps1"): "# Strict Windows hand-off collector\n",
-		"README.md":    "# linux-armer\n",
+		"README.md":    "# Lexr\n",
 		"CHANGELOG.md": "# Changelog\n",
-		".gitignore":   "/bin/\n/linux-armer\n/*.iso\n",
+		".gitignore":   "/bin/\n/lexr\n/*.iso\n",
 	}
 	if withLicence {
 		files["LICENSE"] = "test redistribution terms\n"

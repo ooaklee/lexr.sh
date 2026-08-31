@@ -1,5 +1,6 @@
 /bin/
-/linux-armer
+/build/
+/lexr
 /*.iso
 /*.img
 /*.raw
@@ -7,4 +8,7 @@
 /*.journal.json
 /*.manifest.json
 /dist/
-/.linux-armer-remaster-*/
+/.lexr-remaster-*/
+sp11-linux-checks/
+sp11-linux-checks-*.zip
+report-*/

@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
 
 // packageRoleOrder gives package-manager input a dependency-friendly stable order.

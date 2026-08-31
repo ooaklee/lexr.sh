@@ -14,12 +14,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/artifact"
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/companion"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/ubuntu/caspermedia"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/artifact"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/image/companion"
+	"github.com/ooaklee/lexr.sh/internal/image/ubuntu/caspermedia"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // maximumValidationImageBytes bounds one private ISO validation snapshot.
@@ -56,7 +56,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	if err != nil {
 		return imagecontract.ValidationReport{Path: absolute, Layout: "hybrid-iso", Adapter: AdapterID}, err
 	}
-	workspace, err := os.MkdirTemp(filepath.Dir(absolute), ".linux-armer-validate-")
+	workspace, err := os.MkdirTemp(filepath.Dir(absolute), ".lexr-validate-")
 	if err != nil {
 		return imagecontract.ValidationReport{Path: absolute, Layout: "hybrid-iso", Adapter: AdapterID}, err
 	}
@@ -625,13 +625,12 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 		"arm64.nopauth",
 		"systemd.tpm2_wait=0",
 		"soundwire_qcom.sp11_feedback_active_offset2_zero=1",
-		"Linux Armer Surface Pro 11 X1E/OLED",
-		"Linux Armer Surface Pro 11 X1P/LCD",
 		"x1e80100-microsoft-denali-oled.dtb",
 		"x1p64100-microsoft-denali.dtb",
 	} {
 		grubSupportPassed = grubSupportPassed && strings.Contains(installedGrubText, required)
 	}
+	grubSupportPassed = grubSupportPassed && installedGrubModelTitlesPresent(installedGrubText)
 	grubSupportPassed = grubSupportPassed && !strings.Contains(installedGrubText, "qcom_q6v5_pas")
 	addCheck("installed-system-grub-support", grubSupportPassed, "explicit X1E/X1P entries use installed-system arguments without the live USB blacklist")
 
@@ -650,6 +649,21 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 		!strings.Contains(refreshText+string(postInstall)+string(postRemove), "qcom_q6v5_pas")
 	addCheck("installed-system-kernel-refresh", refreshPassed, "bounded hooks refresh new ABI-paired DTBs and remove only the retired ABI directory")
 	return checks
+}
+
+// installedGrubModelTitlesPresent reports whether an installed-system GRUB
+// generator contains a complete pair of current or historical Surface model
+// titles. Historical schema-3 images remain valid, while new images emit only
+// the current Lexr titles.
+func installedGrubModelTitlesPresent(content string) bool {
+	legacyProductName := "Linux" + " Armer"
+	for _, productName := range []string{"Lexr", legacyProductName} {
+		if strings.Contains(content, `title="`+productName+` Surface Pro 11 X1E/OLED`) &&
+			strings.Contains(content, `title="`+productName+` Surface Pro 11 X1P/LCD`) {
+			return true
+		}
+	}
+	return false
 }
 
 // appendedESPOffset parses xorriso's GPT report and returns the byte offset of

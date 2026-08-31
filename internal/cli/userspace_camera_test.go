@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	cameracapture "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/capture"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/rawpreview"
+	cameracapture "github.com/ooaklee/lexr.sh/internal/camera/capture"
+	"github.com/ooaklee/lexr.sh/internal/camera/rawpreview"
 )
 
 // cameraCaptureStub records delivery options and returns one injected result.
@@ -182,7 +182,7 @@ func TestRootRegistersTheUserspaceCameraRenderer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if command.CommandPath() != "linux-armer userspace camera render" || len(remaining) != 0 {
+	if command.CommandPath() != "lexr userspace camera render" || len(remaining) != 0 {
 		t.Fatalf("unexpected command resolution: %s %#v", command.CommandPath(), remaining)
 	}
 }
@@ -196,7 +196,7 @@ func TestRootRegistersTheUserspaceCameraCapture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if command.CommandPath() != "linux-armer userspace camera capture" || len(remaining) != 0 {
+	if command.CommandPath() != "lexr userspace camera capture" || len(remaining) != 0 {
 		t.Fatalf("unexpected command resolution: %s %#v", command.CommandPath(), remaining)
 	}
 }

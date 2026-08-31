@@ -106,7 +106,7 @@ func resolveRequest(request Request) (resolvedRequest, error) {
 }
 
 // resolveRepositoryRoot returns an explicit directory, the nearest OE checkout,
-// or the current directory for a standalone released CLI.
+// or the nearest standalone Lexr module.
 func resolveRepositoryRoot(configured string) (string, error) {
 	selected := configured
 	if strings.TrimSpace(selected) == "" {
@@ -141,20 +141,46 @@ func resolveRepositoryRoot(configured string) (string, error) {
 	return canonical, nil
 }
 
-// nearestRepositoryRoot walks upwards for the CLI module marker and otherwise
-// returns the starting directory for standalone use.
+// nearestRepositoryRoot walks upwards for an OE checkout containing the Lexr
+// submodule, then falls back to the nearest standalone Lexr module or the
+// starting directory.
 func nearestRepositoryRoot(start string) string {
 	start = filepath.Clean(start)
+	standaloneRoot := ""
 	for current := start; ; current = filepath.Dir(current) {
-		marker := filepath.Join(current, "cli", "linux-armer", "go.mod")
-		if info, err := os.Stat(marker); err == nil && info.Mode().IsRegular() {
+		if isLexrModule(filepath.Join(current, "cli", "lexr", "go.mod")) {
 			return current
+		}
+		if standaloneRoot == "" && isLexrModule(filepath.Join(current, "go.mod")) {
+			standaloneRoot = current
 		}
 		parent := filepath.Dir(current)
 		if parent == current {
+			if standaloneRoot != "" {
+				return standaloneRoot
+			}
 			return start
 		}
 	}
+}
+
+// isLexrModule reports whether path is a bounded regular Go module marker for
+// the standalone Lexr repository rather than an unrelated go.mod file.
+func isLexrModule(path string) bool {
+	info, err := os.Lstat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Size() > 64<<10 {
+		return false
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(content), "\n") {
+		if strings.TrimSpace(line) == "module github.com/ooaklee/lexr.sh" {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveContainedDirectory validates a repository-relative path without

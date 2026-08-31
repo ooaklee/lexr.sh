@@ -11,11 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	userspacebuild "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/build"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/catalog"
-	userspaceinstall "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/install"
-	userspacerelease "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/release"
-	userspacestatus "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/status"
+	userspacebuild "github.com/ooaklee/lexr.sh/internal/userspace/build"
+	"github.com/ooaklee/lexr.sh/internal/userspace/catalog"
+	userspaceinstall "github.com/ooaklee/lexr.sh/internal/userspace/install"
+	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
+	userspacestatus "github.com/ooaklee/lexr.sh/internal/userspace/status"
 )
 
 // Component identifiers bind friendly CLI aliases to validated catalogue entries
@@ -157,7 +157,7 @@ func (m *Manager) Pull(ctx context.Context, overridePath, selector, cacheDirecto
 		if err != nil {
 			return nil, fmt.Errorf("resolve user cache directory: %w", err)
 		}
-		cacheDirectory = filepath.Join(userCache, "linux-armer", "userspace")
+		cacheDirectory = filepath.Join(userCache, "lexr", "userspace")
 	}
 	absoluteCache, err := filepath.Abs(cacheDirectory)
 	if err != nil {

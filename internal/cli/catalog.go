@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/catalog"
+	"github.com/ooaklee/lexr.sh/internal/catalog"
 )
 
 // catalogValidationResult is the stable machine-readable result for both valid

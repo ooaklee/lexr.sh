@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/cli"
+	"github.com/ooaklee/lexr.sh/internal/cli"
 )
 
 // main connects process I/O and cancellation signals to the reusable Cobra

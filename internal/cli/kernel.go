@@ -11,11 +11,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
-	kernelbuild "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/build"
-	kernelinstall "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/install"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/release"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/releaseprep"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
+	kernelbuild "github.com/ooaklee/lexr.sh/internal/kernel/build"
+	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
+	"github.com/ooaklee/lexr.sh/internal/kernel/release"
+	"github.com/ooaklee/lexr.sh/internal/kernel/releaseprep"
 )
 
 // kernelInstallationManager is the delivery-layer boundary for native kernel
@@ -74,7 +74,7 @@ func (a *application) newKernelReleasePrepareCommand() *cobra.Command {
 			return a.writeKernelReleasePrepareReceipt(receipt, asJSON, prepareErr)
 		},
 	}
-	command.Flags().StringVar(&request.BuildDirectory, "build-dir", "", "exact new directory emitted by linux-armer kernel build")
+	command.Flags().StringVar(&request.BuildDirectory, "build-dir", "", "exact new directory emitted by lexr kernel build")
 	command.Flags().StringVar(&request.OutputDirectory, "output-dir", "", "new local release directory to publish atomically")
 	command.Flags().StringVar(&request.ReleaseName, "release-name", "", "tag-like public release identity")
 	command.Flags().StringArrayVar(&request.SourceAssets, "source", nil, "corresponding-source archive (repeat for additional archives)")
@@ -403,7 +403,7 @@ func (a *application) newKernelBuildCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "build",
 		Short: "Build the custom SP11 kernel with the native container policy",
-		Long:  "Build the custom SP11 kernel using linux-armer's compiled ARM64 container policy. Work and new output directories must remain inside the selected repository root.",
+		Long:  "Build the custom SP11 kernel using lexr's compiled ARM64 container policy. Work and new output directories must remain inside the selected repository root.",
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
 			receipt, err := kernelbuild.New(nil).Run(command.Context(), request)

@@ -192,14 +192,14 @@ func (inspector *Inspector) Inspect(options Options) (Report, error) {
 		if checkErr != nil {
 			return Report{}, checkErr
 		}
-		legacy.Remediation = "review linux-armer clean plan and remove recognised legacy audio workarounds through its reversible cleanup flow"
+		legacy.Remediation = "review `lexr clean plan` and remove recognised legacy audio workarounds through its reversible clean-up flow"
 		add(policies.decorate(legacy, audioComponent))
 
 		userLegacy, checkErr := inspectUserAudioConflicts(fs, userHome, required)
 		if checkErr != nil {
 			return Report{}, checkErr
 		}
-		userLegacy.Remediation = "pass the same explicit --user-home to linux-armer clean plan, then review its reversible per-user cleanup"
+		userLegacy.Remediation = "pass the same explicit --user-home to `lexr clean plan`, then review its reversible per-user clean-up"
 		add(policies.decorate(userLegacy, audioComponent))
 	}
 

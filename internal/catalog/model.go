@@ -1,4 +1,4 @@
-// Package catalog loads and validates linux-armer's supported installation
+// Package catalog loads and validates lexr's supported installation
 // media catalogue.
 package catalog
 
@@ -11,7 +11,7 @@ const CurrentSchemaVersion = 2
 type Architecture string
 
 const (
-	// ArchitectureARM64 is the canonical form used by linux-armer. The common
+	// ArchitectureARM64 is the canonical form used by lexr. The common
 	// aarch64 spelling is normalised to this value while loading a catalogue.
 	ArchitectureARM64 Architecture = "arm64"
 )
@@ -47,7 +47,7 @@ func AdapterSupportsArtifact(adapter Adapter, kind ArtifactKind) bool {
 	}
 }
 
-// SupportLevel describes whether linux-armer can currently prepare an entry.
+// SupportLevel describes whether lexr can currently prepare an entry.
 type SupportLevel string
 
 const (

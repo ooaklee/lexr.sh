@@ -1,5 +1,5 @@
 // Package handoff defines the private, device-bound interchange contract used
-// to move authorised Windows evidence into linux-armer without making it an ISO
+// to move authorised Windows evidence into Lexr without making it an ISO
 // inventory or a redistributable userspace release.
 package handoff
 
@@ -89,7 +89,7 @@ func (BluetoothAddress) GoString() string {
 type Contract struct {
 	// SchemaVersion selects the exact decoding and validation contract.
 	SchemaVersion int `json:"schema_version"`
-	// Kind distinguishes this document from every other linux-armer JSON shape.
+	// Kind distinguishes this document from every other Lexr JSON shape.
 	Kind string `json:"kind"`
 	// PrivacyClassification requires private handling of the complete document
 	// and every payload it identifies.

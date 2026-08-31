@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // safeBuildTokenExpression accepts the private random identifier used in names.

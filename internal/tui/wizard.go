@@ -1,4 +1,4 @@
-// Package tui provides the interactive delivery layer for linux-armer.
+// Package tui provides the interactive delivery layer for Lexr.
 package tui
 
 import (
@@ -9,7 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/catalog"
+	"github.com/ooaklee/lexr.sh/internal/catalog"
 )
 
 // Selection is the minimal, validated intent returned when an operator confirms
@@ -56,7 +56,7 @@ var (
 // implemented catalogue entry passes the explicit confirmation screen.
 func Run(entries []catalog.Entry, output, kernelSource string, input io.Reader, writer io.Writer) (Selection, bool, error) {
 	if len(entries) == 0 {
-		return Selection{}, false, fmt.Errorf("supported image catalog is empty")
+		return Selection{}, false, fmt.Errorf("supported image catalogue is empty")
 	}
 	initial := model{
 		entries:      append([]catalog.Entry(nil), entries...),
@@ -126,7 +126,7 @@ func (m model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 // Tea alternate-screen view.
 func (m model) View() tea.View {
 	var body strings.Builder
-	body.WriteString(titleStyle.Render("linux-armer · Surface Pro 11 image wizard"))
+	body.WriteString(titleStyle.Render("Lexr · Surface Pro 11 image wizard"))
 	body.WriteString("\n\n")
 	if m.confirm {
 		entry := m.entries[m.cursor]

@@ -1,5 +1,5 @@
 // Package releaseprep prepares and validates closed, local-only release
-// directories for linux-armer installation images.
+// directories for lexr installation images.
 package releaseprep
 
 import (
@@ -7,7 +7,7 @@ import (
 	"io"
 	"time"
 
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
 )
 
 const (
@@ -42,9 +42,10 @@ type Compressor interface {
 
 // Request contains the complete local image-release preparation decision.
 type Request struct {
-	// RepositoryRoot bounds source and generated paths to the support repository.
+	// RepositoryRoot bounds the source and generated paths to one selected
+	// image-build containment root; the directory need not be a source checkout.
 	RepositoryRoot string `json:"repository_root"`
-	// ImagePath selects one previously validated linux-armer hybrid ISO.
+	// ImagePath selects one previously validated lexr hybrid ISO.
 	ImagePath string `json:"image_path"`
 	// OutputDirectory selects a fresh direct child beneath build/release.
 	OutputDirectory string `json:"output_directory,omitempty"`
@@ -58,7 +59,7 @@ type Request struct {
 
 // Plan is the immutable, path-bounded preparation decision.
 type Plan struct {
-	// RepositoryRoot is the canonical source and output security boundary.
+	// RepositoryRoot is the canonical image-build source and output security boundary.
 	RepositoryRoot string `json:"repository_root"`
 	// ImagePath is the canonical, regular source ISO.
 	ImagePath string `json:"image_path"`

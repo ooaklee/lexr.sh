@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	handoffapplication "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/handoff/application"
+	handoffapplication "github.com/ooaklee/lexr.sh/internal/handoff/application"
 )
 
 // TestNativeBluetoothIntegrationPassesWithoutReadingAddress verifies the exact

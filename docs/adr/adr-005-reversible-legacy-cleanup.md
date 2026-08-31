@@ -8,6 +8,10 @@ description: Architecture decision for removing and restoring obsolete Surface P
 
 Accepted on 2026-08-30.
 
+Naming note: the current product is Lexr.sh and its command is `lexr`. Any
+`linux-armer` state paths below remain compatibility contracts under
+[ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
+
 ## Context
 
 Kernel improvements can make older audio, touchscreen, or pen workarounds unnecessary or harmful. User systems may also contain locally modified files at the same paths. Blind deletion, broad directory matching, or running the entire CLI as root would risk removing unrelated configuration.

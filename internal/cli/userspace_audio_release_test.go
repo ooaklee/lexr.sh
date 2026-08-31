@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	audiorelease "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/audio/release"
+	audiorelease "github.com/ooaklee/lexr.sh/internal/audio/release"
 )
 
 // fakeAudioReleaseManager records delivery requests and returns fixed receipts.

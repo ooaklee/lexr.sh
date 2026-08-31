@@ -26,17 +26,14 @@ var markdownURLPattern = regexp.MustCompile(`https?://[^\s)>]+`)
 // and stable slugs are identifiers rather than editable project prose.
 var markdownLinkDestinationPattern = regexp.MustCompile(`\]\([^)]*\)`)
 
-// TestDocumentationUsesBritishEnglish scans CLI Go comments and repository-wide
-// public Markdown or JSON prose so future changes preserve the project's chosen
-// language style.
+// TestDocumentationUsesBritishEnglish scans Lexr's Go and PowerShell comments
+// plus its public Markdown and JSON prose so future changes preserve the
+// project's chosen language style.
 func TestDocumentationUsesBritishEnglish(t *testing.T) {
-	repositoryRoot, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
+	repositoryRoot := lexrRepositoryRoot(t)
 	var issues []string
 	fileSet := token.NewFileSet()
-	err = filepath.WalkDir(repositoryRoot, func(path string, entry os.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(repositoryRoot, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -48,9 +45,6 @@ func TestDocumentationUsesBritishEnglish(t *testing.T) {
 		}
 		switch filepath.Ext(path) {
 		case ".go":
-			if !strings.HasPrefix(path, filepath.Join(repositoryRoot, "cli", "linux-armer")+string(filepath.Separator)) {
-				return nil
-			}
 			parsed, err := parser.ParseFile(fileSet, path, nil, parser.ParseComments)
 			if err != nil {
 				return err
@@ -107,9 +101,6 @@ func TestDocumentationUsesBritishEnglish(t *testing.T) {
 				return fmt.Errorf("scan British-English documentation %s: %w", path, errors.Join(scanErr, closeErr))
 			}
 		case ".ps1":
-			if !strings.HasPrefix(path, filepath.Join(repositoryRoot, "cli", "linux-armer")+string(filepath.Separator)) {
-				return nil
-			}
 			content, err := os.ReadFile(path)
 			if err != nil {
 				return err

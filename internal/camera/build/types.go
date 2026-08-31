@@ -6,7 +6,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 const (
@@ -17,9 +17,9 @@ const (
 	// ContainerImage is the immutable Ubuntu 26.04 builder selected by policy.
 	ContainerImage = "docker.io/library/ubuntu@sha256:61b65dc6bddff5e68c552f22126fe77496395f956ff2e983e05d8a52efd63e55"
 	// DefaultWorkDirectory stores private, disposable camera build exchanges.
-	DefaultWorkDirectory = "build/linux-armer/camera/work"
+	DefaultWorkDirectory = "build/lexr/camera/work"
 	// DefaultOutputDirectory stores new immutable camera package-set directories.
-	DefaultOutputDirectory = "build/linux-armer/camera/packages"
+	DefaultOutputDirectory = "build/lexr/camera/packages"
 	// DefaultMinimumFreeGiB preserves the established camera build space guard.
 	DefaultMinimumFreeGiB = 20
 	// DefaultJobs bounds default package-build parallelism.

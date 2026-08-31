@@ -18,13 +18,13 @@ import (
 	"testing"
 	"time"
 
-	linuxarmer "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer"
-	camerabuild "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/build"
-	camerarelease "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/release"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
-	userspacecatalog "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/catalog"
-	userspaceiptsd "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/iptsd"
-	userspacerelease "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/release"
+	lexr "github.com/ooaklee/lexr.sh"
+	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
+	camerarelease "github.com/ooaklee/lexr.sh/internal/camera/release"
+	"github.com/ooaklee/lexr.sh/internal/platform"
+	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
+	userspaceiptsd "github.com/ooaklee/lexr.sh/internal/userspace/iptsd"
+	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
 )
 
 // fakeRunner records privileged commands and optionally inspects their staged
@@ -76,7 +76,7 @@ func (runner *fakeRunner) Capture(context.Context, platform.Command) ([]byte, er
 // component policy.
 func TestShippedCatalogueMatchesCompiledInstallPolicy(t *testing.T) {
 	componentCatalogue, err := userspacecatalog.NewLoader(
-		linuxarmer.UserspaceCatalogFS(), "supported-userspace.json",
+		lexr.UserspaceCatalogFS(), "supported-userspace.json",
 	).Load("")
 	if err != nil {
 		t.Fatal(err)
@@ -949,9 +949,9 @@ func TestSecureXZTarExtractorStreamsValidatedArchive(t *testing.T) {
 // TestPinnedIPTSDArchiveFixture optionally validates an actual downloaded IPTSD
 // release through both secure extraction and the complete native contract.
 func TestPinnedIPTSDArchiveFixture(t *testing.T) {
-	archivePath := os.Getenv("LINUX_ARMER_TEST_IPTSD_ARCHIVE")
+	archivePath := os.Getenv("LEXR_TEST_IPTSD_ARCHIVE")
 	if archivePath == "" {
-		t.Skip("set LINUX_ARMER_TEST_IPTSD_ARCHIVE to exercise a downloaded release archive")
+		t.Skip("set LEXR_TEST_IPTSD_ARCHIVE to exercise a downloaded release archive")
 	}
 	extractor := SecureXZTarExtractor{}
 	if err := extractor.Validate(context.Background(), archivePath); err != nil {

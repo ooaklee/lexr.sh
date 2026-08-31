@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/handoff"
+	"github.com/ooaklee/lexr.sh/internal/handoff"
 )
 
 // TestHandoffCommandLifecycle verifies import, redacted listing, reviewed purge,

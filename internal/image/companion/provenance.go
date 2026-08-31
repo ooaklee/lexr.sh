@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // verifySourceRevision checks exact revision and cleanliness for a source tree
@@ -22,7 +22,7 @@ func verifySourceRevision(ctx context.Context, runner platform.Runner, request B
 		return err
 	}
 	if !controlled {
-		return errors.New("non-Git linux-armer source requires the explicit working-tree development commit")
+		return errors.New("non-Git Lexr source requires the explicit working-tree development commit")
 	}
 	if runner == nil {
 		return errors.New("verify git-backed companion source: command runner is required")
@@ -35,7 +35,7 @@ func verifySourceRevision(ctx context.Context, runner platform.Runner, request B
 	}
 	resolvedRevision := strings.TrimSpace(string(revision))
 	if resolvedRevision != request.Commit {
-		return fmt.Errorf("linux-armer source revision is %s, requested companion commit is %s", resolvedRevision, request.Commit)
+		return fmt.Errorf("Lexr source revision is %s, requested companion commit is %s", resolvedRevision, request.Commit)
 	}
 	status, err := runner.Capture(ctx, platform.Command{
 		Name: "git",
@@ -45,7 +45,7 @@ func verifySourceRevision(ctx context.Context, runner platform.Runner, request B
 		return fmt.Errorf("inspect git-backed companion source status: %w", err)
 	}
 	if strings.TrimSpace(string(status)) != "" {
-		return errors.New("git-backed linux-armer source is dirty; use the explicit working-tree development commit only for development images")
+		return errors.New("git-backed Lexr source is dirty; use the explicit working-tree development commit only for development images")
 	}
 	return nil
 }

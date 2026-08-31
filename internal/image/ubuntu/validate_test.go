@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/companion"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/image/companion"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // companionISOValidationRunner simulates only the xorriso listing and
@@ -333,6 +333,48 @@ func writeCompanionValidationFixture(t *testing.T, root string) imagecontract.Co
 			records["catalogues/supported-userspace.json"],
 		},
 		Userspace: []imagecontract.OfflineUserspaceRecord{},
+	}
+}
+
+// TestInstalledGrubModelTitlesPresentPreservesHistoricalImages verifies the
+// validator accepts the exact pre-rename menu pair without weakening its
+// requirement for both Surface models under one product identity.
+func TestInstalledGrubModelTitlesPresentPreservesHistoricalImages(t *testing.T) {
+	legacyProductName := "Linux" + " Armer"
+	for _, test := range []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		{
+			name: "current Lexr pair",
+			content: `title="Lexr Surface Pro 11 X1E/OLED (abi)"` + "\n" +
+				`title="Lexr Surface Pro 11 X1P/LCD (abi)"`,
+			want: true,
+		},
+		{
+			name: "historical pair",
+			content: `title="` + legacyProductName + ` Surface Pro 11 X1E/OLED (abi)"` + "\n" +
+				`title="` + legacyProductName + ` Surface Pro 11 X1P/LCD (abi)"`,
+			want: true,
+		},
+		{
+			name:    "incomplete pair",
+			content: `title="Lexr Surface Pro 11 X1E/OLED (abi)"`,
+			want:    false,
+		},
+		{
+			name: "mixed identities",
+			content: `title="Lexr Surface Pro 11 X1E/OLED (abi)"` + "\n" +
+				`title="` + legacyProductName + ` Surface Pro 11 X1P/LCD (abi)"`,
+			want: false,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := installedGrubModelTitlesPresent(test.content); got != test.want {
+				t.Fatalf("installedGrubModelTitlesPresent() = %t, want %t", got, test.want)
+			}
+		})
 	}
 }
 

@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
 
 // ManifestSchemaVersion identifies the on-media manifest contract understood by
-// this version of linux-armer.
+// this version of Lexr.
 const ManifestSchemaVersion = 3
 
 // MaximumManifestSize bounds untrusted on-media JSON before decoding it.
@@ -48,7 +48,7 @@ type BootArtifactRecord struct {
 // ToolIdentityRecord identifies the exact CLI build represented by a companion
 // executable and its corresponding source archive.
 type ToolIdentityRecord struct {
-	// Version is the semantic release or development version of linux-armer.
+	// Version is the semantic release or development version of Lexr.
 	Version string `json:"version"`
 	// Commit is the source revision reported by the build.
 	Commit string `json:"commit"`
@@ -101,7 +101,7 @@ type CompanionBundleRecord struct {
 	ProjectLicence string `json:"project_licence,omitempty"`
 	// Executable is the Linux ARM64 companion CLI.
 	Executable *ExecutableArtifactRecord `json:"executable,omitempty"`
-	// SourceArchive contains the corresponding linux-armer source tree.
+	// SourceArchive contains the corresponding Lexr source tree.
 	SourceArchive *ArtifactRecord `json:"source_archive,omitempty"`
 	// Catalogues contains the exact image and userspace catalogues used by the CLI.
 	Catalogues []ArtifactRecord `json:"catalogues,omitempty"`
@@ -144,7 +144,7 @@ type Manifest struct {
 	SchemaVersion int `json:"schema_version"`
 	// CreatedAt records when the image manifest was assembled in UTC.
 	CreatedAt time.Time `json:"created_at"`
-	// ToolVersion identifies the linux-armer build that produced the image.
+	// ToolVersion identifies the Lexr build that produced the image.
 	ToolVersion string `json:"tool_version"`
 	// Layout describes the outer media format, such as a hybrid ISO.
 	Layout string `json:"layout"`

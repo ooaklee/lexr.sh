@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
-	userspaceiptsd "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/iptsd"
+	"github.com/ooaklee/lexr.sh/internal/platform"
+	userspaceiptsd "github.com/ooaklee/lexr.sh/internal/userspace/iptsd"
 )
 
 // maximumDockerMetadataBytes bounds every programmatically consumed Docker

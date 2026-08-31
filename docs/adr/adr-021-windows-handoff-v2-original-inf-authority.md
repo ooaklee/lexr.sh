@@ -8,6 +8,10 @@ description: Architecture decision for the strict version 2 Windows hand-off, SM
 
 Accepted on 2026-08-30. Supersedes ADR011's version 1 interchange contract.
 
+Naming note: the current product is Lexr.sh and its command is `lexr`. The
+Linux Armer wire, store and archive names below remain compatibility contracts
+under [ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
+
 ## Context
 
 The first private Windows hand-off contract selected each platform firmware payload by its filename across every active signed DriverStore package. Surface Pro 11 Windows evidence shows that an identical filename can occur in more than one original driver package, so filename-only discovery can become ambiguous or select the wrong provenance. A published `oemN.inf` name is also a mutable installation alias rather than stable package authority.

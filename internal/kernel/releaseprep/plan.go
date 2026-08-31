@@ -13,8 +13,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/build"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/kernel/build"
 )
 
 // gitObjectExpression accepts exact SHA-1 or SHA-256 object identifiers.
@@ -321,7 +321,7 @@ func validateBuildProvenance(provenance build.Provenance) error {
 		!digestExpression.MatchString(provenance.ToolchainSHA256) || !immutableImageExpression.MatchString(provenance.ContainerImage) {
 		return errors.New("native build provenance contains invalid policy or toolchain identity")
 	}
-	if !regexp.MustCompile(`^linux-armer-kernel-build-[0-9a-f]{16}$`).MatchString(provenance.WorkVolume) {
+	if !regexp.MustCompile(`^(?:lexr|linux-armer)-kernel-build-[0-9a-f]{16}$`).MatchString(provenance.WorkVolume) {
 		return errors.New("native build provenance contains invalid private volume identity")
 	}
 	return nil

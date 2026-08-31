@@ -80,7 +80,7 @@ func inspectObsoleteTouchscreen(fs *rootedFS) (Check, error) {
 		Feature:     FeatureTouch,
 		State:       StateWarn,
 		Detail:      "obsolete out-of-tree touchscreen remnants were found: " + strings.Join(sortedKeys(found), ", "),
-		Remediation: "use linux-armer clean only for recognised fixed configuration hooks; manually review reported module overrides and release markers, then rebuild each affected initramfs",
+		Remediation: "use `lexr clean` only for recognised fixed configuration hooks; manually review reported module overrides and release markers, then rebuild each affected initramfs",
 	}, nil
 }
 

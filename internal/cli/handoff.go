@@ -13,9 +13,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/bluetoothmgmt"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/handoff"
-	handoffapplication "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/handoff/application"
+	"github.com/ooaklee/lexr.sh/internal/bluetoothmgmt"
+	"github.com/ooaklee/lexr.sh/internal/handoff"
+	handoffapplication "github.com/ooaklee/lexr.sh/internal/handoff/application"
 )
 
 // handoffApplyResult is the stable redacted envelope for a reviewed plan or

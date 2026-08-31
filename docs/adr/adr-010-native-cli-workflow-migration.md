@@ -13,6 +13,10 @@ the final native owner, explicit retirement, or specialist rehoming outcome
 for that historical material. Completion of the software migration does not
 claim that every physical hardware gate has passed.
 
+Naming note: the current product is Lexr.sh and its command is `lexr`. This
+record retains historical Linux Armer paths and terminology; see
+[ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
+
 ## Context
 
 The repository accumulated shell and Python helpers while Surface Pro 11

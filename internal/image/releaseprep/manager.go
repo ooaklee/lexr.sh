@@ -15,9 +15,9 @@ import (
 	"strings"
 	"syscall"
 
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/companion"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/plan"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/image/companion"
+	"github.com/ooaklee/lexr.sh/internal/plan"
 )
 
 // expectedImageSteps is the exact successful native image-creation journal order.
@@ -446,16 +446,29 @@ func validateCompression(compression CompressionTool) error {
 	return nil
 }
 
-// renderNotes returns deterministic path-free release guidance.
+// renderNotes returns current deterministic path-free release guidance for new
+// release directories.
 func renderNotes(manifest Manifest) []byte {
+	return renderNotesForCommand(manifest, "lexr")
+}
+
+// renderLegacyNotes reproduces the exact pre-rename note bytes so existing
+// checksum-bound release directories remain independently verifiable.
+func renderLegacyNotes(manifest Manifest) []byte {
+	return renderNotesForCommand(manifest, "linux"+"-armer")
+}
+
+// renderNotesForCommand returns deterministic path-free release guidance using
+// the selected current or historical command name.
+func renderNotesForCommand(manifest Manifest, commandName string) []byte {
 	var output strings.Builder
 	_, _ = fmt.Fprintf(&output, "# Surface Pro 11 ARM64 installation image\n\n")
 	_, _ = fmt.Fprintf(&output, "This local release contains an experimental, unsigned `%s` hybrid ISO for the Surface Pro 11. It is not hardware-qualified merely because structural validation passed. Disable Secure Boot before using its unsigned custom kernel.\n\n", manifest.StructuralValidation.Adapter)
 	_, _ = fmt.Fprintf(&output, "Kernel ABI: `%s`\n\n", manifest.StructuralValidation.KernelABI)
-	_, _ = fmt.Fprintf(&output, "## Verify the release directory\n\n```bash\nlinux-armer image release validate .\n```\n\n")
+	_, _ = fmt.Fprintf(&output, "## Verify the release directory\n\n```bash\n%s image release validate .\n```\n\n", commandName)
 	_, _ = fmt.Fprintf(&output, "`SHA256SUMS` covers the copied image manifest, this note, the release manifest, and every compressed part. `%s` records the path-free image, build, validation, companion-bundle, compression, and part provenance.\n\n", ReleaseManifestName)
 	_, _ = fmt.Fprintf(&output, "## Reconstruct the ISO\n\n```bash\ncat %s.part-* | zstd --decompress --stdout > %s\nprintf '%%s  %%s\\n' '%s' '%s' | sha256sum --check -\n```\n\n", manifest.CompressedArchive.Name, manifest.Image.Name, manifest.Image.SHA256, manifest.Image.Name)
-	_, _ = fmt.Fprintf(&output, "Use `linux-armer image write %s --device <reviewed-device>` for identity-bound removable-media writing. The release preparation command performs no remote publication.\n", manifest.Image.Name)
+	_, _ = fmt.Fprintf(&output, "Use `%s image write %s --device <reviewed-device>` for identity-bound removable-media writing. The release preparation command performs no remote publication.\n", commandName, manifest.Image.Name)
 	return []byte(output.String())
 }
 

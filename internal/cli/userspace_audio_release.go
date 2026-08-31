@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	audiorelease "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/audio/release"
+	audiorelease "github.com/ooaklee/lexr.sh/internal/audio/release"
 )
 
 // audioReleaseManager is the delivery layer's narrow local-release capability.

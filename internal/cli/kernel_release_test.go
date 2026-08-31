@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/build"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/releaseprep"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/kernel/build"
+	"github.com/ooaklee/lexr.sh/internal/kernel/releaseprep"
 )
 
 // stubKernelReleasePreparationManager records delivery requests and returns
@@ -52,7 +52,7 @@ func TestKernelReleasePreparePassesExplicitInputsAndRedactsJSON(t *testing.T) {
 			BuildDirectory: privateRoot + "/build", OutputDirectory: privateRoot + "/output",
 			DryRun: true, Manifest: manifest,
 			Bundle:          kernel.Bundle{SchemaVersion: 1, ABI: manifest.ABI, Version: manifest.Version, Architecture: "arm64"},
-			BuildProvenance: build.Provenance{WorkVolume: "linux-armer-kernel-build-deadbeefdeadbeef"},
+			BuildProvenance: build.Provenance{WorkVolume: "lexr-kernel-build-deadbeefdeadbeef"},
 		},
 	}}
 	app, output := newKernelReleaseCLIApplication(stub)

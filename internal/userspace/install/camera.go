@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // Camera installs the exact five-package ARM64 runtime set in one apt-get
@@ -45,7 +45,7 @@ func (installer *Installer) Camera(ctx context.Context, options Options) (Result
 	if err := installer.requireRoot(false); err != nil {
 		return Result{}, err
 	}
-	stage, err := createPrivateInstallStaging("linux-armer-camera-install-*")
+	stage, err := createPrivateInstallStaging("lexr-camera-install-*")
 	if err != nil {
 		return Result{}, fmt.Errorf("create private camera staging directory: %w", err)
 	}

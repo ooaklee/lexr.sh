@@ -14,7 +14,7 @@ import (
 	"sort"
 	"strings"
 
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
 )
 
 // partSequenceReader opens one declared part at a time and verifies bytes while read.
@@ -228,7 +228,7 @@ func (manager *Manager) validateDirectory(ctx context.Context, directory string)
 	if err != nil {
 		return Manifest{}, err
 	}
-	if !bytes.Equal(renderNotes(manifest), notesData) {
+	if !bytes.Equal(renderNotes(manifest), notesData) && !bytes.Equal(renderLegacyNotes(manifest), notesData) {
 		return Manifest{}, errors.New("release notes differ from the manifest-derived contract")
 	}
 	if err := validateDeclaredRecords(records, manifest); err != nil {

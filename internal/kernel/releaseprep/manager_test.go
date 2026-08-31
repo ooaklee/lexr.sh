@@ -17,8 +17,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/build"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/kernel/build"
 )
 
 const (
@@ -79,7 +79,7 @@ func TestPreparePublishesAndRevalidatesClosedRelease(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, private := range []string{fixture.Root, "linux-armer-kernel-build-0123456789abcdef", "source_path", "output_directory", "build_directory"} {
+	for _, private := range []string{fixture.Root, "lexr-kernel-build-0123456789abcdef", "source_path", "output_directory", "build_directory"} {
 		if strings.Contains(string(encoded), private) {
 			t.Errorf("public receipt leaked %q: %s", private, encoded)
 		}
@@ -92,6 +92,24 @@ func TestPreparePublishesAndRevalidatesClosedRelease(t *testing.T) {
 		if !strings.Contains(string(notes), expected) {
 			t.Errorf("release notes do not contain %q:\n%s", expected, notes)
 		}
+	}
+}
+
+// TestValidateAcceptsHistoricalReleaseNotes proves the public validator keeps
+// accepting exact checksum-bound notes prepared before the command rename.
+func TestValidateAcceptsHistoricalReleaseNotes(t *testing.T) {
+	fixture := newReleaseFixture(t, false)
+	manager := New()
+	manager.now = func() time.Time { return time.Date(2026, time.August, 30, 12, 0, 0, 0, time.UTC) }
+	receipt, err := manager.Prepare(context.Background(), fixture.Request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyNotes := renderLegacyReleaseNotes(Plan{Manifest: receipt.Plan.Manifest})
+	mustWriteFile(t, filepath.Join(fixture.Output, ReleaseNotesFileName), []byte(legacyNotes))
+	rewriteChecksums(t, fixture.Output)
+	if _, err := manager.Validate(context.Background(), fixture.Output); err != nil {
+		t.Fatalf("Validate() rejected historical release notes: %v", err)
 	}
 }
 
@@ -487,7 +505,7 @@ func newReleaseFixture(t *testing.T, headers bool) releaseFixture {
 		CommitTime:     time.Date(2026, time.August, 29, 10, 0, 0, 0, time.UTC),
 		RecipeSHA256:   strings.Repeat("3", 64),
 		ContainerImage: "docker.io/library/ubuntu@sha256:" + strings.Repeat("4", 64),
-		WorkVolume:     "linux-armer-kernel-build-0123456789abcdef", ToolchainSHA256: strings.Repeat("5", 64),
+		WorkVolume:     "lexr-kernel-build-0123456789abcdef", ToolchainSHA256: strings.Repeat("5", 64),
 	})
 	writeChecksumMap(t, filepath.Join(buildDirectory, ChecksumFileName), checksums)
 	source := filepath.Join(root, "linux-source-"+revision+".tar.xz")
@@ -637,7 +655,7 @@ func assertNoStaging(t *testing.T, parent string) {
 		t.Fatal(err)
 	}
 	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), ".linux-armer-kernel-release-") {
+		if strings.HasPrefix(entry.Name(), ".lexr-kernel-release-") {
 			t.Fatalf("private staging directory remains: %s", entry.Name())
 		}
 	}

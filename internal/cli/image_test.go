@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/manager"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/media"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/manager"
+	"github.com/ooaklee/lexr.sh/internal/media"
 )
 
 // stubRemovableMedia records delivery-layer requests without exposing a host

@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/manager"
+	"github.com/ooaklee/lexr.sh/internal/manager"
 )
 
 // TestDescribeWizardKernel verifies the confirmation screen reports the exact
@@ -27,14 +27,14 @@ func TestDescribeWizardKernel(t *testing.T) {
 		{
 			name:    "implicit latest release",
 			request: manager.CreateImageRequest{},
-			want:    "latest linux-armer release (verified before building)",
+			want:    "latest Surface Pro 11 kernel release (verified before building)",
 		},
 		{
 			name: "explicit latest release",
 			request: manager.CreateImageRequest{
 				KernelRelease: "latest",
 			},
-			want: "latest linux-armer release (verified before building)",
+			want: "latest Surface Pro 11 kernel release (verified before building)",
 		},
 		{
 			name: "tagged release",

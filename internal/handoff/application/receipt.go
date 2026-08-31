@@ -16,7 +16,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/handoff"
+	"github.com/ooaklee/lexr.sh/internal/handoff"
 )
 
 const (
@@ -241,6 +241,7 @@ func validateReceipt(receipt privateReceipt, expectedID string) error {
 	}
 	policies := handoffReceiptActionPolicies()
 	seen := make(map[string]bool, len(receipt.Actions))
+	transactionPathStyle := ""
 	for index, action := range receipt.Actions {
 		if action.ID == "" || validateCompiledPath(action.Path) != nil {
 			return errors.New("private hand-off receipt action is invalid")
@@ -273,6 +274,7 @@ func validateReceipt(receipt privateReceipt, expectedID string) error {
 			return errors.New("private hand-off receipt original kind is invalid")
 		}
 		expectedStage, expectedBackup := transactionSiblingPaths(action.Path, receipt.PlanSHA256, index)
+		legacyStage, legacyBackup := legacyTransactionSiblingPaths(action.Path, receipt.PlanSHA256, index)
 		if !action.Required {
 			if action.StagePath != "" || action.BackupPath != "" || action.Applied || action.BackupCreated {
 				return errors.New("private hand-off receipt unchanged action state is invalid")
@@ -281,12 +283,27 @@ func validateReceipt(receipt privateReceipt, expectedID string) error {
 		}
 		if action.DesiredKind == ChangeAbsent {
 			expectedStage = ""
+			legacyStage = ""
 		}
 		if action.OriginalKind == originalAbsent {
 			expectedBackup = ""
+			legacyBackup = ""
 		}
-		if action.StagePath != expectedStage || action.BackupPath != expectedBackup {
+		currentPaths := action.StagePath == expectedStage && action.BackupPath == expectedBackup
+		legacyPaths := action.StagePath == legacyStage && action.BackupPath == legacyBackup
+		if !currentPaths && !legacyPaths {
 			return errors.New("private hand-off receipt transaction paths are invalid")
+		}
+		if action.StagePath != "" || action.BackupPath != "" {
+			actionStyle := "current"
+			if legacyPaths && !currentPaths {
+				actionStyle = "historical"
+			}
+			if transactionPathStyle == "" {
+				transactionPathStyle = actionStyle
+			} else if transactionPathStyle != actionStyle {
+				return errors.New("private hand-off receipt mixes transaction path generations")
+			}
 		}
 		if action.BackupCreated && action.OriginalKind == originalAbsent {
 			return errors.New("private hand-off receipt backup state is invalid")

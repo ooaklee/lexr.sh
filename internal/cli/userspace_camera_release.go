@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	camerarelease "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/release"
+	camerarelease "github.com/ooaklee/lexr.sh/internal/camera/release"
 )
 
 // cameraReleaseManager is the delivery layer's narrow local-release capability.

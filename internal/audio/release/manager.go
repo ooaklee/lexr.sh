@@ -117,7 +117,7 @@ func (manager *Manager) Prepare(ctx context.Context, request Request) (receipt R
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return receipt, err
 	}
-	staging, err := os.MkdirTemp(outputDirectory, ".linux-armer-audio-"+plan.Tag+"-")
+	staging, err := os.MkdirTemp(outputDirectory, ".lexr-audio-"+plan.Tag+"-")
 	if err != nil {
 		return receipt, fmt.Errorf("create private audio release transaction: %w", err)
 	}

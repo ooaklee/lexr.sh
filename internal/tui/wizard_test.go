@@ -7,7 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/catalog"
+	"github.com/ooaklee/lexr.sh/internal/catalog"
 )
 
 // TestModelNavigation verifies arrow and Vim-style keys move within catalogue
@@ -89,7 +89,7 @@ func TestModelImplementedEntryOpensConfirmation(t *testing.T) {
 	initial := model{
 		entries:      entries,
 		cursor:       1,
-		output:       "/tmp/linux-armer.img",
+		output:       "/tmp/lexr.img",
 		kernelSource: "release sp11-v19 (verified before building)",
 		message:      "old warning",
 	}
@@ -116,7 +116,7 @@ func TestModelImplementedEntryOpensConfirmation(t *testing.T) {
 		"Ready to create an experimental image:",
 		"Ubuntu Concept",
 		"kernel: release sp11-v19 (verified before building)",
-		"output: /tmp/linux-armer.img",
+		"output: /tmp/lexr.img",
 		"Secure Boot must be disabled.",
 		"enter/b build · esc back · q quit",
 	} {
@@ -247,9 +247,9 @@ func TestModelWindowSize(t *testing.T) {
 func TestRunRejectsEmptyCatalog(t *testing.T) {
 	selection, selected, err := Run(nil, "image.raw", "latest release", strings.NewReader(""), io.Discard)
 	if err == nil {
-		t.Fatal("Run() error = nil, want empty catalog error")
+		t.Fatal("Run() error = nil, want empty catalogue error")
 	}
-	if got, want := err.Error(), "supported image catalog is empty"; got != want {
+	if got, want := err.Error(), "supported image catalogue is empty"; got != want {
 		t.Fatalf("Run() error = %q, want %q", got, want)
 	}
 	if selected {

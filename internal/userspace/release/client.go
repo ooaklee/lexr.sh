@@ -16,7 +16,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/artifact"
+	"github.com/ooaklee/lexr.sh/internal/artifact"
 )
 
 // DefaultRepository is the public release source used when a validated spec
@@ -225,7 +225,7 @@ func (c *Client) resolve(ctx context.Context, repository, tag string) (githubRel
 	}
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-	request.Header.Set("User-Agent", "linux-armer")
+	request.Header.Set("User-Agent", "lexr")
 	if c.Token != "" {
 		request.Header.Set("Authorization", "Bearer "+c.Token)
 	}
@@ -419,7 +419,7 @@ func writeBundleManifest(directory string, bundle Bundle) error {
 		return err
 	}
 	path := filepath.Join(directory, "linux-armer-userspace-bundle.json")
-	file, err := os.CreateTemp(directory, ".linux-armer-userspace-bundle-*.tmp")
+	file, err := os.CreateTemp(directory, ".lexr-userspace-bundle-*.tmp")
 	if err != nil {
 		return fmt.Errorf("create userspace bundle manifest: %w", err)
 	}

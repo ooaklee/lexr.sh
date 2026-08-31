@@ -18,8 +18,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	camerabuild "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/build"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // maximumReleaseFileBytes bounds every copied or inspected release member.

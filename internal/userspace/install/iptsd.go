@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
-	userspaceiptsd "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/iptsd"
+	"github.com/ooaklee/lexr.sh/internal/platform"
+	userspaceiptsd "github.com/ooaklee/lexr.sh/internal/userspace/iptsd"
 )
 
 const (
@@ -114,7 +114,7 @@ func (installer *Installer) IPTSD(ctx context.Context, options Options) (Result,
 		return Result{}, err
 	}
 	archive := bundle.paths[iptsdArchiveName]
-	stage, err := createPrivateInstallStaging("linux-armer-iptsd-install-*")
+	stage, err := createPrivateInstallStaging("lexr-iptsd-install-*")
 	if err != nil {
 		return Result{}, fmt.Errorf("create private IPTSD staging directory: %w", err)
 	}
@@ -319,7 +319,7 @@ func planIPTSDTransaction(options Options, release userspaceiptsd.Release, backu
 
 // inspectIPTSDMask accepts only an absent leaf or the exact /dev/null link.
 func inspectIPTSDMask(root string) (iptsdMaskPlan, error) {
-	parentSentinel, err := resolveTarget(root, "etc/systemd/system/.linux-armer-iptsd-sentinel")
+	parentSentinel, err := resolveTarget(root, "etc/systemd/system/.lexr-iptsd-sentinel")
 	if err != nil {
 		return iptsdMaskPlan{}, err
 	}
@@ -390,7 +390,7 @@ func revalidateIPTSDTarget(root string, plan iptsdChangePlan) error {
 
 // revalidateIPTSDMask detects a mask mutation after planning.
 func revalidateIPTSDMask(root string, mask iptsdMaskPlan) error {
-	parentSentinel, err := resolveTarget(root, "etc/systemd/system/.linux-armer-iptsd-sentinel")
+	parentSentinel, err := resolveTarget(root, "etc/systemd/system/.lexr-iptsd-sentinel")
 	if err != nil || filepath.Dir(parentSentinel) != filepath.Dir(mask.path) {
 		return fmt.Errorf("generic IPTSD mask parent changed after planning: %s", mask.path)
 	}

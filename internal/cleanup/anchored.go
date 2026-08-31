@@ -1049,7 +1049,7 @@ func restoreAnchoredEntry(destination anchoredParent, source anchoredRecoverySou
 		}
 		return syncAnchoredDirectory(destination.location.root, ".")
 	}
-	temporaryDirectory := ".linux-armer-restore-" + time.Now().UTC().Format("20060102T150405.000000000Z") + "-" + change.RuleID
+	temporaryDirectory := ".lexr-restore-" + time.Now().UTC().Format("20060102T150405.000000000Z") + "-" + change.RuleID
 	if err := destination.location.root.Mkdir(temporaryDirectory, 0o700); err != nil {
 		return fmt.Errorf("create restoration workspace for %s: %w", change.Original, err)
 	}

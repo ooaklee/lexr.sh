@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/catalog"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/cleanup"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/plan"
-	userspacestatus "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/status"
+	"github.com/ooaklee/lexr.sh/internal/catalog"
+	"github.com/ooaklee/lexr.sh/internal/cleanup"
+	"github.com/ooaklee/lexr.sh/internal/plan"
+	userspacestatus "github.com/ooaklee/lexr.sh/internal/userspace/status"
 )
 
 // TestRootNoArgumentsOnNonTerminalPrintsHelp verifies that a non-interactive
@@ -30,9 +30,10 @@ func TestRootNoArgumentsOnNonTerminalPrintsHelp(t *testing.T) {
 		t.Fatalf("stderr = %q, want empty", errorOutput)
 	}
 	for _, text := range []string{
-		"linux-armer builds and validates experimental ARM64 installation media",
+		"Lexr.sh makes it easy to run ARM64 Linux on the Microsoft Surface Pro 11",
+		"Fast, auditable, and Surface Pro 11-focused.",
 		"Usage:",
-		"linux-armer [flags]",
+		"lexr [flags]",
 		"Available Commands:",
 		"catalog",
 		"image",
@@ -151,7 +152,7 @@ func TestRootExplicitHelp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ExecuteContext(--help) error = %v", err)
 	}
-	if !strings.Contains(output, "linux-armer [flags]") {
+	if !strings.Contains(output, "lexr [flags]") {
 		t.Fatalf("help output = %q, want root usage", output)
 	}
 }
@@ -408,9 +409,9 @@ func TestImageCreateDryRunIsDeterministic(t *testing.T) {
 		"--kernel-dir", "/inputs/kernel",
 		"--cache-dir", "/cache",
 		"--workspace-dir", "/workspace",
-		"--companion-source-dir", "/inputs/linux-armer",
+		"--companion-source-dir", "/inputs/lexr",
 		"--companion-userspace", "iptsd",
-		"--output", "/output/linux-armer.iso",
+		"--output", "/output/lexr.iso",
 	}
 	first, firstErrorOutput, err := executeCLI(t, arguments...)
 	if err != nil {
@@ -448,9 +449,9 @@ func TestImageCreateDryRunIsDeterministic(t *testing.T) {
 	}
 	if operationPlan.Steps[0].Inputs["path"] != "/inputs/ubuntu.iso" ||
 		operationPlan.Steps[1].Inputs["release"] != "/inputs/kernel" ||
-		operationPlan.Steps[2].Inputs["source"] != "/inputs/linux-armer" ||
+		operationPlan.Steps[2].Inputs["source"] != "/inputs/lexr" ||
 		operationPlan.Steps[2].Inputs["userspace"] != "iptsd-v1" ||
-		operationPlan.Steps[len(operationPlan.Steps)-1].Inputs["path"] != "/output/linux-armer.iso" {
+		operationPlan.Steps[len(operationPlan.Steps)-1].Inputs["path"] != "/output/lexr.iso" {
 		t.Fatalf("dry-run plan inputs = %#v", operationPlan.Steps)
 	}
 }

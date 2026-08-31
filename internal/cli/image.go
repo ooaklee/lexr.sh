@@ -12,12 +12,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/ubuntu"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/release"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/manager"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/media"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/version"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/image/ubuntu"
+	"github.com/ooaklee/lexr.sh/internal/kernel/release"
+	"github.com/ooaklee/lexr.sh/internal/manager"
+	"github.com/ooaklee/lexr.sh/internal/media"
+	"github.com/ooaklee/lexr.sh/internal/version"
 )
 
 // removableMediaWorkflow is the delivery layer's narrow view of removable-media
@@ -36,7 +36,7 @@ type removableMediaWorkflow interface {
 type removableMediaFactory func() (removableMediaWorkflow, error)
 
 // imageValidationFunc is the adapter-owned structural validation boundary used
-// before linux-armer permits a generated image to reach raw removable media.
+// before lexr permits a generated image to reach raw removable media.
 type imageValidationFunc func(context.Context, string) (imagecontract.ValidationReport, error)
 
 // mediaWriteResult is the stable machine-readable envelope for a planned,
@@ -114,7 +114,7 @@ func (a *application) newImageWriteCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "write <iso>",
 		Short: "Write and read-back verify a generated ISO on removable USB media",
-		Long:  "Structurally validate a linux-armer ISO, bind its complete SHA-256 to one freshly inspected external removable USB device, then require an exact destructive confirmation before writing. The target is read back and verified before ejection.",
+		Long:  "Structurally validate a lexr ISO, bind its complete SHA-256 to one freshly inspected external removable USB device, then require an exact destructive confirmation before writing. The target is read back and verified before ejection.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
 			if strings.TrimSpace(target) == "" {
@@ -333,9 +333,9 @@ func (a *application) newImageCreateCommand() *cobra.Command {
 	command.Flags().StringVar(&request.KernelRelease, "kernel-release", "latest", "kernel release tag, or latest")
 	command.Flags().StringVar(&request.CacheDirectory, "cache-dir", "", "download cache (defaults to the user cache directory)")
 	command.Flags().StringVar(&request.WorkspaceRoot, "workspace-dir", "", "parent directory for temporary remaster work")
-	command.Flags().StringVar(&request.CompanionSourceDirectory, "companion-source-dir", "", "complete linux-armer source directory to archive and cross-build with the host Go toolchain")
+	command.Flags().StringVar(&request.CompanionSourceDirectory, "companion-source-dir", "", "complete lexr source directory to archive and cross-build with the host Go toolchain")
 	command.Flags().StringSliceVar(&request.CompanionUserspace, "companion-userspace", nil, "redistribution-eligible userspace component to include for offline installation (repeatable)")
-	command.Flags().StringVarP(&request.Output, "output", "o", "linux-armer-sp11.iso", "output ISO path")
+	command.Flags().StringVarP(&request.Output, "output", "o", "lexr-sp11.iso", "output ISO path")
 	command.Flags().BoolVar(&request.KeepWorkspace, "keep-workspace", false, "keep temporary remaster files for debugging")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "print the deterministic workflow plan without downloading or building")
 	command.Flags().BoolVar(&asJSON, "json", false, "write machine-readable result JSON")

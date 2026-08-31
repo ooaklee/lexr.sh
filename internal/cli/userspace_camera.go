@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	cameracapture "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/capture"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/rawpreview"
+	cameracapture "github.com/ooaklee/lexr.sh/internal/camera/capture"
+	"github.com/ooaklee/lexr.sh/internal/camera/rawpreview"
 )
 
 // cameraPreviewRenderer is the delivery layer's narrow view of native RAW rendering.

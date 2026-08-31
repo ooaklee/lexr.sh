@@ -399,7 +399,7 @@ func assertNoReleaseOrTransaction(t *testing.T, fixture releaseFixture) {
 		t.Fatal(err)
 	}
 	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), ".linux-armer-audio-") {
+		if strings.HasPrefix(entry.Name(), ".lexr-audio-") {
 			t.Fatalf("private transaction remains after failure: %s", entry.Name())
 		}
 	}

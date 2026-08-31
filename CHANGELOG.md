@@ -1,6 +1,6 @@
 # Changelog
 
-Notable changes to `linux-armer` are documented here. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Notable changes to Lexr.sh and its `lexr` command are documented here. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 The current unreleased version is `0.1.0`. Before `1.0.0`, each release containing new features advances the minor version, while a release containing fixes only advances the patch version.
 
@@ -8,6 +8,7 @@ The current unreleased version is `0.1.0`. Before `1.0.0`, each release containi
 
 ### Added
 
+- A standalone [Lexr.sh repository](https://github.com/ooaklee/lexr.sh) containing the complete feature history previously maintained beneath the OE repository's CLI directory, including the release workflow history.
 - Feature-oriented Go CLI foundation with shared image orchestration, deterministic image plans, and execution journals.
 - Strict, human-readable ARM64 installation-media catalogue schema v2 with explicit upstream filenames, versioned links, publisher checksums where available, and a dedicated validation package.
 - GitHub kernel release discovery and checksum-verified bundle downloads.
@@ -36,10 +37,13 @@ The current unreleased version is `0.1.0`. Before `1.0.0`, each release containi
 - Policy-bound original-INF provenance for every Windows firmware payload, with collector self-tests, Pester coverage, and release-archive delivery of the canonical collector.
 - Protected local-NTFS Windows collection transactions with exact private ACLs, retained no-follow object identities, no-replace publication, and bounded cleanup which never traverses a reparse object.
 - Physical Bluetooth controller authority which binds Windows evidence to the built-in WCN7850 radio and selects the matching Linux device-tree controller independently of its `hciN` index.
-- Repository-level quality gates that keep every maintained how-to and named migration report connected to a native CLI path and require British-English public prose.
+- Standalone quality gates that enforce documented Go declarations, British-English public prose, current Lexr entry points, and protection for private diagnostic output.
 
 ### Changed
 
+- Renamed the public package and executable from Linux Armer to Lexr.sh and `lexr` respectively.
+- Moved the tool to the root of its standalone repository and changed source-checkout, build and contribution guidance accordingly.
+- Kept established schema-3 on-media paths, private state paths, wire domains, system integration paths, legacy bundle filenames, and OE release references stable so existing artefacts remain usable after the rename.
 - Removed the unsafe live-USB aDSP menu entry; every live entry now retains the USB-protection blacklist while installed systems remain unaffected.
 - Advanced the image manifest to schema v3 so `companion_bundle` is always explicit without creating a second ISO inventory.
 - Made verified userspace release receipts relocatable so an offline bundle remains installable after being copied to installation media.

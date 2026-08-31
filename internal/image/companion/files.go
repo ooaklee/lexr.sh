@@ -11,8 +11,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/artifact"
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/artifact"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
 )
 
 var (
@@ -63,8 +63,8 @@ var (
 // collectSourceFiles returns a deterministic allow-listed source tree while
 // rejecting links and special files in every maintained directory.
 func collectSourceFiles(sourceRoot string) ([]sourceFile, error) {
-	for _, required := range []string{"go.mod", "catalog.go", filepath.Join("cmd", "linux-armer", "main.go")} {
-		if err := validateRegularFile(filepath.Join(sourceRoot, required), "required linux-armer source file"); err != nil {
+	for _, required := range []string{"go.mod", "catalog.go", filepath.Join("cmd", "lexr", "main.go")} {
+		if err := validateRegularFile(filepath.Join(sourceRoot, required), "required Lexr source file"); err != nil {
 			return nil, err
 		}
 	}
@@ -84,7 +84,7 @@ func collectSourceFiles(sourceRoot string) ([]sourceFile, error) {
 		} else if err != nil {
 			return nil, fmt.Errorf("inspect maintained source file %s: %w", name, err)
 		}
-		if err := validateRegularFile(absolutePath, "maintained linux-armer source file"); err != nil {
+		if err := validateRegularFile(absolutePath, "maintained Lexr source file"); err != nil {
 			return nil, err
 		}
 		add(absolutePath, name)

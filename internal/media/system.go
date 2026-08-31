@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"sort"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // OpenWriteFunc opens a raw device for writing without truncating or creating it.

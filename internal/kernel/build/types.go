@@ -6,8 +6,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 const (
@@ -18,9 +18,9 @@ const (
 	// DefaultGitBranch is the maintained integration branch used by default.
 	DefaultGitBranch = "sp11/integration-7.2.x"
 	// DefaultWorkDirectory stores private host-side build transactions.
-	DefaultWorkDirectory = "build/linux-armer/kernel-build"
+	DefaultWorkDirectory = "build/lexr/kernel-build"
 	// DefaultOutputDirectory receives one newly published package set.
-	DefaultOutputDirectory = "build/linux-armer/kernel"
+	DefaultOutputDirectory = "build/lexr/kernel"
 	// ContainerImage is the immutable Ubuntu 26.04 ARM64 userspace selected for builds.
 	ContainerImage = "docker.io/library/ubuntu@sha256:61b65dc6bddff5e68c552f22126fe77496395f956ff2e983e05d8a52efd63e55"
 )

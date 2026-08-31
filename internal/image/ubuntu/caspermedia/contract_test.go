@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
 )
 
 // TestNewDirectHybridBuildsCasperContract verifies a generated UUID expands to

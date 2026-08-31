@@ -8,6 +8,10 @@ description: Architecture decision for keeping delivery layers separate from fea
 
 Accepted on 2026-08-30.
 
+Naming note: the current product is Lexr.sh and its command is `lexr`. The
+Linux Armer name below records the accepted historical context; see
+[ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
+
 ## Context
 
 `linux-armer` must support interactive guidance and predictable terminal automation without maintaining two implementations of image-building behaviour. The workflow spans downloads, kernel releases, device trees, image layouts, host checks, and clean-up. These concerns evolve at different rates and require focused tests.

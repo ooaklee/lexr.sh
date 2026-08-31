@@ -15,8 +15,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/bluetoothmgmt"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/handoff"
+	"github.com/ooaklee/lexr.sh/internal/bluetoothmgmt"
+	"github.com/ooaklee/lexr.sh/internal/handoff"
 )
 
 const (
@@ -415,6 +415,21 @@ func TestRestoreRecoversCommittedAndInterruptedTransactions(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		root, err := os.OpenRoot(fixture.targetRoot)
+		if err != nil {
+			t.Fatal(err)
+		}
+		receipt, err := readReceipt(context.Background(), root, applied.ReceiptID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		convertReceiptToHistoricalTransactionPaths(t, root, &receipt)
+		if err := writeReceipt(root, receipt); err != nil {
+			t.Fatal(err)
+		}
+		if err := root.Close(); err != nil {
+			t.Fatal(err)
+		}
 		restorePlan, err := manager.PlanRestore(context.Background(), fixture.targetRoot, applied.ReceiptID)
 		if err != nil {
 			t.Fatal(err)
@@ -447,6 +462,10 @@ func TestRestoreRecoversCommittedAndInterruptedTransactions(t *testing.T) {
 	t.Run("interrupted", func(t *testing.T) {
 		fixture := newApplicationFixture(t)
 		manager := newTestManager(t, fixture, true, 0)
+		first := handoff.FirmwarePolicies()[0]
+		originalPath := filepath.Join(fixture.targetRoot, filepath.FromSlash(first.Destination))
+		originalBytes := []byte("historical interrupted target\n")
+		writeTestFile(t, originalPath, originalBytes, 0o640)
 		plan, err := manager.Plan(context.Background(), Request{StoreRoot: fixture.store, ID: fixture.identifier, IdentityRoot: fixture.identityRoot, TargetRoot: fixture.targetRoot, Features: []Feature{FeatureFirmware}, ADSPPolicy: ADSPEnabled})
 		if err != nil {
 			t.Fatal(err)
@@ -469,6 +488,10 @@ func TestRestoreRecoversCommittedAndInterruptedTransactions(t *testing.T) {
 		if err := manager.applyAction(context.Background(), root, plan, plan.desired[0], &receipt, 0); err != nil {
 			t.Fatal(err)
 		}
+		convertReceiptToHistoricalTransactionPaths(t, root, &receipt)
+		if err := writeReceipt(root, receipt); err != nil {
+			t.Fatal(err)
+		}
 		if err := root.Close(); err != nil {
 			t.Fatal(err)
 		}
@@ -482,11 +505,77 @@ func TestRestoreRecoversCommittedAndInterruptedTransactions(t *testing.T) {
 		if _, err := manager.Restore(context.Background(), restorePlan, restorePlan.Confirmation); err != nil {
 			t.Fatal(err)
 		}
-		first := handoff.FirmwarePolicies()[0]
-		if _, err := os.Lstat(filepath.Join(fixture.targetRoot, filepath.FromSlash(first.Destination))); !errors.Is(err, fs.ErrNotExist) {
-			t.Fatalf("interrupted desired target remains: %v", err)
+		if content, err := os.ReadFile(originalPath); err != nil || !bytes.Equal(content, originalBytes) {
+			t.Fatalf("historical interrupted original was not restored: %q, %v", content, err)
 		}
+		assertMode(t, originalPath, 0o640)
 	})
+}
+
+// convertReceiptToHistoricalTransactionPaths rewrites one prepared test
+// receipt and any retained sibling objects to the exact pre-rename path scheme.
+func convertReceiptToHistoricalTransactionPaths(t *testing.T, root *os.Root, receipt *privateReceipt) {
+	t.Helper()
+	for index := range receipt.Actions {
+		action := &receipt.Actions[index]
+		if !action.Required {
+			continue
+		}
+		legacyStage, legacyBackup := legacyTransactionSiblingPaths(action.Path, receipt.PlanSHA256, index)
+		if action.DesiredKind == ChangeAbsent {
+			legacyStage = ""
+		}
+		if action.OriginalKind == originalAbsent {
+			legacyBackup = ""
+		}
+		for _, paths := range [][2]string{{action.StagePath, legacyStage}, {action.BackupPath, legacyBackup}} {
+			if paths[0] == "" || paths[1] == "" {
+				continue
+			}
+			if _, err := root.Lstat(paths[0]); err == nil {
+				if err := root.Rename(paths[0], paths[1]); err != nil {
+					t.Fatal(err)
+				}
+			} else if !errors.Is(err, fs.ErrNotExist) {
+				t.Fatal(err)
+			}
+		}
+		action.StagePath = legacyStage
+		action.BackupPath = legacyBackup
+	}
+}
+
+// TestReceiptRejectsMixedTransactionPathGenerations verifies compatibility
+// cannot be used to combine current and historical sibling-name schemes in one
+// private recovery authority.
+func TestReceiptRejectsMixedTransactionPathGenerations(t *testing.T) {
+	fixture := newApplicationFixture(t)
+	manager := newTestManager(t, fixture, true, 0)
+	plan, err := manager.Plan(context.Background(), Request{
+		StoreRoot: fixture.store, ID: fixture.identifier,
+		IdentityRoot: fixture.identityRoot, TargetRoot: fixture.targetRoot,
+		Features: []Feature{FeatureFirmware}, ADSPPolicy: ADSPEnabled,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := os.OpenRoot(fixture.targetRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if err := ensureReceiptDirectory(root); err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := manager.prepareReceipt(context.Background(), root, plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyStage, _ := legacyTransactionSiblingPaths(receipt.Actions[0].Path, receipt.PlanSHA256, 0)
+	receipt.Actions[0].StagePath = legacyStage
+	if err := validateReceipt(receipt, receipt.ReceiptID); err == nil || !strings.Contains(err.Error(), "mixes transaction path generations") {
+		t.Fatalf("validateReceipt() mixed-path error = %v", err)
+	}
 }
 
 // TestTargetConfinementAndReceiptValidationRejectHostilePaths verifies neither
@@ -587,7 +676,7 @@ func newApplicationFixture(t *testing.T) applicationFixture {
 // newTestManager builds a manager around a minimal reviewed Linux ARM64 ELF.
 func newTestManager(t *testing.T, fixture applicationFixture, compatible bool, effectiveUID int) *Manager {
 	t.Helper()
-	executable := filepath.Join(filepath.Dir(fixture.targetRoot), "linux-armer-test")
+	executable := filepath.Join(filepath.Dir(fixture.targetRoot), "lexr-test")
 	writeMinimalARM64ELF(t, executable)
 	goos := "linux"
 	goarch := "arm64"

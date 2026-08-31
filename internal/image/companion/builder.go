@@ -14,11 +14,11 @@ import (
 	"sort"
 	"strings"
 
-	mediacatalog "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/catalog"
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
-	userspacecatalog "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/catalog"
-	userspacerelease "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/release"
+	mediacatalog "github.com/ooaklee/lexr.sh/internal/catalog"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/platform"
+	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
+	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
 )
 
 const (
@@ -55,22 +55,22 @@ const (
 	// ISOFilesystemRoot.
 	executableRelativePath = "bin/linux-arm64/linux-armer"
 	// buildPackage is the maintained Go command built for the companion bundle.
-	buildPackage = "./cmd/linux-armer"
+	buildPackage = "./cmd/lexr"
 	// linkerVersionVariable is the fully qualified release-version variable set
 	// in the companion executable.
-	linkerVersionVariable = "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/version.Version"
+	linkerVersionVariable = "github.com/ooaklee/lexr.sh/internal/version.Version"
 	// linkerCommitVariable is the fully qualified source-revision variable set
 	// in the companion executable.
-	linkerCommitVariable = "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/version.Commit"
+	linkerCommitVariable = "github.com/ooaklee/lexr.sh/internal/version.Commit"
 	// linkerDateVariable is the fully qualified build-time variable set in the
 	// companion executable.
-	linkerDateVariable = "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/version.Date"
+	linkerDateVariable = "github.com/ooaklee/lexr.sh/internal/version.Date"
 )
 
 // BuildRequest contains the explicit source, staging, identity, catalogue, and
 // verified offline-release inputs for one companion bundle.
 type BuildRequest struct {
-	// SourceDirectory is the canonical absolute linux-armer source root.
+	// SourceDirectory is the canonical absolute Lexr source root.
 	SourceDirectory string
 	// DestinationDirectory is the canonical absolute host staging root beneath
 	// which ISOFilesystemRoot will be created.
@@ -164,7 +164,7 @@ func (b *Builder) Build(ctx context.Context, request BuildRequest) (imagecontrac
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return imagecontract.CompanionBundleRecord{}, fmt.Errorf("inspect companion staging root: %w", err)
 	}
-	temporaryRoot, err := os.MkdirTemp(parent, ".linux-armer-companion-")
+	temporaryRoot, err := os.MkdirTemp(parent, ".lexr-companion-")
 	if err != nil {
 		return imagecontract.CompanionBundleRecord{}, fmt.Errorf("create temporary companion staging root: %w", err)
 	}
@@ -295,7 +295,7 @@ func validateSnapshotCatalogues(prepared preparedRequest) error {
 // prepare validates all immutable caller inputs and resolves deterministic
 // source and userspace file lists before creating any companion output.
 func prepare(ctx context.Context, runner platform.Runner, request BuildRequest) (preparedRequest, error) {
-	if err := validateDirectory(request.SourceDirectory, "linux-armer source directory"); err != nil {
+	if err := validateDirectory(request.SourceDirectory, "Lexr source directory"); err != nil {
 		return preparedRequest{}, err
 	}
 	if err := validateCanonicalAbsolutePath(request.DestinationDirectory, "companion staging destination"); err != nil {
@@ -307,7 +307,7 @@ func prepare(ctx context.Context, runner platform.Runner, request BuildRequest) 
 		return preparedRequest{}, err
 	}
 	if sameOrDescendant(request.DestinationDirectory, request.SourceDirectory) {
-		return preparedRequest{}, errors.New("companion staging destination must be outside the linux-armer source directory")
+		return preparedRequest{}, errors.New("companion staging destination must be outside the Lexr source directory")
 	}
 	if err := verifySourceRevision(ctx, runner, request); err != nil {
 		return preparedRequest{}, err
@@ -356,7 +356,7 @@ func prepare(ctx context.Context, runner platform.Runner, request BuildRequest) 
 // snapshotPreparedSource copies the complete allow-listed source set into a
 // private read-only tree and remaps every later build and archive input to it.
 func snapshotPreparedSource(parent string, prepared preparedRequest) (string, preparedRequest, error) {
-	snapshotRoot, err := os.MkdirTemp(parent, ".linux-armer-source-")
+	snapshotRoot, err := os.MkdirTemp(parent, ".lexr-source-")
 	if err != nil {
 		return "", preparedRequest{}, fmt.Errorf("create private companion source snapshot: %w", err)
 	}
@@ -370,10 +370,10 @@ func snapshotPreparedSource(parent string, prepared preparedRequest) (string, pr
 		destination := filepath.Join(snapshotRoot, filepath.FromSlash(source.portablePath))
 		record, err := copyAndRecord(source.absolutePath, destination, source.portablePath, 0o444)
 		if err != nil {
-			return cleanUp(fmt.Errorf("snapshot linux-armer source %s: %w", source.portablePath, err))
+			return cleanUp(fmt.Errorf("snapshot Lexr source %s: %w", source.portablePath, err))
 		}
 		if record.SHA256 != source.sha256 || record.Size != source.size {
-			return cleanUp(fmt.Errorf("linux-armer source changed while snapshotting: %s", source.absolutePath))
+			return cleanUp(fmt.Errorf("Lexr source changed while snapshotting: %s", source.absolutePath))
 		}
 		snapshot := sourceFile{
 			absolutePath: destination, portablePath: source.portablePath,

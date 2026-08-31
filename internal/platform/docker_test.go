@@ -144,8 +144,8 @@ func TestWorkspaceVolumeArgsMountsLinuxWorkVolume(t *testing.T) {
 // TestDockerWorkVolumeIntegration optionally exercises creation, inspection, and
 // exact removal against a real Docker daemon when explicitly enabled.
 func TestDockerWorkVolumeIntegration(t *testing.T) {
-	if os.Getenv("LINUX_ARMER_DOCKER_INTEGRATION") != "1" {
-		t.Skip("set LINUX_ARMER_DOCKER_INTEGRATION=1 to exercise the Docker daemon")
+	if os.Getenv("LEXR_DOCKER_INTEGRATION") != "1" {
+		t.Skip("set LEXR_DOCKER_INTEGRATION=1 to exercise the Docker daemon")
 	}
 	docker := NewDocker(nil)
 	ctx := context.Background()

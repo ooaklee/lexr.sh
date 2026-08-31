@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 const (
@@ -19,13 +19,13 @@ const (
 	// dockerPlatform fixes every build container to the kernel target architecture.
 	dockerPlatform = "linux/arm64"
 	// dockerVolumePrefix distinguishes managed kernel source volumes.
-	dockerVolumePrefix = "linux-armer-kernel-build-"
+	dockerVolumePrefix = "lexr-kernel-build-"
 	// dockerContainerPrefix distinguishes transient managed build containers.
-	dockerContainerPrefix = "linux-armer-kernel-build-run-"
+	dockerContainerPrefix = "lexr-kernel-build-run-"
 	// dockerOwnershipLabel marks a reusable volume as CLI-owned.
-	dockerOwnershipLabel = "io.linux-armer.kernel-build"
+	dockerOwnershipLabel = "io.lexr.kernel-build"
 	// dockerWorkspaceLabel binds a volume to its canonical host work directory.
-	dockerWorkspaceLabel = "io.linux-armer.workspace-sha256"
+	dockerWorkspaceLabel = "io.lexr.workspace-sha256"
 	// maximumCommandArguments bounds direct Docker invocations.
 	maximumCommandArguments = 64
 	// maximumCommandArgumentBytes bounds every individual Docker argument.
@@ -154,7 +154,7 @@ func containerCommand(plan Plan, transactionDirectory, containerName string) Com
 		"--platform", dockerPlatform,
 		"--mount", "type=volume,src=" + plan.WorkVolume + ",dst=/linux-work",
 		"--mount", "type=bind,src=" + transactionDirectory + ",dst=/exchange",
-		"--env", "LINUX_ARMER_RECIPE_SHA256=" + plan.RecipeSHA256,
+		"--env", "LEXR_RECIPE_SHA256=" + plan.RecipeSHA256,
 		plan.ContainerImage,
 		"/bin/bash", "/exchange/build-policy.sh",
 		plan.GitURL, plan.GitRef, strconv.Itoa(plan.Jobs), strconv.FormatBool(plan.ResetSource), strconv.FormatBool(plan.SkipClean),

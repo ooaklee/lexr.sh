@@ -10,14 +10,14 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 const (
 	// stagingPrefix marks private temporary directories owned by this transaction.
-	stagingPrefix = "linux-armer-kernel-install-"
+	stagingPrefix = "lexr-kernel-install-"
 	// backupPrefix marks host-private GRUB backup directories outside an alternate root.
-	backupPrefix = "linux-armer-kernel-backup-"
+	backupPrefix = "lexr-kernel-backup-"
 	// rollbackTimeout bounds recovery after a cancelled or failed installation.
 	rollbackTimeout = 2 * time.Minute
 	// maximumReceiptErrorBytes bounds an external-tool diagnostic retained in JSON.
@@ -246,7 +246,7 @@ func restoreGRUB(ctx context.Context, backup grubBackup) error {
 	if err != nil {
 		return fmt.Errorf("open GRUB backup: %w", err)
 	}
-	temporary, err := os.CreateTemp(parent, ".linux-armer-grub-restore-")
+	temporary, err := os.CreateTemp(parent, ".lexr-grub-restore-")
 	if err != nil {
 		_ = source.Close()
 		return fmt.Errorf("create atomic GRUB restore file: %w", err)

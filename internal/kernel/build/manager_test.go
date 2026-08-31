@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 const (
@@ -259,6 +259,53 @@ func TestChangedBuildLockOwnerIsNotRemoved(t *testing.T) {
 	}
 	if info, err := os.Lstat(path); err != nil || !info.IsDir() {
 		t.Fatalf("changed-owner build lock was removed: %v", err)
+	}
+}
+
+// TestNearestRepositoryRootRecognisesStandaloneAndOELayouts verifies implicit
+// kernel build paths remain useful in both supported repository arrangements.
+func TestNearestRepositoryRootRecognisesStandaloneAndOELayouts(t *testing.T) {
+	standalone := filepath.Join(t.TempDir(), "lexr")
+	standaloneStart := filepath.Join(standalone, "internal", "kernel", "build")
+	if err := os.MkdirAll(standaloneStart, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(standalone, "go.mod"), []byte("module github.com/ooaklee/lexr.sh\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := nearestRepositoryRoot(standaloneStart); got != standalone {
+		t.Fatalf("standalone repository root = %q, want %q", got, standalone)
+	}
+
+	oeRoot := filepath.Join(t.TempDir(), "oe")
+	submodule := filepath.Join(oeRoot, "cli", "lexr")
+	oeStart := filepath.Join(submodule, "internal", "kernel", "build")
+	if err := os.MkdirAll(oeStart, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(submodule, "go.mod"), []byte("module github.com/ooaklee/lexr.sh\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := nearestRepositoryRoot(oeStart); got != oeRoot {
+		t.Fatalf("OE repository root = %q, want %q", got, oeRoot)
+	}
+	oeSiblingStart := filepath.Join(oeRoot, "meta-sp11", "recipes-kernel")
+	if err := os.MkdirAll(oeSiblingStart, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := nearestRepositoryRoot(oeSiblingStart); got != oeRoot {
+		t.Fatalf("OE sibling repository root = %q, want %q", got, oeRoot)
+	}
+
+	unrelated := filepath.Join(t.TempDir(), "unrelated", "nested")
+	if err := os.MkdirAll(unrelated, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(unrelated), "go.mod"), []byte("module example.invalid/other\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := nearestRepositoryRoot(unrelated); got != unrelated {
+		t.Fatalf("unrelated repository root = %q, want unchanged start %q", got, unrelated)
 	}
 }
 
@@ -548,7 +595,7 @@ func writeFakeContainerOutput(command platform.Command, transaction string) erro
 	}
 	gitURL := arguments[scriptIndex+1]
 	gitRef := arguments[scriptIndex+2]
-	recipe := valueFollowing(arguments, "--env", "LINUX_ARMER_RECIPE_SHA256=")
+	recipe := valueFollowing(arguments, "--env", "LEXR_RECIPE_SHA256=")
 	provenance := filepath.Join(transaction, "provenance")
 	artifacts := filepath.Join(transaction, "artifacts")
 	if err := os.MkdirAll(provenance, 0o755); err != nil {

@@ -65,7 +65,7 @@ func prepareEvidence(outputPath string) (preparedEvidence, error) {
 		}
 	}()
 	if strings.TrimSpace(outputPath) == "" {
-		directory, err := os.MkdirTemp("", "linux-armer-imx681-")
+		directory, err := os.MkdirTemp("", "lexr-imx681-")
 		if err != nil {
 			return preparedEvidence{}, fmt.Errorf("create private camera output directory: %w", err)
 		}

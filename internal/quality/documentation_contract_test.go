@@ -2,169 +2,136 @@ package quality
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strings"
 	"testing"
 )
 
-// namedMigrationDocuments is the closed set of dated reports whose maintained
-// operator path must remain connected to linux-armer.
-var namedMigrationDocuments = []string{
-	"docs/hardware-report-20260613.md",
-	"docs/installed-audio-speaker-wsa2-test-20260615.md",
-	"docs/installed-bluetooth-public-address-test-20260614.md",
-	"docs/installed-nvme-boot-test-20260613.md",
-	"docs/installed-wifi-clean-flow-test-20260614.md",
-	"docs/installed-wifi-patched-rfkill-test-20260614.md",
-	"docs/installed-wifi-rfkill-test-20260613.md",
-	"docs/installed-wifi-rfkill-upgrade-test-20260613.md",
-	"docs/installed-wifi-windows-firmware-cold-boot-test-20260613.md",
-	"docs/live-usb-test-20260613.md",
+// currentOperatorDocuments is the standalone repository's maintained public
+// entry-point set.
+var currentOperatorDocuments = []string{"README.md", "CHANGELOG.md"}
+
+// privateOutputContract connects one ignored private-output shape to the glob
+// used by the current workflow's tracked-file guard.
+type privateOutputContract struct {
+	// ignore is the exact root .gitignore entry.
+	ignore string
+	// workflow is the recursive Git pathspec suffix used by CI.
+	workflow string
 }
 
-// currentOperatorDocuments are the maintained entry points that must never
-// regain executable references to the retired root script directory.
-var currentOperatorDocuments = []string{
-	"README.md",
-	"cli/linux-armer/README.md",
+// privateOutputContracts is the reviewed set of diagnostic output shapes that
+// must remain both untracked by default and rejected when deliberately added.
+var privateOutputContracts = []privateOutputContract{
+	{ignore: "sp11-linux-checks/", workflow: "**/sp11-linux-checks/**"},
+	{ignore: "sp11-linux-checks-*.zip", workflow: "**/sp11-linux-checks-*.zip"},
+	{ignore: "report-*/", workflow: "**/report-*/**"},
 }
 
-// retiredScriptReferencePattern recognises both dotted and undotted root
-// script paths in prose or commands while leaving unrelated kernel paths alone.
-var retiredScriptReferencePattern = regexp.MustCompile("(?:^|[\\s`\"'])(?:\\./)?scripts/[A-Za-z0-9]")
+// generatedOutputIgnores lists repository-root paths populated by the CLI's
+// default build and release commands. Keeping them ignored prevents an
+// ordinary build from making the source checkout unsuitable for a companion
+// source archive.
+var generatedOutputIgnores = []string{"/bin/", "/build/", "/dist/", "/lexr"}
 
-// immutableHistoricalNotice is mandatory on every named dated report because
-// those evidence records deliberately retain retired commands and observations.
-const immutableHistoricalNotice = "Immutable historical evidence — not a current procedure"
+// TestMaintainedDocumentationReferencesLexr verifies the standalone entry
+// points describe the current product and repository rather than an OE-owned
+// nested command path.
+func TestMaintainedDocumentationReferencesLexr(t *testing.T) {
+	repositoryRoot := lexrRepositoryRoot(t)
+	for _, relative := range currentOperatorDocuments {
+		content := readBoundedRepositoryFile(t, repositoryRoot, relative)
+		if !bytes.Contains(content, []byte("Lexr")) && !bytes.Contains(content, []byte("lexr")) {
+			t.Errorf("maintained documentation %s has no Lexr operator path", relative)
+		}
+	}
+	readme := readBoundedRepositoryFile(t, repositoryRoot, "README.md")
+	if !bytes.Contains(readme, []byte("https://github.com/ooaklee/lexr.sh")) {
+		t.Error("README.md does not identify the standalone Lexr repository")
+	}
+	workflow := readBoundedRepositoryFile(t, repositoryRoot, ".github/workflows/lexr.yml")
+	for _, required := range [][]byte{[]byte("cmd/lexr"), []byte("go test -race ./...")} {
+		if !bytes.Contains(workflow, required) {
+			t.Errorf("current workflow omits %q", required)
+		}
+	}
+}
 
-// TestMaintainedDocumentationReferencesCLI prevents maintained guides and the
-// migration's named reports from losing their current native operator path.
-func TestMaintainedDocumentationReferencesCLI(t *testing.T) {
-	repositoryRoot, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
+// TestPrivateDiagnosticOutputRemainsGuarded prevents private hardware captures
+// from becoming ordinary standalone repository artefacts.
+func TestPrivateDiagnosticOutputRemainsGuarded(t *testing.T) {
+	repositoryRoot := lexrRepositoryRoot(t)
+	ignore := lineSet(readBoundedRepositoryFile(t, repositoryRoot, ".gitignore"))
+	workflow := readBoundedRepositoryFile(t, repositoryRoot, ".github/workflows/lexr.yml")
+	for _, contract := range privateOutputContracts {
+		if !ignore[contract.ignore] {
+			t.Errorf(".gitignore omits private diagnostic pattern %q", contract.ignore)
+		}
+		guard := []byte("':(glob)" + contract.workflow + "'")
+		if count := bytes.Count(workflow, guard); count != 1 {
+			t.Errorf("workflow contains %d tracked-output guards for %q, want one", count, contract.workflow)
+		}
+	}
+}
+
+// TestGeneratedOutputRemainsIgnored verifies that the standalone checkout
+// stays clean when operators use the command's documented default paths.
+func TestGeneratedOutputRemainsIgnored(t *testing.T) {
+	repositoryRoot := lexrRepositoryRoot(t)
+	ignore := lineSet(readBoundedRepositoryFile(t, repositoryRoot, ".gitignore"))
+	for _, required := range generatedOutputIgnores {
+		if !ignore[required] {
+			t.Errorf(".gitignore omits generated-output path %q", required)
+		}
+	}
+}
+
+// lexrRepositoryRoot returns the canonical standalone module root and fails if
+// the package is accidentally tested from an unrelated source arrangement.
+func lexrRepositoryRoot(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatal(err)
 	}
-	paths, err := maintainedDocumentationPaths(repositoryRoot)
+	root, err = filepath.EvalSymlinks(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, relative := range paths {
-		content, err := os.ReadFile(filepath.Join(repositoryRoot, filepath.FromSlash(relative)))
-		if err != nil {
-			t.Errorf("read maintained documentation %s: %v", relative, err)
-			continue
-		}
-		if !bytes.Contains(content, []byte("linux-armer")) {
-			t.Errorf("maintained documentation %s has no linux-armer operator path", relative)
-		}
-		currentEntryPoint := containsDocument(currentOperatorDocuments, relative)
-		if !currentEntryPoint && !bytes.Contains(content, []byte("Last reviewed:")) {
-			t.Errorf("maintained documentation %s has no review date", relative)
-		}
-		if (currentEntryPoint || strings.HasPrefix(relative, "docs/how-to/")) && retiredScriptReferencePattern.Match(content) {
-			t.Errorf("maintained operator documentation %s references the retired repository script directory", relative)
-		}
-		if containsDocument(namedMigrationDocuments, relative) && !bytes.Contains(content, []byte(immutableHistoricalNotice)) {
-			t.Errorf("named historical report %s lacks its non-procedural safety notice", relative)
-		}
+	module := readBoundedRepositoryFile(t, root, "go.mod")
+	if !bytes.Contains(module, []byte("module github.com/ooaklee/lexr.sh\n")) {
+		t.Fatalf("quality package root is not the Lexr module: %s", root)
 	}
+	return root
 }
 
-// maintainedDocumentationPaths returns every concrete how-to plus the closed
-// named report set in deterministic repository-relative order.
-func maintainedDocumentationPaths(repositoryRoot string) ([]string, error) {
-	howToRoot := filepath.Join(repositoryRoot, "docs", "how-to")
-	entries, err := os.ReadDir(howToRoot)
+// readBoundedRepositoryFile reads one regular, non-symbolic-link repository
+// file whose size is suitable for a source-quality gate.
+func readBoundedRepositoryFile(t *testing.T, root, relative string) []byte {
+	t.Helper()
+	path := filepath.Join(root, filepath.FromSlash(relative))
+	information, err := os.Lstat(path)
 	if err != nil {
-		return nil, fmt.Errorf("read maintained how-to directory: %w", err)
+		t.Fatalf("inspect repository file %s: %v", relative, err)
 	}
-	paths := append([]string(nil), currentOperatorDocuments...)
-	paths = append(paths, namedMigrationDocuments...)
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() || filepath.Ext(name) != ".md" || strings.HasPrefix(name, "_") {
-			continue
-		}
-		paths = append(paths, filepath.ToSlash(filepath.Join("docs", "how-to", name)))
+	if !information.Mode().IsRegular() || information.Mode()&os.ModeSymlink != 0 || information.Size() > 4<<20 {
+		t.Fatalf("repository file %s is not a bounded non-symlink regular file", relative)
 	}
-	sort.Strings(paths)
-	return paths, nil
-}
-
-// containsDocument reports whether a repository-relative path belongs to one
-// small compiled documentation set.
-func containsDocument(documents []string, candidate string) bool {
-	for _, document := range documents {
-		if document == candidate {
-			return true
-		}
-	}
-	return false
-}
-
-// TestRetiredScriptReferencePattern pins dotted, undotted, and command-prefixed
-// repository-script detection without matching a kernel source scripts path.
-func TestRetiredScriptReferencePattern(t *testing.T) {
-	for _, candidate := range []string{
-		"./scripts/retired.sh",
-		"scripts/retired.sh",
-		"bash scripts/retired.sh",
-		"Run `scripts/retired.sh` now.",
-	} {
-		if !retiredScriptReferencePattern.MatchString(candidate) {
-			t.Errorf("retired script reference was not recognised: %q", candidate)
-		}
-	}
-	if retiredScriptReferencePattern.MatchString("/lib/modules/current/build/scripts/sign-file") {
-		t.Fatal("kernel source scripts path was mistaken for the retired repository directory")
-	}
-}
-
-// TestLegacyDiagnosticOutputRemainsIgnored prevents generator retirement from
-// making identifier-bearing captures visible to an ordinary repository add.
-func TestLegacyDiagnosticOutputRemainsIgnored(t *testing.T) {
-	repositoryRoot, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
+	content, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("read repository file %s: %v", relative, err)
 	}
-	content, err := os.ReadFile(filepath.Join(repositoryRoot, ".gitignore"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	return content
+}
+
+// lineSet returns the trimmed, non-empty lines in one textual source file.
+func lineSet(content []byte) map[string]bool {
 	lines := make(map[string]bool)
 	for _, line := range strings.Split(string(content), "\n") {
-		lines[strings.TrimSpace(line)] = true
-	}
-	for _, required := range []string{"sp11-linux-checks/", "sp11-linux-checks-*.zip", "report-*/"} {
-		if !lines[required] {
-			t.Errorf(".gitignore omits private legacy diagnostic pattern %q", required)
+		if line = strings.TrimSpace(line); line != "" {
+			lines[line] = true
 		}
 	}
-}
-
-// TestLegacyDiagnosticWorkflowCannotSkipGuard proves every retired private
-// output shape triggers the workflow that rejects its tracked form.
-func TestLegacyDiagnosticWorkflowCannotSkipGuard(t *testing.T) {
-	repositoryRoot, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	content, err := os.ReadFile(filepath.Join(repositoryRoot, ".github", "workflows", "linux-armer.yml"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, pattern := range []string{"**/sp11-linux-checks/**", "**/sp11-linux-checks-*.zip", "**/report-*/**"} {
-		trigger := []byte(`- "` + pattern + `"`)
-		if count := bytes.Count(content, trigger); count != 2 {
-			t.Errorf("workflow contains %d trigger entries for %q, want pull request and push entries", count, pattern)
-		}
-		guard := []byte("':(glob)" + pattern + "'")
-		if count := bytes.Count(content, guard); count != 1 {
-			t.Errorf("workflow contains %d tracked-output guards for %q, want one", count, pattern)
-		}
-	}
+	return lines
 }

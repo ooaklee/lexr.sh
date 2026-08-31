@@ -22,7 +22,7 @@ git_ref="$2"
 jobs="$3"
 reset_source="$4"
 skip_clean="$5"
-recipe_sha256="${LINUX_ARMER_RECIPE_SHA256:?}"
+recipe_sha256="${LEXR_RECIPE_SHA256:?}"
 
 work_root=/linux-work
 source_parent="$work_root/source"

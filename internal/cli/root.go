@@ -11,16 +11,16 @@ import (
 
 	"github.com/spf13/cobra"
 
-	linuxarmer "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/catalog"
-	kernelinstall "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/install"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/release"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/releaseprep"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/manager"
-	userspacecatalog "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/catalog"
-	userspacemanager "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/manager"
-	userspacerelease "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/release"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/version"
+	lexr "github.com/ooaklee/lexr.sh"
+	"github.com/ooaklee/lexr.sh/internal/catalog"
+	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
+	"github.com/ooaklee/lexr.sh/internal/kernel/release"
+	"github.com/ooaklee/lexr.sh/internal/kernel/releaseprep"
+	"github.com/ooaklee/lexr.sh/internal/manager"
+	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
+	userspacemanager "github.com/ooaklee/lexr.sh/internal/userspace/manager"
+	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
+	"github.com/ooaklee/lexr.sh/internal/version"
 )
 
 // application holds delivery-layer dependencies shared by the command tree.
@@ -54,7 +54,7 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 	if errorOutput == nil {
 		errorOutput = os.Stderr
 	}
-	loader := catalog.NewLoader(linuxarmer.CatalogFS(), "supported-isos.json")
+	loader := catalog.NewLoader(lexr.CatalogFS(), "supported-isos.json")
 	app := &application{
 		in: input, out: output, errOut: errorOutput, loader: loader,
 		releases:          release.NewClient(nil),
@@ -62,16 +62,16 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 		kernelReleasePrep: releaseprep.New(),
 	}
 	app.userspace = userspacemanager.New(
-		userspacecatalog.NewLoader(linuxarmer.UserspaceCatalogFS(), "supported-userspace.json"),
+		userspacecatalog.NewLoader(lexr.UserspaceCatalogFS(), "supported-userspace.json"),
 		userspacerelease.NewClient(nil), nil,
 	)
 	app.images = manager.NewImageManager(loader, errorOutput)
 	app.images.Userspace = app.userspace
 	buildVersion, _, _ := version.Info()
 	root := &cobra.Command{
-		Use:           "linux-armer",
+		Use:           "lexr",
 		Short:         "Build Surface Pro 11 ARM64 installation media",
-		Long:          "linux-armer builds and validates experimental ARM64 installation media with an ABI-matched Surface Pro 11 kernel and device trees.",
+		Long:          "Lexr.sh makes it easy to run ARM64 Linux on the Microsoft Surface Pro 11. It bundles a ready-to-use image, a tailored kernel, and essential device support, then helps you track and manage what works out of the box. Fast, auditable, and Surface Pro 11-focused.",
 		Version:       buildVersion,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -129,7 +129,7 @@ func (a *application) newVersionCommand() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			buildVersion, commit, date := version.Info()
-			_, err := fmt.Fprintf(a.out, "linux-armer %s\ncommit: %s\nbuilt: %s\n", buildVersion, commit, date)
+			_, err := fmt.Fprintf(a.out, "lexr %s\ncommit: %s\nbuilt: %s\n", buildVersion, commit, date)
 			return err
 		},
 	}

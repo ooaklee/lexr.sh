@@ -11,7 +11,7 @@ import (
 )
 
 // SchemaVersion identifies the plan and execution-journal contract understood by
-// this version of linux-armer.
+// this version of lexr.
 const SchemaVersion = 1
 
 // Step is one idempotent unit in an operation plan.

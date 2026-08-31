@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	camerabuild "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/build"
-	camerarelease "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/release"
+	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
+	camerarelease "github.com/ooaklee/lexr.sh/internal/camera/release"
 )
 
 const (

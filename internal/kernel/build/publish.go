@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
 
 const (
@@ -241,7 +241,7 @@ func publishArtifacts(ctx context.Context, plan Plan, provenance Provenance, bun
 	if err != nil || filepath.Clean(resolvedParent) != filepath.Clean(parent) {
 		return nil, false, fmt.Errorf("kernel output parent became symbolic or unavailable: %s", parent)
 	}
-	staging, err := os.MkdirTemp(parent, ".linux-armer-kernel-output-")
+	staging, err := os.MkdirTemp(parent, ".lexr-kernel-output-")
 	if err != nil {
 		return nil, false, fmt.Errorf("create private kernel output staging directory: %w", err)
 	}

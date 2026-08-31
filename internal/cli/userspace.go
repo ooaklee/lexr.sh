@@ -7,12 +7,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	camerabuild "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/build"
-	userspacebuild "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/build"
-	userspacecatalog "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/catalog"
-	userspaceinstall "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/install"
-	userspacemanager "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/manager"
-	userspacestatus "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/status"
+	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
+	userspacebuild "github.com/ooaklee/lexr.sh/internal/userspace/build"
+	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
+	userspaceinstall "github.com/ooaklee/lexr.sh/internal/userspace/install"
+	userspacemanager "github.com/ooaklee/lexr.sh/internal/userspace/manager"
+	userspacestatus "github.com/ooaklee/lexr.sh/internal/userspace/status"
 )
 
 // userspaceInstallReport keeps human and JSON delivery aligned around the same
@@ -401,7 +401,7 @@ func makeUserspaceInstallReport(results []userspaceinstall.Result, dryRun bool) 
 		}
 	}
 	report.NextSteps = append(report.NextSteps,
-		"Run linux-armer doctor userspace after installation to identify any remaining support gaps.")
+		"Run lexr doctor userspace after installation to identify any remaining support gaps.")
 	return report
 }
 

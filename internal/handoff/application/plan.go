@@ -15,8 +15,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/bluetoothmgmt"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/handoff"
+	"github.com/ooaklee/lexr.sh/internal/bluetoothmgmt"
+	"github.com/ooaklee/lexr.sh/internal/handoff"
 )
 
 const (
@@ -34,7 +34,7 @@ const (
 	sourceStatic desiredSource = "static"
 	// sourceFirmware reopens a compiled record through the private material handle.
 	sourceFirmware desiredSource = "firmware"
-	// sourceBinary reopens the exact current linux-armer executable.
+	// sourceBinary reopens the exact current Lexr executable.
 	sourceBinary desiredSource = "binary"
 )
 

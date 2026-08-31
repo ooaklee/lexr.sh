@@ -1,16 +1,16 @@
 version: 2
 
-project_name: linux-armer
-dist: cli/linux-armer/dist
+project_name: lexr
+dist: dist
 
 gomod:
-  dir: cli/linux-armer
+  dir: .
 
 builds:
-  - id: linux-armer
-    dir: cli/linux-armer
-    main: ./cmd/linux-armer
-    binary: linux-armer
+  - id: lexr
+    dir: .
+    main: ./cmd/lexr
+    binary: lexr
     env:
       - CGO_ENABLED=0
     goos:
@@ -24,15 +24,15 @@ builds:
     ldflags:
       - >-
         -s -w
-        -X github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/version.Version={{ .Version }}
-        -X github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/version.Commit={{ .FullCommit }}
-        -X github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/version.Date={{ .Date }}
+        -X github.com/ooaklee/lexr.sh/internal/version.Version={{ .Version }}
+        -X github.com/ooaklee/lexr.sh/internal/version.Commit={{ .FullCommit }}
+        -X github.com/ooaklee/lexr.sh/internal/version.Date={{ .Date }}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
   - id: release-archives
     ids:
-      - linux-armer
+      - lexr
     formats:
       - tar.gz
     name_template: >-
@@ -41,19 +41,19 @@ archives:
       {{- .Os }}_
       {{- .Arch }}
     files:
-      - src: cli/linux-armer/README.md
+      - src: README.md
         strip_parent: true
-      - src: cli/linux-armer/CHANGELOG.md
+      - src: CHANGELOG.md
         strip_parent: true
-      - src: cli/linux-armer/supported-isos.json
+      - src: supported-isos.json
         strip_parent: true
-      - src: cli/linux-armer/supported-userspace.json
+      - src: supported-userspace.json
         strip_parent: true
-      - src: cli/linux-armer/tools/collect-sp11-windows-handoff.ps1
+      - src: tools/collect-sp11-windows-handoff.ps1
         strip_parent: true
-      - src: "{{ .Env.LINUX_ARMER_LICENCE_DOCUMENT }}"
+      - src: "{{ .Env.LEXR_LICENCE_DOCUMENT }}"
         strip_parent: true
-      - src: "{{ .Env.LINUX_ARMER_THIRD_PARTY_NOTICES_DOCUMENT }}"
+      - src: "{{ .Env.LEXR_THIRD_PARTY_NOTICES_DOCUMENT }}"
         strip_parent: true
 
 checksum:

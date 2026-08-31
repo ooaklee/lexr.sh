@@ -1,4 +1,4 @@
-// Package doctor reports whether the host can execute linux-armer workflows.
+// Package doctor reports whether the host can execute lexr workflows.
 package doctor
 
 import (
@@ -12,7 +12,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // Status is the severity assigned to one diagnostic check.

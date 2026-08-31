@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/companion"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/image/companion"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
 
 // testJournalBytes is the complete execution evidence used by focused

@@ -287,7 +287,7 @@ Describe 'Surface Pro 11 Windows hand-off collector contract' {
         }
 
         $programFiles = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::ProgramFiles)
-        $privateParent = Join-Path $programFiles ('linux-armer-pester-' + [guid]::NewGuid().ToString('N'))
+        $privateParent = Join-Path $programFiles ('lexr-pester-' + [guid]::NewGuid().ToString('N'))
         $transaction = $null
         [void][System.IO.Directory]::CreateDirectory($privateParent)
         try {
@@ -318,7 +318,7 @@ Describe 'Surface Pro 11 Windows hand-off collector contract' {
         }
 
         $programFiles = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::ProgramFiles)
-        $unsafeAncestor = Join-Path $programFiles ('linux-armer-pester-unsafe-' + [guid]::NewGuid().ToString('N'))
+        $unsafeAncestor = Join-Path $programFiles ('lexr-pester-unsafe-' + [guid]::NewGuid().ToString('N'))
         $privateParent = Join-Path $unsafeAncestor 'private'
         [void][System.IO.Directory]::CreateDirectory($unsafeAncestor)
         try {
@@ -419,7 +419,7 @@ Describe 'Surface Pro 11 Windows hand-off collector contract' {
         }
 
         $privateParent = Join-Path $TestDrive 'private-identity-drift'
-        $stagingPath = Join-Path $privateParent '.linux-armer-collecting-fixture'
+        $stagingPath = Join-Path $privateParent '.lexr-collecting-fixture'
         [void][System.IO.Directory]::CreateDirectory($stagingPath)
         Set-PrivateDirectoryACL -Path $privateParent
         Set-PrivateDirectoryACL -Path $stagingPath
@@ -451,7 +451,7 @@ Describe 'Surface Pro 11 Windows hand-off collector contract' {
         }
 
         $privateParent = Join-Path $TestDrive 'private-publication-collision'
-        $stagingPath = Join-Path $privateParent '.linux-armer-collecting-fixture'
+        $stagingPath = Join-Path $privateParent '.lexr-collecting-fixture'
         $finalPath = Join-Path $privateParent 'handoff'
         [void][System.IO.Directory]::CreateDirectory($stagingPath)
         Set-PrivateDirectoryACL -Path $privateParent

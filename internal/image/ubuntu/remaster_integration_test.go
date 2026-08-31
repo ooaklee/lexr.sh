@@ -8,18 +8,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/artifact"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/artifact"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
 
 // TestRemasterIntegration builds and validates a real image when all explicit
 // integration paths are supplied; normal unit-test runs remain self-contained.
 func TestRemasterIntegration(t *testing.T) {
-	source := os.Getenv("LINUX_ARMER_TEST_SOURCE_ISO")
-	kernelDirectory := os.Getenv("LINUX_ARMER_TEST_KERNEL_DIRECTORY")
-	output := os.Getenv("LINUX_ARMER_TEST_OUTPUT_ISO")
+	source := os.Getenv("LEXR_TEST_SOURCE_ISO")
+	kernelDirectory := os.Getenv("LEXR_TEST_KERNEL_DIRECTORY")
+	output := os.Getenv("LEXR_TEST_OUTPUT_ISO")
 	if source == "" || kernelDirectory == "" || output == "" {
-		t.Skip("set LINUX_ARMER_TEST_SOURCE_ISO, LINUX_ARMER_TEST_KERNEL_DIRECTORY, and LINUX_ARMER_TEST_OUTPUT_ISO")
+		t.Skip("set LEXR_TEST_SOURCE_ISO, LEXR_TEST_KERNEL_DIRECTORY, and LEXR_TEST_OUTPUT_ISO")
 	}
 	entries, err := os.ReadDir(kernelDirectory)
 	if err != nil {

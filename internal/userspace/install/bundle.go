@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	userspacerelease "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/release"
+	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
 )
 
 // bundleManifestName is the receipt emitted by the bounded release downloader.

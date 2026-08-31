@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	camerabuild "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/build"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // recordingRunner captures Docker commands and returns bounded fixture
@@ -72,7 +72,7 @@ func TestIPTSDBuildUsesCompiledDockerRecipe(t *testing.T) {
 	err := manager.Run(context.Background(), Request{
 		Component: ComponentIPTSD, RepositoryRoot: root,
 		OutputDirectory: output, Image: "ubuntu:26.04",
-		WorkVolume: "linux-armer-iptsd", Jobs: 8,
+		WorkVolume: "lexr-iptsd", Jobs: 8,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +88,7 @@ func TestIPTSDBuildUsesCompiledDockerRecipe(t *testing.T) {
 	run := runner.commands[2]
 	joined := strings.Join(run.Args, "\n")
 	if run.Name != "docker" || run.Args[0] != "run" || !strings.Contains(joined, userspaceRecipeMarker) ||
-		!strings.Contains(joined, resolvedOutput+":/out") || !strings.Contains(joined, "linux-armer-iptsd:/work") {
+		!strings.Contains(joined, resolvedOutput+":/out") || !strings.Contains(joined, "lexr-iptsd:/work") {
 		t.Fatalf("unexpected Docker build command: %+v", run)
 	}
 }

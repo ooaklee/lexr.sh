@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	userspaceiptsd "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/iptsd"
+	userspaceiptsd "github.com/ooaklee/lexr.sh/internal/userspace/iptsd"
 )
 
 // Archive layout and resource limits bound the trusted iptsd extraction.

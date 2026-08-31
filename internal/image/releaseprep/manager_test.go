@@ -16,10 +16,10 @@ import (
 	"testing"
 	"time"
 
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/companion"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/plan"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/image/companion"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/plan"
 )
 
 // fakeValidator returns deterministic structural evidence for one fixture image.
@@ -93,11 +93,11 @@ func newFixture(t *testing.T) fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	outputRoot := filepath.Join(root, "build", "linux-armer")
+	outputRoot := filepath.Join(root, "build", "lexr")
 	if err := os.MkdirAll(outputRoot, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	imagePath := filepath.Join(outputRoot, "linux-armer-test.iso")
+	imagePath := filepath.Join(outputRoot, "lexr-test.iso")
 	imageBytes := bytes.Repeat([]byte("surface-pro-11-image\n"), 13)
 	if err := os.WriteFile(imagePath, imageBytes, 0o644); err != nil {
 		t.Fatal(err)
@@ -255,6 +255,31 @@ func TestPrepareAndValidatePublishesExactRelease(t *testing.T) {
 		if strings.HasSuffix(entry.Name(), ".journal.json") {
 			t.Fatalf("private path-bearing journal was published: %s", entry.Name())
 		}
+	}
+}
+
+// TestValidateAcceptsHistoricalReleaseNotes proves the public validator keeps
+// accepting exact checksum-bound notes prepared before the command rename.
+func TestValidateAcceptsHistoricalReleaseNotes(t *testing.T) {
+	fixture := newFixture(t)
+	manager := New(fakeValidator{report: fixture.report}, fakeCompressor{})
+	receipt, err := manager.Prepare(context.Background(), Request{
+		RepositoryRoot: fixture.root, ImagePath: fixture.image,
+		ReleaseName: "historical-notes", PartSizeBytes: 31,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Manifest == nil {
+		t.Fatal("Prepare() omitted the release manifest")
+	}
+	notesPath := filepath.Join(receipt.Plan.OutputDirectory, NotesName)
+	if err := os.WriteFile(notesPath, renderLegacyNotes(*receipt.Manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rewriteReleaseChecksums(t, receipt.Plan.OutputDirectory)
+	if _, err := manager.Validate(context.Background(), receipt.Plan.OutputDirectory); err != nil {
+		t.Fatalf("Validate() rejected historical release notes: %v", err)
 	}
 }
 
@@ -479,4 +504,31 @@ func directoryBytes(t *testing.T, directory string) map[string][]byte {
 		result[name] = contents
 	}
 	return result
+}
+
+// rewriteReleaseChecksums recreates canonical checksum coverage after a test
+// deliberately replaces one otherwise valid release member.
+func rewriteReleaseChecksums(t *testing.T, directory string) {
+	t.Helper()
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	records := make([]FileRecord, 0, len(entries)-1)
+	for _, entry := range entries {
+		if entry.Name() == ChecksumName {
+			continue
+		}
+		contents, err := os.ReadFile(filepath.Join(directory, entry.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		digest := sha256.Sum256(contents)
+		records = append(records, FileRecord{
+			Name: entry.Name(), SHA256: hex.EncodeToString(digest[:]), Size: int64(len(contents)),
+		})
+	}
+	if err := os.WriteFile(filepath.Join(directory, ChecksumName), renderChecksums(records), 0o644); err != nil {
+		t.Fatal(err)
+	}
 }

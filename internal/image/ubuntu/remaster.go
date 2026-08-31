@@ -17,13 +17,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/artifact"
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/companion"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/ubuntu/caspermedia"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/plan"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/artifact"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/image/companion"
+	"github.com/ooaklee/lexr.sh/internal/image/ubuntu/caspermedia"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/plan"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // AdapterID is the stable manifest and catalogue identifier for the Ubuntu
@@ -192,7 +192,7 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err := os.MkdirAll(workspaceParent, 0o755); err != nil {
 		return Result{}, fmt.Errorf("create workspace root: %w", err)
 	}
-	workspace, err := os.MkdirTemp(workspaceParent, ".linux-armer-remaster-")
+	workspace, err := os.MkdirTemp(workspaceParent, ".lexr-remaster-")
 	if err != nil {
 		return Result{}, fmt.Errorf("create remaster workspace: %w", err)
 	}
@@ -633,7 +633,7 @@ unsquashfs -lln "$source" | awk '$1 ~ /^c/ && $3 == "0," && $4 == "0" { marker="
 unsquashfs -no-progress -xattrs-exclude '^trusted\.' -exclude-file "$whiteouts" -d "$destination" "$source"
 `
 	if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume,
-		"bash", "-ceu", script, "linux-armer-extract", source, destination); err != nil {
+		"bash", "-ceu", script, "lexr-extract", source, destination); err != nil {
 		return err
 	}
 	return nil
@@ -700,7 +700,7 @@ done < "$whiteouts"
 cp -a --reflink=auto "$layer/." "$target/"
 `
 	if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume,
-		"bash", "-ceu", script, "linux-armer-layer", source, layerRoot, targetRoot); err != nil {
+		"bash", "-ceu", script, "lexr-layer", source, layerRoot, targetRoot); err != nil {
 		return err
 	}
 	return nil
@@ -737,7 +737,7 @@ chmod a+r "$destination"
 done
 `
 	arguments := []string{
-		"bash", "-ceu", script, "linux-armer-copy-boot",
+		"bash", "-ceu", script, "lexr-copy-boot",
 		"/linux-work/rootfs/boot/vmlinuz-" + bundle.ABI, "/work/casper-vmlinuz",
 		"/linux-work/initramfs-root/boot/initrd.img-" + bundle.ABI, "/work/casper-initrd",
 	}
@@ -762,7 +762,7 @@ unmkinitramfs /work/casper-initrd "$unpacked"
 cat "$unpacked/main/conf/uuid.conf"
 `
 	identity, err := docker.CaptureInWorkspace(ctx, image, workspace,
-		"bash", "-ceu", script, "linux-armer-casper-identity")
+		"bash", "-ceu", script, "lexr-casper-identity")
 	if err != nil {
 		return caspermedia.Contract{}, fmt.Errorf("extract generated Casper media UUID: %w", err)
 	}
@@ -890,16 +890,16 @@ func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manife
 	}
 	companionNote := "No companion CLI bundle was requested for this image."
 	if manifest.CompanionBundle.Included {
-		companionNote = "A Linux ARM64 linux-armer companion, corresponding source, catalogues, and any declared offline userspace releases are under /sp11/companion. Copy the executable to a writable filesystem before running privileged install operations."
+		companionNote = "A Linux ARM64 Lexr companion, corresponding source, catalogues, and any declared offline userspace releases are under /sp11/companion. Copy the executable to a writable filesystem before running privileged install operations."
 	}
-	readme := fmt.Sprintf("Linux Armer Surface Pro 11 image\n\nCustom kernel ABI: %s\n\nSecure Boot must be disabled. The USB-safe menu entries temporarily blacklist qcom_q6v5_pas so USB storage remains available in the live session. Kernel packages are included under /sp11/kernel for installed-system setup. Proprietary device firmware is not redistributed.\n\n%s\n", abi, companionNote)
+	readme := fmt.Sprintf("Lexr Surface Pro 11 image\n\nCustom kernel ABI: %s\n\nSecure Boot must be disabled. The USB-safe menu entries temporarily blacklist qcom_q6v5_pas so USB storage remains available in the live session. Kernel packages are included under /sp11/kernel for installed-system setup. Proprietary device firmware is not redistributed.\n\n%s\n", abi, companionNote)
 	if err := os.WriteFile(filepath.Join(sp11, "README.txt"), []byte(readme), 0o644); err != nil {
 		return err
 	}
 	if err := os.WriteFile(filepath.Join(workspace, "grub.cfg"), []byte(grubConfig(abi)), 0o644); err != nil {
 		return err
 	}
-	diskInfo := fmt.Sprintf("Linux Armer Ubuntu arm64 for Surface Pro 11 (%s)\n", abi)
+	diskInfo := fmt.Sprintf("Lexr Ubuntu arm64 for Surface Pro 11 (%s)\n", abi)
 	return os.WriteFile(filepath.Join(workspace, "disk-info"), []byte(diskInfo), 0o644)
 }
 
@@ -1191,5 +1191,5 @@ func md5File(path string) (string, error) {
 // logf emits one consistently prefixed progress line and deliberately ignores
 // writer failures so logging cannot invalidate an otherwise sound image build.
 func logf(w io.Writer, format string, args ...any) {
-	_, _ = fmt.Fprintf(w, "linux-armer: "+format+"\n", args...)
+	_, _ = fmt.Fprintf(w, "lexr: "+format+"\n", args...)
 }

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	handoffapplication "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/handoff/application"
+	handoffapplication "github.com/ooaklee/lexr.sh/internal/handoff/application"
 )
 
 const (
@@ -61,7 +61,7 @@ func inspectNativeBluetoothIntegration(fs *rootedFS, required bool) (Check, erro
 		ID:          "bluetooth-native-handoff-integration",
 		Feature:     FeatureBluetooth,
 		Required:    required,
-		Remediation: "apply trusted same-device hand-off material with linux-armer handoff apply",
+		Remediation: "apply trusted same-device hand-off material with `lexr handoff apply`",
 	}
 	if present == 0 {
 		check.State = StateSkip
@@ -208,7 +208,7 @@ func inspectLegacyBluetoothIntegration(fs *rootedFS, required, nativePresent boo
 		coexistence = "coexists with native hand-off integration"
 	}
 	check.Detail = "legacy Bluetooth public-address configuration, helper, unit, or udev rule " + coexistence + ": " + strings.Join(sortedKeys(found), ", ")
-	check.Remediation = "review linux-armer clean plan and remove only recognised legacy Bluetooth artefacts through its reversible cleanup flow"
+	check.Remediation = "review `lexr clean plan` and remove only recognised legacy Bluetooth artefacts through its reversible clean-up flow"
 	return check, nil
 }
 

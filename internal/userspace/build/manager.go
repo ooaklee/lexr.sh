@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	camerabuild "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/build"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
-	userspaceiptsd "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/iptsd"
+	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
+	"github.com/ooaklee/lexr.sh/internal/platform"
+	userspaceiptsd "github.com/ooaklee/lexr.sh/internal/userspace/iptsd"
 )
 
 // Component identifies a buildable userspace component.

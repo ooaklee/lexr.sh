@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/build"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/kernel/build"
 )
 
 // validateDirectory verifies manifests, exact membership, checksums, and semantics.
@@ -91,7 +91,9 @@ func validateDirectory(ctx context.Context, path string) (Manifest, error) {
 		return Manifest{}, err
 	}
 	notes, err := readStableIdentity(notesIdentity, maximumTextBytes)
-	if err != nil || string(notes) != renderReleaseNotes(Plan{Manifest: manifest}) {
+	currentNotes := renderReleaseNotes(Plan{Manifest: manifest})
+	legacyNotes := renderLegacyReleaseNotes(Plan{Manifest: manifest})
+	if err != nil || (string(notes) != currentNotes && string(notes) != legacyNotes) {
 		return Manifest{}, errors.New("release notes differ from the manifest-derived British-English contract")
 	}
 	return manifest, nil
@@ -172,7 +174,7 @@ func validatePublicProvenance(provenance SourceProvenance) error {
 		GitURL: provenance.GitURL, GitRef: provenance.GitRef, RefKind: provenance.RefKind,
 		Revision: provenance.Revision, Tree: provenance.Tree, CommitTime: provenance.CommitTime,
 		RecipeSHA256: provenance.RecipeSHA256, ContainerImage: provenance.ContainerImage,
-		ToolchainSHA256: provenance.ToolchainSHA256, WorkVolume: "linux-armer-kernel-build-0000000000000000",
+		ToolchainSHA256: provenance.ToolchainSHA256, WorkVolume: "lexr-kernel-build-0000000000000000",
 	}
 	return validateBuildProvenance(private)
 }

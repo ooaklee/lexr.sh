@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/handoff"
+	"github.com/ooaklee/lexr.sh/internal/handoff"
 )
 
 const (
@@ -67,7 +67,7 @@ func (manager *Manager) Apply(ctx context.Context, reviewed Plan, exactConfirmat
 		return result, nil
 	}
 	if containsFeature(current.Features, FeatureBluetooth) && !current.HostBinaryCompatible {
-		return Result{}, errors.New("Bluetooth application requires the current linux-armer executable to be a Linux ARM64 ELF binary")
+		return Result{}, errors.New("Bluetooth application requires the current Lexr executable to be a Linux ARM64 ELF binary")
 	}
 	if manager.effectiveUID == nil || manager.effectiveUID() != 0 {
 		return Result{}, errors.New("hand-off application mutation requires effective root")
@@ -301,9 +301,21 @@ func (manager *Manager) prepareReceipt(ctx context.Context, root *os.Root, plan 
 
 // transactionSiblingPaths returns deterministic hidden names in the same parent.
 func transactionSiblingPaths(targetPath, planSHA256 string, index int) (string, string) {
+	return transactionSiblingPathsForProduct(targetPath, planSHA256, index, "lexr")
+}
+
+// legacyTransactionSiblingPaths returns the exact pre-rename hidden names
+// needed to validate and recover existing private receipts.
+func legacyTransactionSiblingPaths(targetPath, planSHA256 string, index int) (string, string) {
+	return transactionSiblingPathsForProduct(targetPath, planSHA256, index, "linux"+"-armer")
+}
+
+// transactionSiblingPathsForProduct returns deterministic hidden names for
+// one reviewed current or historical product marker.
+func transactionSiblingPathsForProduct(targetPath, planSHA256 string, index int, product string) (string, string) {
 	parent := path.Dir(targetPath)
 	base := path.Base(targetPath)
-	prefix := fmt.Sprintf(".%s.linux-armer-%s-%02d", base, planSHA256[:16], index)
+	prefix := fmt.Sprintf(".%s.%s-%s-%02d", base, product, planSHA256[:16], index)
 	return path.Join(parent, prefix+".new"), path.Join(parent, prefix+".backup")
 }
 
@@ -501,16 +513,16 @@ func (manager *Manager) openDesiredSource(ctx context.Context, plan Plan, action
 	case sourceBinary:
 		info, err := os.Lstat(plan.binary.path)
 		if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Size() != plan.binary.size {
-			return nil, func() error { return nil }, errors.New("current linux-armer executable changed after planning")
+			return nil, func() error { return nil }, errors.New("current Lexr executable changed after planning")
 		}
 		file, err := os.Open(plan.binary.path)
 		if err != nil {
-			return nil, func() error { return nil }, errors.New("open current linux-armer executable for application")
+			return nil, func() error { return nil }, errors.New("open current Lexr executable for application")
 		}
 		opened, err := file.Stat()
 		if err != nil || !os.SameFile(info, opened) {
 			_ = file.Close()
-			return nil, func() error { return nil }, errors.New("current linux-armer executable changed while opening")
+			return nil, func() error { return nil }, errors.New("current Lexr executable changed while opening")
 		}
 		return file, file.Close, nil
 	default:

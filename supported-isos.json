@@ -21,7 +21,7 @@
         "value": "0e170d9ff0c53f7b59c8d35793b8ce308ceffd519f8370b949995634e22f5b09"
       },
       "compatibility_notes": [
-        "No linux-armer image adapter is implemented yet.",
+        "No lexr image adapter is implemented yet.",
         "The versioned release URL and publisher checksum pin the upstream bytes."
       ],
       "last_verified": "2026-08-30"
@@ -41,7 +41,7 @@
       "experimental": true,
       "mutable": false,
       "compatibility_notes": [
-        "No linux-armer image adapter is implemented yet.",
+        "No lexr image adapter is implemented yet.",
         "The publisher generates a new epoch-tokenised URL on each page request; this stored URL was live on 2026-08-30."
       ],
       "last_verified": "2026-08-30"
@@ -65,7 +65,7 @@
         "value": "0361c13141e6f57e24d6ee5227066c33a45f7f92a95f41d0bbd343e4fd05da18"
       },
       "compatibility_notes": [
-        "No linux-armer image adapter is implemented yet.",
+        "No lexr image adapter is implemented yet.",
         "This is a compressed raw disk image, not an ISO, and requires a raw-image-specific workflow."
       ],
       "last_verified": "2026-08-30"
@@ -89,7 +89,7 @@
         "value": "162ba3c552a2d241c7c63ec26777af0255ee1b5a135adc0be986ceed999933ef"
       },
       "compatibility_notes": [
-        "No linux-armer image adapter is implemented yet.",
+        "No lexr image adapter is implemented yet.",
         "Surface Pro 11 boot and device-tree integration have not yet been automated for this image."
       ],
       "last_verified": "2026-08-30"
@@ -113,7 +113,7 @@
         "value": "7b4cce0e92dc5c903464e7e7c33760c4417f1400165e9ecfcd064fbceb68ef22"
       },
       "compatibility_notes": [
-        "No linux-armer image adapter is implemented yet.",
+        "No lexr image adapter is implemented yet.",
         "Surface Pro 11 boot and device-tree integration have not yet been automated for this image."
       ],
       "last_verified": "2026-08-30"
@@ -133,7 +133,7 @@
       "experimental": true,
       "mutable": false,
       "compatibility_notes": [
-        "This is the first image supported by the linux-armer image creation workflow.",
+        "This is the first image supported by the lexr image creation workflow.",
         "Canonical does not publish a checksum alongside this snapshot; use --source-sha256 to pin independently verified bytes."
       ],
       "last_verified": "2026-08-30"

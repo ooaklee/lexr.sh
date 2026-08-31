@@ -12,7 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	kernelinstall "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/install"
+	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
 )
 
 const (

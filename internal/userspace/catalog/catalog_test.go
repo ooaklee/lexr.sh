@@ -11,7 +11,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	linuxarmer "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer"
+	lexr "github.com/ooaklee/lexr.sh"
 )
 
 // validUserspaceCatalogJSON is the smallest representative document used as a
@@ -765,7 +765,7 @@ func TestLoadSourceErrors(t *testing.T) {
 func TestShippedUserspaceCatalogContract(t *testing.T) {
 	t.Parallel()
 
-	loaded, err := LoadFS(linuxarmer.UserspaceCatalogFS(), "supported-userspace.json")
+	loaded, err := LoadFS(lexr.UserspaceCatalogFS(), "supported-userspace.json")
 	if err != nil {
 		t.Fatalf("LoadFS(shipped userspace catalog) error = %v", err)
 	}
@@ -836,13 +836,13 @@ func TestShippedUserspaceCatalogContract(t *testing.T) {
 func TestCatalogEmbeddingsAreSeparate(t *testing.T) {
 	t.Parallel()
 
-	if _, err := fs.ReadFile(linuxarmer.UserspaceCatalogFS(), "supported-userspace.json"); err != nil {
+	if _, err := fs.ReadFile(lexr.UserspaceCatalogFS(), "supported-userspace.json"); err != nil {
 		t.Fatalf("UserspaceCatalogFS() cannot read supported-userspace.json: %v", err)
 	}
-	if _, err := fs.ReadFile(linuxarmer.UserspaceCatalogFS(), "supported-isos.json"); !errors.Is(err, fs.ErrNotExist) {
+	if _, err := fs.ReadFile(lexr.UserspaceCatalogFS(), "supported-isos.json"); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("UserspaceCatalogFS() unexpectedly contains supported-isos.json: %v", err)
 	}
-	if _, err := fs.ReadFile(linuxarmer.CatalogFS(), "supported-userspace.json"); !errors.Is(err, fs.ErrNotExist) {
+	if _, err := fs.ReadFile(lexr.CatalogFS(), "supported-userspace.json"); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("CatalogFS() unexpectedly contains supported-userspace.json: %v", err)
 	}
 }

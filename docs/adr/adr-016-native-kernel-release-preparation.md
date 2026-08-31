@@ -10,6 +10,11 @@ description: Architecture decision for preparing path-free, closed kernel releas
 
 Accepted on 2026-08-30.
 
+Naming note: the current product is Lexr.sh and its command is `lexr`. Commands
+below retain their accepted historical spelling; use `lexr` now. Established
+bundle filenames remain compatibility contracts under
+[ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
+
 ## Context
 
 The repository's original kernel release helper combined several generations
@@ -42,6 +47,14 @@ and validation. Cobra exposes it as:
 ```text
 linux-armer kernel release prepare
 linux-armer kernel release validate <release-directory>
+```
+
+Those commands record the accepted historical interface. The current
+equivalents are:
+
+```text
+lexr kernel release prepare
+lexr kernel release validate <release-directory>
 ```
 
 Preparation accepts exactly one fresh directory emitted by
@@ -112,5 +125,6 @@ and re-download validation contract.
 The maintained commands replace the former kernel release-preparation and
 touchscreen-release validation helpers. Historical ADRs may continue to name
 those helpers as evidence of the workflow used at the time; current procedures
-must use the commands above and the current
-[kernel release how-to](../../../../docs/how-to/how-to-release-kernel-artifacts.md).
+must use `lexr kernel release prepare` and `lexr kernel release validate`, as
+described by the current
+[kernel release how-to](https://github.com/ooaklee/linux-surface-pro-11-oe/blob/main/docs/how-to/how-to-release-kernel-artifacts.md).

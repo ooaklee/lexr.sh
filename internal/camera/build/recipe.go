@@ -5,6 +5,11 @@ import (
 	"encoding/hex"
 )
 
+// legacyRecipeSHA256 is the exact schema-1 recipe identity emitted before the
+// public command rename. Existing build and release receipts remain valid,
+// while all new builds use recipeSHA256.
+const legacyRecipeSHA256 = "9464a0816152ee93631064fd4a47c063aba660b2fbf6e910121341158b91eb8a"
+
 // containerRecipe is the complete reviewed Ubuntu 26.04 ARM64 package policy.
 const containerRecipe = `#!/usr/bin/env bash
 set -euo pipefail
@@ -114,8 +119,8 @@ quilt push
 cmp /work/assets/imx681.yaml src/ipa/simple/data/imx681.yaml
 
 package_version="${BASE_VERSION}+sp11.2.${BUILD_ID}"
-export DEBFULLNAME='linux-armer camera builder'
-export DEBEMAIL='linux-armer-camera-builder@localhost'
+export DEBFULLNAME='lexr camera builder'
+export DEBEMAIL='lexr-camera-builder@localhost'
 dch --force-distribution --newversion "$package_version" \
   --distribution resolute --urgency medium \
   'Add Surface Pro 11 IMX681 simple-IPA support.'
@@ -182,4 +187,10 @@ chown "$HOST_UID:$HOST_GID" /exchange/artifacts/* /exchange/metadata/*
 func recipeSHA256() string {
 	digest := sha256.Sum256([]byte(containerRecipe))
 	return hex.EncodeToString(digest[:])
+}
+
+// supportedRecipeSHA256 reports whether a receipt records the current recipe
+// or the one exact pre-rename schema-1 recipe.
+func supportedRecipeSHA256(value string) bool {
+	return value == recipeSHA256() || value == legacyRecipeSHA256
 }

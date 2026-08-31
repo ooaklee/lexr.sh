@@ -5,21 +5,23 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"testing"
 )
 
-// TestRepositoryIntegrationAndLayerRecipeRemainCoherent keeps the maintained
-// BitBake recipe, checked-in integration inputs, and compiled native contract
-// aligned without relying on a legacy shell test.
-func TestRepositoryIntegrationAndLayerRecipeRemainCoherent(t *testing.T) {
+// TestOptionalOEIntegrationAndLayerRecipeRemainCoherent keeps an explicitly
+// supplied OE checkout aligned with the compiled native contract without
+// making the standalone Lexr repository depend on separately owned sources.
+func TestOptionalOEIntegrationAndLayerRecipeRemainCoherent(t *testing.T) {
 	t.Parallel()
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("locate repository contract test source")
+	repositoryRoot := strings.TrimSpace(os.Getenv("LEXR_TEST_OE_ROOT"))
+	if repositoryRoot == "" {
+		t.Skip("set LEXR_TEST_OE_ROOT to a linux-surface-pro-11-oe checkout for cross-repository validation")
 	}
-	repositoryRoot := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", "..", "..", ".."))
+	if !filepath.IsAbs(repositoryRoot) {
+		t.Fatal("LEXR_TEST_OE_ROOT must be an absolute path")
+	}
+	repositoryRoot = filepath.Clean(repositoryRoot)
 	integrationRoot := filepath.Join(repositoryRoot, "userspace", "iptsd-sp11")
 	if err := ValidateIntegration(integrationRoot); err != nil {
 		t.Fatalf("validate checked-in IPTSD integration: %v", err)

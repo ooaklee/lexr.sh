@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
 )
 
 const (

@@ -15,14 +15,14 @@ import (
 	"strings"
 	"testing"
 
-	linuxarmer "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/catalog"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/companion"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/release"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
-	userspacecatalog "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/catalog"
-	userspacemanager "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/manager"
+	lexr "github.com/ooaklee/lexr.sh"
+	"github.com/ooaklee/lexr.sh/internal/catalog"
+	"github.com/ooaklee/lexr.sh/internal/image/companion"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/kernel/release"
+	"github.com/ooaklee/lexr.sh/internal/platform"
+	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
+	userspacemanager "github.com/ooaklee/lexr.sh/internal/userspace/manager"
 )
 
 // companionProbeRunner records host-toolchain probes without starting external
@@ -78,7 +78,7 @@ func newCompanionTestManager(runner *companionProbeRunner) *ImageManager {
 	return &ImageManager{
 		CompanionRunner: runner,
 		Userspace: userspacemanager.New(
-			userspacecatalog.NewLoader(linuxarmer.UserspaceCatalogFS(), "supported-userspace.json"), nil, nil,
+			userspacecatalog.NewLoader(lexr.UserspaceCatalogFS(), "supported-userspace.json"), nil, nil,
 		),
 	}
 }
@@ -86,7 +86,7 @@ func newCompanionTestManager(runner *companionProbeRunner) *ImageManager {
 // newImagePlanTestManager supplies the shipped catalogue and production adapter
 // wiring needed for side-effect-free image planning tests.
 func newImagePlanTestManager() *ImageManager {
-	return NewImageManager(catalog.NewLoader(linuxarmer.CatalogFS(), "supported-isos.json"), io.Discard)
+	return NewImageManager(catalog.NewLoader(lexr.CatalogFS(), "supported-isos.json"), io.Discard)
 }
 
 // TestImageManagerPlanDefaultsAndDeterminism verifies default source and kernel
@@ -95,7 +95,7 @@ func TestImageManagerPlanDefaultsAndDeterminism(t *testing.T) {
 	t.Parallel()
 
 	manager := newImagePlanTestManager()
-	request := CreateImageRequest{Output: "/output/linux-armer.iso"}
+	request := CreateImageRequest{Output: "/output/lexr.iso"}
 	first, err := manager.Plan(request)
 	if err != nil {
 		t.Fatalf("first Plan() error = %v", err)
@@ -158,7 +158,7 @@ func TestImageManagerPlanUsesExplicitLocalInputs(t *testing.T) {
 		CatalogID:                DefaultCatalogID,
 		Source:                   "/inputs/source.iso",
 		KernelDirectory:          "/inputs/kernel",
-		CompanionSourceDirectory: "/inputs/linux-armer",
+		CompanionSourceDirectory: "/inputs/lexr",
 		CompanionUserspace:       []string{"iptsd"},
 		Output:                   "/output/result.iso",
 	})
@@ -167,7 +167,7 @@ func TestImageManagerPlanUsesExplicitLocalInputs(t *testing.T) {
 	}
 	if operationPlan.Steps[0].Inputs["path"] != "/inputs/source.iso" ||
 		operationPlan.Steps[1].Inputs["release"] != "/inputs/kernel" ||
-		operationPlan.Steps[2].Inputs["source"] != "/inputs/linux-armer" ||
+		operationPlan.Steps[2].Inputs["source"] != "/inputs/lexr" ||
 		operationPlan.Steps[2].Inputs["userspace"] != companion.IPTSDOfflineComponentID ||
 		operationPlan.Steps[len(operationPlan.Steps)-1].Inputs["path"] != "/output/result.iso" {
 		t.Fatalf("Plan() explicit inputs = %#v", operationPlan.Steps)
@@ -287,7 +287,7 @@ func TestImageManagerPlanRejectsNonPortableISOOutput(t *testing.T) {
 func TestImageManagerCreateRejectsCatalogOnlyEntryBeforeExecution(t *testing.T) {
 	t.Parallel()
 
-	loader := catalog.NewLoader(linuxarmer.CatalogFS(), "supported-isos.json")
+	loader := catalog.NewLoader(lexr.CatalogFS(), "supported-isos.json")
 	manager := NewImageManager(loader, io.Discard)
 	_, err := manager.Create(context.Background(), CreateImageRequest{
 		CatalogID: "debian-13-6-0-dvd-1",
@@ -303,7 +303,7 @@ func TestImageManagerCreateRejectsCatalogOnlyEntryBeforeExecution(t *testing.T) 
 func TestImageManagerCreateRejectsUnknownCatalogEntryBeforeExecution(t *testing.T) {
 	t.Parallel()
 
-	loader := catalog.NewLoader(linuxarmer.CatalogFS(), "supported-isos.json")
+	loader := catalog.NewLoader(lexr.CatalogFS(), "supported-isos.json")
 	manager := NewImageManager(loader, io.Discard)
 	_, err := manager.Create(context.Background(), CreateImageRequest{
 		CatalogID: "missing-image",
@@ -437,7 +437,7 @@ func TestResolveCompanionPreservesBuildIdentity(t *testing.T) {
 	runner := &companionProbeRunner{}
 	request, err := newCompanionTestManager(runner).resolveCompanion(context.Background(), CreateImageRequest{
 		CompanionSourceDirectory: ".",
-		Output:                   filepath.Join(t.TempDir(), "linux-armer.iso"),
+		Output:                   filepath.Join(t.TempDir(), "lexr.iso"),
 		ToolVersion:              "1.2.3",
 		ToolCommit:               "abcdef",
 		ToolBuildDate:            "2026-08-30T12:00:00Z",
@@ -468,7 +468,7 @@ func TestResolveCompanionDerivesLocalGitIdentity(t *testing.T) {
 	t.Parallel()
 
 	const revision = "0123456789abcdef0123456789abcdef01234567"
-	source := "/source/linux-armer"
+	source := "/source/lexr"
 	runner := &companionProbeRunner{responses: map[string][]byte{
 		probeCommandKey(platform.Command{
 			Name: "git", Args: []string{"-C", source, "rev-parse", "HEAD"},
@@ -482,7 +482,7 @@ func TestResolveCompanionDerivesLocalGitIdentity(t *testing.T) {
 	}}
 	request, err := newCompanionTestManager(runner).resolveCompanion(context.Background(), CreateImageRequest{
 		CompanionSourceDirectory: source,
-		Output:                   filepath.Join(t.TempDir(), "linux-armer.iso"),
+		Output:                   filepath.Join(t.TempDir(), "lexr.iso"),
 		ToolVersion:              "dev",
 		ToolCommit:               "unknown",
 		ToolBuildDate:            "unknown",
@@ -505,14 +505,14 @@ func TestResolveCompanionKeepsGeneratedPathsOutsideSource(t *testing.T) {
 	imageManager := newCompanionTestManager(&companionProbeRunner{})
 	base := CreateImageRequest{
 		CompanionSourceDirectory: source,
-		Output:                   filepath.Join(outside, "linux-armer.iso"),
+		Output:                   filepath.Join(outside, "lexr.iso"),
 	}
 	if _, err := imageManager.resolveCompanion(context.Background(), base, outside); err != nil {
 		t.Fatalf("resolveCompanion(outside paths) error = %v", err)
 	}
 
 	insideOutput := base
-	insideOutput.Output = filepath.Join(source, "linux-armer.iso")
+	insideOutput.Output = filepath.Join(source, "lexr.iso")
 	if _, err := imageManager.resolveCompanion(context.Background(), insideOutput, outside); err == nil ||
 		!strings.Contains(err.Error(), "output and its sidecars must be outside") {
 		t.Fatalf("resolveCompanion(inside output) error = %v", err)
@@ -534,7 +534,7 @@ func TestResolveCompanionUsesCompiledOfflineAllowlist(t *testing.T) {
 	imageManager := newCompanionTestManager(&companionProbeRunner{})
 	for _, selector := range []string{"audio", "camera"} {
 		_, err := imageManager.resolveCompanion(context.Background(), CreateImageRequest{
-			CompanionSourceDirectory: "/source/linux-armer",
+			CompanionSourceDirectory: "/source/lexr",
 			CompanionUserspace:       []string{selector},
 		}, t.TempDir())
 		if err == nil || !strings.Contains(err.Error(), "not approved for offline companion inclusion") {
@@ -550,7 +550,7 @@ func TestResolveCompanionRejectsRecommendedExpansion(t *testing.T) {
 
 	imageManager := newCompanionTestManager(&companionProbeRunner{})
 	_, err := imageManager.resolveCompanion(context.Background(), CreateImageRequest{
-		CompanionSourceDirectory: "/source/linux-armer",
+		CompanionSourceDirectory: "/source/lexr",
 		CompanionUserspace:       []string{"recommended"},
 	}, t.TempDir())
 	if err == nil || !strings.Contains(err.Error(), "must name each") {
@@ -566,7 +566,7 @@ func TestResolveCompanionRejectsDuplicateAliasesBeforeDownloads(t *testing.T) {
 	_, err := newCompanionTestManager(&companionProbeRunner{}).resolveCompanion(
 		context.Background(),
 		CreateImageRequest{
-			CompanionSourceDirectory: "/source/linux-armer",
+			CompanionSourceDirectory: "/source/lexr",
 			CompanionUserspace:       []string{"iptsd", userspacemanager.IPTSDComponent},
 		},
 		t.TempDir(),
@@ -584,7 +584,7 @@ func TestResolveCompanionRequiresWorkingGo(t *testing.T) {
 	runner := &companionProbeRunner{err: errors.New("go executable not found")}
 	_, err := (&ImageManager{CompanionRunner: runner}).resolveCompanion(
 		context.Background(),
-		CreateImageRequest{CompanionSourceDirectory: "/source/linux-armer"},
+		CreateImageRequest{CompanionSourceDirectory: "/source/lexr"},
 		t.TempDir(),
 	)
 	if err == nil || !strings.Contains(err.Error(), "working Go toolchain") {

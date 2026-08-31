@@ -1,4 +1,4 @@
-// Package catalog loads and validates linux-armer's audited userspace
+// Package catalog loads and validates lexr's audited userspace
 // component catalogue.
 package catalog
 
@@ -45,7 +45,7 @@ const (
 // Redistribution records the review boundary for distributing a component.
 type Redistribution string
 
-// Supported redistribution policies record whether linux-armer may fetch or
+// Supported redistribution policies record whether lexr may fetch or
 // distribute an artefact, or must instead direct the user to its source.
 const (
 	RedistributionAllowed        Redistribution = "allowed"
@@ -64,7 +64,7 @@ const (
 	EvidenceSourceIntegratedPriorValidation CompatibilityEvidence = "source_integrated_prior_validation"
 )
 
-// SupportActions declares the bounded operations linux-armer may expose for a
+// SupportActions declares the bounded operations lexr may expose for a
 // component. These flags are capabilities, not commands.
 type SupportActions struct {
 	// Status permits read-only detection and health reporting.

@@ -1,4 +1,4 @@
-module github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer
+module github.com/ooaklee/lexr.sh
 
 go 1.26
 

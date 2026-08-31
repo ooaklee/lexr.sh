@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/cleanup"
+	"github.com/ooaklee/lexr.sh/internal/cleanup"
 )
 
 // newCleanCommand groups detection and reversible removal of recognised legacy workarounds.
@@ -88,7 +88,7 @@ func (a *application) newCleanPlanCommand() *cobra.Command {
 	}
 	command.Flags().StringVar(&root, "root", "/", "target Linux root filesystem")
 	command.Flags().StringVar(&userHome, "user-home", "", "explicit target-visible absolute Linux user home; never inferred")
-	command.Flags().StringVarP(&output, "output", "o", "linux-armer-cleanup-plan.json", "new plan path, or - for standard output")
+	command.Flags().StringVarP(&output, "output", "o", "lexr-cleanup-plan.json", "new plan path, or - for standard output")
 	return command
 }
 

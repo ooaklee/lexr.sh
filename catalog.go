@@ -1,5 +1,5 @@
-// Package linuxarmer exposes build-time assets shared by the CLI entrypoints.
-package linuxarmer
+// Package lexr exposes build-time assets shared by the CLI entrypoints.
+package lexr
 
 import (
 	"embed"

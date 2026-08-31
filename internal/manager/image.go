@@ -13,16 +13,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/artifact"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/catalog"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/companion"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image/ubuntu"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/kernel/release"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/plan"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
-	userspacecatalog "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/catalog"
-	userspacemanager "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/manager"
+	"github.com/ooaklee/lexr.sh/internal/artifact"
+	"github.com/ooaklee/lexr.sh/internal/catalog"
+	"github.com/ooaklee/lexr.sh/internal/image/companion"
+	"github.com/ooaklee/lexr.sh/internal/image/ubuntu"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/kernel/release"
+	"github.com/ooaklee/lexr.sh/internal/plan"
+	"github.com/ooaklee/lexr.sh/internal/platform"
+	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
+	userspacemanager "github.com/ooaklee/lexr.sh/internal/userspace/manager"
 )
 
 // DefaultCatalogID selects the first source image whose adapter is implemented
@@ -66,7 +66,7 @@ type CreateImageRequest struct {
 	ToolCommit string
 	// ToolBuildDate records the CLI build timestamp represented by the companion.
 	ToolBuildDate string
-	// CompanionSourceDirectory selects the complete linux-armer source tree to
+	// CompanionSourceDirectory selects the complete lexr source tree to
 	// archive and cross-build for use from the live medium.
 	CompanionSourceDirectory string
 	// CompanionUserspace selects verified, redistribution-eligible release bundles
@@ -526,7 +526,7 @@ func resolveCompanionToolIdentity(
 		if needsCommit {
 			commit = resolvedCommit
 		} else if commit != resolvedCommit {
-			return "", "", fmt.Errorf("linux-armer source revision is %s, requested companion commit is %s", resolvedCommit, commit)
+			return "", "", fmt.Errorf("lexr source revision is %s, requested companion commit is %s", resolvedCommit, commit)
 		}
 		if needsBuildDate {
 			commitTime, err := runner.Capture(ctx, platform.Command{
@@ -549,7 +549,7 @@ func resolveCompanionToolIdentity(
 			return "", "", fmt.Errorf("inspect companion source status: %w", err)
 		}
 		if strings.TrimSpace(string(status)) != "" {
-			return "", "", errors.New("git-backed linux-armer source is dirty; commit or remove changes before building a companion image")
+			return "", "", errors.New("git-backed lexr source is dirty; commit or remove changes before building a companion image")
 		}
 	}
 	return commit, buildDate, nil
@@ -637,7 +637,7 @@ func imageDefaults(request CreateImageRequest) CreateImageRequest {
 }
 
 // resolveCacheDirectory returns an absolute caller override or the standard
-// per-user linux-armer cache without creating it.
+// per-user lexr cache without creating it.
 func resolveCacheDirectory(configured string) (string, error) {
 	if configured != "" {
 		return filepath.Abs(configured)
@@ -646,7 +646,7 @@ func resolveCacheDirectory(configured string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve user cache directory: %w", err)
 	}
-	return filepath.Join(base, "linux-armer"), nil
+	return filepath.Join(base, "lexr"), nil
 }
 
 // safePathComponent turns an untrusted release selector into a single bounded

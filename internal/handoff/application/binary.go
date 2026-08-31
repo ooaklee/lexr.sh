@@ -37,20 +37,20 @@ func (manager *Manager) inspectCurrentBinary(ctx context.Context) (binaryArtifac
 		var err error
 		path, err = os.Executable()
 		if err != nil {
-			return binaryArtifact{}, errors.New("resolve current linux-armer executable")
+			return binaryArtifact{}, errors.New("resolve current Lexr executable")
 		}
 	}
 	absolute, err := filepath.Abs(path)
 	if err != nil {
-		return binaryArtifact{}, errors.New("resolve current linux-armer executable")
+		return binaryArtifact{}, errors.New("resolve current Lexr executable")
 	}
 	info, err := os.Lstat(absolute)
 	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > maximumExecutableBytes {
-		return binaryArtifact{}, errors.New("current linux-armer executable is not a bounded non-symlink regular file")
+		return binaryArtifact{}, errors.New("current Lexr executable is not a bounded non-symlink regular file")
 	}
 	digest, size, err := digestFile(ctx, absolute, maximumExecutableBytes)
 	if err != nil || size != info.Size() {
-		return binaryArtifact{}, errors.New("inspect current linux-armer executable bytes")
+		return binaryArtifact{}, errors.New("inspect current Lexr executable bytes")
 	}
 	compatible := manager.runtimeGOOS == "linux" && manager.runtimeGOARCH == "arm64" && isLinuxARM64ELF(absolute)
 	return binaryArtifact{path: absolute, sha256: digest, size: size, compatible: compatible}, nil

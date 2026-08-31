@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // TestZstdCompressorRoundTripAndDeterminism exercises the real shell-free adapter.
@@ -15,7 +15,7 @@ func TestZstdCompressorRoundTripAndDeterminism(t *testing.T) {
 		t.Skip("zstd is not installed")
 	}
 	compressor := NewZstdCompressor(platform.ExecRunner{})
-	input := bytes.Repeat([]byte("linux-armer deterministic image release\n"), 257)
+	input := bytes.Repeat([]byte("lexr deterministic image release\n"), 257)
 	var first, second bytes.Buffer
 	firstTool, err := compressor.Compress(context.Background(), bytes.NewReader(input), &first)
 	if err != nil {

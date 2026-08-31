@@ -9,11 +9,11 @@ import (
 	"testing"
 	"testing/fstest"
 
-	linuxarmer "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/catalog"
-	userspaceinstall "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/install"
-	userspacerelease "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/release"
-	userspacestatus "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/status"
+	lexr "github.com/ooaklee/lexr.sh"
+	"github.com/ooaklee/lexr.sh/internal/userspace/catalog"
+	userspaceinstall "github.com/ooaklee/lexr.sh/internal/userspace/install"
+	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
+	userspacestatus "github.com/ooaklee/lexr.sh/internal/userspace/status"
 )
 
 // fakeDownloader records resolved release specifications and destination paths
@@ -243,7 +243,7 @@ func TestInstallRejectsCameraAuthorityForOtherSelectors(t *testing.T) {
 // TestStatusProjectsCataloguePolicy verifies that status checks expose the
 // catalogue identity and maturity used to derive explicit feature severity.
 func TestStatusProjectsCataloguePolicy(t *testing.T) {
-	loader := catalog.NewLoader(linuxarmer.UserspaceCatalogFS(), "supported-userspace.json")
+	loader := catalog.NewLoader(lexr.UserspaceCatalogFS(), "supported-userspace.json")
 	manager := New(loader, &fakeDownloader{}, nil)
 	report, err := manager.Status(userspacestatus.Options{Root: t.TempDir(), Features: []userspacestatus.Feature{userspacestatus.FeaturePower}})
 	if err != nil {
@@ -262,7 +262,7 @@ func TestStatusProjectsCataloguePolicy(t *testing.T) {
 // TestStatusRejectsWeakenedCatalogueCompatibility verifies that a strict
 // catalogue override cannot lower a compiled minimum kernel generation.
 func TestStatusRejectsWeakenedCatalogueCompatibility(t *testing.T) {
-	data, err := fs.ReadFile(linuxarmer.UserspaceCatalogFS(), "supported-userspace.json")
+	data, err := fs.ReadFile(lexr.UserspaceCatalogFS(), "supported-userspace.json")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,6 +8,10 @@ description: Architecture decision for carrying an offline Linux ARM64 CLI, corr
 
 Accepted on 2026-08-30.
 
+Naming note: the current product is Lexr.sh and its command is `lexr`. The
+schema-3 `linux-armer` media paths below remain compatibility contracts under
+[ADR023](adr-023-lexr-standalone-repository-and-compatibility.md).
+
 ## Context
 
 A live image can boot the selected kernel while still lacking the tools needed to diagnose userspace support or install a verified support release without network access. Carrying only kernel packages under the ISO support directory leaves the operator to obtain a matching CLI and source tree separately after boot.

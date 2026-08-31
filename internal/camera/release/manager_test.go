@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	camerabuild "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/build"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // rejectingRunner proves local release generation invokes no unexpected command.
@@ -45,7 +45,7 @@ func makeReleaseFixture(t *testing.T) releaseFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	artifacts := filepath.Join(root, "build/linux-armer/camera/packages/build.fixture")
+	artifacts := filepath.Join(root, "build/lexr/camera/packages/build.fixture")
 	if err := os.MkdirAll(artifacts, 0o700); err != nil {
 		t.Fatal(err)
 	}

@@ -11,10 +11,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/artifact"
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
-	userspacecatalog "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/catalog"
-	userspacerelease "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/release"
+	"github.com/ooaklee/lexr.sh/internal/artifact"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
+	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
 )
 
 // maximumUserspaceReceiptSize bounds a portable receipt before strict JSON

@@ -8,6 +8,11 @@ description: Architecture decision for collecting, importing, retaining, and lat
 
 Superseded on 2026-08-30 by ADR021.
 
+Naming note: the current product is Lexr.sh and its command is `lexr`. This
+superseded record retains the historical Linux Armer wire name;
+[ADR023](adr-023-lexr-standalone-repository-and-compatibility.md) defines its
+compatibility status.
+
 ## Context
 
 The Surface Pro 11 needs a bounded set of platform firmware that an authorised operator may obtain from the device's Windows installation. Bluetooth also needs the public controller address for the same physical adapter. These values are not ordinary redistributable userspace artefacts: firmware bytes may be proprietary, a Bluetooth address is a persistent hardware identifier, and raw Windows hardware identifiers would make collections linkable.

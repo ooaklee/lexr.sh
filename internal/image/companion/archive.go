@@ -19,7 +19,8 @@ import (
 var archiveTimestamp = time.Unix(0, 0).UTC()
 
 // writeSourceArchive creates a deterministic gzip-compressed tar containing
-// only the prevalidated, allow-listed linux-armer source files.
+// only the prevalidated, allow-listed Lexr source files. The archive retains
+// its schema-3 root name so existing media readers remain compatible.
 func writeSourceArchive(destination string, files []sourceFile) error {
 	if len(files) == 0 {
 		return errors.New("create companion source archive: maintained source set is empty")

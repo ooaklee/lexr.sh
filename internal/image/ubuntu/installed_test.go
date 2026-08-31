@@ -87,8 +87,8 @@ func TestInstalledSupportSeparatesLiveAndInstalledArguments(t *testing.T) {
 func TestInstalledGrubGeneratorProvidesExplicitModels(t *testing.T) {
 	generator := installedGrubGenerator()
 	for _, required := range []string{
-		"Linux Armer Surface Pro 11 X1E/OLED",
-		"Linux Armer Surface Pro 11 X1P/LCD",
+		"Lexr Surface Pro 11 X1E/OLED",
+		"Lexr Surface Pro 11 X1P/LCD",
 		"x1e80100-microsoft-denali-oled.dtb",
 		"x1p64100-microsoft-denali.dtb",
 		"initrd.img-$abi",

@@ -1,6 +1,6 @@
 package install
 
-import userspacepolicy "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/policy"
+import userspacepolicy "github.com/ooaklee/lexr.sh/internal/userspace/policy"
 
 // userspaceRepository is the sole trusted publisher for pinned bundles.
 const userspaceRepository = userspacepolicy.IPTSDRepository

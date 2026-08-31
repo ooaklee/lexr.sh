@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 const (
@@ -25,11 +25,11 @@ const (
 	// maximumTuningBytes bounds the reviewed IMX681 tuning data.
 	maximumTuningBytes = int64(2 << 20)
 	// privateTransactionPrefix identifies disposable camera exchanges.
-	privateTransactionPrefix = ".linux-armer-camera-build-"
+	privateTransactionPrefix = ".lexr-camera-build-"
 	// publicationPrefix identifies fresh, immutable package-set directories.
 	publicationPrefix = "build."
 	// containerPrefix identifies containers eligible for bounded cleanup.
-	containerPrefix = "linux-armer-camera-build-"
+	containerPrefix = "lexr-camera-build-"
 )
 
 // imageIdentityExpression accepts an immutable Docker image object.
@@ -459,7 +459,7 @@ func containerCommand(plan Plan, inputs preparedInputs, transaction, buildID, co
 	}
 	args := []string{
 		"run", "--rm", "--interactive", "--name", containerName,
-		"--platform", "linux/arm64", "--hostname", "linux-armer-camera-builder",
+		"--platform", "linux/arm64", "--hostname", "lexr-camera-builder",
 		"--network", "bridge", "--pids-limit", "4096",
 		"--security-opt", "no-new-privileges:true",
 		"--mount", "type=bind,src=" + inputDirectory + ",dst=/inputs,readonly",

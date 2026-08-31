@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/artifact"
-	imagecontract "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/image"
-	userspacecatalog "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/catalog"
+	"github.com/ooaklee/lexr.sh/internal/artifact"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
 )
 
 // Absent returns a valid explicit manifest record for an image that deliberately

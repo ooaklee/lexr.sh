@@ -774,7 +774,7 @@ func newStoreFixtureAt(t *testing.T, source, store string, mutate func(*Contract
 // testPayloadBytes returns stable non-empty bytes unique to one compiled
 // firmware identity.
 func testPayloadBytes(index int, identifier string) []byte {
-	return []byte(fmt.Sprintf("linux-armer private test payload %02d for %s\n", index, identifier))
+	return []byte(fmt.Sprintf("Lexr private test payload %02d for %s\n", index, identifier))
 }
 
 // mustMkdirAll creates a test directory tree and enforces the requested mode on

@@ -38,7 +38,7 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Receipt, 
 		return receipt, fmt.Errorf("revalidate new release output: %w", err)
 	}
 	parent := filepath.Dir(plan.OutputDirectory)
-	staging, err := os.MkdirTemp(parent, ".linux-armer-kernel-release-")
+	staging, err := os.MkdirTemp(parent, ".lexr-kernel-release-")
 	if err != nil {
 		return receipt, fmt.Errorf("create kernel release staging directory: %w", err)
 	}
@@ -256,8 +256,22 @@ func writeChecksums(ctx context.Context, directory string) error {
 	return errors.Join(flushErr, syncErr, closeErr)
 }
 
-// renderReleaseNotes produces public, path-free British-English guidance.
+// renderReleaseNotes produces current public, path-free British-English
+// guidance for newly prepared releases.
 func renderReleaseNotes(plan Plan) string {
+	return renderReleaseNotesForCommand(plan, "lexr")
+}
+
+// renderLegacyReleaseNotes reproduces the exact pre-rename release-note bytes
+// so existing checksum-bound release directories remain independently
+// verifiable.
+func renderLegacyReleaseNotes(plan Plan) string {
+	return renderReleaseNotesForCommand(plan, "linux"+"-armer")
+}
+
+// renderReleaseNotesForCommand produces deterministic guidance using the
+// selected current or historical command name.
+func renderReleaseNotesForCommand(plan Plan, commandName string) string {
 	var sourceNames, licenceNames []string
 	for _, asset := range plan.Manifest.Assets {
 		switch asset.Kind {
@@ -290,7 +304,7 @@ qcom-x1e kernel installed and keep recovery media available.
 Run:
 
 ~~~sh
-linux-armer kernel release validate <downloaded-release-directory>
+%s kernel release validate <downloaded-release-directory>
 ~~~
 
 The command requires exact checksum coverage, one coherent image/modules pair,
@@ -302,15 +316,16 @@ and no additional files.
 Review the installation preflight first, naming the known-good fallback ABI:
 
 ~~~sh
-linux-armer kernel preflight <downloaded-release-directory> --root / --fallback-abi <running-fallback-abi>
-sudo linux-armer kernel install <downloaded-release-directory> --root / --fallback-abi <running-fallback-abi> --yes
+%s kernel preflight <downloaded-release-directory> --root / --fallback-abi <running-fallback-abi>
+sudo %s kernel install <downloaded-release-directory> --root / --fallback-abi <running-fallback-abi> --yes
 ~~~
 
 Reboot manually only when ready. Retain the fallback kernel until the new
 kernel, device trees and required hardware have been tested on the Surface.
 `, plan.Manifest.ReleaseName, plan.Manifest.ABI, plan.Manifest.Version,
 		plan.Manifest.Source.Revision, plan.Manifest.Source.Tree,
-		strings.Join(sourceNames, ", "), strings.Join(licenceNames, ", "))
+		strings.Join(sourceNames, ", "), strings.Join(licenceNames, ", "),
+		commandName, commandName, commandName)
 }
 
 // removeSameDirectory removes only the unchanged staging directory identity.

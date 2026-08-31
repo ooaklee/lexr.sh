@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/jsonstrict"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/camera/jsonstrict"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 const (
@@ -451,7 +451,7 @@ func captureBoundedScalar(ctx context.Context, runner platform.Runner, command p
 
 // verifyIPA extracts the coherent core, IPA, and verifier into a private root.
 func verifyIPA(ctx context.Context, runner platform.Runner, directory string, packageFiles []string, tuningSHA string) (resultErr error) {
-	root, err := os.MkdirTemp("", ".linux-armer-camera-verify-")
+	root, err := os.MkdirTemp("", ".lexr-camera-verify-")
 	if err != nil {
 		return fmt.Errorf("create private camera verification root: %w", err)
 	}
@@ -770,7 +770,7 @@ func validateReceiptAuthority(receipt BundleReceipt, inputs preparedInputs) erro
 		return errors.New("camera build receipt is not bound to the current support inputs")
 	}
 	expectedVersion := inputs.base.UbuntuVersion + "+sp11.2." + receipt.BuildID
-	if receipt.PackageVersion != expectedVersion || receipt.Builder.ContainerImage != ContainerImage || receipt.Builder.RecipeSHA256 != recipeSHA256() {
+	if receipt.PackageVersion != expectedVersion || receipt.Builder.ContainerImage != ContainerImage || !supportedRecipeSHA256(receipt.Builder.RecipeSHA256) {
 		return errors.New("camera build receipt package or builder policy is inconsistent")
 	}
 	builtAt, err := time.Parse("20060102150405", strings.Split(receipt.BuildID, ".")[0])

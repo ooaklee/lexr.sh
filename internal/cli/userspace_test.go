@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	linuxarmer "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer"
-	camerabuild "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/build"
-	userspacebuild "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/build"
-	userspacecatalog "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/catalog"
-	userspaceinstall "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/install"
-	userspacemanager "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/userspace/manager"
+	lexr "github.com/ooaklee/lexr.sh"
+	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
+	userspacebuild "github.com/ooaklee/lexr.sh/internal/userspace/build"
+	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
+	userspaceinstall "github.com/ooaklee/lexr.sh/internal/userspace/install"
+	userspacemanager "github.com/ooaklee/lexr.sh/internal/userspace/manager"
 )
 
 // cliFakeInstaller records install options while returning deterministic results
@@ -200,7 +200,7 @@ func TestUserspaceInstallJSONPreservesIncompleteActivation(t *testing.T) {
 // newUserspaceInstallTestApplication builds a command application around a
 // supplied fake installer and returns its captured output buffer.
 func newUserspaceInstallTestApplication(installer userspacemanager.Installer) (*application, *bytes.Buffer) {
-	loader := userspacecatalog.NewLoader(linuxarmer.UserspaceCatalogFS(), "supported-userspace.json")
+	loader := userspacecatalog.NewLoader(lexr.UserspaceCatalogFS(), "supported-userspace.json")
 	userspace := userspacemanager.New(loader, nil, nil)
 	userspace.Installer = installer
 	output := &bytes.Buffer{}

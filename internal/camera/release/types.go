@@ -6,15 +6,15 @@ import (
 	"context"
 	"time"
 
-	camerabuild "github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/camera/build"
-	"github.com/ooaklee/linux-surface-pro-11-oe/cli/linux-armer/internal/platform"
+	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 const (
 	// SchemaVersion identifies the structured local release manifest contract.
 	SchemaVersion = 1
 	// DefaultOutputDirectory stores fresh locally prepared camera releases.
-	DefaultOutputDirectory = "build/linux-armer/camera/releases"
+	DefaultOutputDirectory = "build/lexr/camera/releases"
 	// ChecksumName is the exact digest authority covering the eight build artefacts.
 	ChecksumName = "SHA256SUMS"
 	// NotesName is the exact British-English human release record.
