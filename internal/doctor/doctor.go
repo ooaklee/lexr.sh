@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
@@ -109,16 +108,6 @@ func (d *Doctor) Run(ctx context.Context, workspace string) Report {
 		add(Check{Name: "privilege", Status: StatusPass, Details: "running as a regular user", Required: false})
 	}
 	return report
-}
-
-// availableBytes reports the filesystem space available to an unprivileged
-// process at path.
-func availableBytes(path string) (uint64, error) {
-	var stats syscall.Statfs_t
-	if err := syscall.Statfs(path, &stats); err != nil {
-		return 0, err
-	}
-	return stats.Bavail * uint64(stats.Bsize), nil
 }
 
 // filepathAbs resolves path and requires it to identify an existing directory.

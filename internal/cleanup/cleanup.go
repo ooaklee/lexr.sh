@@ -15,10 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
-
-	"golang.org/x/sys/unix"
 )
 
 // Rule describes one retired workaround that can be recognised safely at a
@@ -562,15 +559,6 @@ func readBoundedOpenRegular(file *os.File, maximum int64) ([]byte, error) {
 	return data, nil
 }
 
-// fileOwnership returns portable numeric ownership from Unix file metadata.
-func fileOwnership(info os.FileInfo) (uint32, uint32, error) {
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
-		return 0, 0, errors.New("filesystem metadata has no Unix ownership")
-	}
-	return stat.Uid, stat.Gid, nil
-}
-
 // ResolveUserHome validates one explicit target-visible absolute Linux home and
 // returns its canonical logical form. Empty input deliberately selects no home.
 func ResolveUserHome(root, userHome string) (string, error) {
@@ -939,12 +927,6 @@ func Apply(report ScanReport, yes bool) (Receipt, error) {
 		rename: renameAnchoredDirectories,
 		remove: func(root *os.Root, name string) error { return root.Remove(name) },
 	})
-}
-
-// renameAnchoredDirectories moves one entry between stable directory
-// descriptors without resolving either directory through a mutable pathname.
-func renameAnchoredDirectories(source *os.File, sourceName string, destination *os.File, destinationName string) error {
-	return unix.Renameat(int(source.Fd()), sourceName, int(destination.Fd()), destinationName)
 }
 
 // apply performs the clean-up transaction with an injectable removal boundary.

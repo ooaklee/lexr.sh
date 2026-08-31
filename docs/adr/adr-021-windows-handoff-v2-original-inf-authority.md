@@ -44,11 +44,17 @@ Windows CI runs the collector's host-independent self-test under Windows PowerSh
 
 Every GoReleaser platform archive includes the ordinary non-private collector script alongside the Linux Armer binary, catalogues, and documentation. Collected hand-off manifests and proprietary payloads remain prohibited from release archives and ISO companion bundles.
 
+> **Implementation amendment (2026-08-31):** ADR024 supersedes the release-
+> archive delivery clause above. Lexr Releases now contain only raw Lexr
+> platform binaries and their checksum manifest. The collector remains in the
+> source tree and manifest-tracked companion source archive, and Windows CI
+> continues to gate CLI publication against its contract tests.
+
 ## Consequences
 
 - Stable original INF identity, rather than a mutable published alias or duplicate filename, becomes firmware selection authority.
 - The exported contract contains no unused opaque adapter-identity digest and makes only the same-device claim that Linux actually enforces.
 - Privileged collection storage and physical Bluetooth selection remain explicit policy under ADR022 rather than implicit assumptions inside the interchange schema.
 - Operators with pre-release version 1 store entries can identify and purge them safely before recollection; automated migration could incorrectly preserve ambiguous provenance and is deliberately unavailable.
-- Windows contract drift blocks CLI releases through the dedicated CI job, and released archives contain the matching collector.
+- Windows contract drift blocks CLI releases through the dedicated CI job, while the matching collector remains available from the tagged source and companion source archive.
 - Host-independent CI does not establish maintained-hardware success. Collection from a supported Windows installation, transfer, import, same-device application, Bluetooth programming, firmware loading, restoration, and cold-boot behaviour remain explicit Surface Pro 11 release gates.

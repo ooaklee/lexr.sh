@@ -92,6 +92,12 @@ OE documentation to link to Lexr.sh, and preserve OE release references needed
 by current Lexr compatibility policy. The OE branch is not cleaned up merely
 because the filtered repository exists locally.
 
+> **Implementation note (2026-08-31):** The staged cut-over above was completed
+> after verification. OE now pins Lexr as `cli/lexr` and no longer carries the
+> embedded source or any GitHub Actions workflow which executes Lexr. The
+> subsequent automation-ownership decision is recorded in
+> [ADR024](adr-024-lexr-owned-automation.md).
+
 Earlier accepted ADRs remain historical records of decisions made under the
 Linux Armer name. Their original product-name references are historical facts
 or stable compatibility identifiers. An additive naming note links each
@@ -102,13 +108,14 @@ Lexr.sh name existed at that time.
 
 - Lexr.sh can evolve and publish independently while the OE repository retains
   an explicit, discoverable integration point.
-- The full feature and workflow history remains available for blame, audit and
-  archaeology in the standalone repository.
+- The full CLI feature and release-workflow history remains available for
+  blame, audit and archaeology in the standalone repository. Earlier IPTSD and
+  kernel workflow commits remain in OE history.
 - Existing image manifests, companion payloads, hand-offs, installations,
   receipts and release provenance remain readable after the public rename.
 - Contributors must distinguish current branding from compatibility strings;
   a remaining `linux-armer` value is not automatically a missed rename.
 - Filtered commits have different object IDs from their OE ancestors, so the
   verified mapping and immutable source tip are part of the migration evidence.
-- The two repositories briefly contain the same source during verification;
-  changes must not diverge before the OE submodule cut-over is committed.
+- The two repositories briefly contained the same source during verification;
+  the completed OE cut-over now records one pinned Lexr gitlink instead.

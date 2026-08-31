@@ -53,6 +53,12 @@ sp11/companion/
 
 The source builder will first copy the maintained source allow-list into a private, read-only snapshot. It will build the executable and create the deterministic source archive from that same snapshot. For Git-backed source, the repository root is the sole authority for project licence, copying, and notice documents even though the CLI source is nested beneath `cli/linux-armer`. Those documents are remapped into the CLI source archive and the companion licence directory, and the complete repository must match the recorded clean revision. A non-Git development source instead uses direct documents from its explicit source root. The executable must be a statically linked, little-endian AArch64 ELF with mode `0755`. Requesting a companion therefore adds a host Go toolchain prerequisite, which will be checked before any image or kernel download.
 
+> **Implementation amendment (2026-08-31):** The nested path above records the
+> layout when this decision was accepted. After the standalone migration, the
+> Lexr repository root is both the maintained source root and the sole
+> project-document authority. The snapshot and clean-revision requirements are
+> unchanged.
+
 The `companion_bundle` attribute will always be present. An image without a requested payload will record:
 
 ```json
@@ -70,7 +76,13 @@ The initial compiled offline allow-list contains only IPTSD. Its pinned release 
 
 When the authoritative project document root has no recognised project-level licence or copying document, a locally requested image may be created with `project_licence` set to `not-declared` and an explicit warning. No current pipeline publishes images containing the companion. Any future companion-publication pipeline must fail until the copyright holder selects a project licence, that document is inventoried, and the statically linked binary's required third-party notices are available. The builder will not invent terms.
 
-The tag-based CLI release is also a redistribution boundary even when it does not contain an ISO companion. Its workflow must fail before GoReleaser unless the repository root contains one non-empty recognised project licence or copying document and the explicit non-empty `THIRD_PARTY_NOTICES.md` file. GoReleaser receives those exact checked paths rather than discovering a second copy beneath the CLI directory, and the workflow inspects every finished platform archive for exactly one copy of each required document before publication. The repository has neither obligation document at the time of this decision, so tag publication remains blocked. Adding placeholder or inferred terms is not an acceptable way to pass the gate; the copyright holder and dependency review must supply the actual documents first.
+The tag-based CLI release is also a redistribution boundary even when it does not contain an ISO companion. Its workflow must fail before GoReleaser unless the repository root contains one non-empty recognised project licence or copying document and the explicit non-empty `THIRD_PARTY_NOTICES.md` file. The repository has neither obligation document at the time of this decision, so tag publication remains blocked. Adding placeholder or inferred terms is not an acceptable way to pass the gate; the copyright holder and dependency review must supply the actual documents first.
+
+> **Implementation amendment (2026-08-31):** ADR024 narrows Lexr GitHub
+> Release assets to the six standalone platform executables and their checksum
+> manifest. Legal documents remain mandatory repository-root publication gates,
+> while the companion source archive retains the manifest-tracked documentation,
+> catalogues and collector required by this ADR.
 
 ## Consequences
 
@@ -81,4 +93,4 @@ The tag-based CLI release is also a redistribution boundary even when it does no
 - Offline inclusion remains deliberately narrower than interactive userspace download and installation support.
 - Locally generated companion images can be evaluated now, but public redistribution remains blocked until explicit project and dependency licence obligations are met.
 - CLI release tags can still run non-publishing quality gates, but binary publication fails closed until the root licence and third-party notices are explicitly supplied.
-- Companion and CLI archives cannot silently diverge from the repository-root legal authority once those documents are supplied.
+- Companion archives and CLI publication cannot silently bypass the repository-root legal authority once those documents are supplied.

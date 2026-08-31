@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 // resolveTarget interprets absolute links as target-root-relative and rejects
@@ -93,25 +92,6 @@ func resolveTargetDepth(root, relative string, depth int) (string, error) {
 func withinRoot(root, candidate string) bool {
 	relative, err := filepath.Rel(root, candidate)
 	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
-}
-
-// openRegularNoFollow pins a regular inode without following a final symlink.
-func openRegularNoFollow(path string) (*os.File, os.FileInfo, error) {
-	fd, err := syscall.Open(path, syscall.O_RDONLY|syscall.O_NOFOLLOW, 0)
-	if err != nil {
-		return nil, nil, err
-	}
-	file := os.NewFile(uintptr(fd), path)
-	info, err := file.Stat()
-	if err != nil {
-		_ = file.Close()
-		return nil, nil, err
-	}
-	if !info.Mode().IsRegular() {
-		_ = file.Close()
-		return nil, nil, fmt.Errorf("source is not a regular file: %s", path)
-	}
-	return file, info, nil
 }
 
 // hashRegularNoFollow hashes the same no-follow descriptor returned by stat.

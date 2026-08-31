@@ -34,6 +34,12 @@ An alternate target root is a point-in-time inspection boundary, not a hostile-f
 
 The native kernel builder is standalone compiled policy and does not require an OE checkout. Userspace source-build adapters require a complete checkout where they authenticate maintained integration or packaging inputs before crossing the Docker boundary. Standalone release archives support image creation, downloads, verification, diagnosis, and published-bundle installation without claiming to contain those repository-backed userspace build inputs.
 
+> **Implementation amendment (2026-08-31):** ADR024 replaces standalone
+> release archives with raw Lexr platform binaries and one checksum manifest.
+> The binary retains its compiled catalogue and runtime capabilities, while
+> repository-backed build inputs and the Windows collector remain available
+> from the tagged source and the separate on-media companion source archive.
+
 `userspace install` will verify the selected bundle again before any mutation. Dry runs will remain available without privilege. A real install will require effective root privileges and explicit `--yes` confirmation; the CLI will not elevate itself. Component adapters will own their fixed destinations, target-root constraints, backup behaviour, and transaction boundaries.
 
 The pinned `iptsd` archive is a reviewed privileged-input boundary. Its exact outer release digest and compiled inner contract cover the payload, integration templates, binaries, sources, licences, and provenance. The adapter securely extracts the archive, repeats closed-set validation natively, renders only compiled template substitutions, and applies its own fixed recoverable transaction. It never executes a release-bundled installer or validator. Any accepted archive-digest or compiled-contract change therefore requires the same review as a code change.

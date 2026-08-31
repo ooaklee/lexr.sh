@@ -50,10 +50,77 @@ func TestMaintainedDocumentationReferencesLexr(t *testing.T) {
 	if !bytes.Contains(readme, []byte("https://github.com/ooaklee/lexr.sh")) {
 		t.Error("README.md does not identify the standalone Lexr repository")
 	}
+	workflowContracts := []struct {
+		path     string
+		required [][]byte
+	}{
+		{path: ".github/workflows/lexr.yml", required: [][]byte{[]byte("cmd/lexr"), []byte("go test -race ./..."), []byte("GH_REPO: ${{ github.repository }}")}},
+		{path: ".github/workflows/iptsd-integration-tests.yml", required: [][]byte{[]byte("LEXR_TEST_OE_ROOT"), []byte("linux-surface-pro-11-oe.git")}},
+		{path: ".github/workflows/sp11-kernel-build.yml", required: [][]byte{[]byte("cmd/lexr"), []byte("kernel build"), []byte("kernel-build-ci-${source_identity}"), []byte("Revalidate the OE publication boundary"), []byte("GH_TOKEN: ${{ secrets.OE_RELEASE_TOKEN }}"), []byte("GH_REPO: ooaklee/linux-surface-pro-11-oe"), []byte("^sp11-kernel-")}},
+	}
+	for _, contract := range workflowContracts {
+		workflow := readBoundedRepositoryFile(t, repositoryRoot, contract.path)
+		if bytes.Contains(workflow, []byte("LEXR_"+"REPOSITORY_TOKEN")) {
+			t.Errorf("Lexr-owned workflow %s contains an OE cross-repository token", contract.path)
+		}
+		for _, required := range contract.required {
+			if !bytes.Contains(workflow, required) {
+				t.Errorf("current workflow %s omits %q", contract.path, required)
+			}
+		}
+	}
+
+	kernelWorkflow := readBoundedRepositoryFile(t, repositoryRoot, ".github/workflows/sp11-kernel-build.yml")
+	revalidation := bytes.Index(kernelWorkflow, []byte("- name: Revalidate the OE publication boundary"))
+	publication := bytes.Index(kernelWorkflow, []byte("- name: Publish a remotely verified OE prerelease"))
+	secretReference := bytes.Index(kernelWorkflow, []byte("GH_TOKEN: ${{ secrets.OE_RELEASE_TOKEN }}"))
+	if revalidation < 0 || publication < 0 || secretReference < 0 || revalidation >= publication || publication >= secretReference {
+		t.Error("kernel workflow does not revalidate self-hosted release metadata before entering its secret-bearing OE publication step")
+	}
+	if count := bytes.Count(kernelWorkflow, []byte("secrets.OE_RELEASE_TOKEN")); count != 1 {
+		t.Errorf("kernel workflow contains %d OE release-token references, want one", count)
+	}
+	for _, forbidden := range [][]byte{[]byte("octo-sts"), []byte("id-token: write")} {
+		if bytes.Contains(kernelWorkflow, forbidden) {
+			t.Errorf("kernel workflow retains obsolete federated-authority configuration %q", forbidden)
+		}
+	}
+}
+
+// TestCLIReleaseContainsOnlyBinariesAndChecksums prevents Lexr's own GitHub
+// Release from becoming a second channel for hardware support or supplementary
+// project resources.
+func TestCLIReleaseContainsOnlyBinariesAndChecksums(t *testing.T) {
+	repositoryRoot := lexrRepositoryRoot(t)
+	configuration := readBoundedRepositoryFile(t, repositoryRoot, ".goreleaser.yaml")
 	workflow := readBoundedRepositoryFile(t, repositoryRoot, ".github/workflows/lexr.yml")
-	for _, required := range [][]byte{[]byte("cmd/lexr"), []byte("go test -race ./...")} {
-		if !bytes.Contains(workflow, required) {
-			t.Errorf("current workflow omits %q", required)
+	releaseContract := bytes.Join([][]byte{configuration, workflow}, []byte("\n"))
+
+	for _, required := range [][]byte{
+		[]byte("formats:\n      - binary"),
+		[]byte("lexr-v${LEXR_VERSION}-darwin-amd64"),
+		[]byte("lexr-v${LEXR_VERSION}-darwin-arm64"),
+		[]byte("lexr-v${LEXR_VERSION}-linux-amd64"),
+		[]byte("lexr-v${LEXR_VERSION}-linux-arm64"),
+		[]byte("lexr-v${LEXR_VERSION}-windows-amd64.exe"),
+		[]byte("lexr-v${LEXR_VERSION}-windows-arm64.exe"),
+		[]byte("${RUNNER_TEMP}/lexr-release/lexr-v${LEXR_VERSION}.sha256sums"),
+		[]byte("sha256sum --strict --check"),
+	} {
+		if !bytes.Contains(releaseContract, required) {
+			t.Errorf("binary-only CLI release contract omits %q", required)
+		}
+	}
+	for _, forbidden := range [][]byte{
+		[]byte("formats:\n      - tar.gz"),
+		[]byte("\n    files:"),
+		[]byte("dist/*.tar.gz"),
+		[]byte("src: supported-isos.json"),
+		[]byte("src: supported-userspace.json"),
+		[]byte("src: tools/collect-sp11-windows-handoff.ps1"),
+	} {
+		if bytes.Contains(releaseContract, forbidden) {
+			t.Errorf("binary-only CLI release contract contains %q", forbidden)
 		}
 	}
 }

@@ -34,10 +34,14 @@ The current unreleased version is `0.1.0`. Before `1.0.0`, each release containi
 - Native local release preparation and closed-set validation for split image assets, kernel packages and source evidence, FullIO audio, and coherent camera packages.
 - Native IMX681 route discovery, private packed-RAW10 capture validation, and deterministic PNG inspection rendering.
 - Strict private Windows hand-off v2 collection, import, same-device application, restoration, and confirmed retention controls for platform firmware and Bluetooth evidence.
-- Policy-bound original-INF provenance for every Windows firmware payload, with collector self-tests, Pester coverage, and release-archive delivery of the canonical collector.
+- Policy-bound original-INF provenance for every Windows firmware payload, with collector self-tests, Pester coverage, and companion-source delivery of the canonical collector.
 - Protected local-NTFS Windows collection transactions with exact private ACLs, retained no-follow object identities, no-replace publication, and bounded cleanup which never traverses a reparse object.
 - Physical Bluetooth controller authority which binds Windows evidence to the built-in WCN7850 radio and selects the matching Linux device-tree controller independently of its `hciN` index.
 - Standalone quality gates that enforce documented Go declarations, British-English public prose, current Lexr entry points, and protection for private diagnostic output.
+- Lexr-owned IPTSD integration and manually dispatched kernel build workflows which require no private credential in the OE repository.
+- Draft-first OE kernel prerelease publication with complete remote asset comparison and native validation before promotion.
+- A dedicated, repository-scoped OE release token confined to the hosted publication step, after independent validation of self-hosted build output.
+- An exact binary-only Lexr release allow-list for Linux, macOS and Windows on AMD64 and ARM64, with predictable hyphenated filenames, one versioned checksum manifest and no hardware-support or supplementary payloads.
 
 ### Changed
 
@@ -50,9 +54,12 @@ The current unreleased version is `0.1.0`. Before `1.0.0`, each release containi
 - Retired the legacy root script directory, shell tests, helper tools, and their obsolete workflow after recording each native owner or intentional scope boundary.
 - Replaced the unpublished Windows hand-off v1 shape with v2, removing an opaque adapter digest and requiring exact original-INF authority; pre-release v1 collections must be removed and recollected.
 - Made `PermanentAddress` authoritative only when structured PnP ancestry reaches the exact built-in radio; optional BTHPORT evidence must corroborate that same value, and external or ambiguous Windows radios fail closed.
+- Kept the established OE repository as the publication and discovery channel for kernel and hardware-support releases while reserving Lexr releases for the CLI itself.
+- Routed heavyweight kernel compilation only to a dedicated `lexr-kernel` self-hosted Linux runner with explicit architecture, Docker, and free-space gates.
+- Replaced multi-file CLI release archives with directly downloadable Lexr executables while retaining fail-closed legal-document and checksum gates.
 
 ### Fixed
 
 - Corrected Ubuntu live-media discovery so a regenerated Casper initramfs cannot be published with a stale ISO UUID marker.
 - Restored offline installation compatibility with the immutable `sp11-iptsd-v1` archive while retaining exact operational-file identities and rejecting unreviewed documentation variants.
-- Kept legacy diagnostic captures ignored after retiring their generators, and made repository-root legal documents authoritative and mandatory inside every distributable CLI archive and companion inventory.
+- Kept legacy diagnostic captures ignored after retiring their generators, and made repository-root legal documents authoritative for CLI publication and mandatory inside each distributable companion inventory.

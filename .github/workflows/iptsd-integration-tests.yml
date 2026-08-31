@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+name: Test OE IPTSD integration
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "**"
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+    inputs:
+      oe_ref:
+        description: "OE branch, tag, or commit to validate"
+        required: false
+        default: "main"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iptsd-integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    name: Native policy, contract, and delivery tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Check out Lexr
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: .tool-versions
+          cache-dependency-path: go.sum
+
+      - name: Fetch the public OE integration contract
+        env:
+          OE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.oe_ref || 'main' }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${OE_REF}" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}$ ]] ||
+             [[ "${OE_REF}" == *".."* ]] ||
+             [[ "${OE_REF}" == *"//"* ]] ||
+             [[ "${OE_REF}" == *"@{"* ]] ||
+             [[ "${OE_REF}" == */ ]] ||
+             [[ "${OE_REF}" == *. ]]; then
+            printf 'OE reference is not a safe branch, tag, or commit identity.\n' >&2
+            exit 1
+          fi
+
+          oe_root="${RUNNER_TEMP}/linux-surface-pro-11-oe"
+          git init --quiet "${oe_root}"
+          git -C "${oe_root}" remote add origin \
+            https://github.com/ooaklee/linux-surface-pro-11-oe.git
+          git -C "${oe_root}" sparse-checkout init --no-cone
+          git -C "${oe_root}" sparse-checkout set \
+            '/userspace/iptsd-sp11/' \
+            '/meta-sp11/recipes-support/iptsd-sp11/'
+          GIT_TERMINAL_PROMPT=0 git -c credential.helper= -C "${oe_root}" \
+            fetch --filter=blob:none --depth=1 --no-tags origin "${OE_REF}"
+          git -C "${oe_root}" checkout --detach --quiet FETCH_HEAD
+          oe_revision="$(git -C "${oe_root}" rev-parse HEAD)"
+          printf 'LEXR_TEST_OE_ROOT=%s\n' "${oe_root}" >> "${GITHUB_ENV}"
+          printf 'Validated OE revision %s using the sparse IPTSD contract checkout.\n' \
+            "${oe_revision}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Run race-enabled native IPTSD tests
+        run: go test -race -count=1 ./internal/userspace/... ./internal/cli ./internal/quality
+
+      - name: Vet the native IPTSD packages
+        run: go vet ./internal/userspace/... ./internal/cli ./internal/quality
+
+      - name: Compile the native CLI
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o "${RUNNER_TEMP}/lexr" ./cmd/lexr

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 )
 
 const (
@@ -94,13 +93,4 @@ func protectPrivateInstallStaging(path string, expectedUID uint32) error {
 		return errors.New("private install staging directory changed while it was opened")
 	}
 	return nil
-}
-
-// stagingOwner returns the numeric Unix owner of one staging filesystem object.
-func stagingOwner(info os.FileInfo) (uint32, error) {
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
-		return 0, errors.New("install staging metadata has no Unix owner")
-	}
-	return stat.Uid, nil
 }

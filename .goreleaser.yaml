@@ -16,6 +16,7 @@ builds:
     goos:
       - linux
       - darwin
+      - windows
     goarch:
       - amd64
       - arm64
@@ -30,34 +31,19 @@ builds:
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
-  - id: release-archives
+  - id: release-binaries
     ids:
       - lexr
     formats:
-      - tar.gz
+      - binary
     name_template: >-
-      {{ .ProjectName }}_
-      {{- .Version }}_
-      {{- .Os }}_
+      {{ .ProjectName }}-v
+      {{- .Version }}-
+      {{- .Os }}-
       {{- .Arch }}
-    files:
-      - src: README.md
-        strip_parent: true
-      - src: CHANGELOG.md
-        strip_parent: true
-      - src: supported-isos.json
-        strip_parent: true
-      - src: supported-userspace.json
-        strip_parent: true
-      - src: tools/collect-sp11-windows-handoff.ps1
-        strip_parent: true
-      - src: "{{ .Env.LEXR_LICENCE_DOCUMENT }}"
-        strip_parent: true
-      - src: "{{ .Env.LEXR_THIRD_PARTY_NOTICES_DOCUMENT }}"
-        strip_parent: true
 
 checksum:
-  name_template: checksums.txt
+  name_template: "{{ .ProjectName }}-v{{ .Version }}.sha256sums"
   algorithm: sha256
 
 changelog:

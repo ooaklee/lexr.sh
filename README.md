@@ -2,7 +2,7 @@
 
 Lexr.sh makes it easy to run ARM64 Linux on the Microsoft Surface Pro 11. It bundles a ready-to-use image, a tailored kernel, and essential device support, then helps you track and manage what works out of the box. Fast, auditable, and Surface Pro 11-focused.
 
-The `lexr` CLI prepares ARM64 installation media and audits the userspace support installed alongside its custom kernels. It combines a supported upstream image with a version-bound kernel bundle, matching modules, an initramfs, and the Surface Pro 11 device trees. Its userspace companion can then report missing support and manage the small set of components for which the project has an audited workflow. Source, releases and issue tracking live in the [Lexr.sh repository](https://github.com/ooaklee/lexr.sh).
+The `lexr` CLI prepares ARM64 installation media and audits the userspace support installed alongside its custom kernels. It combines a supported upstream image with a version-bound kernel bundle, matching modules, an initramfs, and the Surface Pro 11 device trees. Its userspace companion can then report missing support and manage the small set of components for which the project has an audited workflow. Lexr source, CLI releases and issue tracking live in the [Lexr.sh repository](https://github.com/ooaklee/lexr.sh); established hardware-support releases retain their recorded OE locations.
 
 The first implemented image adapter targets the experimental Ubuntu Concept Resolute Desktop image. Debian, elementary OS, Fedora, and Pop!_OS entries are visible in the catalogue, but remain `catalog-only` until their image layouts have dedicated adapters.
 
@@ -72,6 +72,88 @@ mkdir -p bin
 go build -o bin/lexr ./cmd/lexr
 ./bin/lexr doctor
 ```
+
+## Workflow ownership
+
+Lexr-dependent automation is owned and run by this repository. The
+[main workflow](.github/workflows/lexr.yml) formats, tests, vets, builds and
+packages the CLI. The
+[IPTSD integration workflow](.github/workflows/iptsd-integration-tests.yml)
+sparsely checks out the two public OE contract directories into temporary
+runner storage, validates them from Lexr, and runs nightly as well as for Lexr
+changes; its manual dispatch accepts an `oe_ref` when a particular OE branch,
+tag, or commit needs checking. The
+[kernel workflow](.github/workflows/sp11-kernel-build.yml) is manually
+dispatched here and uses the checked-out Lexr source to build, validate and
+optionally publish an experimental kernel prerelease in the OE repository.
+Its retained Actions artefact contains only the verified Debian packages and
+their checksum manifest; path-bearing build provenance stays within the trusted
+job, the displayed output path is redacted, and the separately prepared release
+remains the public provenance record.
+
+The OE repository therefore needs neither a personal access token for Lexr nor
+a GitHub Actions checkout of the private submodule. Lexr holds the narrowly
+scoped publication credential required to write an OE kernel release. This
+ownership boundary is recorded in
+[ADR024](docs/adr/adr-024-lexr-owned-automation.md).
+
+Kernel compilation requires a dedicated, isolated, self-hosted Linux x86-64 or
+ARM64 runner carrying the `lexr-kernel` label, an accessible Docker daemon, at
+least 64 GiB free in Docker storage, and at least 8 GiB free in its Actions
+workspace. An x86-64 host uses the workflow-provided ARM64 binfmt emulation; an
+ARM64 host runs the build container natively. No matching runner was registered
+when the workflow was transferred, so a dispatch will queue until that external
+prerequisite is configured. Standard GitHub-hosted runners are intentionally
+excluded: their
+[14 GB private-repository storage](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
+cannot meet Lexr's compiled 40 GiB Docker-volume guard. Follow GitHub's
+[self-hosted runner requirements](https://docs.github.com/en/actions/reference/runners/self-hosted-runners)
+and dedicate the machine to trusted manual workflow dispatches.
+
+Kernel and hardware-support releases remain in
+[`ooaklee/linux-surface-pro-11-oe`](https://github.com/ooaklee/linux-surface-pro-11-oe/releases).
+This keeps `lexr image create`, `lexr kernel release list`, existing shared
+links, and the supported userspace catalogue on one established release
+channel. GitHub Releases in `ooaklee/lexr.sh` are reserved for the Lexr CLI and
+contain only six standalone platform executables and one versioned SHA-256
+manifest. Kernel, firmware, driver, userspace, catalogue, collector, and
+documentation assets are never published there. Release filenames follow one
+predictable raw-executable layout:
+
+```text
+lexr-v<version>-darwin-amd64
+lexr-v<version>-darwin-arm64
+lexr-v<version>-linux-amd64
+lexr-v<version>-linux-arm64
+lexr-v<version>-windows-amd64.exe
+lexr-v<version>-windows-arm64.exe
+lexr-v<version>.sha256sums
+```
+
+Remote OE publication uses one dedicated fine-grained GitHub token stored only
+as the `OE_RELEASE_TOKEN` Actions secret in the Lexr repository. Restrict the
+token to `ooaklee/linux-surface-pro-11-oe`, grant only the repository Contents
+read-and-write permission required to create tags and releases, choose a short
+expiry, and rotate it before expiry or immediately after suspected disclosure.
+Do not store this token in OE, a runner configuration, a local environment
+file, or repository content. The workflow exposes it only to the
+GitHub-hosted publication step of a manually dispatched run on exact Lexr
+`main`; the self-hosted kernel builder never receives it. Protect Lexr `main`
+when the repository plan makes branch protection available.
+
+Publication is draft-first. The workflow uploads the closed release, downloads
+every remote asset into a fresh directory, compares the complete digest set,
+runs `lexr kernel release validate` against the downloaded bytes, and promotes
+the OE draft only after every check succeeds. It first resolves OE `main` to an
+exact revision, refuses to reuse an existing release tag, and verifies that the
+new tag still identifies that revision immediately after creation and again
+before promotion. Failure leaves a recoverable OE draft. The GitHub-hosted
+publication job also revalidates the self-hosted
+builder's manifest release name, checksum set, required source and licence
+assets, experimental state, and `sp11-kernel-` tag namespace before entering
+the secret-bearing publication step. Workflow-created kernel tags must begin
+with `sp11-kernel-`; the Lexr repository's `v*` tag namespace remains exclusive
+to CLI releases.
 
 ## Command overview
 
@@ -193,7 +275,7 @@ inventory. It is not a second image manifest.
 
 The repository currently declares no project-wide redistribution terms for the CLI. A locally requested companion records `project_licence: not-declared` and prints a warning. Do not redistribute that companion image until the copyright holder publishes suitable project terms and the required third-party notices.
 
-Tag-based CLI publication is fail-closed for the same reason. The repository root is the single legal-document authority for both companion images and CLI releases. The companion builder requires the complete Git repository to be clean, inventories those root documents, and includes them in its source archive. The release job will not invoke GoReleaser unless the root contains a non-empty regular recognised project licence or copying document and a non-empty regular `THIRD_PARTY_NOTICES.md`; it then verifies the exact bytes occur once in every platform archive before publication. Neither document exists yet, so tag publication remains intentionally blocked. Supplying them requires an explicit copyright and dependency review; the CLI and workflow do not invent licensing terms.
+Tag-based CLI publication is fail-closed for the same reason. The repository root is the single legal-document authority for both companion images and CLI releases. The companion builder requires the complete Git repository to be clean, inventories those root documents, and includes them in its source archive. The release job will not invoke GoReleaser unless the root contains a non-empty regular recognised project licence or copying document and a non-empty regular `THIRD_PARTY_NOTICES.md`. It then permits only the six raw Lexr platform executables and their versioned SHA-256 manifest as uploaded release assets. Neither legal document exists yet, so tag publication remains intentionally blocked. Supplying them requires an explicit copyright and dependency review; the CLI and workflow do not invent licensing terms.
 
 After booting the live image, copy the executable from the read-only medium to a writable executable filesystem before using it:
 
@@ -309,7 +391,7 @@ A usable kernel bundle contains, at minimum:
 
 The bundle records its release, repository, ABI, version, package digests, and expected device-tree paths. `lexr` derives the ABI and version from package filenames and rejects a bundle if required packages are absent, versions are mixed, or a local file no longer matches its recorded digest. Headers are optional for live-image creation.
 
-`kernel build` owns a compiled ARM64 Docker build policy and does not require a repository helper script. By default it builds the [`sp11/integration-7.2.x`](https://github.com/ooaklee/linux_ms_dev_kit-sp11/tree/sp11/integration-7.2.x) branch of the custom kernel; `--git-url` and `--git-branch` select another HTTPS source and branch or tag. The policy pins the Ubuntu 26.04 ARM64 base image by digest and records the exact fetched revision and tree, its own recipe digest, and an installed-toolchain digest beside the packages. `kernel release download` resolves candidate release assets and verifies the publisher checksum manifest before writing a local bundle manifest.
+`kernel build` owns a compiled ARM64 Docker build policy and does not require a repository helper script. By default it builds the [`sp11/integration-7.2.x`](https://github.com/ooaklee/linux_ms_dev_kit-sp11/tree/sp11/integration-7.2.x) branch of the custom kernel; `--git-url` and `--git-branch` select another HTTPS source and branch or tag. The policy pins the Ubuntu 26.04 ARM64 base image by digest and records the exact fetched revision and tree, its own recipe digest, and an installed-toolchain digest beside the packages. `kernel release download` resolves candidate release assets from the established OE release channel by default and verifies the publisher checksum manifest before writing a local bundle manifest. Its explicit `--repository` option remains available for a compatible alternate release channel.
 
 `kernel release prepare` accepts only that exact closed native build output, one or more corresponding-source archives, explicit licence text, a tag-like release identity, and a fresh output path. Its dry run hashes and validates all inputs without creating a parent or output. A real run revalidates the build, copies through private staging, produces one path-free public manifest and British-English notes, checksums the complete set, validates it, and atomically publishes the new local directory. `kernel release validate` performs the same closed-directory structural checks without contacting a remote service. Neither command publishes, installs, elevates privilege, or makes a hardware-qualified claim. The retired `sp11v3` ABI and separate out-of-tree touchscreen modules are rejected because the maintained kernel carries that stack in-tree.
 
