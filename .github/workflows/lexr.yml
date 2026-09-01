@@ -68,7 +68,7 @@ jobs:
             exit 1
           fi
 
-      - name: Verify the immutable published IPTSD release
+      - name: Verify the trust-pinned published IPTSD release
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |

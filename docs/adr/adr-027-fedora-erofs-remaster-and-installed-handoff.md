@@ -40,8 +40,8 @@ verified archive contains the complete pinned upstream source, Meson fallback
 sources, licences, provenance, maintained Surface lifecycle templates, and the
 exact OE-owned Fedora RPM spec template. The stable catalogue component and
 internal archive root remain `iptsd-v1`; the release identity advances because
-the published v1 archive is immutable and does not contain Fedora package
-source.
+the published v1 archive is already trust-pinned, must not be rewritten, and
+does not contain Fedora package source.
 Copying its Ubuntu-built portable executables into Fedora would bypass native
 package ownership and could leave a duplicate `/usr/local` installation.
 
@@ -75,7 +75,7 @@ manifest rather than by a lossy versioned capability.
 
 When, and only when, image creation requests both the companion source and
 `--companion-userspace iptsd`, the adapter will securely extract and revalidate
-the compiled-trust-bound `sp11-iptsd-v2` archive. The release validator retains
+the compiled, trust-pinned `sp11-iptsd-v2` archive. The release validator retains
 the historical v1 profile for compatibility, but current acquisition and
 Fedora packaging require v2. Fedora uses the stricter enriched profile and
 fails closed when the OE template is absent. The adapter renders only the

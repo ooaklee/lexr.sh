@@ -86,10 +86,11 @@ that do not apply.
 - Routed image validation, removable-media writing, and release preparation
   through the adapter declared by each generated manifest, and made Ubuntu and
   Fedora share the descriptor-anchored, no-replace output transaction.
-- Advanced the immutable IPTSD release to `sp11-iptsd-v2`. Its two-asset
+- Advanced the trust-pinned IPTSD release to `sp11-iptsd-v2`. Its two-asset
   contract carries the complete Fedora package source beside the established
   payload while retaining the `iptsd-v1` component and internal archive root
-  for compatible operator paths.
+  for compatible operator paths. Lexr verifies the tag, filenames, sizes, and
+  hashes rather than relying on GitHub's repository-wide release locking.
 
 ### Fixed
 
