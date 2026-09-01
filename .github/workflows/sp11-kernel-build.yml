@@ -137,6 +137,7 @@ jobs:
             --repository-root "${GITHUB_WORKSPACE}" \
             --git-url "${KERNEL_GIT_URL}" \
             --git-branch "${KERNEL_GIT_BRANCH}" \
+            --boot-image-mode stubble \
             --work-dir "build/lexr/kernel-build-ci-${source_identity}" \
             --output-dir build/lexr/kernel-ci \
             --reset-source \
@@ -234,6 +235,7 @@ jobs:
              .release_name == ("sp11-qcom-x1e-" + .version) and
              .experimental == true and
              .hardware_qualified == false and
+             .source.boot_image_mode == "stubble" and
              ([.assets[].kind] | index("source") != null) and
              ([.assets[].kind] | index("licence") != null)' \
             "${RUNNER_TEMP}/kernel-release-validation.json" >/dev/null
@@ -304,6 +306,7 @@ jobs:
              .release_name == ("sp11-qcom-x1e-" + .version) and
              .experimental == true and
              .hardware_qualified == false and
+             .source.boot_image_mode == "stubble" and
              ([.assets[].kind] | index("source") != null) and
              ([.assets[].kind] | index("licence") != null)' \
             "${validation_file}" >/dev/null

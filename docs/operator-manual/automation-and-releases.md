@@ -14,7 +14,12 @@ Lexr-dependent automation is owned and run by this repository.
 | [IPTSD integration](https://github.com/ooaklee/lexr.sh/blob/main/.github/workflows/iptsd-integration-tests.yml) | Sparsely checks out the two public OE contract directories into temporary runner storage, validates them from Lexr, and selects the bounded OE ref described below. |
 | [SP11 kernel build](https://github.com/ooaklee/lexr.sh/blob/main/.github/workflows/sp11-kernel-build.yml) | Runs only by manual dispatch, builds and validates an experimental kernel from the checked-out Lexr source, and can publish an experimental prerelease in OE. |
 
-The kernel workflow retains only the verified Debian packages and `SHA256SUMS` as its build artefact. Absolute-path build provenance stays inside the trusted job, the displayed output path is redacted, and the separately prepared path-free release remains the public provenance record.
+The kernel workflow asks Lexr for Stubble mode explicitly, so its PE sections,
+embedded Denali device tree and public provenance are checked under the same
+policy. It retains only the verified Debian packages and `SHA256SUMS` as its
+build artefact. Absolute-path build provenance stays inside the trusted job,
+the displayed output path is redacted, and the separately prepared path-free
+release remains the public provenance record.
 
 The OE repository therefore needs neither a personal access token for Lexr nor an Actions checkout of the Lexr gitlink. [ADR024](../adr/adr-024-lexr-owned-automation.md) records this ownership boundary.
 
@@ -104,7 +109,7 @@ The workflow exposes the token only to the GitHub-hosted publication step of a m
 
 Enable the `release` input only on a manual dispatch which is intended to continue from a successful build through local release preparation to remote publication. The workflow then applies these gates:
 
-1. The GitHub-hosted publisher revalidates the self-hosted builder's manifest release name, requires it to equal `sp11-qcom-x1e-<package-version>`, and checks the complete checksum set, corresponding source and licence assets, and experimental state.
+1. The GitHub-hosted publisher revalidates the self-hosted builder's manifest release name, requires it to equal `sp11-qcom-x1e-<package-version>`, binds the public provenance to explicit Stubble mode, and checks the complete checksum set, corresponding source and licence assets, and experimental state.
 2. It resolves OE `main` to one exact revision and refuses to reuse an existing release tag.
 3. It creates an OE draft targeting that revision and uploads the complete closed release set.
 4. It verifies that the new tag identifies the resolved revision immediately after creation.
