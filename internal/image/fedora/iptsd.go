@@ -29,8 +29,8 @@ const (
 	fedoraIPTSDSRPMName = "lexr-sp11-iptsd.src.rpm"
 	// fedoraIPTSDSRPMPath is the manifest-relative source RPM location.
 	fedoraIPTSDSRPMPath = "sp11/fedora/" + fedoraIPTSDSRPMName
-	// iptsdReleaseArchive is the exact source-bearing companion archive filename.
-	iptsdReleaseArchive = "sp11-iptsd-3.1.0-sp11.1-arm64.tar.xz"
+	// iptsdReleaseArchive is the exact Fedora-capable source companion filename.
+	iptsdReleaseArchive = "sp11-iptsd-3.1.0-sp11.2-arm64.tar.xz"
 	// Fedora's udev rules match the Linux HID parent identifier, whose bus,
 	// vendor, and product components are colon-separated. Keep validation tied
 	// to that kernel representation instead of a USB-style vendor/product path.
@@ -57,40 +57,62 @@ func prepareFedoraIPTSDSource(ctx context.Context, workspace string, record imag
 	if err != nil || !included {
 		return fedoraIPTSDSource{}, err
 	}
-	expectedArchivePath := path.Join(userspace.Root, iptsdReleaseArchive)
-	var archiveRecord imagecontract.ArtifactRecord
-	found := false
-	for _, candidate := range userspace.Artifacts {
-		if candidate.Path != expectedArchivePath {
-			continue
-		}
-		if found {
-			return fedoraIPTSDSource{}, errors.New("IPTSD companion repeats its source-bearing release archive")
-		}
-		archiveRecord, found = candidate, true
-	}
-	if !found {
-		return fedoraIPTSDSource{}, errors.New("IPTSD companion omits its source-bearing release archive")
+	archiveRecord, err := fedoraIPTSDArchiveRecord(userspace)
+	if err != nil {
+		return fedoraIPTSDSource{}, err
 	}
 	archivePath := filepath.Join(workspace, filepath.FromSlash(archiveRecord.Path))
 	if err := verifyStagedArtifact(archivePath, archiveRecord); err != nil {
 		return fedoraIPTSDSource{}, fmt.Errorf("verify staged IPTSD release archive: %w", err)
 	}
 	extractionRoot := filepath.Join(workspace, "fedora-iptsd-extracted")
-	if err := os.Mkdir(extractionRoot, 0o700); err != nil {
-		return fedoraIPTSDSource{}, fmt.Errorf("create Fedora IPTSD extraction root: %w", err)
-	}
-	if err := (userspaceinstall.SecureXZTarExtractor{}).Extract(ctx, archivePath, extractionRoot); err != nil {
-		return fedoraIPTSDSource{}, fmt.Errorf("extract Fedora IPTSD source release: %w", err)
+	_, releaseRoot, err := extractFedoraIPTSDPackageSource(ctx, archivePath, extractionRoot)
+	if err != nil {
+		return fedoraIPTSDSource{}, err
 	}
 	if err := verifyStagedArtifact(archivePath, archiveRecord); err != nil {
 		return fedoraIPTSDSource{}, fmt.Errorf("reverify staged IPTSD release archive: %w", err)
 	}
-	releaseRoot := filepath.Join(extractionRoot, userspaceiptsd.ArchiveRoot)
-	if _, err := userspaceiptsd.ValidateRelease(releaseRoot); err != nil {
-		return fedoraIPTSDSource{}, fmt.Errorf("validate extracted Fedora IPTSD source release: %w", err)
-	}
 	return fedoraIPTSDSource{Included: true, Archive: archiveRecord, ExtractedRoot: releaseRoot}, nil
+}
+
+// extractFedoraIPTSDPackageSource securely extracts one new private root and
+// applies the Fedora-specific enriched archive contract before returning any
+// template bytes to the caller.
+func extractFedoraIPTSDPackageSource(ctx context.Context, archivePath, extractionRoot string) (userspaceiptsd.FedoraPackageSource, string, error) {
+	if err := os.Mkdir(extractionRoot, 0o700); err != nil {
+		return userspaceiptsd.FedoraPackageSource{}, "", fmt.Errorf("create Fedora IPTSD extraction root: %w", err)
+	}
+	if err := (userspaceinstall.SecureXZTarExtractor{}).Extract(ctx, archivePath, extractionRoot); err != nil {
+		return userspaceiptsd.FedoraPackageSource{}, "", fmt.Errorf("extract Fedora IPTSD source release: %w", err)
+	}
+	releaseRoot := filepath.Join(extractionRoot, userspaceiptsd.ArchiveRoot)
+	packageSource, err := userspaceiptsd.ValidateFedoraPackageSource(releaseRoot)
+	if err != nil {
+		return userspaceiptsd.FedoraPackageSource{}, "", fmt.Errorf("validate extracted Fedora IPTSD source release: %w", err)
+	}
+	return packageSource, releaseRoot, nil
+}
+
+// fedoraIPTSDArchiveRecord selects exactly one Fedora-capable source release
+// from the already validated companion inventory.
+func fedoraIPTSDArchiveRecord(userspace imagecontract.OfflineUserspaceRecord) (imagecontract.ArtifactRecord, error) {
+	expectedArchivePath := path.Join(userspace.Root, iptsdReleaseArchive)
+	var selected imagecontract.ArtifactRecord
+	found := false
+	for _, candidate := range userspace.Artifacts {
+		if candidate.Path != expectedArchivePath {
+			continue
+		}
+		if found {
+			return imagecontract.ArtifactRecord{}, errors.New("IPTSD companion repeats its Fedora-capable source release archive")
+		}
+		selected, found = candidate, true
+	}
+	if !found {
+		return imagecontract.ArtifactRecord{}, errors.New("IPTSD companion omits its Fedora-capable source release archive")
+	}
+	return selected, nil
 }
 
 // fedoraIPTSDUserspace returns the one exact offline release that authorises a
@@ -129,6 +151,48 @@ func verifyStagedArtifact(hostPath string, record imagecontract.ArtifactRecord) 
 	}
 	if digest != record.SHA256 {
 		return fmt.Errorf("staged artifact SHA-256 is %s, expected %s", digest, record.SHA256)
+	}
+	return nil
+}
+
+// stageFedoraIPTSDSpec exclusively materialises the rendered, archive-derived
+// OE template after the compiled Fedora support directory has been created.
+// A pre-existing path is a workspace-integrity failure, never an overwrite.
+func stageFedoraIPTSDSpec(workspace string, spec []byte) error {
+	if len(spec) == 0 || len(spec) > 1<<20 {
+		return errors.New("rendered Fedora IPTSD RPM spec has an invalid size")
+	}
+	destination := filepath.Join(workspace, "fedora-support", "iptsd.spec")
+	file, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	if err != nil {
+		return fmt.Errorf("stage rendered Fedora IPTSD RPM spec: %w", err)
+	}
+	if _, err := file.Write(spec); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("write rendered Fedora IPTSD RPM spec: %w", err)
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("sync rendered Fedora IPTSD RPM spec: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close rendered Fedora IPTSD RPM spec: %w", err)
+	}
+	if err := verifyFedoraIPTSDSpec(destination, spec); err != nil {
+		return fmt.Errorf("verify rendered Fedora IPTSD RPM spec: %w", err)
+	}
+	return nil
+}
+
+// verifyFedoraIPTSDSpec binds one staged regular file to the exact bytes
+// returned by the validated package-source renderer.
+func verifyFedoraIPTSDSpec(path string, expected []byte) error {
+	actual, err := readBoundedRegularFile(path, 1<<20)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(actual, expected) {
+		return errors.New("staged Fedora IPTSD RPM spec differs from the validated OE template rendering")
 	}
 	return nil
 }
@@ -175,8 +239,12 @@ func buildIPTSDRPM(ctx context.Context, docker *platform.Docker, image, workspac
 	if err != nil || actualRoot != expectedRoot {
 		return errors.Join(errors.New("Fedora IPTSD source root is outside the private remaster workspace"), err)
 	}
-	if _, err := userspaceiptsd.ValidateRelease(actualRoot); err != nil {
+	packageSource, err := userspaceiptsd.ValidateFedoraPackageSource(actualRoot)
+	if err != nil {
 		return fmt.Errorf("revalidate Fedora IPTSD source immediately before RPM build: %w", err)
+	}
+	if err := stageFedoraIPTSDSpec(workspace, packageSource.RenderedSpec); err != nil {
+		return err
 	}
 	const script = `payload=/work/fedora-iptsd-extracted/sp11-iptsd-v1/payload/iptsd-sp11
 integration=/work/fedora-iptsd-extracted/sp11-iptsd-v1/userspace/iptsd-sp11
@@ -210,10 +278,13 @@ install -m 0644 "$payload/SOURCE.env" "$source_root/SOURCE.env"
 find "$source_root" -exec touch -h -d "@$epoch" {} +
 
 source_tar="$top/SOURCES/lexr-sp11-iptsd-source.tar.xz"
-tar --sort=name --owner=0 --group=0 --numeric-owner \
-	--mtime="@$epoch" -C /linux-work -cJf "$source_tar" lexr-sp11-iptsd-source
-touch -d "@$epoch" "$source_tar"
-install -m 0644 /work/fedora-support/iptsd.spec "$top/SPECS/lexr-sp11-iptsd.spec"
+	tar --sort=name --owner=0 --group=0 --numeric-owner \
+		--mtime="@$epoch" -C /linux-work -cJf "$source_tar" lexr-sp11-iptsd-source
+	touch -d "@$epoch" "$source_tar"
+	tar -xJOf "$source_tar" \
+		lexr-sp11-iptsd-source/integration/packaging/fedora/lexr-sp11-iptsd.spec.in \
+		| cmp - "$integration/packaging/fedora/lexr-sp11-iptsd.spec.in"
+	install -m 0644 /work/fedora-support/iptsd.spec "$top/SPECS/lexr-sp11-iptsd.spec"
 
 export SOURCE_DATE_EPOCH="$epoch"
 rpmbuild -ba --target aarch64 "$top/SPECS/lexr-sp11-iptsd.spec" \
@@ -287,11 +358,19 @@ done
 ! grep -R -E '@(IPTSD|CHECKER|SYSTEMCTL|SYSTEMD_ESCAPE)@' \
 	"$verify/usr/lib/systemd" "$verify/usr/lib/udev"
 rpm2cpio "$srpm_path" > /linux-work/iptsd-srpm.cpio
-printf '%s\n' './lexr-sp11-iptsd-source.tar.xz' './lexr-sp11-iptsd.spec' \
-	> /linux-work/iptsd-expected-srpm-files.txt
-cpio -it --quiet < /linux-work/iptsd-srpm.cpio | LC_ALL=C sort \
-	> /linux-work/iptsd-actual-srpm-files.txt
-diff -u /linux-work/iptsd-expected-srpm-files.txt /linux-work/iptsd-actual-srpm-files.txt
+	printf '%s\n' './lexr-sp11-iptsd-source.tar.xz' './lexr-sp11-iptsd.spec' \
+		> /linux-work/iptsd-expected-srpm-files.txt
+	cpio -it --quiet < /linux-work/iptsd-srpm.cpio | LC_ALL=C sort \
+		> /linux-work/iptsd-actual-srpm-files.txt
+	diff -u /linux-work/iptsd-expected-srpm-files.txt /linux-work/iptsd-actual-srpm-files.txt
+	srpm_verify=/linux-work/verify-iptsd-srpm
+	rm -rf -- "$srpm_verify"
+	mkdir -p "$srpm_verify"
+	(cd "$srpm_verify" && cpio -idm --quiet < /linux-work/iptsd-srpm.cpio)
+	cmp /work/fedora-support/iptsd.spec "$srpm_verify/lexr-sp11-iptsd.spec"
+	tar -xJOf "$srpm_verify/lexr-sp11-iptsd-source.tar.xz" \
+		lexr-sp11-iptsd-source/integration/packaging/fedora/lexr-sp11-iptsd.spec.in \
+		| cmp - "$integration/packaging/fedora/lexr-sp11-iptsd.spec.in"
 
 [ ! -e /work/lexr-sp11-iptsd.aarch64.rpm ]
 [ ! -e /work/lexr-sp11-iptsd.src.rpm ]
@@ -304,8 +383,15 @@ chmod a+r /work/lexr-sp11-iptsd.src.rpm
 		"bash", "-ceu", script, "lexr-fedora-iptsd", userspaceiptsd.SourceCommit); err != nil {
 		return fmt.Errorf("build Fedora IPTSD RPMs: %w", err)
 	}
-	if _, err := userspaceiptsd.ValidateRelease(actualRoot); err != nil {
+	after, err := userspaceiptsd.ValidateFedoraPackageSource(actualRoot)
+	if err != nil {
 		return fmt.Errorf("revalidate Fedora IPTSD source after RPM build: %w", err)
+	}
+	if !bytes.Equal(packageSource.Template, after.Template) || !bytes.Equal(packageSource.RenderedSpec, after.RenderedSpec) {
+		return errors.New("Fedora IPTSD package source changed during RPM build")
+	}
+	if err := verifyFedoraIPTSDSpec(filepath.Join(workspace, "fedora-support", "iptsd.spec"), after.RenderedSpec); err != nil {
+		return fmt.Errorf("reverify staged Fedora IPTSD RPM spec: %w", err)
 	}
 	return nil
 }
@@ -339,141 +425,6 @@ done
 	return nil
 }
 
-// iptsdRPMSpec is generated from constants only; no caller-controlled text is
-// ever interpolated into RPM metadata or scriptlets.
-func iptsdRPMSpec() string {
-	return strings.ReplaceAll(`Name:           lexr-sp11-iptsd
-Version:        @VERSION@
-Release:        1.sp11%{?dist}
-Summary:        Surface Pro 11 IPTSD stylus integration
-License:        GPL-2.0-or-later AND MIT AND BSD-3-Clause AND Apache-2.0 AND MPL-2.0
-URL:            https://github.com/linux-surface/iptsd
-Source0:        lexr-sp11-iptsd-source.tar.xz
-BuildArch:      aarch64
-
-BuildRequires:  gcc-c++
-BuildRequires:  meson
-BuildRequires:  ninja-build
-BuildRequires:  pkgconf-pkg-config
-BuildRequires:  systemd-rpm-macros
-Requires:       coreutils
-Requires:       gawk
-Requires:       systemd
-Requires:       systemd-udev
-Conflicts:      g6-pen
-Conflicts:      iptsd
-Provides:       sp11-iptsd = %{version}-%{release}
-
-%global debug_package %{nil}
-%global _build_id_links none
-
-%description
-Pinned upstream IPTSD plus the Surface Pro 11 HIDRAW lifecycle integration.
-The kernel remains the sole direct-touch provider; this package creates only
-the virtual stylus device. It supports the X1E/OLED and X1P/LCD digitizer
-product IDs carried by the maintained integration.
-
-%prep
-%setup -q -n lexr-sp11-iptsd-source
-
-%build
-export SOURCE_DATE_EPOCH=%{_source_date_epoch}
-export CXXFLAGS="%{optflags} -ffile-prefix-map=%{_builddir}=/usr/src/lexr-sp11-iptsd"
-meson setup build source \
-  --prefix=/usr \
-  --bindir=libexec \
-  --sysconfdir=/etc \
-  --buildtype=release \
-  -Doptimization=3 \
-  -Dwerror=false \
-  -Db_lto=false \
-  -Ddebug_tools=[] \
-  -Dservice_manager=[] \
-  -Dsample_config=false \
-  -Dforce_access_checks=true \
-  --force-fallback-for=CLI11,eigen3,fmt,INIReader,Microsoft.GSL,spdlog
-ninja -C build src/iptsd src/iptsd-check-device
-
-%install
-install -D -m 0755 build/src/iptsd \
-  %{buildroot}%{_libexecdir}/sp11-iptsd
-install -D -m 0755 build/src/iptsd-check-device \
-  %{buildroot}%{_libexecdir}/sp11-iptsd-check-device
-install -D -m 0644 integration/config/surface-pro-11-0c80.conf \
-  %{buildroot}%{_datadir}/iptsd/surface-pro-11-0c80.conf
-install -D -m 0644 integration/config/surface-pro-11-0c83.conf \
-  %{buildroot}%{_datadir}/iptsd/surface-pro-11-0c83.conf
-
-install -d %{buildroot}%{_unitdir} \
-  %{buildroot}%{_udevrulesdir} \
-  %{buildroot}%{_prefix}/lib/systemd/system-sleep
-sed \
-  -e 's|@IPTSD@|%{_libexecdir}/sp11-iptsd|g' \
-  -e 's|@CHECKER@|%{_libexecdir}/sp11-iptsd-check-device|g' \
-  -e 's|@SYSTEMCTL@|%{_bindir}/systemctl|g' \
-  -e 's|@SYSTEMD_ESCAPE@|%{_bindir}/systemd-escape|g' \
-  integration/packaging/sp11-iptsd@.service.in \
-  > %{buildroot}%{_unitdir}/sp11-iptsd@.service
-sed \
-  -e 's|@CHECKER@|%{_libexecdir}/sp11-iptsd-check-device|g' \
-  -e 's|@SYSTEMD_ESCAPE@|%{_bindir}/systemd-escape|g' \
-  integration/packaging/70-sp11-iptsd.rules.in \
-  > %{buildroot}%{_udevrulesdir}/70-sp11-iptsd.rules
-sed \
-  -e 's|@IPTSD@|%{_libexecdir}/sp11-iptsd|g' \
-  -e 's|@CHECKER@|%{_libexecdir}/sp11-iptsd-check-device|g' \
-  -e 's|@SYSTEMCTL@|%{_bindir}/systemctl|g' \
-  -e 's|@SYSTEMD_ESCAPE@|%{_bindir}/systemd-escape|g' \
-  integration/packaging/sp11-iptsd-restart.in \
-  > %{buildroot}%{_prefix}/lib/systemd/system-sleep/sp11-iptsd-restart
-chmod 0644 \
-  %{buildroot}%{_unitdir}/sp11-iptsd@.service \
-  %{buildroot}%{_udevrulesdir}/70-sp11-iptsd.rules
-chmod 0755 %{buildroot}%{_prefix}/lib/systemd/system-sleep/sp11-iptsd-restart
-
-install -d %{buildroot}%{_licensedir}/%{name}
-install -m 0644 licenses/* %{buildroot}%{_licensedir}/%{name}/
-install -D -m 0644 integration/README.md \
-  %{buildroot}%{_docdir}/%{name}/README.md
-install -D -m 0644 SOURCE.env \
-  %{buildroot}%{_docdir}/%{name}/SOURCE.env
-
-%post
-%systemd_post sp11-iptsd@.service
-/usr/bin/udevadm control --reload-rules >/dev/null 2>&1 || :
-# Installing the rule after boot must also handle an already-enumerated SP11
-# digitizer. Limit synthetic add events to the two maintained HID parent IDs.
-for hidraw in /sys/class/hidraw/hidraw*; do
-  [ -e "$hidraw" ] || continue
-  hid_parent="$(/usr/bin/readlink -f "$hidraw/device" 2>/dev/null || :)"
-  case "$hid_parent" in
-    */001C:045E:0C80.*|*/001C:045E:0C83.*)
-      /usr/bin/udevadm trigger --action=add --subsystem-match=hidraw \
-        --sysname-match="${hidraw##*/}" >/dev/null 2>&1 || :
-      ;;
-  esac
-done
-
-%preun
-%systemd_preun sp11-iptsd@.service
-
-%postun
-%systemd_postun_with_restart sp11-iptsd@.service
-/usr/bin/udevadm control --reload-rules >/dev/null 2>&1 || :
-
-%files
-%license %{_licensedir}/%{name}
-%doc %{_docdir}/%{name}
-%{_libexecdir}/sp11-iptsd
-%{_libexecdir}/sp11-iptsd-check-device
-%{_datadir}/iptsd/surface-pro-11-0c80.conf
-%{_datadir}/iptsd/surface-pro-11-0c83.conf
-%{_unitdir}/sp11-iptsd@.service
-%{_udevrulesdir}/70-sp11-iptsd.rules
-%{_prefix}/lib/systemd/system-sleep/sp11-iptsd-restart
-`, "@VERSION@", userspaceiptsd.Version)
-}
-
 // validateIPTSDRPM independently proves the optional ISO-level RPM identity,
 // file topology, service/rule rendering, scriptlet scope, and source metadata.
 func (v *Validator) validateIPTSDRPM(ctx context.Context, image, workspace string, manifest imagecontract.Manifest) []imagecontract.ValidationCheck {
@@ -500,12 +451,23 @@ func (v *Validator) validateIPTSDRPM(ctx context.Context, image, workspace strin
 	if !sourceFound || sourceRecord.Path != fedoraIPTSDSRPMPath {
 		return []imagecontract.ValidationCheck{{Name: "fedora-native-iptsd-rpm", Passed: false, Details: "manifest lacks the exact native IPTSD source RPM record"}}
 	}
+	archiveRecord, archiveFoundErr := fedoraIPTSDArchiveRecord(userspace)
+	if archiveFoundErr != nil {
+		return []imagecontract.ValidationCheck{{Name: "fedora-native-iptsd-rpm", Passed: false, Details: archiveFoundErr.Error()}}
+	}
 	extractErr := v.Docker.RunInWorkspace(ctx, image, workspace,
 		"xorriso", "-osirrox", "on", "-indev", "/work/image.iso",
 		"-extract", "/"+record.Path, "/work/iptsd.rpm",
-		"-extract", "/"+sourceRecord.Path, "/work/iptsd.src.rpm")
+		"-extract", "/"+sourceRecord.Path, "/work/iptsd.src.rpm",
+		"-extract", "/"+archiveRecord.Path, "/work/iptsd-source-release.tar.xz")
 	identityErr := verifyStagedArtifact(filepath.Join(workspace, "iptsd.rpm"), record)
 	sourceIdentityErr := verifyStagedArtifact(filepath.Join(workspace, "iptsd.src.rpm"), sourceRecord)
+	archiveIdentityErr := verifyStagedArtifact(filepath.Join(workspace, "iptsd-source-release.tar.xz"), archiveRecord)
+	packageSource, _, packageSourceErr := extractFedoraIPTSDPackageSource(
+		ctx,
+		filepath.Join(workspace, "iptsd-source-release.tar.xz"),
+		filepath.Join(workspace, "iptsd-validation-source"),
+	)
 	metadata, queryErr := v.Docker.CaptureInWorkspace(ctx, image, workspace,
 		"bash", "-ceu", `rpm_path=/work/iptsd.rpm
 srpm_path=/work/iptsd.src.rpm
@@ -568,20 +530,31 @@ printf '%s\n' './lexr-sp11-iptsd-source.tar.xz' './lexr-sp11-iptsd.spec' \
 cpio -it --quiet < /work/iptsd-validation-srpm.cpio | LC_ALL=C sort \
 	> /work/iptsd-actual-srpm-files.txt
 diff -u /work/iptsd-expected-srpm-files.txt /work/iptsd-actual-srpm-files.txt
-rm -rf /work/iptsd-srpm-extracted
-mkdir /work/iptsd-srpm-extracted
-(cd /work/iptsd-srpm-extracted && cpio -idm --quiet < /work/iptsd-validation-srpm.cpio)
-printf 'release=%s source_root=%s\n' "$1" "$2"`,
+	rm -rf /work/iptsd-srpm-extracted
+	mkdir /work/iptsd-srpm-extracted
+	(cd /work/iptsd-srpm-extracted && cpio -idm --quiet < /work/iptsd-validation-srpm.cpio)
+	tar -xJOf /work/iptsd-srpm-extracted/lexr-sp11-iptsd-source.tar.xz \
+		lexr-sp11-iptsd-source/integration/packaging/fedora/lexr-sp11-iptsd.spec.in \
+		> /work/iptsd-srpm-template
+	printf 'release=%s source_root=%s\n' "$1" "$2"`,
 		"validate-iptsd-rpm", userspace.Release, userspace.Root, fedoraIPTSDHID0C80, fedoraIPTSDHID0C83)
 	nativeRootErr := validateIPTSDNativeRoot(filepath.Join(workspace, "iptsd-rpm-extracted"))
 	srpmSpec, srpmSpecErr := readBoundedRegularFile(filepath.Join(workspace, "iptsd-srpm-extracted", "lexr-sp11-iptsd.spec"), 1<<20)
-	if srpmSpecErr == nil && !bytes.Equal(srpmSpec, []byte(iptsdRPMSpec())) {
-		srpmSpecErr = errors.New("source RPM spec differs from the compiled Fedora IPTSD contract")
+	if srpmSpecErr == nil && packageSourceErr == nil && !bytes.Equal(srpmSpec, packageSource.RenderedSpec) {
+		srpmSpecErr = errors.New("source RPM spec differs from the validated OE-owned Fedora IPTSD template rendering")
 	}
-	passed := extractErr == nil && identityErr == nil && sourceIdentityErr == nil && queryErr == nil && nativeRootErr == nil && srpmSpecErr == nil
+	srpmTemplate, srpmTemplateErr := readBoundedRegularFile(filepath.Join(workspace, "iptsd-srpm-template"), 1<<20)
+	if srpmTemplateErr == nil && packageSourceErr == nil && !bytes.Equal(srpmTemplate, packageSource.Template) {
+		srpmTemplateErr = errors.New("source RPM archive contains a Fedora IPTSD template different from the validated companion")
+	}
+	passed := extractErr == nil && identityErr == nil && sourceIdentityErr == nil && archiveIdentityErr == nil &&
+		packageSourceErr == nil && queryErr == nil && nativeRootErr == nil && srpmSpecErr == nil && srpmTemplateErr == nil
 	details := strings.TrimSpace(string(metadata))
-	if extractErr != nil || identityErr != nil || sourceIdentityErr != nil || queryErr != nil || nativeRootErr != nil || srpmSpecErr != nil {
-		details = errors.Join(extractErr, identityErr, sourceIdentityErr, queryErr, nativeRootErr, srpmSpecErr).Error()
+	if !passed {
+		details = errors.Join(
+			extractErr, identityErr, sourceIdentityErr, archiveIdentityErr, packageSourceErr,
+			queryErr, nativeRootErr, srpmSpecErr, srpmTemplateErr,
+		).Error()
 	}
 	return []imagecontract.ValidationCheck{{Name: "fedora-native-iptsd-rpm", Passed: passed, Details: details}}
 }

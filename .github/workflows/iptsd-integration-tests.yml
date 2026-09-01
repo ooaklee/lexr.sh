@@ -123,10 +123,10 @@ jobs:
             "${oe_ref}" "${oe_revision}" "${selection}" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Run race-enabled native IPTSD tests
-        run: go test -race -count=1 ./internal/userspace/... ./internal/cli ./internal/quality
+        run: go test -race -count=1 ./internal/userspace/... ./internal/image/fedora ./internal/cli ./internal/quality
 
       - name: Vet the native IPTSD packages
-        run: go vet ./internal/userspace/... ./internal/cli ./internal/quality
+        run: go vet ./internal/userspace/... ./internal/image/fedora ./internal/cli ./internal/quality
 
       - name: Compile the native CLI
         run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o "${RUNNER_TEMP}/lexr" ./cmd/lexr

@@ -18,7 +18,7 @@ import (
 
 const (
 	// iptsdArchiveName is the sole source-bearing payload accepted for pen input.
-	iptsdArchiveName = "sp11-iptsd-3.1.0-sp11.1-arm64.tar.xz"
+	iptsdArchiveName = "sp11-iptsd-3.1.0-sp11.2-arm64.tar.xz"
 	// iptsdMaskRelative is the sole intentional installed symbolic link.
 	iptsdMaskRelative = "etc/systemd/system/iptsd@.service"
 	// iptsdReceiptName is the private durable transaction record.

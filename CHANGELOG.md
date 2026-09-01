@@ -62,10 +62,12 @@ that do not apply.
   load manifest-bound X1E/X1P device trees explicitly; installed-system support
   is scoped to X1E until the X1P custom boot hand-off is qualified.
 - Added optional Fedora-native IPTSD integration for the exact source-bearing
-  companion release. The adapter rebuilds the pinned sources and fallbacks as
-  binary and source RPMs, installs the binary package into the Anaconda-carried
-  live root, and independently validates both RPMs and their owned runtime
-  layout; images that omit the IPTSD companion remain unchanged.
+  `sp11-iptsd-v2` companion release. The adapter renders the exact OE-owned RPM
+  template from authenticated source provenance, rebuilds the pinned sources
+  and fallbacks as binary and source RPMs, installs the binary package into the
+  Anaconda-carried live root, and independently validates both RPMs, their
+  source template and their owned runtime layout. Images that omit the IPTSD
+  companion remain unchanged.
 - Added an explicit, build-and-release-provenance-recorded SP11 Stubble mode with packaged PE-section and Denali device-tree validation while retaining source-owned boot-image policy by default.
 - Added closed `all` and `runtime` local kernel package-set selection. Inspection and installation now select every exact ABI/version-matched package from the emitted bundle declaration by default, include a coherent development-header pair when declared, fail if a complete declaration loses either header, preserve intentional runtime-only downloads, and verify both selected header trees after installation; `--package-set runtime` deliberately retains the image-and-modules-only path.
 
@@ -84,6 +86,10 @@ that do not apply.
 - Routed image validation, removable-media writing, and release preparation
   through the adapter declared by each generated manifest, and made Ubuntu and
   Fedora share the descriptor-anchored, no-replace output transaction.
+- Advanced the immutable IPTSD release to `sp11-iptsd-v2`. Its two-asset
+  contract carries the complete Fedora package source beside the established
+  payload while retaining the `iptsd-v1` component and internal archive root
+  for compatible operator paths.
 
 ### Fixed
 
@@ -98,6 +104,10 @@ that do not apply.
 - Made native kernel builds package the common and ABI-specific headers as a complete pair alongside the signed image and modules.
 - Emitted the installed-toolchain provenance digest without a trailing newline so strict bundle publication can validate it.
 - Preserved package-postinst Surface device-tree injection by avoiding a redundant final GRUB regeneration after native kernel installation.
+- Removed Lexr's duplicate Fedora IPTSD spec. Fedora image creation now fails
+  before RPM tooling when the companion lacks the exact reviewed OE template,
+  and image validation re-derives the expected raw and rendered spec from that
+  same manifest-bound archive.
 
 ## [0.1.0] - 2026-08-31
 

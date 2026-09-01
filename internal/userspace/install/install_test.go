@@ -934,9 +934,8 @@ func makeTestIPTSDBundle(t *testing.T) string {
 	t.Helper()
 	originalSpec := iptsdSpec
 	t.Cleanup(func() { iptsdSpec = originalSpec })
-	bundle, spec := makeBundle(t, IPTSDComponent, "sp11-iptsd-v1", map[string][]byte{
-		iptsdArchiveName:                  []byte("archive"),
-		"sp11-iptsd-release-manifest.txt": []byte("manifest"),
+	bundle, spec := makeBundle(t, IPTSDComponent, "sp11-iptsd-v2", map[string][]byte{
+		iptsdArchiveName: []byte("archive"),
 	})
 	iptsdSpec = spec
 	return bundle

@@ -2,8 +2,6 @@ package fedora
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,46 +16,18 @@ import (
 	userspaceiptsd "github.com/ooaklee/lexr.sh/internal/userspace/iptsd"
 )
 
-// TestIPTSDRPMSpecUsesFedoraPathsAndBoundedRetrigger locks the native package
-// topology and its already-enumerated digitiser lifecycle behaviour.
-func TestIPTSDRPMSpecUsesFedoraPathsAndBoundedRetrigger(t *testing.T) {
-	t.Parallel()
-
-	spec := iptsdRPMSpec()
-	for _, required := range []string{
-		"Name:           lexr-sp11-iptsd",
-		"Version:        3.1.0",
-		"Requires:       systemd-udev",
-		"--prefix=/usr",
-		"%{_libexecdir}/sp11-iptsd",
-		"%{_unitdir}/sp11-iptsd@.service",
-		"%{_udevrulesdir}/70-sp11-iptsd.rules",
-		"chmod 0644",
-		`hid_parent="$(/usr/bin/readlink -f "$hidraw/device" 2>/dev/null || :)"`,
-		"%{_docdir}/%{name}/SOURCE.env",
-		"*/001C:045E:0C80.*|*/001C:045E:0C83.*)",
-		"/usr/bin/udevadm trigger --action=add --subsystem-match=hidraw",
-		`--sysname-match="${hidraw##*/}"`,
-	} {
-		if !strings.Contains(spec, required) {
-			t.Errorf("iptsdRPMSpec() omits %q", required)
-		}
-	}
-	if strings.Contains(spec, "/usr/local") {
-		t.Fatal("iptsdRPMSpec() contains a non-Fedora /usr/local path")
-	}
-}
-
 // TestFedoraIPTSDValidatorUsesKernelHIDIdentifiers prevents validation from
 // drifting to USB-style slash-separated identifiers that cannot occur in the
 // packaged udev rule's KERNELS match.
 func TestFedoraIPTSDValidatorUsesKernelHIDIdentifiers(t *testing.T) {
 	t.Parallel()
 
-	spec := iptsdRPMSpec()
-	for _, marker := range []string{fedoraIPTSDHID0C80, fedoraIPTSDHID0C83} {
-		if strings.Contains(marker, "/") || !strings.Contains(spec, marker) {
-			t.Errorf("Fedora IPTSD HID validator marker %q does not match the packaged kernel identifier", marker)
+	for marker, want := range map[string]string{
+		fedoraIPTSDHID0C80: "001C:045E:0C80",
+		fedoraIPTSDHID0C83: "001C:045E:0C83",
+	} {
+		if marker != want || strings.Contains(marker, "/") {
+			t.Errorf("Fedora IPTSD HID validator marker = %q, want %q", marker, want)
 		}
 	}
 }
@@ -74,10 +44,10 @@ func TestFedoraIPTSDUserspaceRequiresAnExplicitRelease(t *testing.T) {
 	record.Included = true
 	record.Reason = ""
 	record.Userspace = []imagecontract.OfflineUserspaceRecord{{
-		Component: companion.IPTSDOfflineComponentID, Release: "sp11-iptsd-v1",
+		Component: companion.IPTSDOfflineComponentID, Release: "sp11-iptsd-v2",
 	}}
 	got, included, err := fedoraIPTSDUserspace(record)
-	if err != nil || !included || got.Release != "sp11-iptsd-v1" {
+	if err != nil || !included || got.Release != "sp11-iptsd-v2" {
 		t.Fatalf("fedoraIPTSDUserspace(included) = %#v, %t, %v", got, included, err)
 	}
 	record.Userspace = append(record.Userspace, record.Userspace[0])
@@ -86,8 +56,8 @@ func TestFedoraIPTSDUserspaceRequiresAnExplicitRelease(t *testing.T) {
 	}
 }
 
-// TestOEIPTSDRPMContract optionally prevents the two repositories' native
-// package contracts from drifting at their shared operational boundaries.
+// TestOEIPTSDRPMContract proves the production renderer consumes the exact
+// validated OE-owned template instead of a semantically similar local copy.
 func TestOEIPTSDRPMContract(t *testing.T) {
 	t.Parallel()
 
@@ -95,18 +65,23 @@ func TestOEIPTSDRPMContract(t *testing.T) {
 	if root == "" {
 		t.Skip("set LEXR_TEST_OE_ROOT to the linux-surface-pro-11-oe checkout")
 	}
-	data, err := os.ReadFile(filepath.Join(root, "userspace", "iptsd-sp11", "packaging", "fedora", "lexr-sp11-iptsd.spec.in"))
+	integrationRoot := filepath.Join(root, "userspace", "iptsd-sp11")
+	if err := userspaceiptsd.ValidateRepositoryIntegration(integrationRoot); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(integrationRoot, filepath.FromSlash(userspaceiptsd.FedoraRPMSpecRelative)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	digest := sha256.Sum256(data)
-	if got := hex.EncodeToString(digest[:]); got != "19aeeddf8a9342725c9f8ba54a811a09c7fce6782010313653cb12b35ce9a80d" || len(data) != 4820 {
-		t.Fatalf("OE Fedora IPTSD spec identity = %s/%d, want final reviewed template", got, len(data))
+	epoch := time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC).Unix()
+	rendered, err := userspaceiptsd.RenderFedoraRPMSpec(data, epoch)
+	if err != nil {
+		t.Fatal(err)
 	}
-	oeSpec := string(data)
-	lexrSpec := iptsdRPMSpec()
+	spec := string(rendered)
 	for _, shared := range []string{
 		"Name:           lexr-sp11-iptsd",
+		"Version:        3.1.0",
 		"Requires:       systemd-udev",
 		"--prefix=/usr",
 		"--bindir=libexec",
@@ -119,13 +94,16 @@ func TestOEIPTSDRPMContract(t *testing.T) {
 		"*/001C:045E:0C80.*|*/001C:045E:0C83.*)",
 		"/usr/bin/udevadm trigger --action=add --subsystem-match=hidraw",
 		`--sysname-match="${hidraw##*/}"`,
+		"export SOURCE_DATE_EPOCH=1788220800",
+		"* Tue Sep 01 2026 Lexr maintainers",
 	} {
-		if !strings.Contains(lexrSpec, shared) || !strings.Contains(oeSpec, shared) {
-			t.Errorf("shared Lexr/OE IPTSD RPM contract omits %q", shared)
+		if !strings.Contains(spec, shared) {
+			t.Errorf("rendered OE IPTSD RPM contract omits %q", shared)
 		}
 	}
-	if strings.Contains(lexrSpec, "/usr/local") || strings.Contains(oeSpec, "/usr/local") {
-		t.Fatal("a native Fedora IPTSD package uses /usr/local")
+	if strings.Contains(spec, "/usr/local") || strings.Contains(spec, "@IPTSD_VERSION@") ||
+		strings.Contains(spec, "@SOURCE_DATE_EPOCH@") || strings.Contains(spec, "@CHANGELOG_DATE@") {
+		t.Fatal("rendered Fedora IPTSD spec contains a forbidden path or unresolved placeholder")
 	}
 }
 
@@ -136,7 +114,7 @@ func TestOEIPTSDRPMContract(t *testing.T) {
 func TestIPTSDRPMBuildIntegration(t *testing.T) {
 	bundleRoot := os.Getenv("LEXR_TEST_IPTSD_BUNDLE_DIR")
 	if bundleRoot == "" {
-		t.Skip("set LEXR_TEST_IPTSD_BUNDLE_DIR to the verified sp11-iptsd-v1 bundle")
+		t.Skip("set LEXR_TEST_IPTSD_BUNDLE_DIR to the verified sp11-iptsd-v2 bundle")
 	}
 	archive := filepath.Join(bundleRoot, iptsdReleaseArchive)
 	buildRoot := filepath.Clean(filepath.Join("..", "..", "..", "build"))
@@ -156,7 +134,7 @@ func TestIPTSDRPMBuildIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	releaseRoot := filepath.Join(extraction, userspaceiptsd.ArchiveRoot)
-	if _, err := userspaceiptsd.ValidateRelease(releaseRoot); err != nil {
+	if _, err := userspaceiptsd.ValidateFedoraPackageSource(releaseRoot); err != nil {
 		t.Fatal(err)
 	}
 	if err := stageFedoraSupport(workspace, kernel.Bundle{ABI: "7.2.0-jg-0sp11v19-qcom-x1e", Version: "7.2.0"}); err != nil {

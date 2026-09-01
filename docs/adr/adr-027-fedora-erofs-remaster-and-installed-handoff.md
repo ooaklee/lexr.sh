@@ -35,9 +35,13 @@ Fedora live media needs `dracut-live` and a temporary
 That blacklist is harmful after installation to internal storage, where the
 audio DSP is expected to run, and Anaconda can retain a live-session denylist.
 
-The optional `sp11-iptsd-v1` companion is a source-required release. Its
+The optional `sp11-iptsd-v2` companion is a source-required release. Its
 verified archive contains the complete pinned upstream source, Meson fallback
-sources, licences, provenance, and the maintained Surface lifecycle templates.
+sources, licences, provenance, maintained Surface lifecycle templates, and the
+exact OE-owned Fedora RPM spec template. The stable catalogue component and
+internal archive root remain `iptsd-v1`; the release identity advances because
+the published v1 archive is immutable and does not contain Fedora package
+source.
 Copying its Ubuntu-built portable executables into Fedora would bypass native
 package ownership and could leave a duplicate `/usr/local` installation.
 
@@ -71,13 +75,18 @@ manifest rather than by a lossy versioned capability.
 
 When, and only when, image creation requests both the companion source and
 `--companion-userspace iptsd`, the adapter will securely extract and revalidate
-the compiled-trust-bound `sp11-iptsd-v1` archive. It will rebuild IPTSD and all
-Meson fallbacks in the pinned Fedora AArch64 tool image, generate exactly one
-binary `lexr-sp11-iptsd` RPM and one corresponding source RPM, and require the
-generic `iptsd` and `g6-pen` packages to be absent rather than silently removing
-them. The binary RPM will be injected into the offline live root without
-running live-service scriptlets, but with RPM dependency checking against the
-deployable root;
+the compiled-trust-bound `sp11-iptsd-v2` archive. The release validator retains
+the historical v1 profile for compatibility, but current acquisition and
+Fedora packaging require v2. Fedora uses the stricter enriched profile and
+fails closed when the OE template is absent. The adapter renders only the
+reviewed version, source timestamp, and changelog-date placeholders; it does
+not carry a second compiled copy of the spec. It will
+rebuild IPTSD and all Meson fallbacks in the pinned Fedora AArch64 tool image,
+generate exactly one binary `lexr-sp11-iptsd` RPM and one corresponding source
+RPM, and require the generic `iptsd` and `g6-pen` packages to be absent rather
+than silently removing them. The binary RPM will be injected into the offline
+live root without running live-service scriptlets, but with RPM dependency
+checking against the deployable root;
 its udev rule will enumerate the digitiser when the remastered system boots.
 The package owns Fedora-native `/usr/libexec`, systemd, udev, configuration,
 documentation, and licence paths. Its future install/upgrade scriptlet reloads

@@ -396,7 +396,6 @@ func stageFedoraSupport(workspace string, bundle kernel.Bundle) error {
 		data []byte
 	}{
 		{"kernel.spec", 0o644, []byte(kernelRPMSpec(bundle.ABI, bundle.Version))},
-		{"iptsd.spec", 0o644, []byte(iptsdRPMSpec())},
 		{"finalize-installed", 0o755, []byte(installedFinalizeScript(bundle.ABI))},
 		{"lexr-sp11-installed-finalize.service", 0o644, []byte(installedFinalizeService())},
 		{"grub-defaults", 0o644, []byte(installedGrubDefaults())},

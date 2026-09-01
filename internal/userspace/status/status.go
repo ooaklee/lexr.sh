@@ -213,7 +213,7 @@ func (inspector *Inspector) Inspect(options Options) (Report, error) {
 		if nativeLayout {
 			check.Remediation = "repair or reinstall the Fedora lexr-sp11-iptsd package; remove any stale portable /usr/local integration after verifying the native package"
 		} else {
-			check.Remediation = "install the complete verified sp11-iptsd-v1 payload and integration files"
+			check.Remediation = "install the complete verified sp11-iptsd-v2 payload and integration files"
 		}
 		add(policies.decorate(check, iptsdComponent))
 

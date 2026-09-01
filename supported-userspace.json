@@ -147,12 +147,11 @@
         "install": true
       },
       "release": {
-        "url": "https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-iptsd-v1",
-        "tag": "sp11-iptsd-v1",
+        "url": "https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-iptsd-v2",
+        "tag": "sp11-iptsd-v2",
         "asset_allowlist": [
           "SHA256SUMS",
-          "sp11-iptsd-3.1.0-sp11.1-arm64.tar.xz",
-          "sp11-iptsd-release-manifest.txt"
+          "sp11-iptsd-3.1.0-sp11.2-arm64.tar.xz"
         ]
       },
       "compatibility_evidence": "exact_pair",
@@ -163,6 +162,7 @@
       },
       "notes": [
         "Unmodified upstream iptsd v3.1.0 is pinned with complete corresponding source and an SP11-specific lifecycle integration.",
+        "The immutable v2 release adds the exact OE-owned Fedora RPM template while retaining the stable iptsd-v1 component and archive root.",
         "X1E Phase 84 pen validation passed with the v19 kernel generation; separate X1P and broader lifecycle qualification remain."
       ],
       "remediation": "Rebuild the pinned payload with complete corresponding sources, validate its checksum manifest, disable conflicting pen processors, and reinstall the matched lifecycle set."

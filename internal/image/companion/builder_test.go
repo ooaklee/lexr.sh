@@ -337,9 +337,9 @@ func TestValidateRecordRejectsAlteredOfflineReleaseContract(t *testing.T) {
 
 	wrongRelease := record
 	wrongRelease.Userspace = append([]imagecontract.OfflineUserspaceRecord(nil), record.Userspace...)
-	wrongRelease.Userspace[0].Release = "sp11-iptsd-v2"
+	wrongRelease.Userspace[0].Release = "sp11-iptsd-v3"
 	wrongRelease.Userspace[0].Root = path.Join(
-		ISOFilesystemRoot, "userspace", IPTSDOfflineComponentID, "sp11-iptsd-v2",
+		ISOFilesystemRoot, "userspace", IPTSDOfflineComponentID, "sp11-iptsd-v3",
 	)
 	if err := ValidateRecord(wrongRelease); err == nil || !strings.Contains(err.Error(), "expected immutable release") {
 		t.Fatalf("same-ID different-release error = %v", err)
@@ -414,7 +414,7 @@ func TestBuilderRejectsIneligibleIPTSDRedistribution(t *testing.T) {
 	request.UserspaceCatalog = componentCatalog
 	request.UserspaceBundles = []userspacerelease.Bundle{{
 		Component: IPTSDOfflineComponentID,
-		Release:   "sp11-iptsd-v1",
+		Release:   "sp11-iptsd-v2",
 	}}
 	_, err = NewBuilder(&fakeRunner{}).Build(context.Background(), request)
 	if err == nil || !strings.Contains(err.Error(), "redistribution policy") {
@@ -431,7 +431,7 @@ func TestBuilderRejectsCatalogueRedirectOfApprovedIPTSD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	modified := strings.ReplaceAll(string(catalogueData), "sp11-iptsd-v1", "sp11-iptsd-v2")
+	modified := strings.ReplaceAll(string(catalogueData), "sp11-iptsd-v2", "sp11-iptsd-v3")
 	if modified == string(catalogueData) {
 		t.Fatal("test catalogue does not contain the expected IPTSD release")
 	}
@@ -446,10 +446,10 @@ func TestBuilderRejectsCatalogueRedirectOfApprovedIPTSD(t *testing.T) {
 	request.UserspaceCatalog = componentCatalog
 	request.UserspaceBundles = []userspacerelease.Bundle{{
 		Component: IPTSDOfflineComponentID, Repository: userspacepolicy.IPTSDRepository,
-		Release: "sp11-iptsd-v2", Directory: t.TempDir(),
+		Release: "sp11-iptsd-v3", Directory: t.TempDir(),
 	}}
 	_, err = NewBuilder(&fakeRunner{}).Build(context.Background(), request)
-	if err == nil || !strings.Contains(err.Error(), "expected \"sp11-iptsd-v1\"") {
+	if err == nil || !strings.Contains(err.Error(), "expected \"sp11-iptsd-v2\"") {
 		t.Fatalf("error = %v, want immutable release rejection", err)
 	}
 }
@@ -533,7 +533,7 @@ func TestBuilderRejectsTraversalAndSymlinks(t *testing.T) {
 		request := testBuildRequest(source, t.TempDir())
 		request.UserspaceCatalog = componentCatalog
 		request.UserspaceBundles = []userspacerelease.Bundle{{
-			Component: "iptsd-v1", Release: "sp11-iptsd-v1", Repository: userspacepolicy.IPTSDRepository,
+			Component: "iptsd-v1", Release: "sp11-iptsd-v2", Repository: userspacepolicy.IPTSDRepository,
 			Directory: t.TempDir(),
 			Files:     []userspacerelease.File{{Name: "../escape", Verified: true}},
 		}}

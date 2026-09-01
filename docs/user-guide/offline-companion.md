@@ -105,7 +105,7 @@ A non-zero userspace doctor result means support is still missing; it does not b
 On Ubuntu, if IPTSD was included, first verify its portable installation plan and then apply it to the live session:
 
 ```sh
-IPTSD_ROOT="$COMPANION_ROOT/userspace/iptsd-v1/sp11-iptsd-v1"
+IPTSD_ROOT="$COMPANION_ROOT/userspace/iptsd-v1/sp11-iptsd-v2"
 
 "$TOOL" userspace install iptsd --from "$IPTSD_ROOT" --dry-run
 sudo "$TOOL" userspace install iptsd --from "$IPTSD_ROOT" --yes
