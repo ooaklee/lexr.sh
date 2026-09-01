@@ -18,7 +18,7 @@ described here.
 ## Prerequisites and limits
 
 - The shortest command selects `ubuntu-concept-resolute-x1e` and the latest candidate kernel release. Those packages become trusted only after their publisher checksums and measured contents pass verification.
-- Fedora Workstation Live 44 must be selected explicitly and requires a v19-or-newer verified Surface kernel bundle. Its custom live and installed-system path is limited to X1E/OLED; X1P/LCD has a stock-kernel live troubleshooting entry only and must not be installed from this adapter.
+- Fedora Workstation Live 44 must be selected explicitly and requires a patch-line-qualified verified Surface kernel bundle: 7.2.0/sp11v19+ or 7.2.2/sp11v1+. Its custom live and installed-system path is limited to X1E/OLED; X1P/LCD has a stock-kernel live troubleshooting entry only and must not be installed from this adapter.
 - Structural validation is a publication gate, not a substitute for booting the media on a Surface Pro 11. Disable Secure Boot before using the unsigned custom kernel, and treat an actual device boot as the final compatibility gate.
 - The pre-write router accepts only the implemented Lexr Ubuntu Casper and Fedora Live outputs after their adapter-owned structural validators pass. Compressed raw disk images use a different partition and boot model and need a separate adapter.
 - USB planning is read-only. The real write requires elevated privilege and the exact confirmation generated for the current source and device.
@@ -58,27 +58,29 @@ lexr image create \
 ### Fedora Workstation Live 44
 
 Select Fedora's implemented ARM64 Live ISO explicitly and provide either a
-local v19-or-newer bundle or a corresponding verified release:
+local patch-line-qualified bundle or a corresponding verified release:
 
 ```sh
-KERNEL_BUNDLE=/path/to/verified-v19-or-newer-kernel-bundle
+KERNEL_BUNDLE=/path/to/verified-patch-line-kernel-bundle
 
 lexr image create \
   --catalog-id fedora-workstation-live-44 \
   --kernel-dir "$KERNEL_BUNDLE" \
-  --output lexr-fedora-44-sp11-v19.iso
+  --output lexr-fedora-44-sp11-7.2.2-v1.iso
 
-lexr image validate lexr-fedora-44-sp11-v19.iso
+lexr image validate lexr-fedora-44-sp11-7.2.2-v1.iso
 ```
 
 To use a published bundle instead, set `KERNEL_RELEASE` to its exact tag and
 replace the `--kernel-dir` line with `--kernel-release "$KERNEL_RELEASE"`.
 Without either flag, Lexr selects the latest candidate release; the Fedora
-adapter still rejects a pre-v19 or incomplete bundle.
+adapter still rejects an unknown patch line, a generation below that line's
+floor, or an incomplete bundle.
 
-The catalogue supplies Fedora's publisher SHA-256. The adapter rejects
-pre-v19 bundles and mixed or incomplete ABIs. Secure Boot must be disabled for
-the unsigned custom Stubble kernel. X1P custom Stubble auto-DTB selection and
+The catalogue supplies Fedora's publisher SHA-256. The adapter accepts the
+explicit 7.2.0/sp11v19 and 7.2.2/sp11v1 lines, applies each line's generation
+floor, and rejects unknown, mixed, or incomplete ABIs. Secure Boot must be
+disabled for the unsigned custom Stubble kernel. X1P custom Stubble auto-DTB selection and
 installed-system hand-off are not supported; use its explicit-DTB stock entry
 for live investigation only. Physical USB boot, an X1E installation,
 installed-system boot, pen/touch, audio, and suspend/resume remain hardware
@@ -89,7 +91,7 @@ qualification gates.
 `image devices` is read-only and lists every whole physical device with the evidence needed to review it, including whether the disk has an active non-mount consumer. It does not present an internal, non-removable, non-USB, read-only, system-backed, in-use, weakly identified, or undersized device as an acceptable target merely because its path was supplied explicitly.
 
 The commands below use the Ubuntu filename from the shortest example. Replace
-it with `lexr-fedora-44-sp11-v19.iso` when writing the Fedora output.
+it with `lexr-fedora-44-sp11-7.2.2-v1.iso` when writing the Fedora output.
 
 ```sh
 lexr image devices

@@ -17,7 +17,7 @@ import (
 func TestGrubConfigPreservesLiveDiscoveryAndFallback(t *testing.T) {
 	t.Parallel()
 
-	abi := "6.17.0-sp11v19-qcom-x1e"
+	abi := "7.2.2-jg-0sp11v1-qcom-x1e"
 	config := grubConfig(abi)
 	for _, required := range []string{
 		"search --file --set=root /boot/0x503d6c7e",
@@ -77,9 +77,9 @@ func TestBootArgumentPolicySeparatesLiveAndInstalledSystems(t *testing.T) {
 		t.Fatalf("liveOnlyBootArguments = %q, want %q", liveOnlyBootArguments, wantLiveOnly)
 	}
 
-	liveConfig := grubConfig("6.17.0-sp11v19-qcom-x1e")
+	liveConfig := grubConfig("7.2.2-jg-0sp11v1-qcom-x1e")
 	installedDefaults := installedGrubDefaults()
-	finalizer := installedFinalizeScript("6.17.0-sp11v19-qcom-x1e")
+	finalizer := installedFinalizeScript("7.2.2-jg-0sp11v1-qcom-x1e")
 	for _, argument := range wantInstalled {
 		for name, content := range map[string]string{"live GRUB": liveConfig, "installed GRUB": installedDefaults, "finalizer": finalizer} {
 			if !strings.Contains(content, argument) {
@@ -123,7 +123,7 @@ func TestRPMVersionProducesPortableFedoraVersions(t *testing.T) {
 func TestKernelRPMSpecOwnsTheExactKernelLifecycle(t *testing.T) {
 	t.Parallel()
 
-	abi := "6.17.0-sp11v19-qcom-x1e"
+	abi := "7.2.2-jg-0sp11v1-qcom-x1e"
 	spec := kernelRPMSpec(abi, "6.17.0-rc1+sp11")
 	for _, required := range []string{
 		"Name:           " + fedoraKernelPackageName,
@@ -163,7 +163,7 @@ func TestKernelRPMSpecOwnsTheExactKernelLifecycle(t *testing.T) {
 func TestInstalledFinalizerIsGuardedAndRebuildsTheExactABI(t *testing.T) {
 	t.Parallel()
 
-	abi := "6.17.0-sp11v19-qcom-x1e"
+	abi := "7.2.2-jg-0sp11v1-qcom-x1e"
 	script := installedFinalizeScript(abi)
 	guard := `[ ! -e "$state" ] || exit 0`
 	removeDenylist := "rm -f -- /etc/modprobe.d/anaconda-denylist.conf"
@@ -284,7 +284,7 @@ func TestFindEvidenceArtifactRequiresMatchingPortablePaths(t *testing.T) {
 func TestBootPolicyDecoderRejectsUnknownFields(t *testing.T) {
 	t.Parallel()
 
-	data, err := json.Marshal(expectedBootPolicy("6.17.0-sp11v19-qcom-x1e"))
+	data, err := json.Marshal(expectedBootPolicy("7.2.2-jg-0sp11v1-qcom-x1e"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -349,7 +349,7 @@ func TestFedoraManifestRequiresCompleteProvenanceAndPolicy(t *testing.T) {
 
 // completeFedoraManifestFixture supplies the exact adapter contract for focused mutations.
 func completeFedoraManifestFixture() imagecontract.Manifest {
-	abi := "6.17.0-sp11v19-qcom-x1e"
+	abi := "7.2.2-jg-0sp11v1-qcom-x1e"
 	version := "6.17.0"
 	record := func(path string) imagecontract.ArtifactRecord {
 		return imagecontract.ArtifactRecord{Path: path, SHA256: strings.Repeat("a", 64), Size: 42}

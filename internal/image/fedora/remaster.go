@@ -820,7 +820,7 @@ func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manife
 			companionNote = "The Linux ARM64 Lexr companion and complete source-bearing IPTSD release are under /sp11/companion. The natively rebuilt, RPM-owned IPTSD runtime is installed in the live root; its binary and source RPMs are staged under /sp11/fedora. Do not run the portable IPTSD installer on Fedora because it would create an unowned /usr/local duplicate."
 		}
 	}
-	readme := fmt.Sprintf("Lexr Fedora 44 for Surface Pro 11\n\nCustom kernel ABI: %s\n\nSecure Boot must be disabled. qcom_q6v5_pas is blacklisted only while the live root is on USB; Anaconda and the first installed boot remove that live-only policy. The Troubleshooting submenu has stock Fedora entries with explicit Surface device trees. v19 Stubble auto-DTB selection and installed-system hand-off are supported only for X1E/OLED. The X1P/LCD stock path is live-only; do not install from it. Proprietary firmware is not redistributed.\n\n%s\n", abi, companionNote)
+	readme := fmt.Sprintf("Lexr Fedora 44 for Surface Pro 11\n\nCustom kernel ABI: %s\n\nSecure Boot must be disabled. qcom_q6v5_pas is blacklisted only while the live root is on USB; Anaconda and the first installed boot remove that live-only policy. The Troubleshooting submenu has stock Fedora entries with explicit Surface device trees. Patch-line-qualified Stubble auto-DTB selection and installed-system hand-off are supported only for X1E/OLED. The X1P/LCD stock path is live-only; do not install from it. Proprietary firmware is not redistributed.\n\n%s\n", abi, companionNote)
 	if err := os.WriteFile(filepath.Join(sp11, "README.txt"), []byte(readme), 0o644); err != nil {
 		return err
 	}

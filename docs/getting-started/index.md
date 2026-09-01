@@ -44,7 +44,8 @@ release. Canonical does not publish a checksum beside the dated Ubuntu
 snapshot, so the [installation-media guide](../user-guide/installation-media.md)
 also shows the stronger local-source path with an explicitly recorded digest.
 That guide separately covers Fedora Workstation Live 44, which must be selected
-explicitly and paired with a v19-or-newer verified kernel bundle.
+explicitly and paired with a patch-line-qualified verified kernel bundle. The
+accepted floors are 7.2.0/sp11v19 and 7.2.2/sp11v1.
 
 ## 4. Review the USB write
 

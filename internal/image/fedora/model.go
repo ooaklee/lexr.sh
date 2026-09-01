@@ -21,9 +21,6 @@ const (
 	AdapterID = "fedora-live"
 	// SourceVolumeID is the publisher label used by Fedora 44 dracut-live.
 	SourceVolumeID = "Fedora-WS-Live-44"
-	// minimumKernelGeneration is the first Surface kernel with the in-tree
-	// touchscreen and HIDRAW/IPTSD integration required by this adapter.
-	minimumKernelGeneration = 19
 	// secureBootPolicy is embedded verbatim so generators and validators agree.
 	secureBootPolicy = "unsupported; disable Secure Boot for the unsigned custom Stubble kernel"
 	// x1pQualificationStatus avoids claiming an unverified custom Stubble identity.
@@ -50,8 +47,25 @@ func expectedBootPolicy(abi string) bootPolicy {
 	}
 }
 
-// kernelGenerationExpression extracts the Surface release generation from an ABI.
-var kernelGenerationExpression = regexp.MustCompile(`sp11v([0-9]+)`)
+// kernelABIExpression extracts a complete kernel patch line and its local
+// Surface release generation. The generation is deliberately not treated as a
+// global counter: a maintained patch line can restart at sp11v1.
+var kernelABIExpression = regexp.MustCompile(`^([0-9]+)\.([0-9]+)\.([0-9]+)-(?:[A-Za-z0-9.+~_]+-)*[A-Za-z0-9.+~_]*sp11v([0-9]+)-qcom-x1e$`)
+
+// kernelPatchLine identifies one explicitly qualified upstream kernel base.
+type kernelPatchLine struct {
+	major uint64
+	minor uint64
+	patch uint64
+}
+
+// patchLineMinimumKernelGenerations is an explicit allowlist. Each patch line
+// has its own release sequence, so a high generation on an unknown patch line
+// does not imply Fedora compatibility.
+var patchLineMinimumKernelGenerations = map[kernelPatchLine]uint64{
+	{major: 7, minor: 2, patch: 0}: 19,
+	{major: 7, minor: 2, patch: 2}: 1,
+}
 
 // Request contains verified inputs and output policy for one Fedora remaster.
 type Request struct {
@@ -110,7 +124,7 @@ func BuildPlan(request Request) (plan.Plan, error) {
 	}
 	return plan.New("image.create", []plan.Step{
 		{ID: "verify-source", Kind: "verify", Description: "Verify the Fedora 44 Workstation Live ISO", Inputs: map[string]string{"path": request.SourceISO, "sha256": request.SourceSHA256}},
-		{ID: "verify-kernel", Kind: "verify", Description: "Verify the v19-or-newer Stubble kernel bundle", Inputs: map[string]string{"release": request.Bundle.Release, "abi": request.Bundle.ABI}},
+		{ID: "verify-kernel", Kind: "verify", Description: "Verify a patch-line-qualified Stubble kernel bundle", Inputs: map[string]string{"release": request.Bundle.Release, "abi": request.Bundle.ABI}},
 		{ID: "stage-companion", Kind: "companion", Description: "Stage the optional Linux ARM64 CLI and eligible offline userspace", Inputs: map[string]string{"source": companionSource, "userspace": companionUserspace}},
 		{ID: "prepare-tools", Kind: "prepare", Description: "Prepare ARM64 ISO, EROFS, RPM, and boot inspection tools", Inputs: map[string]string{"adapter": AdapterID}},
 		{ID: "extract-live-root", Kind: "extract", Description: "Validate and extract the Fedora EROFS live root"},
@@ -127,15 +141,43 @@ func BuildPlan(request Request) (plan.Plan, error) {
 	}...)
 }
 
-// requireSupportedKernel rejects bundles older than the adapter's supported baseline.
+// requireSupportedKernel rejects bundles outside the adapter's patch-line-aware
+// support baseline.
 func requireSupportedKernel(abi string) error {
-	matches := kernelGenerationExpression.FindStringSubmatch(abi)
-	if len(matches) != 2 {
-		return fmt.Errorf("kernel ABI %q does not declare an sp11v generation", abi)
+	patchLine, generation, err := parseKernelIdentity(abi)
+	if err != nil {
+		return err
 	}
-	generation, err := strconv.Atoi(matches[1])
-	if err != nil || generation < minimumKernelGeneration {
-		return fmt.Errorf("Fedora Live requires an sp11v%d-or-newer kernel ABI, got %q", minimumKernelGeneration, abi)
+	if minimumGeneration, ok := patchLineMinimumKernelGenerations[patchLine]; ok && generation >= minimumGeneration {
+		return nil
 	}
-	return nil
+	return fmt.Errorf(
+		"Fedora Live requires kernel 7.2.0 sp11v19+ or kernel 7.2.2 sp11v1+, got %q",
+		abi,
+	)
+}
+
+// parseKernelIdentity separates a canonical qcom-x1e ABI into its patch line
+// and patch-line-local Surface generation.
+func parseKernelIdentity(abi string) (kernelPatchLine, uint64, error) {
+	matches := kernelABIExpression.FindStringSubmatch(abi)
+	if len(matches) != 5 || strings.Count(abi, "sp11v") != 1 {
+		return kernelPatchLine{}, 0, fmt.Errorf(
+			"kernel ABI %q must use <major>.<minor>.<patch>-...sp11v<generation>-qcom-x1e",
+			abi,
+		)
+	}
+
+	values := make([]uint64, 4)
+	for index, value := range matches[1:] {
+		if len(value) > 1 && value[0] == '0' {
+			return kernelPatchLine{}, 0, fmt.Errorf("kernel ABI %q contains a noncanonical numeric component", abi)
+		}
+		parsed, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return kernelPatchLine{}, 0, fmt.Errorf("kernel ABI %q contains an out-of-range version or sp11v generation", abi)
+		}
+		values[index] = parsed
+	}
+	return kernelPatchLine{major: values[0], minor: values[1], patch: values[2]}, values[3], nil
 }

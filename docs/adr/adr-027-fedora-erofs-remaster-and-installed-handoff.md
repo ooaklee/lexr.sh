@@ -44,7 +44,8 @@ package ownership and could leave a duplicate `/usr/local` installation.
 ## Decision
 
 The `fedora-live` adapter will accept the pinned Fedora Workstation Live 44 ISO
-and a verified `sp11v19`-or-newer image/modules bundle. It will preserve the
+and a verified image/modules bundle from an explicitly qualified patch line:
+7.2.0/sp11v19+ or 7.2.2/sp11v1+. It will preserve the
 source hybrid GPT, El Torito, and appended-ESP layout through `xorriso` boot
 replay. The ISO and appended ESP will retain Fedora's marker-based GRUB stub,
 while `/boot/grub2/grub.cfg` will own the custom X1E entry and stock

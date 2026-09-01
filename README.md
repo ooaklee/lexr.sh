@@ -116,7 +116,8 @@ yourself, record its SHA-256 digest, and pass both `--source` and
 `--source-sha256`.
 
 Fedora requires the explicit `fedora-workstation-live-44` catalogue ID and a
-v19-or-newer verified kernel bundle. The
+patch-line-qualified verified kernel bundle. The accepted floors are
+7.2.0/sp11v19 and 7.2.2/sp11v1. The
 [installation-media guide](docs/user-guide/installation-media.md) shows both
 distribution paths, their hardware limits, and how to review a USB write
 safely.

@@ -32,18 +32,19 @@ lexr image create \
 The example keeps its output outside the source tree and requests the only userspace component currently accepted for on-media inclusion, as required by the limits above.
 
 For Fedora Workstation Live 44, select the Fedora catalogue entry and a
-v19-or-newer bundle. The same companion flags activate its native RPM path:
+patch-line-qualified bundle (7.2.0/sp11v19+ or 7.2.2/sp11v1+). The same
+companion flags activate its native RPM path:
 
 ```sh
 mkdir -p ../lexr-build
-KERNEL_BUNDLE=/path/to/verified-v19-or-newer-kernel-bundle
+KERNEL_BUNDLE=/path/to/verified-patch-line-kernel-bundle
 
 lexr image create \
   --catalog-id fedora-workstation-live-44 \
   --kernel-dir "$KERNEL_BUNDLE" \
   --companion-source-dir . \
   --companion-userspace iptsd \
-  --output ../lexr-build/lexr-fedora-44-sp11-v19-iptsd.iso
+  --output ../lexr-build/lexr-fedora-44-sp11-7.2.2-v1-iptsd.iso
 ```
 
 Without `--companion-userspace iptsd`, Fedora builds no native IPTSD package
