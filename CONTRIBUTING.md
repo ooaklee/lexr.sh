@@ -52,6 +52,11 @@ documentation when the command or its output changes. Named Go declarations
 need useful documentation comments, including declarations in tests, and
 public prose uses British English.
 
+If you are improving an explanation rather than changing the CLI, start with
+the [documentation contribution guide](docs/developer-guide/documentation.md).
+It shows where each kind of guidance belongs, how to keep safety notes beside
+the action they protect, and how to check links and navigation before review.
+
 Safety boundaries are part of the feature, not polish to add later. Preserve
 dry runs, revalidation before mutation, explicit confirmation, rollback, and
 privacy rules wherever the surrounding workflow relies on them. Do not commit
