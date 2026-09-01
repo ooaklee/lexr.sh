@@ -14,6 +14,7 @@ Lexr deliberately separates image creation, private Windows hand-offs, userspace
 | --- | --- |
 | Create, validate, and write the supported live image | [Create and write installation media](installation-media.md) |
 | Put the CLI, source, catalogues, and optional IPTSD support on the image | [Carry the offline companion](offline-companion.md) |
+| Download and install an exact kernel release with its audited userspace support | [Install a released kernel and userspace support](install-released-kernel-and-userspace.md) |
 | Collect private firmware and Bluetooth evidence on Windows, then apply it on Linux | [Complete the Windows hand-off](windows-handoff.md) |
 | Check, obtain, build, or install supporting components | [Manage userspace support](userspace-support.md) |
 | Review and remove recognised obsolete workarounds with a recovery path | [Run reversible clean-up](reversible-cleanup.md) |
