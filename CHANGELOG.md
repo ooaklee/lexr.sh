@@ -54,8 +54,26 @@ that do not apply.
 
 ### Added
 
+- Added an experimental Fedora Workstation Live 44 ARM64 image adapter which
+  preserves the source hybrid boot layout, remasters its EROFS root with the
+  verified v19-or-newer Surface kernel as a Fedora-owned RPM, generates an
+  exact-ABI `dracut-live` initramfs, and validates the live and Anaconda
+  installed-system hand-off before publication. Stock live fallbacks load
+  manifest-bound X1E/X1P device trees explicitly; installed-system support is
+  scoped to X1E until the X1P custom boot hand-off is qualified.
+- Added optional Fedora-native IPTSD integration for the exact source-bearing
+  companion release. The adapter rebuilds the pinned sources and fallbacks as
+  binary and source RPMs, installs the binary package into the Anaconda-carried
+  live root, and independently validates both RPMs and their owned runtime
+  layout; images that omit the IPTSD companion remain unchanged.
 - Added an explicit, build-and-release-provenance-recorded SP11 Stubble mode with packaged PE-section and Denali device-tree validation while retaining source-owned boot-image policy by default.
 - Added closed `all` and `runtime` local kernel package-set selection. Inspection and installation now select every exact ABI/version-matched package from the emitted bundle declaration by default, include a coherent development-header pair when declared, fail if a complete declaration loses either header, preserve intentional runtime-only downloads, and verify both selected header trees after installation; `--package-set runtime` deliberately retains the image-and-modules-only path.
+
+### Changed
+
+- Routed image validation, removable-media writing, and release preparation
+  through the adapter declared by each generated manifest, and made Ubuntu and
+  Fedora share the descriptor-anchored, no-replace output transaction.
 
 ### Fixed
 

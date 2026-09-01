@@ -88,7 +88,7 @@ func New(runner platform.Runner) *Manager {
 	}
 	return &Manager{
 		Runner:                   runner,
-		validateIPTSDIntegration: userspaceiptsd.ValidateIntegration,
+		validateIPTSDIntegration: userspaceiptsd.ValidateRepositoryIntegration,
 		validateIPTSDPayload: func(payload, integration string) error {
 			_, err := userspaceiptsd.ValidatePayload(payload, integration)
 			return err

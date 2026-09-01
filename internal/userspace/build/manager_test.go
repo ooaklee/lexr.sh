@@ -93,6 +93,21 @@ func TestIPTSDBuildUsesCompiledDockerRecipe(t *testing.T) {
 	}
 }
 
+// TestDefaultIPTSDValidatorAcceptsCurrentOEProfile optionally proves that the
+// production build manager selects the repository profile, rather than the
+// narrower immutable-release profile used by the portable installer.
+func TestDefaultIPTSDValidatorAcceptsCurrentOEProfile(t *testing.T) {
+	repositoryRoot := strings.TrimSpace(os.Getenv("LEXR_TEST_OE_ROOT"))
+	if repositoryRoot == "" {
+		t.Skip("set LEXR_TEST_OE_ROOT to the current linux-surface-pro-11-oe checkout")
+	}
+	integrationRoot := filepath.Join(repositoryRoot, "userspace", "iptsd-sp11")
+	manager := New(&recordingRunner{})
+	if err := manager.validateIPTSDIntegration(integrationRoot); err != nil {
+		t.Fatalf("default IPTSD build validator rejected current OE profile: %v", err)
+	}
+}
+
 // userspaceRecipeMarker is one invariant line proving the compiled recipe was
 // supplied to Docker rather than a repository script path.
 const userspaceRecipeMarker = "-Dforce_access_checks=true"

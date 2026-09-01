@@ -60,8 +60,10 @@ type fileSpec struct {
 	size   int64
 }
 
-// integrationFiles is the exact current checked-in integration file set.
-var integrationFiles = []fileSpec{
+// releaseIntegrationFiles is the exact integration file set sealed into the
+// immutable sp11-iptsd-v1 source-bearing release archive. Repository additions
+// must never silently widen this archive profile.
+var releaseIntegrationFiles = []fileSpec{
 	{path: "LICENSE.integration", sha256: "f8126478d63d42239b27e3364ac188d56b5abb0716c021271c1265c556ceed65", size: 1067},
 	{path: "PAYLOAD.sha256", sha256: payloadManifestDigest, size: payloadManifestSize},
 	{path: "README.md", sha256: "af2f4657a15125a1288f2453162954bbf3ee958c2935935d28302e503a45fdf3", size: 3540},
@@ -71,6 +73,45 @@ var integrationFiles = []fileSpec{
 	{path: "packaging/70-sp11-iptsd.rules.in", sha256: "256c30e4b8b931ea04dc235e132d005645e1cb70e4a56f330e8c29e25289d95b", size: 685},
 	{path: "packaging/sp11-iptsd-restart.in", sha256: "12ce4e484da438fd3b1aa842488764bec27242c50bb081cbce6236b07b9d6382", size: 2779},
 	{path: "packaging/sp11-iptsd@.service.in", sha256: "7c30ee0d7aba247fc96cda0289da5385f0a876c5a7974ed0df3f314b2edbecaa", size: 340},
+}
+
+// repositoryIntegrationFiles is the exact current OE source-tree profile. It
+// extends the immutable release profile with reviewed Fedora-native packaging
+// sources, while leaving released archive validation byte-for-byte unchanged.
+var repositoryIntegrationFiles = []fileSpec{
+	{path: "LICENSE.integration", sha256: "f8126478d63d42239b27e3364ac188d56b5abb0716c021271c1265c556ceed65", size: 1067},
+	{path: "PAYLOAD.sha256", sha256: payloadManifestDigest, size: payloadManifestSize},
+	{path: "README.md", sha256: "871d2b1b57b50584126eeec599c64cd5f7363fe42c151341111d1a1f31f67bb0", size: 4272},
+	{path: "SOURCE.env", sha256: "1ff7395738b95a0ef4ffd780a9b6415733e7003040ae0b56b4b984c3bcd25278", size: 336},
+	{path: "config/surface-pro-11-0c80.conf", sha256: "e629f67248df412d69952accc874b848e3e45ad3d8b31cbec4626f85c12c8c34", size: 98},
+	{path: "config/surface-pro-11-0c83.conf", sha256: "358953d2171b36879043dc46084cc9344ea2c28cc718ff75690acd479214bf59", size: 98},
+	{path: "packaging/70-sp11-iptsd.rules.in", sha256: "256c30e4b8b931ea04dc235e132d005645e1cb70e4a56f330e8c29e25289d95b", size: 685},
+	{path: "packaging/fedora/README.md", sha256: "d063a033c4f1c716589f99fc51b081328b88311a59e7e7239351fbeb49a1f799", size: 1794},
+	{path: "packaging/fedora/lexr-sp11-iptsd.spec.in", sha256: "19aeeddf8a9342725c9f8ba54a811a09c7fce6782010313653cb12b35ce9a80d", size: 4820},
+	{path: "packaging/sp11-iptsd-restart.in", sha256: "12ce4e484da438fd3b1aa842488764bec27242c50bb081cbce6236b07b9d6382", size: 2779},
+	{path: "packaging/sp11-iptsd@.service.in", sha256: "7c30ee0d7aba247fc96cda0289da5385f0a876c5a7974ed0df3f314b2edbecaa", size: 340},
+}
+
+// integrationProfile names one closed set of accepted integration file
+// identities and any explicitly reviewed per-path historical alternatives.
+type integrationProfile struct {
+	name         string
+	files        []fileSpec
+	alternatives map[string][]fileSpec
+}
+
+// releaseIntegrationProfile keeps the immutable archive contract separate
+// from later repository-only integration additions.
+var releaseIntegrationProfile = integrationProfile{
+	name:         "sp11-iptsd-v1 release",
+	files:        releaseIntegrationFiles,
+	alternatives: legacyIntegrationAlternatives,
+}
+
+// repositoryIntegrationProfile pins the current OE integration source tree.
+var repositoryIntegrationProfile = integrationProfile{
+	name:  "current OE repository",
+	files: repositoryIntegrationFiles,
 }
 
 // legacyIntegrationAlternatives records reviewed historical identities for
@@ -165,7 +206,7 @@ func ValidateRelease(archiveRoot string) (Release, error) {
 	}
 	payloadRoot := filepath.Join(archiveRoot, filepath.FromSlash(PayloadRelative))
 	integrationRoot := filepath.Join(archiveRoot, filepath.FromSlash(IntegrationRelative))
-	integrationManifest, err := validateIntegration(integrationRoot)
+	integrationManifest, err := validateIntegration(integrationRoot, releaseIntegrationProfile)
 	if err != nil {
 		return Release{}, err
 	}
@@ -181,37 +222,45 @@ func ValidateRelease(archiveRoot string) (Release, error) {
 	return Release{PayloadRoot: payloadRoot, IntegrationRoot: integrationRoot, Files: files}, nil
 }
 
-// ValidateIntegration checks the exact fixed integration tree against the
-// current contract and its explicitly reviewed historical documentation.
+// ValidateIntegration checks an immutable sp11-iptsd-v1 archive integration
+// tree and its explicitly reviewed historical documentation identities.
 func ValidateIntegration(root string) error {
-	_, err := validateIntegration(root)
+	_, err := validateIntegration(root, releaseIntegrationProfile)
 	return err
 }
 
-// validateIntegration checks the closed integration tree and returns the exact
-// approved file identities present in it for later transaction planning.
-func validateIntegration(root string) (map[string]fileSpec, error) {
+// ValidateRepositoryIntegration checks the current closed OE source-tree
+// profile, including the Fedora-native RPM source templates that are not part
+// of the already published sp11-iptsd-v1 archive.
+func ValidateRepositoryIntegration(root string) error {
+	_, err := validateIntegration(root, repositoryIntegrationProfile)
+	return err
+}
+
+// validateIntegration checks one named closed integration profile and returns
+// the exact approved identities present for later transaction planning.
+func validateIntegration(root string, profile integrationProfile) (map[string]fileSpec, error) {
 	root, err := cleanRegularDirectory(root)
 	if err != nil {
-		return nil, fmt.Errorf("validate IPTSD integration: %w", err)
+		return nil, fmt.Errorf("validate IPTSD integration (%s): %w", profile.name, err)
 	}
-	expected := make(map[string]fileSpec, len(integrationFiles))
-	for _, spec := range integrationFiles {
+	expected := make(map[string]fileSpec, len(profile.files))
+	for _, spec := range profile.files {
 		expected[spec.path] = spec
 	}
 	actual, err := exactRegularFiles(root, len(expected), maximumMetadataBytes)
 	if err != nil {
-		return nil, fmt.Errorf("validate IPTSD integration: %w", err)
+		return nil, fmt.Errorf("validate IPTSD integration (%s): %w", profile.name, err)
 	}
 	if err := validateExactSet(actual, expected); err != nil {
-		return nil, fmt.Errorf("validate IPTSD integration: %w", err)
+		return nil, fmt.Errorf("validate IPTSD integration (%s): %w", profile.name, err)
 	}
 	validated := make(map[string]fileSpec, len(expected))
 	for relative, spec := range expected {
-		alternatives := append([]fileSpec{spec}, legacyIntegrationAlternatives[relative]...)
+		alternatives := append([]fileSpec{spec}, profile.alternatives[relative]...)
 		matched, err := validateFileAlternatives(filepath.Join(root, filepath.FromSlash(relative)), alternatives)
 		if err != nil {
-			return nil, fmt.Errorf("validate IPTSD integration %s: %w", relative, err)
+			return nil, fmt.Errorf("validate IPTSD integration (%s) %s: %w", profile.name, relative, err)
 		}
 		validated[relative] = matched
 	}

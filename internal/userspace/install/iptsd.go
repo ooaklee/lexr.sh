@@ -109,6 +109,19 @@ func (installer *Installer) IPTSD(ctx context.Context, options Options) (Result,
 	if err != nil {
 		return Result{}, err
 	}
+	if installer.detectNativeIPTSD == nil {
+		return Result{}, errors.New("Fedora-native IPTSD detection policy is unavailable")
+	}
+	nativeState, err := installer.detectNativeIPTSD(options.Root)
+	if err != nil {
+		return Result{}, err
+	}
+	if nativeState == fedoraNativeIPTSDComplete {
+		return Result{}, errors.New("refusing portable IPTSD installation: target already contains the complete Fedora-native lexr-sp11-iptsd /usr layout; manage or remove the native RPM instead")
+	}
+	if nativeState == fedoraNativeIPTSDPartial {
+		return Result{}, errors.New("refusing portable IPTSD installation: target contains a partial, mutated, or incompatible Fedora-native lexr-sp11-iptsd /usr layout; repair or remove those native files first")
+	}
 	bundle, err := verifyBundle(options.BundleDir, iptsdSpec)
 	if err != nil {
 		return Result{}, err

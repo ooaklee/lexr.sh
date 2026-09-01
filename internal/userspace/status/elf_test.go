@@ -40,6 +40,29 @@ func TestInspectIPTSDELFResolvesStaticRuntime(t *testing.T) {
 	}
 }
 
+// TestInspectIPTSDELFFedoraNativePaths verifies that the same bounded runtime
+// walk accepts distribution-native /usr/libexec executables.
+func TestInspectIPTSDELFFedoraNativePaths(t *testing.T) {
+	root := t.TempDir()
+	loader := "/lib/ld-linux-aarch64.so.1"
+	for _, binaryPath := range fedoraNativeIPTSDELFBinaries {
+		writeSyntheticELF(t, root, binaryPath, debugelf.EM_AARCH64, loader, []string{"libc.so.6"})
+	}
+	writeSyntheticELF(t, root, strings.TrimPrefix(loader, "/"), debugelf.EM_AARCH64, "", nil)
+	writeSyntheticELF(t, root, "usr/lib64/libc.so.6", debugelf.EM_AARCH64, "", nil)
+	fs, err := newRootedFS(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check, err := inspectIPTSDELFPaths(fs, true, fedoraNativeIPTSDELFBinaries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if check.State != StatePass || !strings.Contains(check.Detail, "libc.so.6") {
+		t.Fatalf("Fedora-native ELF check = %#v", check)
+	}
+}
+
 // TestInspectIPTSDELFRejectsWrongLoaderArchitecture verifies that PT_INTERP
 // existence alone cannot satisfy readiness with a non-AArch64 loader.
 func TestInspectIPTSDELFRejectsWrongLoaderArchitecture(t *testing.T) {

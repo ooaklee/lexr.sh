@@ -660,6 +660,99 @@ func (extractor *nativeIPTSDExtractor) Extract(_ context.Context, _ string, dest
 	return os.WriteFile(filepath.Join(root, "fixture-binary"), []byte("new-binary"), 0o755)
 }
 
+// TestIPTSDRefusesFedoraNativeLayout verifies the native marker decision is
+// enforced before bundle extraction, planning, privilege checks, or mutation.
+func TestIPTSDRefusesFedoraNativeLayout(t *testing.T) {
+	bundle := makeTestIPTSDBundle(t)
+	root := t.TempDir()
+	installer, extractor := configureTestIPTSDInstaller(t, &fakeRunner{})
+	inspections := 0
+	installer.detectNativeIPTSD = func(selectedRoot string) (fedoraNativeIPTSDState, error) {
+		inspections++
+		resolvedRoot, err := filepath.EvalSymlinks(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if selectedRoot != resolvedRoot {
+			t.Fatalf("native detector root = %q, want %q", selectedRoot, resolvedRoot)
+		}
+		return fedoraNativeIPTSDComplete, nil
+	}
+	_, err := installer.IPTSD(context.Background(), Options{BundleDir: bundle, Root: root, DryRun: true})
+	if err == nil || !strings.Contains(err.Error(), "complete Fedora-native lexr-sp11-iptsd /usr layout") {
+		t.Fatalf("native layout refusal error = %v", err)
+	}
+	if inspections != 1 || extractor.extractions != 0 {
+		t.Fatalf("native inspections=%d extractions=%d", inspections, extractor.extractions)
+	}
+}
+
+// TestIPTSDRefusesPartialFedoraNativeLayout verifies that even one damaged
+// native marker blocks creation of a parallel portable service topology.
+func TestIPTSDRefusesPartialFedoraNativeLayout(t *testing.T) {
+	bundle := makeTestIPTSDBundle(t)
+	root := t.TempDir()
+	marker := userspaceiptsd.FedoraNativeRPMStaticFiles()[0]
+	path := filepath.Join(root, filepath.FromSlash(marker.Path))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("damaged native marker"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	installer, extractor := configureTestIPTSDInstaller(t, &fakeRunner{})
+	_, err := installer.IPTSD(context.Background(), Options{BundleDir: bundle, Root: root, DryRun: true})
+	if err == nil || !strings.Contains(err.Error(), "partial, mutated, or incompatible Fedora-native") {
+		t.Fatalf("partial native layout refusal error = %v", err)
+	}
+	if extractor.extractions != 0 {
+		t.Fatalf("partial native layout was extracted over: %d", extractor.extractions)
+	}
+}
+
+// TestFedoraNativeIPTSDDetectorRequiresExactMarkers verifies that plausible
+// file names with unapproved bytes cannot be mistaken for the native package.
+func TestFedoraNativeIPTSDDetectorRequiresExactMarkers(t *testing.T) {
+	root := t.TempDir()
+	for _, marker := range userspaceiptsd.FedoraNativeRPMStaticFiles() {
+		path := filepath.Join(root, filepath.FromSlash(marker.Path))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		data := bytes.Repeat([]byte{'x'}, int(marker.Size))
+		mode := os.FileMode(0o644)
+		if marker.Executable {
+			mode = 0o755
+		}
+		if err := os.WriteFile(path, data, mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	state, err := fedoraNativeIPTSDInstalled(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state != fedoraNativeIPTSDPartial {
+		t.Fatalf("unapproved native marker state = %d, want partial", state)
+	}
+}
+
+// TestOptionalFedoraNativeIPTSDDetector validates complete recognition against
+// an extracted final RPM supplied by the integration environment.
+func TestOptionalFedoraNativeIPTSDDetector(t *testing.T) {
+	root := strings.TrimSpace(os.Getenv("LEXR_TEST_FEDORA_IPTSD_ROOT"))
+	if root == "" {
+		t.Skip("set LEXR_TEST_FEDORA_IPTSD_ROOT to an extracted lexr-sp11-iptsd RPM root")
+	}
+	state, err := fedoraNativeIPTSDInstalled(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state != fedoraNativeIPTSDComplete {
+		t.Fatalf("extracted Fedora-native RPM state = %d, want complete", state)
+	}
+}
+
 // TestIPTSDNativeDryRunAndInstall verifies full dry-run extraction, exact file
 // planning, native rendering, private backup/receipt state, and mask creation.
 func TestIPTSDNativeDryRunAndInstall(t *testing.T) {

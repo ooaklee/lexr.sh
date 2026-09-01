@@ -40,7 +40,7 @@ func TestInspectReadyRequiredSupport(t *testing.T) {
 
 	inspector := New()
 	inspector.hash = matchingFixtureHasher(t, root)
-	inspector.inspectELF = func(_ *rootedFS, required bool) (Check, error) {
+	inspector.inspectELF = func(_ *rootedFS, required bool, _ []string) (Check, error) {
 		return Check{ID: "iptsd-elf-runtime", Feature: FeatureIPTSD, State: StatePass, Required: required, Detail: "test ELF runtime is complete"}, nil
 	}
 	report, err := inspector.Inspect(Options{
@@ -61,6 +61,115 @@ func TestInspectReadyRequiredSupport(t *testing.T) {
 		if check.State != StatePass {
 			t.Fatalf("check %s = %s: %s", check.ID, check.State, check.Detail)
 		}
+	}
+}
+
+// TestInspectFedoraNativeIPTSDLayout verifies that the /usr-owned package
+// topology is treated as one coherent installation, uses its native binaries
+// for ELF inspection, and does not require the portable /dev/null mask.
+func TestInspectFedoraNativeIPTSDLayout(t *testing.T) {
+	root := t.TempDir()
+	abi := "7.2.0-jg-0sp11v19-qcom-x1e"
+	mkdir(t, filepath.Join(root, "lib/modules", abi))
+	for _, requirement := range fedoraNativeIPTSDFiles {
+		writeRequirement(t, root, requirement)
+	}
+
+	inspector := New()
+	inspector.hash = matchingFixtureHasher(t, root)
+	var inspectedBinaries []string
+	inspector.inspectELF = func(_ *rootedFS, required bool, binaries []string) (Check, error) {
+		inspectedBinaries = append([]string(nil), binaries...)
+		return Check{ID: "iptsd-elf-runtime", Feature: FeatureIPTSD, State: StatePass, Required: required, Detail: "test native ELF runtime is complete"}, nil
+	}
+	report, err := inspector.Inspect(Options{Root: root, Features: []Feature{FeatureIPTSD}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Ready {
+		t.Fatalf("Fedora-native IPTSD report is not ready: %#v", report.Checks)
+	}
+	if strings.Join(inspectedBinaries, ",") != strings.Join(fedoraNativeIPTSDELFBinaries, ",") {
+		t.Fatalf("inspected binaries = %v, want %v", inspectedBinaries, fedoraNativeIPTSDELFBinaries)
+	}
+	if check := findCheck(t, report, "iptsd-v1-integration"); check.State != StatePass || !strings.Contains(check.Detail, "Fedora-native /usr layout") {
+		t.Fatalf("native integration check = %#v", check)
+	}
+	if check := findCheck(t, report, "iptsd-generic-service-conflict"); check.State != StatePass {
+		t.Fatalf("native generic-service check = %#v", check)
+	}
+}
+
+// TestPartialFedoraNativeIPTSDReportsNativePaths verifies that a damaged RPM
+// does not fall back to misleading /usr/local missing-file diagnostics.
+func TestPartialFedoraNativeIPTSDReportsNativePaths(t *testing.T) {
+	root := t.TempDir()
+	abi := "7.2.0-jg-0sp11v19-qcom-x1e"
+	mkdir(t, filepath.Join(root, "lib/modules", abi))
+	writeRequirement(t, root, fedoraNativeIPTSDStaticFiles[0])
+	inspector := New()
+	inspector.hash = matchingFixtureHasher(t, root)
+	inspector.inspectELF = func(_ *rootedFS, required bool, _ []string) (Check, error) {
+		return Check{ID: "iptsd-elf-runtime", Feature: FeatureIPTSD, State: optionalState(required), Required: required, Detail: "native executables are missing"}, nil
+	}
+	report, err := inspector.Inspect(Options{Root: root, Features: []Feature{FeatureIPTSD}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := findCheck(t, report, "iptsd-v1-integration")
+	if check.State != StateFail || !strings.Contains(check.Detail, "Fedora-native /usr layout") || !strings.Contains(check.Detail, "missing /usr/libexec/sp11-iptsd") {
+		t.Fatalf("partial native integration check = %#v", check)
+	}
+	if strings.Contains(check.Detail, "/usr/local/") {
+		t.Fatalf("partial native layout was misreported as portable: %#v", check)
+	}
+}
+
+// TestMixedFedoraAndPortableIPTSDLayoutsFail verifies that a native package
+// cannot conceal stale /usr/local integration paths that may shadow its units.
+func TestMixedFedoraAndPortableIPTSDLayoutsFail(t *testing.T) {
+	root := t.TempDir()
+	abi := "7.2.0-jg-0sp11v19-qcom-x1e"
+	mkdir(t, filepath.Join(root, "lib/modules", abi))
+	for _, requirement := range fedoraNativeIPTSDFiles {
+		writeRequirement(t, root, requirement)
+	}
+	writeRequirement(t, root, iptsdV1Files[0])
+	inspector := New()
+	inspector.hash = matchingFixtureHasher(t, root)
+	inspector.inspectELF = func(_ *rootedFS, required bool, _ []string) (Check, error) {
+		return Check{ID: "iptsd-elf-runtime", Feature: FeatureIPTSD, State: StatePass, Required: required, Detail: "test native ELF runtime is complete"}, nil
+	}
+	report, err := inspector.Inspect(Options{Root: root, Features: []Feature{FeatureIPTSD}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := findCheck(t, report, "iptsd-v1-integration")
+	if report.Ready || check.State != StateFail || !strings.Contains(check.Detail, "stale portable /usr/local") {
+		t.Fatalf("mixed-layout check = %#v, ready=%t", check, report.Ready)
+	}
+}
+
+// TestOptionalFedoraNativeIPTSDRoot checks the real static package bytes when
+// an extracted final RPM is supplied by the integration environment.
+func TestOptionalFedoraNativeIPTSDRoot(t *testing.T) {
+	root := strings.TrimSpace(os.Getenv("LEXR_TEST_FEDORA_IPTSD_ROOT"))
+	if root == "" {
+		t.Skip("set LEXR_TEST_FEDORA_IPTSD_ROOT to an extracted lexr-sp11-iptsd RPM root")
+	}
+	inspector := New()
+	inspector.inspectELF = func(_ *rootedFS, required bool, binaries []string) (Check, error) {
+		if strings.Join(binaries, ",") != strings.Join(fedoraNativeIPTSDELFBinaries, ",") {
+			t.Fatalf("RPM selected ELF paths %v, want %v", binaries, fedoraNativeIPTSDELFBinaries)
+		}
+		return Check{ID: "iptsd-elf-runtime", Feature: FeatureIPTSD, State: StatePass, Required: required, Detail: "RPM ELF fixture is validated separately"}, nil
+	}
+	report, err := inspector.Inspect(Options{Root: root, Features: []Feature{FeatureIPTSD}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if check := findCheck(t, report, "iptsd-v1-integration"); check.State != StatePass || !strings.Contains(check.Detail, "Fedora-native /usr layout") {
+		t.Fatalf("RPM static integration check = %#v", check)
 	}
 }
 
@@ -714,10 +823,15 @@ func matchingFixtureHasher(t *testing.T, root string) fileHasher {
 		if err != nil {
 			return "", err
 		}
+		info, err := os.Stat(path)
+		if err != nil {
+			return "", err
+		}
 		logical := filepath.ToSlash(relative)
-		for _, requirements := range [][]fileRequirement{audioV19cFiles, iptsdV1Files, cameraFiles} {
+		for _, requirements := range [][]fileRequirement{audioV19cFiles, iptsdV1Files, fedoraNativeIPTSDStaticFiles, cameraFiles} {
 			for _, requirement := range requirements {
-				if requirement.Path == logical && requirement.SHA256 != "" {
+				if requirement.Path == logical && requirement.SHA256 != "" &&
+					(requirement.ExpectedSize == 0 || requirement.ExpectedSize == info.Size()) {
 					return requirement.SHA256, nil
 				}
 			}

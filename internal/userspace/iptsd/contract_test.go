@@ -82,7 +82,7 @@ func testDocumentationIdentity(t *testing.T, fixtureName, expectedDigest string,
 // focused fixture tests do not depend on the separate OE repository checkout.
 func integrationFileSpecification(t *testing.T, name string) fileSpec {
 	t.Helper()
-	for _, specification := range integrationFiles {
+	for _, specification := range releaseIntegrationFiles {
 		if specification.path == name {
 			return specification
 		}

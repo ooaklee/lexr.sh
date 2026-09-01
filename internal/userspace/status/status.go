@@ -23,7 +23,7 @@ type fileHasher func(string, int64) (string, error)
 
 // elfInspector abstracts the static IPTSD runtime assessment so coherent-set
 // tests can isolate hash policy from handcrafted ELF fixtures.
-type elfInspector func(*rootedFS, bool) (Check, error)
+type elfInspector func(*rootedFS, bool, []string) (Check, error)
 
 // Inspector performs static target-root inspection. It is safe to reuse for
 // multiple reports.
@@ -36,7 +36,7 @@ type Inspector struct {
 
 // New returns an inspector using SHA-256 for pinned asset identities.
 func New() *Inspector {
-	return &Inspector{hash: hashFile, inspectELF: inspectIPTSDELF}
+	return &Inspector{hash: hashFile, inspectELF: inspectIPTSDELFPaths}
 }
 
 // Inspect runs a report with the default inspector.
@@ -206,20 +206,29 @@ func (inspector *Inspector) Inspect(options Options) (Report, error) {
 	if features[FeatureIPTSD] {
 		required := policies.required(iptsdComponent)
 		add(policies.inspectKernelCompatibility(iptsdComponent, report.KernelABI))
-		check, checkErr := inspector.checkFileSet(fs, "iptsd-v1-integration", FeatureIPTSD, required, iptsdV1Files, false)
+		check, binaries, nativeLayout, checkErr := inspector.inspectIPTSDIntegration(fs, required)
 		if checkErr != nil {
 			return Report{}, checkErr
 		}
-		check.Remediation = "install the complete verified sp11-iptsd-v1 payload and integration files"
+		if nativeLayout {
+			check.Remediation = "repair or reinstall the Fedora lexr-sp11-iptsd package; remove any stale portable /usr/local integration after verifying the native package"
+		} else {
+			check.Remediation = "install the complete verified sp11-iptsd-v1 payload and integration files"
+		}
 		add(policies.decorate(check, iptsdComponent))
 
-		elfCheck, checkErr := inspector.inspectELF(fs, required)
+		elfCheck, checkErr := inspector.inspectELF(fs, required, binaries)
 		if checkErr != nil {
 			return Report{}, checkErr
 		}
 		add(policies.decorate(elfCheck, iptsdComponent))
 
-		mask, checkErr := inspectMask(fs, required)
+		var mask Check
+		if nativeLayout {
+			mask, checkErr = inspectNativeIPTSDGenericService(fs, required)
+		} else {
+			mask, checkErr = inspectMask(fs, required)
+		}
 		if checkErr != nil {
 			return Report{}, checkErr
 		}

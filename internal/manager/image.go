@@ -15,7 +15,9 @@ import (
 
 	"github.com/ooaklee/lexr.sh/internal/artifact"
 	"github.com/ooaklee/lexr.sh/internal/catalog"
+	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
 	"github.com/ooaklee/lexr.sh/internal/image/companion"
+	"github.com/ooaklee/lexr.sh/internal/image/fedora"
 	"github.com/ooaklee/lexr.sh/internal/image/ubuntu"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/kernel/release"
@@ -84,7 +86,7 @@ type CreateImageResult struct {
 	// KernelBundle is the exact digest-verified bundle installed into the image.
 	KernelBundle kernel.Bundle
 	// Image contains the ISO, manifest, journal, digest, and optional diagnostics.
-	Image ubuntu.Result
+	Image imagecontract.Result
 }
 
 // ImageManager orchestrates otherwise independent catalogue, download, release,
@@ -98,6 +100,8 @@ type ImageManager struct {
 	Releases *release.Client
 	// Remaster performs the distribution-specific image transformation.
 	Remaster *ubuntu.Remasterer
+	// FedoraRemaster performs the Fedora EROFS live-media transformation.
+	FedoraRemaster *fedora.Remasterer
 	// Userspace resolves optional verified offline companion releases.
 	Userspace *userspacemanager.Manager
 	// CompanionRunner probes the host Go toolchain needed only when the caller
@@ -111,7 +115,7 @@ type imageAdapter interface {
 	// Plan renders the adapter's deterministic workflow without external work.
 	Plan(imageAdapterRequest) (plan.Plan, error)
 	// Create executes the adapter with already resolved and verified inputs.
-	Create(context.Context, imageAdapterRequest) (ubuntu.Result, error)
+	Create(context.Context, imageAdapterRequest) (imagecontract.Result, error)
 }
 
 // imageAdapterRequest carries common image inputs across the manager-to-adapter
@@ -144,6 +148,25 @@ type ubuntuCasperImageAdapter struct {
 	remasterer *ubuntu.Remasterer
 }
 
+// fedoraLiveImageAdapter binds the manager boundary to Fedora Live.
+type fedoraLiveImageAdapter struct {
+	// remasterer performs real Fedora ISO creation and may be nil for planning.
+	remasterer *fedora.Remasterer
+}
+
+// Plan delegates generic image planning through the selected Fedora adapter.
+func (a fedoraLiveImageAdapter) Plan(request imageAdapterRequest) (plan.Plan, error) {
+	return fedora.BuildPlan(fedoraAdapterRequest(request))
+}
+
+// Create delegates verified inputs through the Fedora adapter selected during planning.
+func (a fedoraLiveImageAdapter) Create(ctx context.Context, request imageAdapterRequest) (imagecontract.Result, error) {
+	if a.remasterer == nil {
+		return imagecontract.Result{}, errors.New("image manager dependencies are incomplete")
+	}
+	return a.remasterer.Create(ctx, fedoraAdapterRequest(request))
+}
+
 // Plan delegates generic image planning through the selected Ubuntu adapter.
 func (a ubuntuCasperImageAdapter) Plan(request imageAdapterRequest) (plan.Plan, error) {
 	return ubuntu.BuildPlan(ubuntuAdapterRequest(request))
@@ -151,9 +174,9 @@ func (a ubuntuCasperImageAdapter) Plan(request imageAdapterRequest) (plan.Plan, 
 
 // Create delegates verified inputs through the same Ubuntu adapter selected
 // during planning.
-func (a ubuntuCasperImageAdapter) Create(ctx context.Context, request imageAdapterRequest) (ubuntu.Result, error) {
+func (a ubuntuCasperImageAdapter) Create(ctx context.Context, request imageAdapterRequest) (imagecontract.Result, error) {
 	if a.remasterer == nil {
-		return ubuntu.Result{}, errors.New("image manager dependencies are incomplete")
+		return imagecontract.Result{}, errors.New("image manager dependencies are incomplete")
 	}
 	return a.remasterer.Create(ctx, ubuntuAdapterRequest(request))
 }
@@ -162,6 +185,21 @@ func (a ubuntuCasperImageAdapter) Create(ctx context.Context, request imageAdapt
 // existing Ubuntu Casper adapter contract in one place.
 func ubuntuAdapterRequest(request imageAdapterRequest) ubuntu.Request {
 	return ubuntu.Request{
+		SourceISO:          request.Source,
+		SourceSHA256:       request.SourceSHA256,
+		OutputISO:          request.Output,
+		Bundle:             request.Bundle,
+		ToolVersion:        request.ToolVersion,
+		Companion:          request.Companion,
+		CompanionUserspace: request.CompanionUserspace,
+		WorkspaceRoot:      request.WorkspaceRoot,
+		KeepWorkspace:      request.KeepWorkspace,
+	}
+}
+
+// fedoraAdapterRequest translates distribution-neutral inputs into Fedora's contract.
+func fedoraAdapterRequest(request imageAdapterRequest) fedora.Request {
+	return fedora.Request{
 		SourceISO:          request.Source,
 		SourceSHA256:       request.SourceSHA256,
 		OutputISO:          request.Output,
@@ -195,6 +233,7 @@ func NewImageManager(loader catalog.Loader, out io.Writer) *ImageManager {
 		Artifacts:       artifact.NewResolver(nil),
 		Releases:        release.NewClient(nil),
 		Remaster:        ubuntu.NewRemasterer(nil, out),
+		FedoraRemaster:  fedora.NewRemasterer(nil, out),
 		CompanionRunner: platform.ExecRunner{},
 	}
 }
@@ -213,7 +252,7 @@ func (m *ImageManager) Plan(request CreateImageRequest) (plan.Plan, error) {
 // Create resolves and verifies every external input, invokes the supported
 // distribution adapter, and returns only after the image is validated and published.
 func (m *ImageManager) Create(ctx context.Context, request CreateImageRequest) (CreateImageResult, error) {
-	if m.Artifacts == nil || m.Releases == nil || m.Remaster == nil {
+	if m.Artifacts == nil || m.Releases == nil {
 		return CreateImageResult{}, errors.New("image manager dependencies are incomplete")
 	}
 	operation, err := m.prepareImageOperation(request)
@@ -342,6 +381,8 @@ func (m *ImageManager) adapterForEntry(entry catalog.Entry) (imageAdapter, error
 	switch entry.Adapter {
 	case catalog.AdapterUbuntuCasper:
 		return ubuntuCasperImageAdapter{remasterer: m.Remaster}, nil
+	case catalog.AdapterFedoraLive:
+		return fedoraLiveImageAdapter{remasterer: m.FedoraRemaster}, nil
 	default:
 		return nil, fmt.Errorf("catalog entry %q selects unavailable adapter %q", entry.ID, entry.Adapter)
 	}

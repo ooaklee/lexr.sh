@@ -1,5 +1,7 @@
 package status
 
+import userspaceiptsd "github.com/ooaklee/lexr.sh/internal/userspace/iptsd"
+
 // maxPinnedFileBytes is the fail-closed hashing ceiling for a pinned file that
 // does not have a narrower compiled asset-size contract.
 const maxPinnedFileBytes int64 = 64 << 20
@@ -128,7 +130,65 @@ var iptsdV1Files = []fileRequirement{
 	{Path: "usr/local/share/iptsd/surface-pro-11-0c83.conf", SHA256: "358953d2171b36879043dc46084cc9344ea2c28cc718ff75690acd479214bf59"},
 	{Path: "etc/systemd/system/sp11-iptsd@.service", SHA256: "74add71ef414c09547434db92e3f3faeee5909a8181dd28317d9d54cd77f2e4a"},
 	{Path: "etc/udev/rules.d/70-sp11-iptsd.rules", SHA256: "2723ddfa7afb431368fce31419cb77b97853286ac37fd824d418e5c3bc8e2327"},
-	{Path: "usr/lib/systemd/system-sleep/sp11-iptsd-restart", SHA256: "9a81548cef754a1ed933ad2c6f540ca916e6101848c1616402bbe355232ac102", Executable: true},
+	{Path: "usr/lib/systemd/system-sleep/sp11-iptsd-restart", SHA256: "9a81548cef754a1ed933ad2c6f540ca916e6101848c1616402bbe355232ac102", ExpectedSize: 2848, Executable: true},
+}
+
+// fedoraNativeIPTSDStaticFiles pins every deterministic integration and source
+// identity installed by the Fedora-native RPM. The binaries are rebuilt by
+// Fedora and therefore have a separate ELF/runtime contract below.
+var fedoraNativeIPTSDStaticFiles = nativeIPTSDRequirements(userspaceiptsd.FedoraNativeRPMStaticFiles())
+
+// fedoraNativeIPTSDBinaries identifies the two distribution-rebuilt AArch64
+// executables without pretending their bytes equal the portable Ubuntu build.
+var fedoraNativeIPTSDBinaries = nativeIPTSDRequirements(userspaceiptsd.FedoraNativeRPMBinaries())
+
+// fedoraNativeIPTSDFiles is the complete coherent Fedora-native filesystem
+// layout used for status selection and validation.
+var fedoraNativeIPTSDFiles = append(
+	append([]fileRequirement(nil), fedoraNativeIPTSDBinaries...),
+	fedoraNativeIPTSDStaticFiles...,
+)
+
+// Layout selection excludes the sleep hook shared with the portable release;
+// every other Fedora path is unambiguously native-owned.
+var fedoraNativeIPTSDDistinctFiles = excludeIPTSDPath(fedoraNativeIPTSDFiles, userspaceiptsd.FedoraNativeRPMSharedSleepHookPath)
+
+// Mixed-layout detection likewise ignores the one shared hook and looks only
+// for paths that prove a portable /usr/local integration is also present.
+var portableIPTSDDistinctFiles = excludeIPTSDPath(iptsdV1Files, userspaceiptsd.FedoraNativeRPMSharedSleepHookPath)
+
+// fedoraNativeIPTSDELFBinaries supplies the same exact native binary paths to
+// the bounded static runtime inspector.
+var fedoraNativeIPTSDELFBinaries = func() []string {
+	paths := make([]string, 0, len(fedoraNativeIPTSDBinaries))
+	for _, requirement := range fedoraNativeIPTSDBinaries {
+		paths = append(paths, requirement.Path)
+	}
+	return paths
+}()
+
+// nativeIPTSDRequirements projects the shared RPM layout contract into the
+// private status file-policy representation.
+func nativeIPTSDRequirements(files []userspaceiptsd.NativeRPMFile) []fileRequirement {
+	requirements := make([]fileRequirement, 0, len(files))
+	for _, file := range files {
+		requirements = append(requirements, fileRequirement{
+			Path: file.Path, SHA256: file.SHA256, ExpectedSize: file.Size,
+			Executable: file.Executable,
+		})
+	}
+	return requirements
+}
+
+// excludeIPTSDPath returns a detached requirement set without one known path.
+func excludeIPTSDPath(requirements []fileRequirement, excluded string) []fileRequirement {
+	result := make([]fileRequirement, 0, len(requirements))
+	for _, requirement := range requirements {
+		if requirement.Path != excluded {
+			result = append(result, requirement)
+		}
+	}
+	return result
 }
 
 // genericIPTSDMask identifies the generic service that must be masked so it does

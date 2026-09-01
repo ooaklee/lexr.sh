@@ -24,8 +24,8 @@ const maxELFRuntimeObjects = 256
 // cycle detection.
 const maxELFDependencyDepth = 32
 
-// iptsdELFBinaries are the two installed executables supplied by the pinned
-// integration and assessed without running either one.
+// iptsdELFBinaries retains the original portable executable paths for direct
+// package callers and compatibility-focused tests.
 var iptsdELFBinaries = []string{
 	"usr/local/libexec/sp11-iptsd",
 	"usr/local/libexec/sp11-iptsd-check-device",
@@ -62,12 +62,21 @@ type resolvedELFObject struct {
 // inspectIPTSDELF validates the complete bounded AArch64 ELF interpreter and
 // transitive DT_NEEDED closure for both installed pinned executables.
 func inspectIPTSDELF(fs *rootedFS, required bool) (Check, error) {
+	return inspectIPTSDELFPaths(fs, required, iptsdELFBinaries)
+}
+
+// inspectIPTSDELFPaths applies the same closed runtime proof to one selected
+// portable or Fedora-native binary topology.
+func inspectIPTSDELFPaths(fs *rootedFS, required bool, binaries []string) (Check, error) {
 	inspection := &elfRuntimeInspector{
 		fs:        fs,
 		visited:   make(map[string]bool),
 		libraries: make(map[string]bool),
 	}
-	for _, logicalPath := range iptsdELFBinaries {
+	if len(binaries) != 2 {
+		return Check{}, fmt.Errorf("IPTSD ELF inspection requires exactly two binaries, got %d", len(binaries))
+	}
+	for _, logicalPath := range binaries {
 		if err := inspection.inspectObject(logicalPath, filepath.Base(logicalPath), true, 0); err != nil {
 			return Check{}, err
 		}
