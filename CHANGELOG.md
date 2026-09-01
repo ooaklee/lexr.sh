@@ -59,6 +59,9 @@ that do not apply.
 
 ### Fixed
 
+- Allowed `kernel build --reset-source` to move a managed shallow checkout
+  between refs without mistaking the retained shallow tip for a local commit,
+  while preserving the non-reset build guard.
 - Made native kernel builds package the common and ABI-specific headers as a complete pair alongside the signed image and modules.
 - Emitted the installed-toolchain provenance digest without a trailing newline so strict bundle publication can validate it.
 - Preserved package-postinst Surface device-tree injection by avoiding a redundant final GRUB regeneration after native kernel installation.

@@ -683,6 +683,21 @@ func TestCompiledRecipeContainsOnlyNativeBuildPolicy(t *testing.T) {
 	}
 }
 
+// TestCompiledRecipeProtectsLocalCommitsWithoutReset verifies an explicitly
+// authorised reset can cross shallow fetch boundaries while ordinary builds
+// still reject commits outside the requested remote ref.
+func TestCompiledRecipeProtectsLocalCommitsWithoutReset(t *testing.T) {
+	const guardedCheck = `if [ "$reset_source" != true ] &&
+   git -C "$source_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
+  local_commits="$(git -C "$source_dir" rev-list --count "$revision..HEAD")"`
+	if !strings.Contains(containerRecipe, guardedCheck) {
+		t.Fatal("compiled recipe does not limit the local-commit guard to non-reset builds")
+	}
+	if strings.Count(containerRecipe, "Managed source contains commits outside the requested remote ref") != 1 {
+		t.Fatal("compiled recipe does not retain exactly one local-commit rejection")
+	}
+}
+
 // TestCompiledRecipeParsesWithBash verifies the embedded policy remains a
 // syntactically valid Bash program when Bash is available to the test host.
 func TestCompiledRecipeParsesWithBash(t *testing.T) {
