@@ -1,5 +1,7 @@
 # Lexr.sh
 
+Lexr (Linux Exchanger) makes it easy to run ARM64 Linux on the Microsoft Surface Pro 11. It bundles a ready-to-use image, a tailored kernel, and essential device support, then helps you track and manage what works out of the box. Fast, auditable, and Surface Pro 11-focused.
+
 Build a repeatable ARM64 Linux installer for the Microsoft Surface Pro 11, then
 see which device support is actually ready on the installed system.
 
