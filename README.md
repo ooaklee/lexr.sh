@@ -90,8 +90,11 @@ packages the CLI. The
 [IPTSD integration workflow](.github/workflows/iptsd-integration-tests.yml)
 sparsely checks out the two public OE contract directories into temporary
 runner storage, validates them from Lexr, and runs nightly as well as for Lexr
-changes; its manual dispatch accepts an `oe_ref` when a particular OE branch,
-tag, or commit needs checking. The
+changes. A branch push or same-repository pull request uses an exact,
+same-named branch from the canonical OE repository when one exists and
+otherwise falls back to OE `main`; fork pull requests and scheduled runs remain
+bound to `main`. Manual dispatch accepts an explicit `oe_ref` when a particular
+OE branch, tag, or commit needs checking. The
 [kernel workflow](.github/workflows/sp11-kernel-build.yml) is manually
 dispatched here and uses the checked-out Lexr source to build, validate and
 optionally publish an experimental kernel prerelease in the OE repository.

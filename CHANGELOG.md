@@ -71,6 +71,9 @@ that do not apply.
 
 ### Changed
 
+- Made cross-repository IPTSD CI select a safely named, same-named branch from
+  the canonical OE repository for branch pushes and same-repository pull
+  requests, falling back to OE `main` only when that branch does not exist.
 - Routed image validation, removable-media writing, and release preparation
   through the adapter declared by each generated manifest, and made Ubuntu and
   Fedora share the descriptor-anchored, no-replace output transaction.
