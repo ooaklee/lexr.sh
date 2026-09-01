@@ -48,6 +48,20 @@ func TestIPTSDRPMSpecUsesFedoraPathsAndBoundedRetrigger(t *testing.T) {
 	}
 }
 
+// TestFedoraIPTSDValidatorUsesKernelHIDIdentifiers prevents validation from
+// drifting to USB-style slash-separated identifiers that cannot occur in the
+// packaged udev rule's KERNELS match.
+func TestFedoraIPTSDValidatorUsesKernelHIDIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	spec := iptsdRPMSpec()
+	for _, marker := range []string{fedoraIPTSDHID0C80, fedoraIPTSDHID0C83} {
+		if strings.Contains(marker, "/") || !strings.Contains(spec, marker) {
+			t.Errorf("Fedora IPTSD HID validator marker %q does not match the packaged kernel identifier", marker)
+		}
+	}
+}
+
 // TestFedoraIPTSDUserspaceRequiresAnExplicitRelease keeps a CLI-only companion
 // from silently claiming that a native pen package was installed.
 func TestFedoraIPTSDUserspaceRequiresAnExplicitRelease(t *testing.T) {

@@ -31,6 +31,12 @@ const (
 	fedoraIPTSDSRPMPath = "sp11/fedora/" + fedoraIPTSDSRPMName
 	// iptsdReleaseArchive is the exact source-bearing companion archive filename.
 	iptsdReleaseArchive = "sp11-iptsd-3.1.0-sp11.1-arm64.tar.xz"
+	// Fedora's udev rules match the Linux HID parent identifier, whose bus,
+	// vendor, and product components are colon-separated. Keep validation tied
+	// to that kernel representation instead of a USB-style vendor/product path.
+	fedoraIPTSDHID0C80 = "001C:045E:0C80"
+	// fedoraIPTSDHID0C83 is the second maintained Surface Pro 11 digitiser ID.
+	fedoraIPTSDHID0C83 = "001C:045E:0C83"
 )
 
 // fedoraIPTSDSource is present only when the already trust-bound companion
@@ -552,8 +558,8 @@ mkdir /work/iptsd-rpm-extracted
 rpm2cpio "$rpm_path" > /work/iptsd-rpm.cpio
 (cd /work/iptsd-rpm-extracted && cpio -idm --quiet < /work/iptsd-rpm.cpio)
 grep -F 'ExecStart=/usr/libexec/sp11-iptsd' /work/iptsd-rpm-extracted/usr/lib/systemd/system/sp11-iptsd@.service
-grep -F '045E/0C80' /work/iptsd-rpm-extracted/usr/lib/udev/rules.d/70-sp11-iptsd.rules
-grep -F '045E/0C83' /work/iptsd-rpm-extracted/usr/lib/udev/rules.d/70-sp11-iptsd.rules
+grep -F "$3" /work/iptsd-rpm-extracted/usr/lib/udev/rules.d/70-sp11-iptsd.rules
+grep -F "$4" /work/iptsd-rpm-extracted/usr/lib/udev/rules.d/70-sp11-iptsd.rules
 ! grep -R -E '@(IPTSD|CHECKER|SYSTEMCTL|SYSTEMD_ESCAPE)@' \
 	/work/iptsd-rpm-extracted/usr/lib/systemd /work/iptsd-rpm-extracted/usr/lib/udev
 rpm2cpio "$srpm_path" > /work/iptsd-validation-srpm.cpio
@@ -566,7 +572,7 @@ rm -rf /work/iptsd-srpm-extracted
 mkdir /work/iptsd-srpm-extracted
 (cd /work/iptsd-srpm-extracted && cpio -idm --quiet < /work/iptsd-validation-srpm.cpio)
 printf 'release=%s source_root=%s\n' "$1" "$2"`,
-		"validate-iptsd-rpm", userspace.Release, userspace.Root)
+		"validate-iptsd-rpm", userspace.Release, userspace.Root, fedoraIPTSDHID0C80, fedoraIPTSDHID0C83)
 	nativeRootErr := validateIPTSDNativeRoot(filepath.Join(workspace, "iptsd-rpm-extracted"))
 	srpmSpec, srpmSpecErr := readBoundedRegularFile(filepath.Join(workspace, "iptsd-srpm-extracted", "lexr-sp11-iptsd.spec"), 1<<20)
 	if srpmSpecErr == nil && !bytes.Equal(srpmSpec, []byte(iptsdRPMSpec())) {
@@ -632,9 +638,9 @@ chroot "$root" /usr/bin/ldd /usr/libexec/sp11-iptsd | tee /linux-work/iptsd-ldd.
 chroot "$root" /usr/bin/ldd /usr/libexec/sp11-iptsd-check-device | tee /linux-work/iptsd-check-ldd.txt
 ! grep -F 'not found' /linux-work/iptsd-check-ldd.txt
 grep -F 'ExecStart=/usr/libexec/sp11-iptsd' "$root/usr/lib/systemd/system/sp11-iptsd@.service"
-grep -F '045E/0C80' "$root/usr/lib/udev/rules.d/70-sp11-iptsd.rules"
-grep -F '045E/0C83' "$root/usr/lib/udev/rules.d/70-sp11-iptsd.rules"`,
-		"validate-iptsd-live-root")
+grep -F "$1" "$root/usr/lib/udev/rules.d/70-sp11-iptsd.rules"
+grep -F "$2" "$root/usr/lib/udev/rules.d/70-sp11-iptsd.rules"`,
+		"validate-iptsd-live-root", fedoraIPTSDHID0C80, fedoraIPTSDHID0C83)
 	return []imagecontract.ValidationCheck{{
 		Name: "fedora-iptsd-live-root", Passed: validateErr == nil,
 		Details: strings.TrimSpace(string(output)),
