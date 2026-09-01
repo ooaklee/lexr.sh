@@ -99,7 +99,8 @@ else
 fi
 
 revision="$(git -C "$source_dir" rev-parse --verify 'FETCH_HEAD^{commit}')"
-if git -C "$source_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
+if [ "$reset_source" != true ] &&
+   git -C "$source_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
   local_commits="$(git -C "$source_dir" rev-list --count "$revision..HEAD")"
   if [ "$local_commits" != 0 ]; then
     echo "Managed source contains commits outside the requested remote ref; use --reset-source." >&2
