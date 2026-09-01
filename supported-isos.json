@@ -89,7 +89,7 @@
         "value": "162ba3c552a2d241c7c63ec26777af0255ee1b5a135adc0be986ceed999933ef"
       },
       "compatibility_notes": [
-        "The Fedora Live adapter installs the exact verified Surface kernel as a Fedora-owned package and retains manifest-bound stock-kernel live fallbacks with explicit X1E and X1P device trees.",
+        "The Fedora Live adapter installs the exact verified Surface kernel as a Lexr-built Fedora RPM and retains manifest-bound stock-kernel live fallbacks with explicit X1E and X1P device trees.",
         "The unsigned v19+ Stubble kernel requires Secure Boot to be disabled. End-to-end installation is scoped to X1E/OLED; the X1P/LCD stock path is live-only while custom DTB selection and installed handoff remain unqualified."
       ],
       "last_verified": "2026-08-30"

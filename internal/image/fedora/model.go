@@ -114,7 +114,7 @@ func BuildPlan(request Request) (plan.Plan, error) {
 		{ID: "stage-companion", Kind: "companion", Description: "Stage the optional Linux ARM64 CLI and eligible offline userspace", Inputs: map[string]string{"source": companionSource, "userspace": companionUserspace}},
 		{ID: "prepare-tools", Kind: "prepare", Description: "Prepare ARM64 ISO, EROFS, RPM, and boot inspection tools", Inputs: map[string]string{"adapter": AdapterID}},
 		{ID: "extract-live-root", Kind: "extract", Description: "Validate and extract the Fedora EROFS live root"},
-		{ID: "install-kernel", Kind: "kernel", Description: "Build and register a Fedora-owned package from the exact kernel payload", Inputs: map[string]string{"abi": request.Bundle.ABI}},
+		{ID: "install-kernel", Kind: "kernel", Description: "Build and register a Lexr-built Fedora RPM from the exact kernel payload", Inputs: map[string]string{"abi": request.Bundle.ABI}},
 		{ID: "install-userspace", Kind: "userspace", Description: "Build and install a native Fedora IPTSD RPM only when the exact source-bearing companion release is requested", Inputs: map[string]string{"userspace": companionUserspace}},
 		{ID: "assemble-initramfs-root", Kind: "filesystem", Description: "Prepare the Fedora root for exact-ABI dracut generation"},
 		{ID: "build-initramfs", Kind: "initramfs", Description: "Generate a non-host-only dracut-live initramfs for the custom ABI"},

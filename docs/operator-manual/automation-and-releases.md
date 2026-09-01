@@ -20,15 +20,35 @@ The OE repository therefore needs neither a personal access token for Lexr nor a
 
 ## Test a linked OE change
 
-The IPTSD contract can change in Lexr and OE together without making ordinary
-nightly checks depend on a feature branch:
+When one change touches both Lexr and the public OE integration contract, test
+the two refs together before either is merged. Set `LEXR_REF` to the Lexr branch
+or tag containing the workflow and tests, and set `OE_REF` to the OE branch,
+tag, or commit you intend to test. This complete baseline dispatches Lexr
+`main` against OE `main` and can be run from any checkout with an authenticated
+GitHub CLI:
+
+```sh
+LEXR_REF=main
+OE_REF=main
+
+gh workflow run iptsd-integration-tests.yml \
+  --repo ooaklee/lexr.sh \
+  --ref "$LEXR_REF" \
+  --raw-field "oe_ref=$OE_REF"
+```
+
+`--ref` selects the Lexr branch or tag containing the workflow and tests.
+`oe_ref` selects the OE branch, tag, or commit fetched for that run. A manual
+dispatch uses both values exactly and never falls back. GitHub CLI prints the
+run URL when GitHub makes it available, so you can follow the result.
+
+Ordinary branch CI applies the same boundary without making nightly checks
+depend on a feature branch:
 
 - a branch push or same-repository pull request uses the exact, same-named
   branch from the canonical OE repository when that head exists;
 - a fork pull request, scheduled run, or canonical branch lookup which succeeds
   but finds no exact head uses OE `main`;
-- a manual dispatch uses its validated `oe_ref` branch, tag, or commit exactly
-  and never falls back; and
 - an unsafe candidate name, transport error, or failure after discovering a
   companion branch fails closed.
 

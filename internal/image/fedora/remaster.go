@@ -412,7 +412,7 @@ func stageFedoraSupport(workspace string, bundle kernel.Bundle) error {
 	return nil
 }
 
-// installKernelRPM converts the verified Debian payload into Fedora-owned lifecycle state.
+// installKernelRPM converts the verified Debian payload into Lexr-built Fedora RPM lifecycle state.
 func installKernelRPM(ctx context.Context, docker *platform.Docker, image, workspace, volume string, bundle kernel.Bundle) error {
 	imagePackage, ok := bundle.Package(kernel.RoleImage)
 	if !ok {

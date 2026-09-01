@@ -36,9 +36,11 @@ v19-or-newer bundle. The same companion flags activate its native RPM path:
 
 ```sh
 mkdir -p ../lexr-build
+KERNEL_BUNDLE=/path/to/verified-v19-or-newer-kernel-bundle
+
 lexr image create \
   --catalog-id fedora-workstation-live-44 \
-  --kernel-dir <verified-v19+-kernel-bundle> \
+  --kernel-dir "$KERNEL_BUNDLE" \
   --companion-source-dir . \
   --companion-userspace iptsd \
   --output ../lexr-build/lexr-fedora-44-sp11-v19-iptsd.iso
@@ -57,12 +59,28 @@ The repository root is the single legal-document authority for companion images 
 
 ## 3. Start Lexr from the live medium
 
-After booting the live image, copy the executable from the read-only medium to a writable executable filesystem before using it:
+After booting the live image, first locate the read-only medium. Ubuntu normally
+mounts it at `/cdrom`:
 
 ```sh
-# Ubuntu live media is normally mounted at /cdrom. On Fedora, replace this
-# value with the mount point of the Fedora-WS-Live-44 medium.
 COMPANION_ROOT=/cdrom/sp11/companion
+```
+
+On Fedora, ask the mount table for the exact catalogue-bound volume label rather
+than guessing its path:
+
+```sh
+MEDIA_ROOT="$(
+  findmnt --first-only --noheadings --raw \
+    --source LABEL=Fedora-WS-Live-44 \
+    --output TARGET
+)"
+COMPANION_ROOT="$MEDIA_ROOT/sp11/companion"
+```
+
+Then copy the executable to a writable filesystem and run the common checks:
+
+```sh
 TOOL=/tmp/lexr
 
 install -m 0755 \

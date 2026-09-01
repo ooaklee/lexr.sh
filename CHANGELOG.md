@@ -55,12 +55,12 @@ that do not apply.
 ### Added
 
 - Added an experimental Fedora Workstation Live 44 ARM64 image adapter which
-  preserves the source hybrid boot layout, remasters its EROFS root with the
-  verified v19-or-newer Surface kernel as a Fedora-owned RPM, generates an
-  exact-ABI `dracut-live` initramfs, and validates the live and Anaconda
-  installed-system hand-off before publication. Stock live fallbacks load
-  manifest-bound X1E/X1P device trees explicitly; installed-system support is
-  scoped to X1E until the X1P custom boot hand-off is qualified.
+  preserves the source hybrid boot layout, turns the verified v19-or-newer
+  Surface kernel into a Lexr-built Fedora RPM, generates an exact-ABI
+  `dracut-live` initramfs, and structurally validates the live boot and Anaconda
+  installed-system hand-off contract before publication. Stock live fallbacks
+  load manifest-bound X1E/X1P device trees explicitly; installed-system support
+  is scoped to X1E until the X1P custom boot hand-off is qualified.
 - Added optional Fedora-native IPTSD integration for the exact source-bearing
   companion release. The adapter rebuilds the pinned sources and fallbacks as
   binary and source RPMs, installs the binary package into the Anaconda-carried

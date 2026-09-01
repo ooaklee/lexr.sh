@@ -75,7 +75,8 @@ Meson fallbacks in the pinned Fedora AArch64 tool image, generate exactly one
 binary `lexr-sp11-iptsd` RPM and one corresponding source RPM, and require the
 generic `iptsd` and `g6-pen` packages to be absent rather than silently removing
 them. The binary RPM will be injected into the offline live root without
-running live-service scriptlets, but with normal RPM dependency resolution;
+running live-service scriptlets, but with RPM dependency checking against the
+deployable root;
 its udev rule will enumerate the digitiser when the remastered system boots.
 The package owns Fedora-native `/usr/libexec`, systemd, udev, configuration,
 documentation, and licence paths. Its future install/upgrade scriptlet reloads
@@ -114,19 +115,23 @@ regenerate dependency and initramfs state, restore the installed stock
 fallback, and reset the custom kernel as the default. Secure Boot must remain
 disabled for the unsigned custom kernel.
 
-The structural validator will independently inspect the hybrid boot records,
-both ESP views, the AArch64 shim and GRUB binary, GRUB's FDT command support,
-and the search marker,
-pinned volume label, EROFS compression and SELinux attributes, manifest-bound
-native RPM bytes, RPM ownership and provides, exact Anaconda-visible kernel
-paths, an exact Stubble X1E `.dtbauto` payload, both stock external-DTB live
-entries, `dracut-live` contents, and the live-versus-installed blacklist split.
-When native IPTSD is present, validation will additionally prove both RPM
-digests, source-archive inclusion in the source RPM, binary ownership and
-byte identity in the live root, AArch64 runtime linkage, service and udev-rule
-paths, rendered device IDs, and the bounded retrigger scriptlet. When the
-source-bearing companion is absent, validation will instead require the RPMs,
-package database entry, and fixed native files to be absent.
+The structural validator will inspect each boundary independently:
+
+- the outer boot media: hybrid records, both ESP views, the AArch64 shim and
+  GRUB binary, GRUB's FDT command support, the search marker, and the pinned
+  volume label;
+- the remastered root and kernel hand-off: EROFS compression, SELinux
+  attributes, manifest-bound native RPM bytes, RPM ownership and provides,
+  exact Anaconda-visible kernel paths, the exact X1E Stubble `.dtbauto`
+  payload, both stock external-DTB live entries, `dracut-live` contents, and
+  the live-versus-installed blacklist split;
+- an included native IPTSD package: both RPM digests, source-archive inclusion
+  in the source RPM, binary ownership and byte identity in the live root,
+  AArch64 runtime linkage, service and udev-rule paths, rendered device IDs,
+  and the bounded retrigger scriptlet; and
+- an image without the source-bearing companion: absence of the IPTSD RPMs,
+  package-database entry, and fixed native files.
+
 X1P custom Stubble and installed-system hand-off will not be claimed until
 qualified; its explicit-DTB stock path is live-only.
 
