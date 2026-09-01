@@ -55,7 +55,7 @@ that do not apply.
 ### Added
 
 - Added an experimental Fedora Workstation Live 44 ARM64 image adapter which
-  preserves the source hybrid boot layout, turns the verified v19-or-newer
+  preserves the source hybrid boot layout, turns a verified patch-line-qualified
   Surface kernel into a Lexr-built Fedora RPM, generates an exact-ABI
   `dracut-live` initramfs, and structurally validates the live boot and Anaconda
   installed-system hand-off contract before publication. Stock live fallbacks
@@ -71,6 +71,9 @@ that do not apply.
 
 ### Changed
 
+- Restored the established `sp11-qcom-x1e-<package-version>` kernel release
+  tags, including `sp11-qcom-x1e-7.2.2-jg-0sp11v1`, and bound both publication
+  stages to the version recorded by the verified package bundle.
 - Made cross-repository IPTSD CI select a safely named, same-named branch from
   the canonical OE repository for branch pushes and same-repository pull
   requests, falling back to OE `main` only when that branch does not exist.

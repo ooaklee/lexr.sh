@@ -82,9 +82,10 @@ Kernel and hardware-support releases remain in the [`ooaklee/linux-surface-pro-1
 Releases in `ooaklee/lexr.sh` are reserved for the exact CLI set described in
 [project and support boundaries](../reference/project-boundaries.md#what-the-lexr-release-contains).
 Do not add kernel, firmware, driver, userspace, catalogue, collector, or other
-project documentation to that release. Workflow-created kernel tags begin with
-`sp11-kernel-`; the Lexr repository's `v*` namespace remains exclusive to CLI
-releases.
+project documentation to that release. Workflow-created kernel tags retain the
+established `sp11-qcom-x1e-<package-version>` form; for example,
+`sp11-qcom-x1e-7.2.2-jg-0sp11v1`. The Lexr repository's `v*` namespace remains
+exclusive to CLI releases.
 
 ## Constrain the OE publication token
 
@@ -103,7 +104,7 @@ The workflow exposes the token only to the GitHub-hosted publication step of a m
 
 Enable the `release` input only on a manual dispatch which is intended to continue from a successful build through local release preparation to remote publication. The workflow then applies these gates:
 
-1. The GitHub-hosted publisher revalidates the self-hosted builder's manifest release name, complete checksum set, required corresponding source and licence assets, experimental state, and `sp11-kernel-` namespace.
+1. The GitHub-hosted publisher revalidates the self-hosted builder's manifest release name, requires it to equal `sp11-qcom-x1e-<package-version>`, and checks the complete checksum set, corresponding source and licence assets, and experimental state.
 2. It resolves OE `main` to one exact revision and refuses to reuse an existing release tag.
 3. It creates an OE draft targeting that revision and uploads the complete closed release set.
 4. It verifies that the new tag identifies the resolved revision immediately after creation.

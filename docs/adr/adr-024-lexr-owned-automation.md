@@ -100,7 +100,8 @@ while the repository remains private.
 Before entering that secret-bearing step, the GitHub-hosted publication job
 independently revalidates the self-hosted builder's release directory, exact
 manifest release name, checksum set, experimental state, required source and
-licence assets, and `sp11-kernel-` tag namespace. Publication then creates an
+licence assets, and the established `sp11-qcom-x1e-<package-version>` tag
+contract. Publication then creates an
 OE draft targeting the exact revision resolved from OE `main`. It refuses an
 existing tag and verifies the newly created tag against that revision both
 after creation and immediately before promotion. It downloads every uploaded

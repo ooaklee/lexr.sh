@@ -26,7 +26,7 @@ on:
         default: false
         type: boolean
       release-name:
-        description: "Release tag name (derived from the ABI when empty)"
+        description: "Expected release tag (must equal sp11-qcom-x1e-<package-version>; derived when empty)"
         required: false
         default: ""
         type: string
@@ -206,14 +206,16 @@ jobs:
           tar -xOf "${source_archive}" "linux-${source_revision}/COPYING" |
             cmp --silent "${licence_file}" -
 
-          release_name="${REQUESTED_RELEASE_NAME}"
-          if [[ -z "${release_name}" ]]; then
-            kernel_abi="$(jq -er '.abi | strings' "${bundle_file}")"
-            release_name="sp11-kernel-${kernel_abi}"
+          kernel_version="$(jq -er '.version | strings' "${bundle_file}")"
+          canonical_release_name="sp11-qcom-x1e-${kernel_version}"
+          release_name="${REQUESTED_RELEASE_NAME:-${canonical_release_name}}"
+          if [[ "${release_name}" != "${canonical_release_name}" ]]; then
+            printf 'Kernel release name must match the package version: %s\n' "${canonical_release_name}" >&2
+            exit 1
           fi
-          if [[ ! "${release_name}" =~ ^sp11-kernel-[A-Za-z0-9][A-Za-z0-9._-]{0,114}$ ]] ||
+          if [[ ! "${release_name}" =~ ^sp11-qcom-x1e-[A-Za-z0-9][A-Za-z0-9._-]{0,113}$ ]] ||
              [[ "${release_name}" == *".."* ]]; then
-            printf 'Kernel release names must begin with sp11-kernel- and contain only letters, digits, dots, underscores, or hyphens.\n' >&2
+            printf 'Kernel release names must use sp11-qcom-x1e-<package-version> and contain only letters, digits, dots, underscores, or hyphens.\n' >&2
             exit 1
           fi
 
@@ -229,6 +231,7 @@ jobs:
 
           jq -e --arg release_name "${release_name}" \
             '.release_name == $release_name and
+             .release_name == ("sp11-qcom-x1e-" + .version) and
              .experimental == true and
              .hardware_qualified == false and
              ([.assets[].kind] | index("source") != null) and
@@ -287,9 +290,9 @@ jobs:
           RELEASE_NAME: ${{ needs.build.outputs.release-name }}
         run: |
           set -euo pipefail
-          if [[ ! "${RELEASE_NAME}" =~ ^sp11-kernel-[A-Za-z0-9][A-Za-z0-9._-]{0,114}$ ]] ||
+          if [[ ! "${RELEASE_NAME}" =~ ^sp11-qcom-x1e-[A-Za-z0-9][A-Za-z0-9._-]{0,113}$ ]] ||
              [[ "${RELEASE_NAME}" == *".."* ]]; then
-            printf 'The hosted publisher rejected a kernel release name outside the sp11-kernel namespace.\n' >&2
+            printf 'The hosted publisher rejected a kernel release name outside the sp11-qcom-x1e package-version namespace.\n' >&2
             exit 1
           fi
 
@@ -298,6 +301,7 @@ jobs:
             --json release-assets > "${validation_file}"
           jq -e --arg release_name "${RELEASE_NAME}" \
             '.release_name == $release_name and
+             .release_name == ("sp11-qcom-x1e-" + .version) and
              .experimental == true and
              .hardware_qualified == false and
              ([.assets[].kind] | index("source") != null) and
