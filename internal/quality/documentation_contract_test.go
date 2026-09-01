@@ -92,7 +92,7 @@ func TestMaintainedDocumentationReferencesLexr(t *testing.T) {
 	}{
 		{path: ".github/workflows/lexr.yml", required: [][]byte{[]byte("cmd/lexr"), []byte("go test -race ./..."), []byte("GH_REPO: ${{ github.repository }}")}},
 		{path: ".github/workflows/iptsd-integration-tests.yml", required: [][]byte{[]byte("LEXR_TEST_OE_ROOT"), []byte("linux-surface-pro-11-oe.git")}},
-		{path: ".github/workflows/sp11-kernel-build.yml", required: [][]byte{[]byte("cmd/lexr"), []byte("kernel build"), []byte("--boot-image-mode stubble"), []byte("kernel-build-ci-${source_identity}"), []byte("Revalidate the OE publication boundary"), []byte("GH_TOKEN: ${{ secrets.OE_RELEASE_TOKEN }}"), []byte("GH_REPO: ooaklee/linux-surface-pro-11-oe"), []byte("canonical_release_name=\"sp11-qcom-x1e-${kernel_version}\""), []byte("^sp11-qcom-x1e-")}},
+		{path: ".github/workflows/sp11-kernel-build.yml", required: [][]byte{[]byte("cmd/lexr"), []byte("kernel build"), []byte("--boot-image-mode stubble"), []byte("kernel-build-ci-${source_identity}"), []byte("Revalidate the OE publication boundary"), []byte("GH_TOKEN: ${{ secrets.OE_RELEASE_TOKEN }}"), []byte("GH_REPO: ooaklee/linux-surface-pro-11-oe"), []byte("canonical_release_name=\"sp11-qcom-x1e-${kernel_version}\""), []byte("draft_release_id="), []byte("git/refs"), []byte("^sp11-qcom-x1e-")}},
 	}
 	for _, contract := range workflowContracts {
 		workflow := readBoundedRepositoryFile(t, repositoryRoot, contract.path)
@@ -115,6 +115,9 @@ func TestMaintainedDocumentationReferencesLexr(t *testing.T) {
 	}
 	if count := bytes.Count(kernelWorkflow, []byte(`.source.boot_image_mode == "stubble"`)); count != 2 {
 		t.Errorf("kernel workflow contains %d Stubble provenance bindings, want two", count)
+	}
+	if count := bytes.Count(kernelWorkflow, []byte(`git/refs`)); count != 1 {
+		t.Errorf("kernel workflow contains %d explicit draft-tag creations, want one", count)
 	}
 	revalidation := bytes.Index(kernelWorkflow, []byte("- name: Revalidate the OE publication boundary"))
 	publication := bytes.Index(kernelWorkflow, []byte("- name: Publish a remotely verified OE prerelease"))

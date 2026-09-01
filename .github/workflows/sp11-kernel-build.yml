@@ -384,6 +384,29 @@ jobs:
             --notes-file "${notes_file}" \
             "${assets[@]}"
 
+          draft_release_id="$(
+            gh api "repos/${GH_REPO}/releases?per_page=100" |
+              jq -er \
+                --arg release_name "${RELEASE_NAME}" \
+                --arg target "${OE_MAIN_REVISION}" \
+                '[.[] | select(
+                  .tag_name == $release_name and
+                  .target_commitish == $target and
+                  .draft == true and
+                  .prerelease == false
+                )] | if length == 1 then .[0].id else error("draft release identity is ambiguous") end'
+          )"
+          if [[ ! "${draft_release_id}" =~ ^[1-9][0-9]*$ ]]; then
+            printf 'The new OE draft does not retain the validated tag and target revision.\n' >&2
+            exit 1
+          fi
+
+          gh api \
+            --method POST \
+            "repos/${GH_REPO}/git/refs" \
+            -f "ref=refs/tags/${RELEASE_NAME}" \
+            -f "sha=${OE_MAIN_REVISION}" >/dev/null
+
           created_tag_revision="$(
             git ls-remote --exit-code --refs "${oe_remote}" \
               "refs/tags/${RELEASE_NAME}" |

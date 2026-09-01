@@ -90,6 +90,8 @@ that do not apply.
 - Made the kernel release workflow request Stubble explicitly, so the PE and
   embedded device-tree contract it validates is also recorded accurately in
   public build provenance.
+- Made draft-first kernel publication create and verify its release tag
+  explicitly, matching GitHub's draft semantics before remote byte validation.
 - Made native kernel builds package the common and ABI-specific headers as a complete pair alongside the signed image and modules.
 - Emitted the installed-toolchain provenance digest without a trailing newline so strict bundle publication can validate it.
 - Preserved package-postinst Surface device-tree injection by avoiding a redundant final GRUB regeneration after native kernel installation.

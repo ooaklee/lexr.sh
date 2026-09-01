@@ -112,7 +112,7 @@ Enable the `release` input only on a manual dispatch which is intended to contin
 1. The GitHub-hosted publisher revalidates the self-hosted builder's manifest release name, requires it to equal `sp11-qcom-x1e-<package-version>`, binds the public provenance to explicit Stubble mode, and checks the complete checksum set, corresponding source and licence assets, and experimental state.
 2. It resolves OE `main` to one exact revision and refuses to reuse an existing release tag.
 3. It creates an OE draft targeting that revision and uploads the complete closed release set.
-4. It verifies that the new tag identifies the resolved revision immediately after creation.
+4. It rechecks the draft identity, creates its lightweight tag at the resolved revision, and verifies the new remote ref.
 5. It downloads every remote asset into a fresh directory, compares the complete local and remote digest sets, checks `SHA256SUMS`, and runs `lexr kernel release validate` against the downloaded bytes.
 6. It verifies the tag again immediately before promotion, then promotes the draft to an experimental OE prerelease only when every check has passed.
 
