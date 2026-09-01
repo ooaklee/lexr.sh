@@ -71,6 +71,10 @@ that do not apply.
 
 ### Changed
 
+- Taught `doctor` and `userspace status` to keep each SP11 generation in its
+  kernel patch line. A `7.2.2/sp11v1` build is now reported honestly as newer
+  and awaiting userspace qualification, instead of being failed against the
+  older `7.2.0/sp11v19` evidence or quietly treated as `sp11v20`.
 - Restored the established `sp11-qcom-x1e-<package-version>` kernel release
   tags, including `sp11-qcom-x1e-7.2.2-jg-0sp11v1`, and bound both publication
   stages to the version recorded by the verified package bundle.

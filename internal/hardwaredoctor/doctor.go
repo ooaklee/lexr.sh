@@ -14,10 +14,28 @@ import (
 const (
 	// maximumIdentityBytes bounds each non-sensitive platform identity file.
 	maximumIdentityBytes int64 = 4096
+	// legacyKernelPatchLine identifies the line behind the current compatibility evidence.
+	legacyKernelPatchLine = "7.2.0"
+	// newerKernelPatchLine identifies the restarted Surface release sequence.
+	newerKernelPatchLine = "7.2.2"
+	// legacyEvidenceGeneration is the latest qualified generation on the legacy line.
+	legacyEvidenceGeneration = 19
+	// legacyAudioMinimumGeneration is the maintained FullIO audio floor on the legacy line.
+	legacyAudioMinimumGeneration = 12
+	// newerMinimumGeneration is the first release in the newer patch-line-local sequence.
+	newerMinimumGeneration = 1
 )
 
-// surfaceGenerationPattern extracts a bounded sp11vN marker from a kernel ABI.
-var surfaceGenerationPattern = regexp.MustCompile(`sp11v([0-9]{1,3})(?:[-+._]|$)`)
+// surfaceKernelIdentityPattern accepts one canonical, path-safe qcom-x1e ABI
+// and separates its patch line from the patch-line-local Surface generation.
+var surfaceKernelIdentityPattern = regexp.MustCompile(`^([0-9]+)\.([0-9]+)\.([0-9]+)-(?:[A-Za-z0-9.+~_]+-)*[A-Za-z0-9.+~_]*sp11v([0-9]+)-qcom-x1e$`)
+
+// surfaceKernelIdentity keeps a generation meaningful only within its patch line.
+type surfaceKernelIdentity struct {
+	abi        string
+	patchLine  string
+	generation int
+}
 
 // Doctor coordinates static and live hardware probes through read-only boundaries.
 type Doctor struct {
@@ -70,7 +88,7 @@ func (doctor *Doctor) Inspect(ctx context.Context, options Options) (Report, err
 	if err := ctx.Err(); err != nil {
 		return Report{}, err
 	}
-	kernelCheck, generation := doctor.inspectKernel(ctx)
+	kernelCheck, kernelIdentity := doctor.inspectKernel(ctx)
 	add(kernelCheck)
 	if err := ctx.Err(); err != nil {
 		return Report{}, err
@@ -107,7 +125,9 @@ func (doctor *Doctor) Inspect(ctx context.Context, options Options) (Report, err
 				add(check)
 			}
 		case FeatureAudio:
-			if generation > 0 && generation < 12 {
+			if kernelIdentity.patchLine == legacyKernelPatchLine &&
+				kernelIdentity.generation > 0 &&
+				kernelIdentity.generation < legacyAudioMinimumGeneration {
 				add(Check{
 					ID:          "audio-kernel-generation",
 					Feature:     FeatureAudio,
@@ -173,8 +193,8 @@ func (doctor *Doctor) inspectPlatform(ctx context.Context) (Check, bool) {
 	}, false
 }
 
-// inspectKernel classifies only the supported family and generation marker.
-func (doctor *Doctor) inspectKernel(ctx context.Context) (Check, int) {
+// inspectKernel classifies only explicit patch-line and local-generation pairings.
+func (doctor *Doctor) inspectKernel(ctx context.Context) (Check, surfaceKernelIdentity) {
 	content, err := doctor.filesystem.ReadFile(ctx, "/proc/sys/kernel/osrelease", maximumIdentityBytes)
 	if err != nil {
 		return Check{
@@ -184,7 +204,7 @@ func (doctor *Doctor) inspectKernel(ctx context.Context) (Check, int) {
 			Required:    true,
 			Detail:      "the running kernel family could not be established",
 			Remediation: "boot a maintained Surface qcom-x1e kernel and rerun the diagnostic",
-		}, 0
+		}, surfaceKernelIdentity{}
 	}
 	release := strings.TrimSpace(string(content))
 	if len(release) > 200 || strings.ContainsRune(release, '\x00') || !strings.Contains(strings.ToLower(release), "qcom-x1e") {
@@ -195,45 +215,95 @@ func (doctor *Doctor) inspectKernel(ctx context.Context) (Check, int) {
 			Required:    true,
 			Detail:      "the running kernel does not identify the maintained Surface qcom-x1e family",
 			Remediation: "boot a maintained Surface qcom-x1e kernel and rerun the diagnostic",
-		}, 0
+		}, surfaceKernelIdentity{}
 	}
-	matches := surfaceGenerationPattern.FindAllStringSubmatch(strings.ToLower(release), -1)
-	if len(matches) != 1 || len(matches[0]) != 2 {
+	identity, found := parseSurfaceKernelIdentity(release)
+	if !found {
 		return Check{
 			ID:          "kernel-surface-family",
 			Evidence:    EvidenceStatic,
-			State:       StateWarn,
+			State:       StateFail,
 			Required:    true,
-			Detail:      "the running qcom-x1e kernel does not expose a bounded sp11 generation marker",
-			Remediation: "compare the installed ABI with the supported kernel release before interpreting live results",
-		}, 0
+			Detail:      "the running qcom-x1e kernel does not expose one canonical patch-line-qualified sp11 generation identity",
+			Remediation: "boot an explicitly supported Surface qcom-x1e kernel ABI before interpreting live results",
+		}, surfaceKernelIdentity{}
 	}
-	generation, conversionErr := strconv.Atoi(matches[0][1])
-	if conversionErr != nil || generation < 1 {
+	if identity.generation < 1 {
 		return Check{
-			ID:       "kernel-surface-family",
-			Evidence: EvidenceStatic,
-			State:    StateWarn,
-			Required: true,
-			Detail:   "the running qcom-x1e kernel generation could not be classified",
-		}, 0
+			ID:          "kernel-surface-family",
+			Evidence:    EvidenceStatic,
+			State:       StateFail,
+			Required:    true,
+			Detail:      fmt.Sprintf("the running kernel ABI %s uses unsupported %s/sp11v%d", identity.abi, identity.patchLine, identity.generation),
+			Remediation: "boot an explicitly supported Surface qcom-x1e kernel ABI before interpreting live results",
+		}, identity
 	}
-	state := StatePass
-	detail := fmt.Sprintf("the running kernel is Surface qcom-x1e generation sp11v%d", generation)
-	remediation := ""
-	if generation > 19 {
-		state = StateWarn
-		detail = "the running Surface kernel is newer than the current sp11v19 compatibility evidence"
-		remediation = "qualify this kernel generation before treating the live report as release evidence"
+	switch identity.patchLine {
+	case legacyKernelPatchLine:
+		state := StatePass
+		detail := fmt.Sprintf("the running kernel ABI %s uses the Surface qcom-x1e %s/sp11v%d pairing", identity.abi, identity.patchLine, identity.generation)
+		remediation := ""
+		if identity.generation > legacyEvidenceGeneration {
+			state = StateWarn
+			detail = fmt.Sprintf("the running kernel ABI %s uses %s/sp11v%d, which is newer than the current %s/sp11v%d compatibility evidence", identity.abi, identity.patchLine, identity.generation, legacyKernelPatchLine, legacyEvidenceGeneration)
+			remediation = "qualify this kernel generation before treating the live report as release evidence"
+		}
+		return Check{
+			ID:          "kernel-surface-family",
+			Evidence:    EvidenceStatic,
+			State:       state,
+			Required:    true,
+			Detail:      detail,
+			Remediation: remediation,
+		}, identity
+	case newerKernelPatchLine:
+		if identity.generation >= newerMinimumGeneration {
+			return Check{
+				ID:          "kernel-surface-family",
+				Evidence:    EvidenceStatic,
+				State:       StateWarn,
+				Required:    true,
+				Detail:      fmt.Sprintf("the running kernel ABI %s uses the %s/sp11v%d patch-line pairing, which is newer than the current %s/sp11v%d compatibility evidence", identity.abi, identity.patchLine, identity.generation, legacyKernelPatchLine, legacyEvidenceGeneration),
+				Remediation: "qualify this newer patch-line pairing before treating the live report as release evidence",
+			}, identity
+		}
 	}
 	return Check{
 		ID:          "kernel-surface-family",
 		Evidence:    EvidenceStatic,
-		State:       state,
+		State:       StateFail,
 		Required:    true,
-		Detail:      detail,
-		Remediation: remediation,
-	}, generation
+		Detail:      fmt.Sprintf("the running kernel ABI %s uses unsupported %s/sp11v%d", identity.abi, identity.patchLine, identity.generation),
+		Remediation: "boot a kernel from an explicitly supported Surface qcom-x1e patch line before interpreting live results",
+	}, identity
+}
+
+// parseSurfaceKernelIdentity requires one complete canonical ABI so an sp11vN
+// marker can never be compared without the patch line that defines its meaning.
+func parseSurfaceKernelIdentity(release string) (surfaceKernelIdentity, bool) {
+	matches := surfaceKernelIdentityPattern.FindStringSubmatch(release)
+	if len(matches) != 5 || strings.Count(strings.ToLower(release), "sp11v") != 1 {
+		return surfaceKernelIdentity{}, false
+	}
+	for _, numeric := range matches[1:] {
+		if len(numeric) > 1 && numeric[0] == '0' {
+			return surfaceKernelIdentity{}, false
+		}
+	}
+	for _, numeric := range matches[1:4] {
+		if _, err := strconv.ParseUint(numeric, 10, 32); err != nil {
+			return surfaceKernelIdentity{}, false
+		}
+	}
+	generation, err := strconv.Atoi(matches[4])
+	if err != nil || generation > 999 {
+		return surfaceKernelIdentity{}, false
+	}
+	return surfaceKernelIdentity{
+		abi:        release,
+		patchLine:  strings.Join(matches[1:4], "."),
+		generation: generation,
+	}, true
 }
 
 // runProbe executes one fixed process with a fresh per-probe deadline.

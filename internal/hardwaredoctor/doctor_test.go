@@ -472,8 +472,9 @@ func TestUnknownPlatformSkipsLiveProbes(t *testing.T) {
 	}
 }
 
-// TestKernelGenerationClassificationRejectsAmbiguityAndFlagsNewerEvidence verifies ABI claims stay conservative.
-func TestKernelGenerationClassificationRejectsAmbiguityAndFlagsNewerEvidence(t *testing.T) {
+// TestKernelGenerationClassificationKeepsPatchLinesLocal verifies that a
+// restarted Surface generation is never compared as one global counter.
+func TestKernelGenerationClassificationKeepsPatchLinesLocal(t *testing.T) {
 	tests := []struct {
 		// name identifies the kernel-classification case.
 		name string
@@ -483,9 +484,20 @@ func TestKernelGenerationClassificationRejectsAmbiguityAndFlagsNewerEvidence(t *
 		wantState State
 		// wantDetail is a safe report fragment.
 		wantDetail string
+		// wantExact records whether the validated ABI must remain visible.
+		wantExact bool
 	}{
-		{name: "ambiguous", release: "7.2.0-sp11v12-sp11v19-qcom-x1e", wantState: StateWarn, wantDetail: "does not expose"},
-		{name: "newer", release: "7.3.0-jg-0sp11v20-qcom-x1e", wantState: StateWarn, wantDetail: "newer than"},
+		{name: "legacy current", release: "7.2.0-jg-0sp11v19-qcom-x1e", wantState: StatePass, wantDetail: "7.2.0/sp11v19", wantExact: true},
+		{name: "legacy beyond evidence", release: "7.2.0-jg-0sp11v20-qcom-x1e", wantState: StateWarn, wantDetail: "newer than", wantExact: true},
+		{name: "new patch line minimum", release: "7.2.2-jg-0sp11v1-qcom-x1e", wantState: StateWarn, wantDetail: "7.2.2/sp11v1", wantExact: true},
+		{name: "new patch line later", release: "7.2.2-jg-0sp11v2-qcom-x1e", wantState: StateWarn, wantDetail: "7.2.2/sp11v2", wantExact: true},
+		{name: "new patch line below floor", release: "7.2.2-jg-0sp11v0-qcom-x1e", wantState: StateFail, wantDetail: "unsupported 7.2.2/sp11v0", wantExact: true},
+		{name: "unknown patch line", release: "7.2.3-jg-0sp11v99-qcom-x1e", wantState: StateFail, wantDetail: "unsupported 7.2.3/sp11v99", wantExact: true},
+		{name: "ambiguous", release: "7.2.0-sp11v12-sp11v19-qcom-x1e", wantState: StateFail, wantDetail: "does not expose"},
+		{name: "mixed-case ambiguous", release: "7.2.2-SP11V19-jg-0sp11v1-qcom-x1e", wantState: StateFail, wantDetail: "does not expose"},
+		{name: "generation above bound", release: "7.2.2-jg-0sp11v1000-qcom-x1e", wantState: StateFail, wantDetail: "does not expose"},
+		{name: "malformed", release: "7.2-jg-0sp11v1-qcom-x1e", wantState: StateFail, wantDetail: "does not expose"},
+		{name: "noncanonical generation", release: "7.2.2-jg-0sp11v01-qcom-x1e", wantState: StateFail, wantDetail: "does not expose"},
 		{name: "unrelated", release: "7.2.0-generic", wantState: StateFail, wantDetail: "does not identify"},
 	}
 	for _, test := range tests {
@@ -504,8 +516,62 @@ func TestKernelGenerationClassificationRejectsAmbiguityAndFlagsNewerEvidence(t *
 			if check.State != test.wantState || !strings.Contains(check.Detail, test.wantDetail) {
 				t.Fatalf("kernel check = %#v", check)
 			}
-			if strings.Contains(check.Detail, test.release) {
-				t.Fatalf("kernel check exposed raw release %q", test.release)
+			if gotExact := strings.Contains(check.Detail, test.release); gotExact != test.wantExact {
+				t.Fatalf("kernel detail exact ABI visibility = %t, want %t: %q", gotExact, test.wantExact, check.Detail)
+			}
+			if gotReady := report.Ready; gotReady != (test.wantState != StateFail) {
+				t.Fatalf("report.Ready = %t for kernel check %#v", gotReady, check)
+			}
+			if test.name == "new patch line minimum" && strings.Contains(check.Detail, "sp11v20") {
+				t.Fatalf("kernel detail treated patch-line-local sp11v1 as sp11v20: %q", check.Detail)
+			}
+			if strings.HasPrefix(test.name, "new patch line") && test.wantState == StateWarn && !strings.Contains(check.Detail, "newer than") {
+				t.Fatalf("new patch-line warning does not identify newer evidence: %q", check.Detail)
+			}
+		})
+	}
+}
+
+// TestAudioGenerationGateAppliesOnlyToLegacyPatchLine verifies the restarted
+// 7.2.2 sequence does not inherit the numeric floor from 7.2.0.
+func TestAudioGenerationGateAppliesOnlyToLegacyPatchLine(t *testing.T) {
+	tests := []struct {
+		name             string
+		release          string
+		wantKernelState  State
+		wantAudioFailure bool
+		wantReady        bool
+	}{
+		{name: "legacy below audio floor", release: "7.2.0-jg-0sp11v11-qcom-x1e", wantKernelState: StatePass, wantAudioFailure: true},
+		{name: "legacy at audio floor", release: "7.2.0-jg-0sp11v12-qcom-x1e", wantKernelState: StatePass, wantReady: true},
+		{name: "new patch line starts at v1", release: "7.2.2-jg-0sp11v1-qcom-x1e", wantKernelState: StateWarn, wantReady: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			filesystem := healthyTestFileSystem()
+			filesystem.files["/proc/sys/kernel/osrelease"] = []byte(test.release)
+			doctor, err := New(filesystem, healthyTestRunner())
+			if err != nil {
+				t.Fatal(err)
+			}
+			report, err := doctor.Inspect(context.Background(), Options{Features: []Feature{FeatureAudio}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if check := findCheck(t, report, "kernel-surface-family"); check.State != test.wantKernelState {
+				t.Fatalf("kernel check = %#v", check)
+			}
+			audioFailure := false
+			for _, check := range report.Checks {
+				if check.ID == "audio-kernel-generation" {
+					audioFailure = check.State == StateFail && check.Required
+				}
+			}
+			if audioFailure != test.wantAudioFailure || report.Ready != test.wantReady {
+				t.Fatalf("audio failure = %t, ready = %t; checks = %#v", audioFailure, report.Ready, report.Checks)
+			}
+			if test.name == "new patch line starts at v1" && audioFailure {
+				t.Fatal("7.2.2/sp11v1 inherited the legacy audio generation floor")
 			}
 		})
 	}

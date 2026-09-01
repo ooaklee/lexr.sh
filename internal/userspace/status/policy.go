@@ -26,6 +26,26 @@ const (
 // qcom-x1e kernel ABI so ambiguous names can be rejected.
 var sp11Generation = regexp.MustCompile(`sp11v([0-9]+)(?:[-._+]|$)`)
 
+// kernelCompatibilityIdentity separates the upstream patch line from its
+// patch-line-local Surface release generation. A maintained patch line may
+// restart at sp11v1, so the generation cannot be compared on its own.
+var kernelCompatibilityIdentity = regexp.MustCompile(`^([0-9]+)\.([0-9]+)\.([0-9]+)-(?:[A-Za-z0-9.+~_]+-)*[A-Za-z0-9.+~_]*sp11v([0-9]+)-qcom-x1e$`)
+
+const (
+	// legacyKernelPatchLine identifies the line covered by current userspace evidence.
+	legacyKernelPatchLine = "7.2.0"
+	// newKernelPatchLine identifies the line whose Surface generation restarted.
+	newKernelPatchLine = "7.2.2"
+	// newKernelMinimumSP11 is the first release in the newer local sequence.
+	newKernelMinimumSP11 = 1
+)
+
+// kernelIdentity keeps a Surface generation meaningful only within its patch line.
+type kernelIdentity struct {
+	patchLine  string
+	generation int
+}
+
 // builtInComponentPolicies are the safe production fallback for direct package
 // callers. The manager strictly cross-checks these values against its catalogue.
 var builtInComponentPolicies = []ComponentPolicy{
@@ -164,27 +184,69 @@ func (set policySet) inspectKernelCompatibility(componentID, abi string) Check {
 		check.Detail = fmt.Sprintf("%s requires sp11v%d or newer, but no installed Surface kernel ABI was selected", policy.ID, policy.MinimumSP11Generation)
 		return check
 	}
-	generation, found := parseSP11Generation(abi)
+	identity, found := parseKernelCompatibilityIdentity(abi)
 	if !found {
 		check.State = optionalState(required)
-		check.Detail = fmt.Sprintf("%s requires sp11v%d or newer; selected ABI %s has no sp11vN generation marker", policy.ID, policy.MinimumSP11Generation, abi)
+		check.Detail = fmt.Sprintf("%s requires an unambiguous patch-line-qualified Surface kernel; selected ABI %s is not a valid <major>.<minor>.<patch>-...sp11vN-qcom-x1e identity", policy.ID, abi)
+		check.Remediation = "select an unambiguous Surface qcom-x1e ABI from a supported kernel patch line"
 		return check
 	}
+	if identity.patchLine == newKernelPatchLine {
+		if identity.generation < newKernelMinimumSP11 {
+			check.State = optionalState(required)
+			check.Detail = fmt.Sprintf("%s requires kernel %s/sp11v%d or newer on that patch line; selected ABI %s is %s/sp11v%d", policy.ID, newKernelPatchLine, newKernelMinimumSP11, abi, identity.patchLine, identity.generation)
+			check.Remediation = fmt.Sprintf("install a %s/sp11v%d or newer Surface qcom-x1e kernel before using %s", newKernelPatchLine, newKernelMinimumSP11, policy.ID)
+			return check
+		}
+		check.State = StateWarn
+		check.Detail = fmt.Sprintf("%s is only userspace-qualified on kernel %s through sp11v%d; selected ABI %s uses the newer %s/sp11v%d patch-line pairing, which is not yet userspace-qualified", policy.ID, legacyKernelPatchLine, policy.TestedThroughSP11Generation, abi, identity.patchLine, identity.generation)
+		check.Remediation = "validate this newer kernel and userspace pairing before relying on it"
+		return check
+	}
+	if identity.patchLine != legacyKernelPatchLine {
+		check.State = optionalState(required)
+		check.Detail = fmt.Sprintf("%s has no compatibility policy for kernel patch line %s; selected ABI is %s", policy.ID, identity.patchLine, abi)
+		check.Remediation = "select a kernel from an explicitly supported patch line or add compatibility evidence before relying on this pairing"
+		return check
+	}
+	generation := identity.generation
 	if generation < policy.MinimumSP11Generation {
 		check.State = optionalState(required)
-		check.Detail = fmt.Sprintf("%s requires sp11v%d or newer; selected ABI %s is sp11v%d", policy.ID, policy.MinimumSP11Generation, abi, generation)
+		check.Detail = fmt.Sprintf("%s requires %s/sp11v%d or newer; selected ABI %s is %s/sp11v%d", policy.ID, legacyKernelPatchLine, policy.MinimumSP11Generation, abi, identity.patchLine, generation)
 		return check
 	}
 	if generation > policy.TestedThroughSP11Generation {
 		check.State = StateWarn
-		check.Detail = fmt.Sprintf("%s supports sp11v%d or newer but is only tested through sp11v%d; selected ABI %s is sp11v%d", policy.ID, policy.MinimumSP11Generation, policy.TestedThroughSP11Generation, abi, generation)
+		check.Detail = fmt.Sprintf("%s supports %s/sp11v%d or newer but is only tested through sp11v%d; selected ABI %s is %s/sp11v%d", policy.ID, legacyKernelPatchLine, policy.MinimumSP11Generation, policy.TestedThroughSP11Generation, abi, identity.patchLine, generation)
 		check.Remediation = "consult the current component catalogue before relying on this newer kernel pairing"
 		return check
 	}
 	check.State = StatePass
-	check.Detail = fmt.Sprintf("%s supports selected ABI %s (minimum sp11v%d; tested through sp11v%d)", policy.ID, abi, policy.MinimumSP11Generation, policy.TestedThroughSP11Generation)
+	check.Detail = fmt.Sprintf("%s supports selected ABI %s (minimum %s/sp11v%d; tested through sp11v%d)", policy.ID, abi, legacyKernelPatchLine, policy.MinimumSP11Generation, policy.TestedThroughSP11Generation)
 	check.Remediation = ""
 	return check
+}
+
+// parseKernelCompatibilityIdentity requires one complete, canonical kernel ABI
+// and returns the release generation in the context of its patch line.
+func parseKernelCompatibilityIdentity(abi string) (kernelIdentity, bool) {
+	matches := kernelCompatibilityIdentity.FindStringSubmatch(abi)
+	if len(matches) != 5 || strings.Count(strings.ToLower(abi), "sp11v") != 1 {
+		return kernelIdentity{}, false
+	}
+	for _, numeric := range matches[1:] {
+		if len(numeric) > 1 && numeric[0] == '0' {
+			return kernelIdentity{}, false
+		}
+	}
+	generation, err := strconv.Atoi(matches[4])
+	if err != nil || generation < 0 || generation > 999 {
+		return kernelIdentity{}, false
+	}
+	return kernelIdentity{
+		patchLine:  strings.Join(matches[1:4], "."),
+		generation: generation,
+	}, true
 }
 
 // parseSP11Generation extracts a bounded integer generation from an ABI marker.

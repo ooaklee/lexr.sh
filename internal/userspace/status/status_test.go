@@ -540,13 +540,18 @@ func TestSupportLevelReadinessPolicy(t *testing.T) {
 	}
 }
 
-// TestKernelCompatibilityBoundaries verifies the minimum generations for audio,
-// camera, and IPTSD and confirms FullIO audio remains valid with sp11v19.
+// TestKernelCompatibilityBoundaries verifies the patch-line-local generation
+// policy for audio, camera, and IPTSD. The newer 7.2.2 line restarts at sp11v1,
+// but remains a warning until its userspace pairings are qualified.
 func TestKernelCompatibilityBoundaries(t *testing.T) {
 	root := t.TempDir()
 	for _, abi := range []string{
-		"6.12.0-jg-0sp11v11-qcom-x1e",
+		"7.2.0-jg-0sp11v11-qcom-x1e",
 		"7.2.0-jg-0sp11v19-qcom-x1e",
+		"7.2.0-jg-0sp11v20-qcom-x1e",
+		"7.2.2-jg-0sp11v1-qcom-x1e",
+		"7.2.2-jg-0sp11v2-qcom-x1e",
+		"7.2.3-jg-0sp11v99-qcom-x1e",
 	} {
 		mkdir(t, filepath.Join(root, "lib/modules", abi))
 	}
@@ -557,10 +562,16 @@ func TestKernelCompatibilityBoundaries(t *testing.T) {
 		component string
 		want      State
 	}{
-		{name: "audio rejects v11", feature: FeatureAudio, abi: "6.12.0-jg-0sp11v11-qcom-x1e", component: audioComponent, want: StateFail},
+		{name: "audio rejects legacy v11", feature: FeatureAudio, abi: "7.2.0-jg-0sp11v11-qcom-x1e", component: audioComponent, want: StateFail},
 		{name: "audio accepts v19", feature: FeatureAudio, abi: "7.2.0-jg-0sp11v19-qcom-x1e", component: audioComponent, want: StatePass},
 		{name: "camera accepts v19", feature: FeatureCamera, abi: "7.2.0-jg-0sp11v19-qcom-x1e", component: cameraComponent, want: StatePass},
 		{name: "iptsd accepts v19", feature: FeatureIPTSD, abi: "7.2.0-jg-0sp11v19-qcom-x1e", component: iptsdComponent, want: StatePass},
+		{name: "legacy v20 is newer than evidence", feature: FeatureIPTSD, abi: "7.2.0-jg-0sp11v20-qcom-x1e", component: iptsdComponent, want: StateWarn},
+		{name: "audio warns on new v1", feature: FeatureAudio, abi: "7.2.2-jg-0sp11v1-qcom-x1e", component: audioComponent, want: StateWarn},
+		{name: "camera warns on new v1", feature: FeatureCamera, abi: "7.2.2-jg-0sp11v1-qcom-x1e", component: cameraComponent, want: StateWarn},
+		{name: "iptsd warns on new v1", feature: FeatureIPTSD, abi: "7.2.2-jg-0sp11v1-qcom-x1e", component: iptsdComponent, want: StateWarn},
+		{name: "new v2 remains unverified", feature: FeatureIPTSD, abi: "7.2.2-jg-0sp11v2-qcom-x1e", component: iptsdComponent, want: StateWarn},
+		{name: "unknown patch line fails", feature: FeatureIPTSD, abi: "7.2.3-jg-0sp11v99-qcom-x1e", component: iptsdComponent, want: StateFail},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -570,6 +581,51 @@ func TestKernelCompatibilityBoundaries(t *testing.T) {
 			}
 			check := findCheck(t, report, "kernel-compatibility-"+test.component)
 			if check.State != test.want || check.ComponentID != test.component || check.SupportLevel == "" {
+				t.Fatalf("compatibility check = %#v", check)
+			}
+			if !strings.Contains(check.Detail, test.abi) {
+				t.Fatalf("compatibility detail %q does not preserve ABI %q", check.Detail, test.abi)
+			}
+			if strings.HasPrefix(test.name, "iptsd warns on new v1") && strings.Contains(check.Detail, "sp11v20") {
+				t.Fatalf("compatibility detail %q treats 7.2.2/sp11v1 as a global generation", check.Detail)
+			}
+		})
+	}
+}
+
+// TestKernelCompatibilityRejectsUnsupportedIdentities verifies that a below-
+// floor 7.2.2 generation, unknown bases, and ambiguous identities cannot be
+// accepted merely because they contain an sp11vN marker.
+func TestKernelCompatibilityRejectsUnsupportedIdentities(t *testing.T) {
+	t.Parallel()
+
+	required, err := newPolicySet(nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	optional, err := newPolicySet(nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name  string
+		set   policySet
+		abi   string
+		want  State
+		patch string
+	}{
+		{name: "new line below floor", set: required, abi: "7.2.2-jg-0sp11v0-qcom-x1e", want: StateFail, patch: "7.2.2/sp11v1"},
+		{name: "unknown line required", set: required, abi: "7.2.3-jg-0sp11v99-qcom-x1e", want: StateFail, patch: "7.2.3"},
+		{name: "unknown line optional", set: optional, abi: "7.2.3-jg-0sp11v99-qcom-x1e", want: StateWarn, patch: "7.2.3"},
+		{name: "ambiguous identity", set: required, abi: "7.2.2-sp11v19-sp11v1-qcom-x1e", want: StateFail, patch: "unambiguous"},
+		{name: "mixed-case ambiguous identity", set: required, abi: "7.2.2-SP11V19-jg-0sp11v1-qcom-x1e", want: StateFail, patch: "unambiguous"},
+		{name: "generation above bound", set: required, abi: "7.2.2-jg-0sp11v1000-qcom-x1e", want: StateFail, patch: "unambiguous"},
+		{name: "malformed identity", set: required, abi: "7.2-jg-0sp11v1-qcom-x1e", want: StateFail, patch: "unambiguous"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			check := test.set.inspectKernelCompatibility(iptsdComponent, test.abi)
+			if check.State != test.want || !strings.Contains(check.Detail, test.abi) || !strings.Contains(check.Detail, test.patch) {
 				t.Fatalf("compatibility check = %#v", check)
 			}
 		})
