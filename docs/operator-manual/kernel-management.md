@@ -1,0 +1,137 @@
+# Kernel management
+
+A kernel image on its own is not a usable or recoverable Surface Pro 11 kernel. Lexr binds the image, modules, optional matching headers, checksums, and both model-specific device trees into one bundle, then keeps inspection, installation, release preparation, and physical boot qualification as separate gates.
+
+This page is for maintainers building or releasing kernels and for operators deliberately installing one on an existing system. Image creation is covered in the [user guide](../user-guide/index.md); the automation which publishes an OE prerelease is covered in [automation and release channels](automation-and-releases.md).
+
+## Start from a complete bundle
+
+At minimum, a usable bundle contains:
+
+- one `linux-image-..._arm64.deb` package;
+- one matching `linux-modules-..._arm64.deb` package;
+- SHA-256 coverage for every selected package; and
+- the X1E OLED and X1P LCD device trees supplied by that modules package.
+
+The bundle records its release, repository, ABI, version, package digests, and expected device-tree paths. Lexr derives the ABI and version from package filenames and rejects absent required packages, mixed versions or ABIs, and package bytes which no longer match their recorded digest.
+
+Local inspection and installation use `--package-set all` by default. When the emitted bundle declares the exact ABI-specific and common development-header pair, both headers join the runtime image and modules. A complete declaration fails closed if either header disappears. `--package-set runtime` deliberately selects only the image and modules; an intentional runtime-only download remains a valid two-package set even if the publisher checksum file also covers headers which were not downloaded.
+
+Legacy directories without a manifest do not weaken this rule: a partial matching header pair is rejected, unrelated header versions are ignored, and callers cannot substitute an arbitrary filename pattern for the closed role set. Headers remain optional for live-image creation. [ADR003](../adr/adr-003-version-bound-kernel-bundles.md) explains the version-bound bundle decision.
+
+## Download a published bundle
+
+`kernel release download` uses the established OE release channel by default. It verifies the publisher's checksum manifest before writing a local bundle manifest. Use its explicit `--repository` option only for a compatible alternate release channel.
+
+A local bundle without an authoritative `SHA256SUMS` is rejected unless you supply `--allow-unverified` explicitly. That option accepts only the package bytes measured locally; it is not publisher verification and must not be used to trust an unknown bundle.
+
+## Build without changing the host
+
+`kernel build` owns a compiled ARM64 Docker build policy and does not depend on a repository helper script. Its default source is the custom kernel's [`sp11/integration-7.2.x` branch](https://github.com/ooaklee/linux_ms_dev_kit-sp11/tree/sp11/integration-7.2.x); `--git-url` and `--git-branch` can select another HTTPS source and branch or tag.
+
+Review the non-mutating plan before starting the long build:
+
+```sh
+lexr kernel build --dry-run
+
+lexr kernel build \
+  --repository-root <build-root> \
+  --git-url https://github.com/ooaklee/linux_ms_dev_kit-sp11 \
+  --git-branch sp11/integration-7.2.x \
+  --output-dir build/lexr/kernel-v19
+```
+
+The private transaction and new output directory must be relative to the selected containment root, and the output directory must not already exist. Source data persists in a Docker volume labelled for that exact work boundary; generated packages cross through a private host transaction. `--reset-source` can clean only that managed volume's source tree.
+
+The policy pins its Ubuntu 26.04 ARM64 base image by digest. Beside the packages it records the exact fetched revision and tree, the compiled recipe digest, and the installed-toolchain digest. Successful output contains the coherent signed image and modules pair, complete common and ABI-specific headers, `SHA256SUMS`, the normal kernel bundle manifest, and a source-provenance manifest.
+
+The build never installs a package, elevates privilege, reboots the host, or publishes a release.
+
+## Choose the boot-image policy deliberately
+
+The default `--boot-image-mode source` preserves the selected source's Stubble policy. Use an explicit override only when the intended package policy differs:
+
+- `stubble` passes a GNU Make command-line override to flavour packaging without editing the managed checkout. It validates the resulting packaged boot image across both runtime packages and requires exactly one `.linux` section, one `.hwids` section, at least one embedded `.dtbauto` section, and an embedded Surface Pro 11 Denali device tree.
+- `nostubble` applies the corresponding packaging override, validates the packaged boot image across both runtime packages, and rejects embedded device trees.
+
+The selected mode is retained in build and release provenance. For an SP11 source which would otherwise emit a raw boot image, an explicit Stubble build looks like this:
+
+```sh
+lexr kernel build \
+  --repository-root <build-root> \
+  --git-url https://github.com/ooaklee/linux_ms_dev_kit-sp11 \
+  --git-branch <sp11-test-branch> \
+  --boot-image-mode stubble \
+  --output-dir build/lexr/kernel-sp11-stubble
+```
+
+Omit the override when another branch or device should retain its source policy.
+
+## Prove the fallback before installation
+
+`kernel preflight` is the read-only installation gate. It inspects exact Debian package metadata, rejects unexpected packages and mixed ABIs, proves that the explicitly selected fallback ABI is both running and bootable, requires the target ABI to be fresh, and prints the bounded package, initramfs, and GRUB sequence.
+
+The target root and fallback ABI are always explicit. `--running-abi` is accepted only for an alternate-root fixture; inspection of the live root always uses direct `uname` evidence.
+
+Review both preflight and the install dry run without privilege:
+
+```sh
+RUNNING_ABI="$(uname -r)"
+
+lexr kernel preflight <kernel-bundle> \
+  --root / \
+  --fallback-abi "$RUNNING_ABI"
+
+lexr kernel install <kernel-bundle> \
+  --root / \
+  --fallback-abi "$RUNNING_ABI" \
+  --dry-run
+```
+
+Both commands use `--package-set all` by default. Add `--package-set runtime` only when you deliberately want to leave the complete matching development-header pair uninstalled.
+
+## Install with an explicit recovery path
+
+A real installation requires effective root privilege and `--yes`; Lexr never elevates itself:
+
+```sh
+sudo lexr kernel install <kernel-bundle> \
+  --root / \
+  --fallback-abi "$RUNNING_ABI" \
+  --yes
+```
+
+Immediately before mutation, `kernel install` repeats preflight. It stages immutable package copies, retains the fallback kernel, backs up GRUB, and verifies the installed kernel image, initramfs, module tree, boot entry, both Surface Pro 11 device trees, and both development-header trees when headers were selected.
+
+Lexr does not change the default kernel, remove the fallback, reboot, or install historical out-of-tree workarounds. If mutation or final verification fails, it attempts a bounded rollback and reports the recovery evidence in its receipt. Keep that receipt and the fallback available until the new kernel has passed the required device boot and hardware checks.
+
+## Prepare a kernel release locally
+
+`kernel release prepare` accepts only the exact closed output from `kernel build`, one or more corresponding-source archives, explicit licence text, a tag-like release identity, and a fresh output path. The retired `sp11v3` ABI and separate out-of-tree touchscreen modules are rejected because the maintained kernel carries that stack in-tree.
+
+A dry run hashes and validates every input without creating a parent or output directory. A real run repeats validation, copies through private staging, creates one path-free public manifest and British-English notes, checksums the complete closed set, validates it, and atomically publishes the new local directory. An existing or raced destination is never replaced. `kernel release validate` repeats the closed-directory structural checks without contacting a remote service.
+
+Neither command publishes, installs, elevates privilege, or claims hardware qualification. Review and prepare with unique, absent output paths:
+
+```sh
+lexr kernel release prepare \
+  --build-dir build/lexr/kernel-v19 \
+  --output-dir build/release/sp11-qcom-x1e-v19 \
+  --release-name sp11-qcom-x1e-v19 \
+  --source build/lexr/release-source/linux-v19.tar.xz \
+  --licence build/lexr/release-source/LICENSE.kernel.txt \
+  --dry-run
+
+lexr kernel release prepare \
+  --build-dir build/lexr/kernel-v19 \
+  --output-dir build/release/sp11-qcom-x1e-v19 \
+  --release-name sp11-qcom-x1e-v19 \
+  --source build/lexr/release-source/linux-v19.tar.xz \
+  --licence build/lexr/release-source/LICENSE.kernel.txt
+
+lexr kernel release validate build/release/sp11-qcom-x1e-v19
+```
+
+Preparation records the supplied source bytes. The operator still has to prove that each archive corresponds to the build manifest's exact revision and tree, and that the licence evidence is sufficient for redistribution. Follow the OE repository's [kernel release procedure](https://github.com/ooaklee/linux-surface-pro-11-oe/blob/main/docs/how-to/how-to-release-kernel-artifacts.md) for verified source materialisation. [ADR016](../adr/adr-016-native-kernel-release-preparation.md) records the closed release contract.
+
+Remote publication is a later, separately authorised step. See [automation and release channels](automation-and-releases.md) before enabling it.

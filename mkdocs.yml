@@ -1,0 +1,63 @@
+site_name: Lexr documentation
+site_description: Build, validate, and support experimental ARM64 Linux media for the Microsoft Surface Pro 11.
+repo_url: https://github.com/ooaklee/lexr.sh
+repo_name: ooaklee/lexr.sh
+edit_uri: edit/main/docs/
+docs_dir: docs
+strict: true
+
+theme:
+  name: readthedocs
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - fenced_code
+  - tables
+  - toc:
+      permalink: true
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+  links:
+    not_found: warn
+    anchors: warn
+    unrecognized_links: warn
+
+# ADRs are built and remain linkable, but the task-oriented architecture page
+# is a more useful navigation entry than a 26-item decision-history menu.
+not_in_nav: |
+  /adr/**
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Overview: getting-started/index.md
+      - Install Lexr: getting-started/install.md
+  - User guide:
+      - Overview: user-guide/index.md
+      - Installation media: user-guide/installation-media.md
+      - Offline companion: user-guide/offline-companion.md
+      - Userspace support: user-guide/userspace-support.md
+      - Windows hand-offs: user-guide/windows-handoff.md
+      - Reversible clean-up: user-guide/reversible-cleanup.md
+  - Operator manual:
+      - Overview: operator-manual/index.md
+      - Kernel management: operator-manual/kernel-management.md
+      - Release preparation: operator-manual/release-preparation.md
+      - Automation and release channels: operator-manual/automation-and-releases.md
+  - Reference:
+      - Overview: reference/index.md
+      - Command reference: reference/command-reference.md
+      - Requirements: reference/requirements.md
+      - Project boundaries: reference/project-boundaries.md
+  - Developer guide:
+      - Overview: developer-guide/index.md
+      - Architecture: developer-guide/architecture.md
+      - Development and testing: developer-guide/development.md
+      - Catalogue maintenance: developer-guide/catalogues.md
+      - Documentation: developer-guide/documentation.md
