@@ -90,7 +90,7 @@
       },
       "compatibility_notes": [
         "The Fedora Live adapter installs the exact verified Surface kernel as a Lexr-built Fedora RPM and retains manifest-bound stock-kernel live fallbacks with explicit X1E and X1P device trees.",
-        "The unsigned v19+ Stubble kernel requires Secure Boot to be disabled. End-to-end installation is scoped to X1E/OLED; the X1P/LCD stock path is live-only while custom DTB selection and installed handoff remain unqualified."
+        "Secure Boot must be disabled for the unsigned patch-line-qualified Stubble kernel (7.2.0/sp11v19+ or 7.2.2/sp11v1+). End-to-end installation is scoped to X1E/OLED; the X1P/LCD stock path is live-only while custom DTB selection and installed handoff remain unqualified."
       ],
       "last_verified": "2026-08-30"
     },
