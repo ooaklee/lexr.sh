@@ -922,7 +922,7 @@ func TestIPTSDActivationCommandsAreTimeoutBound(t *testing.T) {
 	runner := &blockingActivationRunner{}
 	installer := New(runner)
 	installer.activationTimeout = time.Millisecond
-	err := installer.activateIPTSD(context.Background(), []Command{{Name: "/usr/bin/systemctl", Args: []string{"daemon-reload"}}})
+	err := installer.activateCommands(context.Background(), []Command{{Name: "/usr/bin/systemctl", Args: []string{"daemon-reload"}}})
 	if err == nil || runner.runs != 1 || !strings.Contains(err.Error(), "deadline exceeded") {
 		t.Fatalf("runs=%d error=%v", runner.runs, err)
 	}

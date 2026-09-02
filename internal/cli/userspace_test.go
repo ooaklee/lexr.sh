@@ -45,6 +45,11 @@ func (f *cliFakeInstaller) Camera(_ context.Context, options userspaceinstall.Op
 	return f.record(userspacemanager.CameraComponent, options, false), nil
 }
 
+// PowerProfiles records a simulated native-class daemon installation.
+func (f *cliFakeInstaller) PowerProfiles(_ context.Context, options userspaceinstall.Options) (userspaceinstall.Result, error) {
+	return f.record(userspacemanager.PowerProfilesComponent, options, false), nil
+}
+
 // record appends one simulated invocation and constructs its command-facing result.
 func (f *cliFakeInstaller) record(component string, options userspaceinstall.Options, reboot bool) userspaceinstall.Result {
 	f.calls = append(f.calls, options)
@@ -98,6 +103,28 @@ func TestUserspaceInstallRecommendedDryRunEmitsStructuredReport(t *testing.T) {
 	}
 	if len(report.NextSteps) != 1 || !strings.Contains(report.NextSteps[0], "--yes") {
 		t.Fatalf("next steps = %#v", report.NextSteps)
+	}
+}
+
+// TestUserspaceInstallPowerProfilesDoesNotRequireFrom verifies the explicit
+// native adapter reaches orchestration without a generic bundle argument.
+func TestUserspaceInstallPowerProfilesDoesNotRequireFrom(t *testing.T) {
+	installer := &cliFakeInstaller{}
+	app, output := newUserspaceInstallTestApplication(installer)
+	command := app.newUserspaceInstallCommand()
+	command.SetArgs([]string{"power-profiles", "--repository-root", "/fixture/oe", "--dry-run", "--json"})
+	command.SilenceUsage = true
+	command.SilenceErrors = true
+
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(installer.calls) != 1 || installer.calls[0].RepositoryRoot != "/fixture/oe" || installer.calls[0].BundleDir != "" {
+		t.Fatalf("power-profiles calls = %#v", installer.calls)
+	}
+	var report userspaceInstallReport
+	if err := json.Unmarshal(output.Bytes(), &report); err != nil || len(report.Results) != 1 {
+		t.Fatalf("report = %#v, error = %v", report, err)
 	}
 }
 

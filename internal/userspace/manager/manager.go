@@ -27,6 +27,8 @@ const (
 	IPTSDComponent = "iptsd-v1"
 	// CameraComponent is the exact IMX681-enabled libcamera package set.
 	CameraComponent = "imx681-libcamera-v1"
+	// PowerProfilesComponent is the native-class power-profiles integration.
+	PowerProfilesComponent = "power-profiles"
 )
 
 // recommendedComponents is the deliberately small default pull set; optional
@@ -74,6 +76,8 @@ type Installer interface {
 	IPTSD(context.Context, userspaceinstall.Options) (userspaceinstall.Result, error)
 	// Camera installs or plans the exact experimental libcamera package set.
 	Camera(context.Context, userspaceinstall.Options) (userspaceinstall.Result, error)
+	// PowerProfiles installs or plans the exact local native-class package.
+	PowerProfiles(context.Context, userspaceinstall.Options) (userspaceinstall.Result, error)
 }
 
 // InstallRequest identifies a compiled userspace workflow, its verified input,
@@ -81,12 +85,12 @@ type Installer interface {
 type InstallRequest struct {
 	// CatalogPath selects an optional strict userspace catalogue override.
 	CatalogPath string
-	// Selector is audio, iptsd, camera, or the deliberately limited recommended set.
+	// Selector is audio, iptsd, camera, power-profiles, or recommended.
 	Selector string
 	// From is an exact release directory, or the userspace cache root for recommended.
 	From string
-	// RepositoryRoot supplies current Git authority for a native camera build or
-	// prepared local release. Downloaded immutable bundles do not use it.
+	// RepositoryRoot supplies current Git authority for native camera input or
+	// locates the compiled-identity power-profiles qualification output.
 	RepositoryRoot string
 	// CameraAuthoritySHA256 is the trusted build- or preparation-time digest
 	// required when Selector names a native camera input.
@@ -305,8 +309,8 @@ func (m *Manager) Install(ctx context.Context, request InstallRequest) ([]usersp
 	if request.CameraAuthoritySHA256 != "" && (recommended || len(components) != 1 || components[0] != CameraComponent) {
 		return nil, errors.New("camera authority SHA-256 applies only to an explicit camera installation")
 	}
-	if request.RepositoryRoot != "" && (recommended || len(components) != 1 || components[0] != CameraComponent) {
-		return nil, errors.New("repository root applies only to an explicit native camera installation")
+	if request.RepositoryRoot != "" && (recommended || len(components) != 1 || (components[0] != CameraComponent && components[0] != PowerProfilesComponent)) {
+		return nil, errors.New("repository root applies only to an explicit native camera or power-profiles installation")
 	}
 	targets, err := resolveInstallTargets(componentCatalog, components, request.From, recommended)
 	if err != nil {
@@ -350,6 +354,8 @@ func (m *Manager) runInstalls(
 			result, err = m.Installer.IPTSD(ctx, options)
 		case CameraComponent:
 			result, err = m.Installer.Camera(ctx, options)
+		case PowerProfilesComponent:
+			result, err = m.Installer.PowerProfiles(ctx, options)
 		default:
 			err = fmt.Errorf("userspace component %q has no compiled install workflow", target.component)
 		}
@@ -375,7 +381,7 @@ func resolveInstallSelector(selector string) ([]string, bool, error) {
 		return nil, false, err
 	}
 	switch componentID {
-	case AudioComponent, IPTSDComponent, CameraComponent:
+	case AudioComponent, IPTSDComponent, CameraComponent, PowerProfilesComponent:
 		return []string{componentID}, false, nil
 	default:
 		return nil, false, fmt.Errorf("userspace component %q has no compiled install workflow", componentID)
@@ -391,6 +397,16 @@ func resolveInstallTargets(
 	from string,
 	recommended bool,
 ) ([]installTarget, error) {
+	if len(componentIDs) == 1 && componentIDs[0] == PowerProfilesComponent {
+		if strings.TrimSpace(from) != "" {
+			return nil, errors.New("power-profiles uses its authenticated OE build output and does not accept --from")
+		}
+		component, ok := componentCatalog.Get(PowerProfilesComponent)
+		if !ok || !component.SupportActions.Install || component.Release != nil {
+			return nil, errors.New("power-profiles catalogue policy does not permit native local installation")
+		}
+		return []installTarget{{component: PowerProfilesComponent}}, nil
+	}
 	if strings.TrimSpace(from) == "" {
 		return nil, errors.New("verified userspace release directory is required; pass --from")
 	}
@@ -426,6 +442,8 @@ func ResolveComponentID(value string) (string, error) {
 		return IPTSDComponent, nil
 	case "camera", CameraComponent:
 		return CameraComponent, nil
+	case "power", PowerProfilesComponent:
+		return PowerProfilesComponent, nil
 	default:
 		if strings.TrimSpace(value) == "" {
 			return "", errors.New("userspace component is required")

@@ -86,7 +86,8 @@ lexr userspace catalog validate [path]
 lexr userspace status
 lexr userspace pull <component|recommended>
 lexr userspace build <iptsd|camera>
-lexr userspace install <component|recommended> --from <directory>
+lexr userspace install <audio|iptsd|camera|recommended> --from <directory>
+lexr userspace install power-profiles [--repository-root <oe-checkout>]
 lexr userspace audio release prepare --help
 lexr userspace audio release validate <release-directory>
 lexr userspace camera capture --dry-run

@@ -333,15 +333,12 @@ func (a *application) newUserspaceInstallCommand() *cobra.Command {
 	var confirmed bool
 	var asJSON bool
 	command := &cobra.Command{
-		Use:   "install <audio|iptsd|camera|recommended>",
+		Use:   "install <audio|iptsd|camera|power-profiles|recommended>",
 		Short: "Install an authenticated userspace input",
 		Long: "Install an authenticated userspace input through compiled policy. " +
 			"The recommended set contains audio and IPTSD; experimental camera support must be selected explicitly.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
-			if strings.TrimSpace(from) == "" {
-				return fmt.Errorf("verified userspace release directory is required; pass --from")
-			}
 			if !dryRun && !confirmed {
 				return fmt.Errorf("userspace installation changes the target filesystem; review --dry-run first, then pass --yes")
 			}
@@ -371,7 +368,7 @@ func (a *application) newUserspaceInstallCommand() *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&from, "from", "", "exact authenticated input directory (userspace cache root for recommended)")
-	command.Flags().StringVar(&repositoryRoot, "repository-root", "", "current OE Git root required for native camera build or release input")
+	command.Flags().StringVar(&repositoryRoot, "repository-root", "", "current OE Git root for native camera input or local power-profiles output")
 	command.Flags().StringVar(&cameraAuthoritySHA256, "camera-authority-sha256", "", "trusted authority digest printed by native camera build or release preparation")
 	command.Flags().StringVar(&root, "root", "/", "target filesystem root")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "verify immutable inputs and show the plan without changing the target")

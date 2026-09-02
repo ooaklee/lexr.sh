@@ -196,7 +196,7 @@
         "status": true,
         "pull": false,
         "build": false,
-        "install": false
+        "install": true
       },
       "compatibility_evidence": "exact_pair",
       "kernel_compatibility": {

@@ -80,6 +80,29 @@ sudo lexr userspace install camera \
   --yes
 ```
 
+The native SP11 power-profile integration is a local qualification workflow,
+not a downloaded userspace release. Run Lexr from the OE checkout, or identify
+that checkout explicitly. It deliberately does not accept `--from`:
+
+```sh
+cd /path/to/linux-surface-pro-11-oe
+
+lexr userspace install power-profiles --dry-run
+sudo lexr userspace install power-profiles --yes
+
+# Equivalent when invoked from elsewhere:
+lexr userspace install power-profiles \
+  --repository-root /path/to/linux-surface-pro-11-oe \
+  --dry-run
+```
+
+The checkout must contain the exact compiled-identity
+`build/lexr/power-profiles-daemon-sp11.1` qualification output. Lexr neither
+builds the package nor substitutes the distribution package with the same
+name. It verifies the complete four-file output and its checksum coverage,
+stages the exact package privately, and restarts the daemon after a successful
+package-manager transaction.
+
 The camera installer also retains compatibility with the downloaded, checksum-pinned camera release and does not accept the native-only repository or authority options for that input shape. Native camera input is selected only by its structured build or local-release authority; mixed authority files are rejected. Static validation never executes a supplied package member. The installer verifies every package again while privately staging the confirmed `apt-get` transaction. Installing support never invokes legacy clean-up implicitly. Use the separate `clean` commands to inspect and remove only recognised obsolete workarounds with backups and receipts.
 
 ## 5. Prepare a release as a maintainer

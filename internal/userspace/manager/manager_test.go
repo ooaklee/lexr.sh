@@ -58,6 +58,11 @@ func (f *fakeInstaller) Camera(_ context.Context, options userspaceinstall.Optio
 	return f.record(CameraComponent, options), nil
 }
 
+// PowerProfiles records installation of the native-class daemon package.
+func (f *fakeInstaller) PowerProfiles(_ context.Context, options userspaceinstall.Options) (userspaceinstall.Result, error) {
+	return f.record(PowerProfilesComponent, options), nil
+}
+
 // record appends an installer call and returns a deterministic component result.
 func (f *fakeInstaller) record(component string, options userspaceinstall.Options) userspaceinstall.Result {
 	f.calls = append(f.calls, installCall{component: component, options: options})
@@ -111,7 +116,12 @@ func TestPullRejectsComponentWithoutRelease(t *testing.T) {
 
 // TestResolveAliases verifies the stable human-friendly component shortcuts.
 func TestResolveAliases(t *testing.T) {
-	for input, want := range map[string]string{"audio": AudioComponent, "pen": IPTSDComponent, "camera": CameraComponent} {
+	for input, want := range map[string]string{
+		"audio":  AudioComponent,
+		"pen":    IPTSDComponent,
+		"camera": CameraComponent,
+		"power":  PowerProfilesComponent,
+	} {
 		got, err := ResolveComponentID(input)
 		if err != nil || got != want {
 			t.Fatalf("ResolveComponentID(%q) = %q, %v; want %q", input, got, err, want)
@@ -195,6 +205,42 @@ func TestInstallCameraUsesExactReleaseDirectoryOnlyOnExplicitSelection(t *testin
 	if call := installer.calls[0]; call.component != CameraComponent || call.options.BundleDir != bundle ||
 		call.options.RepositoryRoot != repositoryRoot || call.options.CameraAuthoritySHA256 != authority || !call.options.DryRun {
 		t.Fatalf("camera call = %#v", call)
+	}
+}
+
+// TestInstallPowerProfilesNeedsNoFrom verifies the native qualification
+// package is selected through repository authority rather than a generic bundle.
+func TestInstallPowerProfilesNeedsNoFrom(t *testing.T) {
+	installer := &fakeInstaller{}
+	manager := New(catalog.NewLoader(testCatalogFS(), "supported-userspace.json"), &fakeDownloader{}, nil)
+	manager.Installer = installer
+	repositoryRoot := t.TempDir()
+	results, err := manager.Install(context.Background(), InstallRequest{
+		Selector: "power-profiles", RepositoryRoot: repositoryRoot, Root: "/", DryRun: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || len(installer.calls) != 1 {
+		t.Fatalf("results = %#v, calls = %#v", results, installer.calls)
+	}
+	call := installer.calls[0]
+	if call.component != PowerProfilesComponent || call.options.BundleDir != "" ||
+		call.options.RepositoryRoot != repositoryRoot || !call.options.DryRun {
+		t.Fatalf("power-profiles call = %#v", call)
+	}
+}
+
+// TestInstallPowerProfilesRejectsFrom keeps a caller-selected package path from
+// bypassing the compiled local qualification identity.
+func TestInstallPowerProfilesRejectsFrom(t *testing.T) {
+	manager := New(catalog.NewLoader(testCatalogFS(), "supported-userspace.json"), &fakeDownloader{}, nil)
+	manager.Installer = &fakeInstaller{}
+	_, err := manager.Install(context.Background(), InstallRequest{
+		Selector: "power-profiles", From: t.TempDir(), DryRun: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "does not accept --from") {
+		t.Fatalf("error = %v", err)
 	}
 }
 
@@ -308,6 +354,11 @@ func testCatalogFS() fs.FS {
 	  "redistribution": "allowed", "support_actions": {"status": true, "pull": true, "build": true, "install": true},
 	  "release": {"url": "https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-imx681-libcamera-v1", "tag": "sp11-imx681-libcamera-v1", "asset_allowlist": ["SHA256SUMS", "camera.deb"]},
 	  "compatibility_evidence": "exact_pair", "kernel_compatibility": {"minimum_sp11_generation": 14, "tested_through_sp11_generation": 19, "summary": "Camera requires sp11v14 and is tested through sp11v19."}, "notes": ["Test exact camera set."], "remediation": "Install the exact camera set."
+	},
+	{
+	  "id": "power-profiles", "name": "Power", "level": "supported", "capability": "power",
+	  "redistribution": "not-applicable", "support_actions": {"status": true, "pull": false, "build": false, "install": true},
+	  "compatibility_evidence": "exact_pair", "kernel_compatibility": {"minimum_sp11_generation": 8, "tested_through_sp11_generation": 19, "summary": "Power profiles require sp11v8 and are tested through sp11v19."}, "notes": ["Test native class package."], "remediation": "Install the pinned package."
 	},
     {
       "id": "firmware", "name": "Firmware", "level": "required", "capability": "firmware",

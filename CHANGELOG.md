@@ -54,6 +54,12 @@ that do not apply.
 
 ### Added
 
+- Added `userspace install power-profiles` for the exact OE-owned
+  `power-profiles-daemon 0.30-2+sp11.1` local qualification package. The
+  command needs no `--from` input: it discovers an OE checkout from the current
+  directory or `--repository-root`, verifies the compiled source, build-record,
+  checksum, package-size, and package-digest authority, privately stages the
+  package, and restarts only `power-profiles-daemon` after installation.
 - Added a POSIX `install.sh` one-command installer that detects OS and
   architecture, resolves the latest (or a pinned) version from GitHub releases,
   verifies the SHA-256 checksum against the versioned manifest, and installs

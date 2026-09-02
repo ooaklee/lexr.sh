@@ -28,6 +28,8 @@ const (
 	IPTSDComponent = "iptsd-v1"
 	// CameraComponent identifies the experimental IMX681 package release.
 	CameraComponent = "imx681-libcamera-v1"
+	// PowerProfilesComponent identifies the native-class power profile integration.
+	PowerProfilesComponent = "power-profiles"
 )
 
 // Options selects a downloaded release or supported native input and an
