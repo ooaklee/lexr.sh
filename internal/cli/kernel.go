@@ -177,6 +177,7 @@ func (a *application) newKernelPreflightCommand() *cobra.Command {
 	var fallbackABI string
 	var runningABI string
 	var allowUnverified bool
+	var force bool
 	packageSet := string(kernel.LocalPackageSetAll)
 	var asJSON bool
 	command := &cobra.Command{
@@ -184,7 +185,11 @@ func (a *application) newKernelPreflightCommand() *cobra.Command {
 		Short: "Validate a native kernel installation without changing the target",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
-			request, err := kernelInstallationRequest(args[0], root, fallbackABI, runningABI, true, allowUnverified, packageSet)
+			request, err := kernelInstallationRequest(args[0], kernelInstallationOptions{
+				Root: root, FallbackABI: fallbackABI, RunningABI: runningABI,
+				DryRun: true, AllowUnverified: allowUnverified,
+				ForceFallbackMismatch: force, PackageSet: packageSet,
+			})
 			if err != nil {
 				return err
 			}
@@ -196,9 +201,10 @@ func (a *application) newKernelPreflightCommand() *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&root, "root", "", "explicit absolute target Linux root filesystem")
-	command.Flags().StringVar(&fallbackABI, "fallback-abi", "", "currently running Surface kernel ABI to preserve")
+	command.Flags().StringVar(&fallbackABI, "fallback-abi", "", "Surface kernel ABI to verify and preserve (normally the running ABI)")
 	command.Flags().StringVar(&runningABI, "running-abi", "", "running ABI evidence for an alternate-root fixture only")
 	command.Flags().BoolVar(&allowUnverified, "allow-unverified", false, "accept a locally hashed bundle without an authoritative checksum manifest")
+	command.Flags().BoolVar(&force, "force", false, "allow a verified bootable fallback ABI to differ from the running ABI")
 	command.Flags().StringVar(&packageSet, "package-set", string(kernel.LocalPackageSetAll), "packages to select: all exact-version packages (including matching headers when available), or runtime image/modules only")
 	command.Flags().BoolVar(&asJSON, "json", false, "write the machine-readable installation plan")
 	_ = command.MarkFlagRequired("root")
@@ -214,6 +220,7 @@ func (a *application) newKernelInstallCommand() *cobra.Command {
 	var runningABI string
 	var allowUnverified bool
 	var dryRun bool
+	var force bool
 	packageSet := string(kernel.LocalPackageSetAll)
 	var yes bool
 	var asJSON bool
@@ -225,7 +232,11 @@ func (a *application) newKernelInstallCommand() *cobra.Command {
 			if !dryRun && !yes {
 				return errors.New("kernel install requires --yes for target filesystem changes; run kernel preflight or kernel install --dry-run first")
 			}
-			request, err := kernelInstallationRequest(args[0], root, fallbackABI, runningABI, dryRun, allowUnverified, packageSet)
+			request, err := kernelInstallationRequest(args[0], kernelInstallationOptions{
+				Root: root, FallbackABI: fallbackABI, RunningABI: runningABI,
+				DryRun: dryRun, AllowUnverified: allowUnverified,
+				ForceFallbackMismatch: force, PackageSet: packageSet,
+			})
 			if err != nil {
 				return err
 			}
@@ -234,10 +245,11 @@ func (a *application) newKernelInstallCommand() *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&root, "root", "", "explicit absolute target Linux root filesystem")
-	command.Flags().StringVar(&fallbackABI, "fallback-abi", "", "currently running Surface kernel ABI to preserve")
+	command.Flags().StringVar(&fallbackABI, "fallback-abi", "", "Surface kernel ABI to verify and preserve (normally the running ABI)")
 	command.Flags().StringVar(&runningABI, "running-abi", "", "running ABI evidence for an alternate-root fixture only")
 	command.Flags().BoolVar(&allowUnverified, "allow-unverified", false, "accept a locally hashed bundle without an authoritative checksum manifest")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "perform complete preflight without privileged changes")
+	command.Flags().BoolVar(&force, "force", false, "allow a verified bootable fallback ABI to differ from the running ABI")
 	command.Flags().StringVar(&packageSet, "package-set", string(kernel.LocalPackageSetAll), "packages to select: all exact-version packages (including matching headers when available), or runtime image/modules only")
 	command.Flags().BoolVar(&yes, "yes", false, "confirm the reviewed target filesystem changes")
 	command.Flags().BoolVar(&asJSON, "json", false, "write the machine-readable installation receipt")
@@ -246,23 +258,36 @@ func (a *application) newKernelInstallCommand() *cobra.Command {
 	return command
 }
 
+// kernelInstallationOptions keeps safety-relevant CLI selections named at the
+// boundary instead of relying on the order of adjacent boolean arguments.
+type kernelInstallationOptions struct {
+	Root                  string
+	FallbackABI           string
+	RunningABI            string
+	DryRun                bool
+	AllowUnverified       bool
+	ForceFallbackMismatch bool
+	PackageSet            string
+}
+
 // kernelInstallationRequest discovers the caller-selected local bundle and
 // enforces the alternate-root boundary for supplied running-ABI evidence.
-func kernelInstallationRequest(bundleDirectory, root, fallbackABI, runningABI string, dryRun, allowUnverified bool, packageSet string) (kernelinstall.Request, error) {
-	if filepath.Clean(root) == string(filepath.Separator) && strings.TrimSpace(runningABI) != "" {
+func kernelInstallationRequest(bundleDirectory string, options kernelInstallationOptions) (kernelinstall.Request, error) {
+	if filepath.Clean(options.Root) == string(filepath.Separator) && strings.TrimSpace(options.RunningABI) != "" {
 		return kernelinstall.Request{}, errors.New("--running-abi is permitted only with an alternate target root")
 	}
-	bundle, err := kernel.DiscoverLocalBundleWithOptions(bundleDirectory, kernel.LocalBundleOptions{PackageSet: kernel.LocalPackageSet(packageSet)})
+	bundle, err := kernel.DiscoverLocalBundleWithOptions(bundleDirectory, kernel.LocalBundleOptions{PackageSet: kernel.LocalPackageSet(options.PackageSet)})
 	if err != nil {
 		return kernelinstall.Request{}, err
 	}
 	return kernelinstall.Request{
-		Bundle:          bundle,
-		Root:            root,
-		FallbackABI:     fallbackABI,
-		RunningABI:      runningABI,
-		DryRun:          dryRun,
-		AllowUnverified: allowUnverified,
+		Bundle:                bundle,
+		Root:                  options.Root,
+		FallbackABI:           options.FallbackABI,
+		RunningABI:            options.RunningABI,
+		DryRun:                options.DryRun,
+		AllowUnverified:       options.AllowUnverified,
+		ForceFallbackMismatch: options.ForceFallbackMismatch,
 	}, nil
 }
 
@@ -278,8 +303,9 @@ func (a *application) kernelInstallerForCommand() kernelInstallationManager {
 // writeKernelPreflight renders one successful read-only plan without changing
 // its machine-readable representation.
 func (a *application) writeKernelPreflight(plan kernelinstall.Plan, requestedPackageSet kernel.LocalPackageSet, asJSON bool) error {
+	warningErr := a.writeKernelWarnings(plan.Warnings)
 	if asJSON {
-		return a.writeJSON(plan)
+		return errors.Join(warningErr, a.writeJSON(plan))
 	}
 	verification := "authoritative checksums"
 	if plan.UnverifiedAccepted {
@@ -288,7 +314,21 @@ func (a *application) writeKernelPreflight(plan kernelinstall.Plan, requestedPac
 	_, err := fmt.Fprintf(a.out,
 		"kernel installation preflight passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nversion: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\ndevice trees: %d\nverification: %s\nplanned commands: %d\nno changes were made\n",
 		plan.Root, plan.TargetABI, plan.FallbackABI, plan.Version, requestedPackageSet, effectiveKernelPackageSet(len(plan.Packages)), len(plan.Packages), len(plan.DeviceTrees), verification, len(plan.Commands))
-	return err
+	return errors.Join(warningErr, err)
+}
+
+// writeKernelWarnings emits non-fatal safety information on stderr so JSON
+// stdout remains directly parseable while the same warnings stay in the plan.
+func (a *application) writeKernelWarnings(warnings []string) error {
+	if a == nil || a.errOut == nil {
+		return nil
+	}
+	for _, warning := range warnings {
+		if _, err := fmt.Fprintln(a.errOut, warning); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // effectiveKernelPackageSet reports the closed role set represented by the
@@ -303,22 +343,23 @@ func effectiveKernelPackageSet(packageCount int) kernel.LocalPackageSet {
 // writeKernelInstallReceipt preserves a structured partial receipt on failure
 // and otherwise renders concise dry-run or reboot guidance.
 func (a *application) writeKernelInstallReceipt(receipt kernelinstall.Receipt, requestedPackageSet kernel.LocalPackageSet, asJSON bool, installErr error) error {
+	warningErr := a.writeKernelWarnings(receipt.Plan.Warnings)
 	if asJSON {
-		return errors.Join(installErr, a.writeJSON(receipt))
+		return errors.Join(installErr, warningErr, a.writeJSON(receipt))
 	}
 	if installErr != nil {
-		return installErr
+		return errors.Join(installErr, warningErr)
 	}
 	if receipt.Plan.DryRun {
 		_, err := fmt.Fprintf(a.out,
 			"kernel installation dry run passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\nplanned commands: %d\nno changes were made\n",
 			receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), len(receipt.Plan.Packages), len(receipt.Plan.Commands))
-		return err
+		return errors.Join(warningErr, err)
 	}
 	_, err := fmt.Fprintf(a.out,
 		"kernel installed\nroot: %s\ntarget ABI: %s\nfallback ABI retained: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\ndevice trees verified: %d\nheader trees verified: %d\nreboot required: %t\nReboot manually when ready; retain the fallback kernel until the new kernel has been tested.\n",
 		receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), len(receipt.Plan.Packages), len(receipt.DeviceTrees), len(receipt.Headers), receipt.RebootRequired)
-	return err
+	return errors.Join(warningErr, err)
 }
 
 // newKernelReleaseListCommand shows releases containing a candidate runtime

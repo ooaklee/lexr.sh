@@ -54,6 +54,10 @@ that do not apply.
 
 ### Added
 
+- Added an explicit `--force` override to kernel preflight and installation for
+  retaining a known-good, fully verified fallback ABI that differs from the
+  currently running kernel. The default exact-match guard remains in place;
+  forced plans and receipts record and print the ABI mismatch warning.
 - Added a POSIX `install.sh` one-command installer that detects OS and
   architecture, resolves the latest (or a pinned) version from GitHub releases,
   verifies the SHA-256 checksum against the versioned manifest, and installs
@@ -110,6 +114,9 @@ that do not apply.
 
 ### Fixed
 
+- Scoped the retired out-of-tree touchscreen release guard to its historical
+  `6.12.0-jg-0sp11v3-qcom-x1e` ABI and module assets, allowing later patch
+  lines to use their own valid `sp11v3` generation for in-tree kernels.
 - Made the kernel release workflow request Stubble explicitly, so the PE and
   embedded device-tree contract it validates is also recorded accurately in
   public build provenance.

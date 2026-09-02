@@ -81,6 +81,13 @@ Review the target root, new ABI, package set, initramfs and GRUB operations,
 and retained fallback. These checks do not modify the system and do not prove
 that either kernel passes physical hardware qualification.
 
+If the running kernel is the broken candidate and another installed kernel is
+your known-good fallback, replace `$RUNNING_ABI` with that exact installed ABI
+and add `--force` to both preflight and install. Lexr will warn that the ABIs do
+not match, record the override in JSON, and continue only after proving that
+the selected fallback has its complete boot files, module tree, `modules.dep`,
+and exactly one non-recovery GRUB entry. The flag does not bypass those checks.
+
 Do not pass `--allow-unverified` to preflight or install to bypass a missing or
 invalid checksum manifest for a published release.
 
@@ -95,6 +102,9 @@ sudo "$LEXR" kernel install "$KERNEL_BUNDLE" \
   --fallback-abi "$RUNNING_ABI" \
   --yes
 ```
+
+If the reviewed dry run used a known-good non-running fallback, use that same
+ABI and add `--force` to this confirmed command as well.
 
 The real installation repeats preflight immediately before mutation, retains
 the fallback, backs up GRUB, and verifies the installed package and boot state.

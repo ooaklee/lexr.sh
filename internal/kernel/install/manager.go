@@ -36,8 +36,14 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 	if err != nil {
 		return Plan{}, err
 	}
+	warnings := []string(nil)
+	fallbackMismatchForced := false
 	if runningABI != request.FallbackABI {
-		return Plan{}, fmt.Errorf("running ABI must exactly match fallback ABI: running %s, fallback %s", runningABI, request.FallbackABI)
+		if !request.ForceFallbackMismatch {
+			return Plan{}, fmt.Errorf("running ABI must exactly match fallback ABI: running %s, fallback %s", runningABI, request.FallbackABI)
+		}
+		fallbackMismatchForced = true
+		warnings = append(warnings, fmt.Sprintf("warning: fallback ABI does not match the running ABI: running %s, fallback %s", runningABI, request.FallbackABI))
 	}
 
 	packages, err := manager.inspectBundle(ctx, request.Bundle)
@@ -80,17 +86,19 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 		return Plan{}, err
 	}
 	return Plan{
-		Root:               root,
-		TargetABI:          request.Bundle.ABI,
-		FallbackABI:        request.FallbackABI,
-		RunningABI:         runningABI,
-		Version:            request.Bundle.Version,
-		DryRun:             request.DryRun,
-		UnverifiedAccepted: unverified,
-		Packages:           packages,
-		DeviceTrees:        deviceTrees,
-		Fallback:           fallback,
-		Commands:           commands,
+		Root:                   root,
+		TargetABI:              request.Bundle.ABI,
+		FallbackABI:            request.FallbackABI,
+		RunningABI:             runningABI,
+		FallbackMismatchForced: fallbackMismatchForced,
+		Warnings:               warnings,
+		Version:                request.Bundle.Version,
+		DryRun:                 request.DryRun,
+		UnverifiedAccepted:     unverified,
+		Packages:               packages,
+		DeviceTrees:            deviceTrees,
+		Fallback:               fallback,
+		Commands:               commands,
 	}, nil
 }
 

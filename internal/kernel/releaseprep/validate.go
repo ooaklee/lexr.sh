@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
-	"strings"
 
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/kernel/build"
@@ -110,7 +109,7 @@ func validateManifest(manifest Manifest) error {
 		manifest.BundleFile != BundleFileName || manifest.ChecksumFile != ChecksumFileName || manifest.NotesFile != ReleaseNotesFileName {
 		return errors.New("kernel release manifest has an unsupported kernel or generated-file contract")
 	}
-	if strings.Contains(manifest.ABI, "sp11v3") {
+	if isRetiredTouchscreenABI(manifest.ABI) {
 		return errors.New("legacy sp11v3 out-of-tree touchscreen kernel bundles are retired")
 	}
 	if err := validatePublicProvenance(manifest.Source); err != nil {

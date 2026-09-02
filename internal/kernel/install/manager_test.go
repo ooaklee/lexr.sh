@@ -825,13 +825,79 @@ func TestFallbackMustBeRunningAndBootable(t *testing.T) {
 			t.Fatalf("error = %v", err)
 		}
 	})
+	t.Run("forced mismatch retains warning and boot evidence", func(t *testing.T) {
+		root, bundle := fixtureEnvironment(t)
+		request := fixtureRequest(root, bundle, true)
+		request.RunningABI = "7.2.0-jg-0sp11v17-qcom-x1e"
+		request.ForceFallbackMismatch = true
+		plan, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected := "warning: fallback ABI does not match the running ABI: running 7.2.0-jg-0sp11v17-qcom-x1e, fallback " + fixtureFallbackABI
+		if !plan.FallbackMismatchForced || plan.RunningABI != request.RunningABI || plan.Fallback.ABI != fixtureFallbackABI ||
+			len(plan.Warnings) != 1 || plan.Warnings[0] != expected {
+			t.Fatalf("forced mismatch plan = %+v", plan)
+		}
+	})
+	t.Run("force without mismatch has no warning", func(t *testing.T) {
+		root, bundle := fixtureEnvironment(t)
+		request := fixtureRequest(root, bundle, true)
+		request.ForceFallbackMismatch = true
+		plan, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if plan.FallbackMismatchForced || len(plan.Warnings) != 0 {
+			t.Fatalf("matching forced plan = %+v", plan)
+		}
+	})
+	forcedArtifacts := []struct {
+		name     string
+		relative string
+		want     string
+	}{
+		{name: "kernel image", relative: "boot/vmlinuz-" + fixtureFallbackABI, want: "vmlinuz-"},
+		{name: "initramfs", relative: "boot/initrd.img-" + fixtureFallbackABI, want: "initrd.img-"},
+		{name: "system map", relative: "boot/System.map-" + fixtureFallbackABI, want: "System.map-"},
+		{name: "kernel config", relative: "boot/config-" + fixtureFallbackABI, want: "config-"},
+		{name: "module dependency index", relative: "usr/lib/modules/" + fixtureFallbackABI + "/modules.dep", want: "modules.dep"},
+		{name: "populated module tree", relative: "usr/lib/modules/" + fixtureFallbackABI + "/kernel/fallback.ko.zst", want: "no non-empty kernel module"},
+	}
+	for _, artifact := range forcedArtifacts {
+		t.Run("forced mismatch still requires "+artifact.name, func(t *testing.T) {
+			root, bundle := fixtureEnvironment(t)
+			if err := os.Remove(filepath.Join(root, artifact.relative)); err != nil {
+				t.Fatal(err)
+			}
+			request := fixtureRequest(root, bundle, true)
+			request.RunningABI = "7.2.0-jg-0sp11v17-qcom-x1e"
+			request.ForceFallbackMismatch = true
+			_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), request)
+			if err == nil || !strings.Contains(err.Error(), artifact.want) {
+				t.Fatalf("forced incomplete fallback error = %v, want %q", err, artifact.want)
+			}
+		})
+	}
+	t.Run("forced mismatch still requires one non-recovery entry", func(t *testing.T) {
+		root, bundle := fixtureEnvironment(t)
+		grub := "menuentry 'Ubuntu recovery " + fixtureFallbackABI + "' {\n linux /boot/vmlinuz-" + fixtureFallbackABI + "\n initrd /boot/initrd.img-" + fixtureFallbackABI + "\n}\n"
+		writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+		request := fixtureRequest(root, bundle, true)
+		request.RunningABI = "7.2.0-jg-0sp11v17-qcom-x1e"
+		request.ForceFallbackMismatch = true
+		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), request)
+		if err == nil || !strings.Contains(err.Error(), "exactly one") {
+			t.Fatalf("forced recovery-only fallback error = %v", err)
+		}
+	})
 	t.Run("missing initramfs", func(t *testing.T) {
 		root, bundle := fixtureEnvironment(t)
 		if err := os.Remove(filepath.Join(root, "boot/initrd.img-"+fixtureFallbackABI)); err != nil {
 			t.Fatal(err)
 		}
 		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), fixtureRequest(root, bundle, true))
-		if err == nil || !strings.Contains(err.Error(), "initramfs") {
+		if err == nil || !strings.Contains(err.Error(), "initrd.img-") {
 			t.Fatalf("error = %v", err)
 		}
 	})
@@ -864,6 +930,7 @@ func TestRequestAndCancellationValidationRejectsBeforeInspection(t *testing.T) {
 	tests[0].request.Root = ""
 	tests[1].request.Root = "relative"
 	tests[2].request.FallbackABI = fixtureTargetABI
+	tests[2].request.ForceFallbackMismatch = true
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := manager.Preflight(test.context, test.request)

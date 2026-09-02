@@ -433,10 +433,10 @@ func TestValidateManifestRejectsSemanticDrift(t *testing.T) {
 			manifest.Assets = append(manifest.Assets, duplicate)
 			sort.Slice(manifest.Assets, func(i, j int) bool { return manifest.Assets[i].Name < manifest.Assets[j].Name })
 		}},
-		{name: "legacy v3 source", mutate: func(manifest *Manifest) {
+		{name: "legacy touchscreen module source", mutate: func(manifest *Manifest) {
 			for index := range manifest.Assets {
 				if manifest.Assets[index].Kind == AssetSource {
-					manifest.Assets[index].Name = "sp11v3-source.tar.xz"
+					manifest.Assets[index].Name = "sp11-touchscreen-modules-source.tar.xz"
 				}
 			}
 			sort.Slice(manifest.Assets, func(i, j int) bool { return manifest.Assets[i].Name < manifest.Assets[j].Name })
@@ -455,9 +455,46 @@ func TestValidateManifestRejectsSemanticDrift(t *testing.T) {
 	}
 }
 
+// TestPrepareScopesRetiredGenerationThreePolicy proves that generation numbers
+// are patch-line local while the exact historical out-of-tree ABI stays
+// rejected.
+func TestPrepareScopesRetiredGenerationThreePolicy(t *testing.T) {
+	t.Run("current in-tree generation", func(t *testing.T) {
+		fixture := newReleaseFixtureWithIdentity(t, false,
+			"7.2.2-jg-0sp11v3-qcom-x1e", "7.2.2-jg-0sp11v3",
+			"sp11-qcom-x1e-7.2.2-jg-0sp11v3")
+		receipt, err := New().Prepare(context.Background(), fixture.Request)
+		if err != nil {
+			t.Fatalf("Prepare() rejected current generation v3: %v", err)
+		}
+		if receipt.Plan.Manifest.ABI != "7.2.2-jg-0sp11v3-qcom-x1e" {
+			t.Fatalf("prepared manifest = %#v", receipt.Plan.Manifest)
+		}
+		if retiredTouchscreenAsset("linux-7.2.2-jg-0sp11v3.tar.xz") {
+			t.Fatal("current generation v3 source was treated as a retired module bundle")
+		}
+	})
+
+	t.Run("historical out-of-tree ABI", func(t *testing.T) {
+		fixture := newReleaseFixtureWithIdentity(t, false,
+			retiredTouchscreenABI, "6.12.0-jg-0sp11v3",
+			"sp11-qcom-x1e-6.12.0-jg-0sp11v3")
+		_, err := New().Prepare(context.Background(), fixture.Request)
+		if err == nil || !strings.Contains(err.Error(), "out-of-tree touchscreen") {
+			t.Fatalf("Prepare() historical ABI error = %v", err)
+		}
+	})
+}
+
 // newReleaseFixture writes the exact closed output emitted by the native
 // builder plus corresponding source and explicit licence inputs.
 func newReleaseFixture(t *testing.T, headers bool) releaseFixture {
+	return newReleaseFixtureWithIdentity(t, headers, fixtureABI, fixtureVersion, fixtureRelease)
+}
+
+// newReleaseFixtureWithIdentity writes a native build for one coherent ABI,
+// package version, and public release identity.
+func newReleaseFixtureWithIdentity(t *testing.T, headers bool, abi, version, release string) releaseFixture {
 	t.Helper()
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -467,9 +504,9 @@ func newReleaseFixture(t *testing.T, headers bool) releaseFixture {
 	if err := os.Mkdir(buildDirectory, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	names := []string{packageName(kernel.RoleImage), packageName(kernel.RoleModules)}
+	names := []string{packageNameForIdentity(kernel.RoleImage, abi, version), packageNameForIdentity(kernel.RoleModules, abi, version)}
 	if headers {
-		names = append(names, packageName(kernel.RoleHeaders), packageName(kernel.RoleCommonHeaders))
+		names = append(names, packageNameForIdentity(kernel.RoleHeaders, abi, version), packageNameForIdentity(kernel.RoleCommonHeaders, abi, version))
 	}
 	packages := make([]kernel.Package, 0, len(names))
 	checksums := make(map[string]string, len(names))
@@ -506,11 +543,11 @@ func newReleaseFixture(t *testing.T, headers bool) releaseFixture {
 	licence := filepath.Join(root, "LICENSE.txt")
 	mustWriteFile(t, source, []byte("corresponding source archive fixture"))
 	mustWriteFile(t, licence, []byte("Example redistribution licence evidence.\n"))
-	output := filepath.Join(root, "release", fixtureRelease)
+	output := filepath.Join(root, "release", release)
 	return releaseFixture{
 		Root: root, Build: buildDirectory, Output: output, Source: source, Licence: licence,
 		Request: Request{
-			BuildDirectory: buildDirectory, OutputDirectory: output, ReleaseName: fixtureRelease,
+			BuildDirectory: buildDirectory, OutputDirectory: output, ReleaseName: release,
 			SourceAssets: []string{source}, LicenceAssets: []string{licence},
 		},
 	}
@@ -518,15 +555,21 @@ func newReleaseFixture(t *testing.T, headers bool) releaseFixture {
 
 // packageName returns one filename satisfying the normal kernel bundle parser.
 func packageName(role kernel.PackageRole) string {
+	return packageNameForIdentity(role, fixtureABI, fixtureVersion)
+}
+
+// packageNameForIdentity returns one package filename for a coherent ABI and
+// Debian package version.
+func packageNameForIdentity(role kernel.PackageRole, abi, version string) string {
 	switch role {
 	case kernel.RoleImage:
-		return "linux-image-" + fixtureABI + "_" + fixtureVersion + "_arm64.deb"
+		return "linux-image-" + abi + "_" + version + "_arm64.deb"
 	case kernel.RoleModules:
-		return "linux-modules-" + fixtureABI + "_" + fixtureVersion + "_arm64.deb"
+		return "linux-modules-" + abi + "_" + version + "_arm64.deb"
 	case kernel.RoleHeaders:
-		return "linux-headers-" + fixtureABI + "_" + fixtureVersion + "_arm64.deb"
+		return "linux-headers-" + abi + "_" + version + "_arm64.deb"
 	case kernel.RoleCommonHeaders:
-		return "linux-qcom-x1e-headers-" + strings.TrimSuffix(fixtureABI, "-qcom-x1e") + "_" + fixtureVersion + "_all.deb"
+		return "linux-qcom-x1e-headers-" + strings.TrimSuffix(abi, "-qcom-x1e") + "_" + version + "_all.deb"
 	default:
 		return "unsupported"
 	}
