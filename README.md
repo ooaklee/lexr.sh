@@ -65,6 +65,13 @@ build or write an image.
 
 ## Get Lexr
 
+On Linux or macOS, the install script downloads the latest release, verifies its
+checksum, and puts `lexr` on your `PATH`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh
+```
+
 The [releases page](https://github.com/ooaklee/lexr.sh/releases) provides six raw
 executables and a versioned SHA-256 manifest. Use the latest stable release for
 the most conservative starting point, or choose a clearly marked prerelease if

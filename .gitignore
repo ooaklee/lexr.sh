@@ -9,6 +9,7 @@
 /*.manifest.json
 /dist/
 /.lexr-remaster-*/
+/.tmp/
 sp11-linux-checks/
 sp11-linux-checks-*.zip
 report-*/

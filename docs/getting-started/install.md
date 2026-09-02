@@ -1,11 +1,37 @@
 # Install Lexr
 
+## Quick start (Linux and macOS)
+
+The install script downloads the latest release for your platform, verifies its
+SHA-256 checksum against the release manifest, and puts `lexr` on your `PATH`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh
+```
+
+Useful variants:
+
+```sh
+# Install a specific release version
+curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh -s -- --version 0.2.0
+
+# Install a local executable you downloaded and verified yourself
+curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh -s -- --binary ./lexr-v<version>-linux-<arch>
+
+# Do not edit shell startup files; the script only prints PATH guidance
+curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh -s -- --no-modify-path
+```
+
+Run `install.sh --help` for all options. Windows users should follow the manual
+steps below instead. Prefer to review each download yourself? The rest of this
+page describes the manual flow the script automates.
+
+## Choose a release
+
 Lexr releases are deliberately simple: each supported host gets one raw
 executable, accompanied by a SHA-256 manifest and the project legal documents.
 They do not include a Linux image, kernel packages, firmware or userspace
 support bundles.
-
-## Choose a release
 
 Open the [Lexr releases page](https://github.com/ooaklee/lexr.sh/releases).
 GitHub marks the latest stable release and labels newer test releases as
