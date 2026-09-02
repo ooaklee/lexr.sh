@@ -856,13 +856,58 @@ func TestFeatureSelectionAndParsing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Checks) != 2 {
-		t.Fatalf("got %d checks, want 2", len(report.Checks))
+	if len(report.Checks) != 5 {
+		t.Fatalf("got %d checks, want 5", len(report.Checks))
 	}
 	for _, check := range report.Checks {
-		if check.Feature != FeaturePower {
+		if check.Feature != FeaturePower && check.Feature != FeatureKernel {
 			t.Fatalf("unexpected feature %s", check.Feature)
 		}
+	}
+}
+
+// TestPowerProfileClassInspection binds the userspace contract to exactly one
+// complete native handler and to the first supported 7.2.2 Surface ABI.
+func TestPowerProfileClassInspection(t *testing.T) {
+	root := t.TempDir()
+	device := filepath.Join(root, "sys/class/platform-profile/platform-profile-0")
+	if err := os.MkdirAll(device, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, contents := range map[string]string{
+		"profile": "balanced\n",
+		"choices": "low-power balanced balanced-performance performance\n",
+	} {
+		if err := os.WriteFile(filepath.Join(device, name), []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	modules := filepath.Join(root, "lib/modules/7.2.2-jg-0sp11v1-qcom-x1e")
+	if err := os.MkdirAll(modules, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	report, err := Inspect(Options{
+		Root:      root,
+		KernelABI: "7.2.2-jg-0sp11v1-qcom-x1e",
+		Features:  []Feature{FeaturePower},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var class, compatibility Check
+	for _, check := range report.Checks {
+		switch check.ID {
+		case "power-profile-class-interface":
+			class = check
+		case "kernel-compatibility-power-profiles":
+			compatibility = check
+		}
+	}
+	if class.State != StatePass || !strings.Contains(class.Detail, "platform-profile-0") {
+		t.Fatalf("class check = %#v", class)
+	}
+	if compatibility.State != StateWarn || !strings.Contains(compatibility.Detail, "7.2.2/sp11v1") {
+		t.Fatalf("compatibility check = %#v", compatibility)
 	}
 }
 

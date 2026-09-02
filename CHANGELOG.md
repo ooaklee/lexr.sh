@@ -80,6 +80,11 @@ that do not apply.
 
 ### Changed
 
+- Made SP11 native power-profile readiness require exactly one complete
+  `/sys/class/platform-profile/platform-profile-N` device and the paired
+  userspace marker. Kernel `7.2.2-jg-0sp11v1` and later patch-line builds are
+  recognised without reintroducing the legacy ACPI platform-profile path, but
+  remain explicitly awaiting physical userspace qualification.
 - Taught `doctor` and `userspace status` to keep each SP11 generation in its
   kernel patch line. A `7.2.2/sp11v1` build is now reported honestly as newer
   and awaiting userspace qualification, instead of being failed against the

@@ -55,7 +55,7 @@ var statusContracts = []statusContract{
 	{id: "g6-pen", feature: userspacestatus.FeatureG6Pen, capability: catalog.CapabilityPen, level: catalog.LevelDiagnosticOnly},
 	{id: "oot-touchscreen", feature: userspacestatus.FeatureTouch, capability: catalog.CapabilityTouchscreen, level: catalog.LevelObsolete},
 	{id: CameraComponent, feature: userspacestatus.FeatureCamera, capability: catalog.CapabilityCamera, level: catalog.LevelExperimental, minimumGeneration: 14, testedThroughGeneration: 19},
-	{id: "power-profiles", feature: userspacestatus.FeaturePower, capability: catalog.CapabilityPower, level: catalog.LevelSupported},
+	{id: "power-profiles", feature: userspacestatus.FeaturePower, capability: catalog.CapabilityPower, level: catalog.LevelSupported, minimumGeneration: 8, testedThroughGeneration: 19},
 }
 
 // releaseDownloader is the verified-release capability required by Manager and

@@ -198,12 +198,17 @@
         "build": false,
         "install": false
       },
-      "compatibility_evidence": "source_integrated_prior_validation",
+      "compatibility_evidence": "exact_pair",
+      "kernel_compatibility": {
+        "minimum_sp11_generation": 8,
+        "tested_through_sp11_generation": 19,
+        "summary": "The native class interface is present in the historical 7.2.0/sp11v8 pairing and in 7.2.2/sp11v1 or newer; generations remain patch-line-local."
+      },
       "notes": [
-        "The non-ACPI platform-profile framework fix is integrated in the kernel and works with the distribution power-profiles daemon unchanged.",
-        "Low-power, balanced, balanced-performance, and performance switching passed on the audited X1E device."
+        "The OE-owned power-profiles-daemon 0.30 patch consumes exactly one native platform-profile class device while retaining genuine ACPI fallback.",
+        "Low-power, balanced, balanced-performance, and performance switching passed on the audited X1E device with the earlier compatibility path; the new 7.2.2 userspace pairing still requires physical qualification."
       ],
-      "remediation": "Boot a kernel containing the non-ACPI platform-profile integration and verify that the distribution daemon binds the platform profile driver."
+      "remediation": "Use the OE-owned class-interface daemon with 7.2.2-jg-0sp11v1-qcom-x1e or newer and verify one complete native class device before relying on desktop profile switching."
     },
     {
       "id": "wifi",

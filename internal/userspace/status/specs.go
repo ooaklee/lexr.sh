@@ -257,6 +257,11 @@ var powerProfileFiles = [][]fileRequirement{
 		{Path: "usr/lib/systemd/system/power-profiles-daemon.service"},
 		{Path: "lib/systemd/system/power-profiles-daemon.service"},
 	},
+	{{
+		Path:         "usr/share/doc/power-profiles-daemon/SP11-NATIVE-CLASS",
+		SHA256:       "199611293e78385dfcd0e5627428bccb1ed1eb0f79b604bfa36442e49b4d0aec",
+		ExpectedSize: 220,
+	}},
 }
 
 // compressedAlternatives expands one logical firmware path into the uncompressed,

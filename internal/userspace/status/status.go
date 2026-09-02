@@ -74,7 +74,7 @@ func (inspector *Inspector) Inspect(options Options) (Report, error) {
 		}
 	}
 
-	compatibilitySelected := features[FeatureAudio] || features[FeatureIPTSD] || features[FeatureCamera]
+	compatibilitySelected := features[FeatureAudio] || features[FeatureIPTSD] || features[FeatureCamera] || features[FeaturePower]
 	if features[FeatureKernel] || compatibilitySelected {
 		check, abi, checkErr := inspectKernelABI(fs, options.KernelABI)
 		if checkErr != nil {
@@ -272,13 +272,19 @@ func (inspector *Inspector) Inspect(options Options) (Report, error) {
 
 	if features[FeaturePower] {
 		required := policies.required(powerComponent)
+		add(policies.inspectKernelCompatibility(powerComponent, report.KernelABI))
 		add(policies.decorate(inspectPackage(dpkg, "power-profiles-package", FeaturePower, "power-profiles-daemon", "", required), powerComponent))
 		files, checkErr := inspector.checkAlternativeSets(fs, "power-profiles-files", FeaturePower, required, powerProfileFiles, true)
 		if checkErr != nil {
 			return Report{}, checkErr
 		}
-		files.Remediation = "install power-profiles-daemon to expose the kernel platform profile through the desktop"
+		files.Remediation = "install the OE-owned power-profiles-daemon 0.30 native-class integration; the unmodified distribution daemon is not sufficient on DT-only SP11"
 		add(policies.decorate(files, powerComponent))
+		classInterface, checkErr := inspectPowerProfileClass(fs, required)
+		if checkErr != nil {
+			return Report{}, checkErr
+		}
+		add(policies.decorate(classInterface, powerComponent))
 	}
 
 	return report, nil

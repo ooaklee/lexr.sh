@@ -57,7 +57,7 @@ var builtInComponentPolicies = []ComponentPolicy{
 	{ID: g6PenComponent, Feature: FeatureG6Pen, SupportLevel: SupportDiagnosticOnly},
 	{ID: ootTouchComponent, Feature: FeatureTouch, SupportLevel: SupportObsolete},
 	{ID: cameraComponent, Feature: FeatureCamera, SupportLevel: SupportExperimental, MinimumSP11Generation: 14, TestedThroughSP11Generation: 19},
-	{ID: powerComponent, Feature: FeaturePower, SupportLevel: SupportSupported},
+	{ID: powerComponent, Feature: FeaturePower, SupportLevel: SupportSupported, MinimumSP11Generation: 8, TestedThroughSP11Generation: 19},
 }
 
 // policySet provides immutable component lookup and records whether the caller

@@ -253,6 +253,12 @@ func TestStatusProjectsCataloguePolicy(t *testing.T) {
 		t.Fatal("explicitly selected missing power support unexpectedly reported ready")
 	}
 	for _, check := range report.Checks {
+		if check.Feature == userspacestatus.FeatureKernel {
+			if check.ComponentID != "" || !check.Required {
+				t.Fatalf("projected kernel prerequisite = %#v", check)
+			}
+			continue
+		}
 		if check.ComponentID != "power-profiles" || check.SupportLevel != userspacestatus.SupportSupported || !check.Required {
 			t.Fatalf("projected power check = %#v", check)
 		}
