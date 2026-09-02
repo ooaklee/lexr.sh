@@ -6,6 +6,17 @@ before it can be written to a reviewed removable device. This page covers the
 implemented Ubuntu Concept and Fedora Workstation Live adapters, from image
 creation to a verified USB write and the physical test which must follow.
 
+> [!CAUTION]
+> Both implemented adapters remain experimental. `implemented` means Lexr can
+> create and structurally validate their output; it does not mean that the image
+> has completed a physical boot or installation. A Fedora 44 candidate passed
+> structural validation and USB read-back, but a Surface Pro 11 boot reached the
+> emergency path. Removing `quiet` exposed early text before the display remained
+> black for hours. Reproduction and diagnosis continue in
+> [issue #17](https://github.com/ooaklee/lexr.sh/issues/17); Ubuntu's separate
+> end-to-end qualification is tracked in
+> [issue #16](https://github.com/ooaklee/lexr.sh/issues/16).
+
 ## Audience and context
 
 Follow this workflow when you want to build a candidate live image and put it on
@@ -20,6 +31,7 @@ described here.
 - The shortest command selects `ubuntu-concept-resolute-x1e` and the latest candidate kernel release. Those packages become trusted only after their publisher checksums and measured contents pass verification.
 - Fedora Workstation Live 44 must be selected explicitly and requires a patch-line-qualified verified Surface kernel bundle: 7.2.0/sp11v19+ or 7.2.2/sp11v1+. Its custom live and installed-system path is limited to X1E/OLED; X1P/LCD has a stock-kernel live troubleshooting entry only and must not be installed from this adapter.
 - Structural validation is a publication gate, not a substitute for booting the media on a Surface Pro 11. Disable Secure Boot before using the unsigned custom kernel, and treat an actual device boot as the final compatibility gate.
+- Every current catalogue entry still needs complete end-to-end testing, especially to confirm its image structure and bootability. The implemented entries remain runnable so contributors can reproduce and improve them.
 - The pre-write router accepts only the implemented Lexr Ubuntu Casper and Fedora Live outputs after their adapter-owned structural validators pass. Compressed raw disk images use a different partition and boot model and need a separate adapter.
 - USB planning is read-only. The real write requires elevated privilege and the exact confirmation generated for the current source and device.
 
@@ -85,6 +97,12 @@ installed-system hand-off are not supported; use its explicit-DTB stock entry
 for live investigation only. Physical USB boot, an X1E installation,
 installed-system boot, pen/touch, audio, and suspend/resume remain hardware
 qualification gates.
+
+The known Fedora physical result is not a successful boot: the candidate reached
+the emergency path, and removing `quiet` revealed early console output before a
+persistent black screen. Preserve the generated manifest and journal when
+reporting a reproduction; the follow-up work must find the first failing boot
+boundary rather than treating structural validation as proof of bootability.
 
 ## 2. Review the USB target
 

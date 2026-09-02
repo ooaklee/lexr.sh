@@ -1,6 +1,10 @@
 # Lexr.sh
 
-Lexr (Linux Exchanger) makes it easy to run ARM64 Linux on the Microsoft Surface Pro 11. It bundles a ready-to-use image, a tailored kernel, and essential device support, then helps you track and manage what works out of the box. Fast, auditable, and Surface Pro 11-focused.
+Lexr (Linux Exchanger) brings the moving parts of ARM64 Linux on the Microsoft
+Surface Pro 11 into one auditable workflow. It can remaster selected upstream
+images with a tailored kernel and device support, then help you see what is
+present after boot. The image paths are experimental rather than ready-made or
+hardware-qualified.
 
 Build a repeatable ARM64 Linux installer for the Microsoft Surface Pro 11, then
 see which device support is actually ready on the installed system.
@@ -40,8 +44,14 @@ Desktop image and Fedora Workstation Live 44 ARM64. The custom live and
 installed Fedora path is limited to the Snapdragon X Elite model; its X Plus
 entry is a stock-kernel, explicit-DTB live troubleshooting path only. Debian,
 elementary OS, Pop!_OS, and Fedora's compressed raw disk image remain
-`catalog-only` until their layouts have dedicated adapters. Physical hardware
-qualification remains required for every generated image.
+`catalog-only` until their layouts have dedicated adapters. Here, `implemented`
+means the adapter can create and structurally validate media; `experimental`
+means boot and installation remain unqualified. The current Fedora candidate
+passed structural validation and USB read-back, but a physical Surface Pro 11
+test reached the emergency boot path and then a persistent black screen. That
+failure is tracked in [issue #17](https://github.com/ooaklee/lexr.sh/issues/17),
+while [issue #16](https://github.com/ooaklee/lexr.sh/issues/16) tracks the
+separate Ubuntu end-to-end qualification.
 
 Lexr can help you:
 
@@ -98,7 +108,7 @@ containing repository.
 
 ## Create your first image
 
-For the shortest Ubuntu image workflow you need Docker with a running daemon
+For the shortest experimental Ubuntu image workflow you need Docker with a running daemon
 and Linux ARM64 container support, at least 24 GiB of free workspace storage,
 and network access for any downloads. Start with the non-destructive readiness
 check:
@@ -113,14 +123,15 @@ The short command uses the catalogue's dated Ubuntu snapshot and its default
 kernel release selection. Canonical does not publish a checksum beside that
 snapshot. If you need a reproducible trust decision, download the source image
 yourself, record its SHA-256 digest, and pass both `--source` and
-`--source-sha256`.
+`--source-sha256`. A successful build and structural validation do not prove
+that the image will boot or install on physical hardware.
 
 Fedora requires the explicit `fedora-workstation-live-44` catalogue ID and a
 patch-line-qualified verified kernel bundle. The accepted floors are
 7.2.0/sp11v19 and 7.2.2/sp11v1. The
 [installation-media guide](docs/user-guide/installation-media.md) shows both
-distribution paths, their hardware limits, and how to review a USB write
-safely.
+distribution paths, the Fedora boot failure already observed, their hardware
+limits, and how to review a USB write safely.
 
 Running `lexr` in an interactive terminal opens the guided image wizard. Every
 wizard choice uses the same image services as the scriptable commands, so you

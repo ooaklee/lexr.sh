@@ -1,6 +1,7 @@
 # Get started with Lexr
 
-This path takes you from a downloaded CLI to a validated Surface Pro 11 image.
+This path takes you from a downloaded CLI to a structurally validated,
+experimental Surface Pro 11 image candidate.
 Nothing is written to a USB device until you inspect a separate dry run and
 provide the exact confirmation Lexr prints.
 
@@ -45,7 +46,13 @@ snapshot, so the [installation-media guide](../user-guide/installation-media.md)
 also shows the stronger local-source path with an explicitly recorded digest.
 That guide separately covers Fedora Workstation Live 44, which must be selected
 explicitly and paired with a patch-line-qualified verified kernel bundle. The
-accepted floors are 7.2.0/sp11v19 and 7.2.2/sp11v1.
+accepted floors are 7.2.0/sp11v19 and 7.2.2/sp11v1. Both catalogue entries are
+`implemented` because their adapters run, and `experimental` because structural
+validation does not yet establish physical bootability. The known Fedora
+candidate reached an emergency boot path and then a persistent black screen on
+Surface Pro 11. Follow [the Ubuntu qualification](https://github.com/ooaklee/lexr.sh/issues/16)
+or [the Fedora boot investigation](https://github.com/ooaklee/lexr.sh/issues/17)
+before interpreting a structurally valid image as supported hardware.
 
 ## 4. Review the USB write
 
@@ -62,7 +69,7 @@ with [Write and verify the image](../user-guide/installation-media.md#3-write-an
 only when you have a recovery device and are certain the selected disk can be
 overwritten.
 
-## After the first boot
+## After a successful first boot
 
 Use [userspace support](../user-guide/userspace-support.md) to see which hardware
 components are ready or missing. If the medium carries the optional CLI and

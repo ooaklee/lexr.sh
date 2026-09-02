@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "description": "Curated ARM64 installation media for Surface Pro 11. Entries marked catalog-only are discoverable but do not yet have an image adapter.",
+  "description": "Curated ARM64 installation media for Surface Pro 11. Entries with implemented support have runnable image adapters; entries also marked experimental still require complete end-to-end boot and installation testing.",
   "entries": [
     {
       "id": "debian-13-6-0-dvd-1",
@@ -22,7 +22,8 @@
       },
       "compatibility_notes": [
         "No lexr image adapter is implemented yet.",
-        "The versioned release URL and publisher checksum pin the upstream bytes."
+        "The versioned release URL and publisher checksum pin the upstream bytes.",
+        "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],
       "last_verified": "2026-08-30"
     },
@@ -42,7 +43,8 @@
       "mutable": false,
       "compatibility_notes": [
         "No lexr image adapter is implemented yet.",
-        "The publisher generates a new epoch-tokenised URL on each page request; this stored URL was live on 2026-08-30."
+        "The publisher generates a new epoch-tokenised URL on each page request; this stored URL was live on 2026-08-30.",
+        "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],
       "last_verified": "2026-08-30"
     },
@@ -66,7 +68,8 @@
       },
       "compatibility_notes": [
         "No lexr image adapter is implemented yet.",
-        "This is a compressed raw disk image, not an ISO, and requires a raw-image-specific workflow."
+        "This is a compressed raw disk image, not an ISO, and requires a raw-image-specific workflow.",
+        "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],
       "last_verified": "2026-08-30"
     },
@@ -89,8 +92,9 @@
         "value": "162ba3c552a2d241c7c63ec26777af0255ee1b5a135adc0be986ceed999933ef"
       },
       "compatibility_notes": [
-        "The Fedora Live adapter installs the exact verified Surface kernel as a Lexr-built Fedora RPM and retains manifest-bound stock-kernel live fallbacks with explicit X1E and X1P device trees.",
-        "Secure Boot must be disabled for the unsigned patch-line-qualified Stubble kernel (7.2.0/sp11v19+ or 7.2.2/sp11v1+). End-to-end installation is scoped to X1E/OLED; the X1P/LCD stock path is live-only while custom DTB selection and installed handoff remain unqualified."
+        "The experimental Fedora Live adapter can create and structurally validate a remastered image; this does not establish hardware bootability.",
+        "A generated Fedora 44 image passed structural validation and USB read-back verification, but a Surface Pro 11 boot reached the emergency path and then remained at a black screen.",
+        "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],
       "last_verified": "2026-08-30"
     },
@@ -114,7 +118,8 @@
       },
       "compatibility_notes": [
         "No lexr image adapter is implemented yet.",
-        "Surface Pro 11 boot and device-tree integration have not yet been automated for this image."
+        "Surface Pro 11 boot and device-tree integration have not yet been automated for this image.",
+        "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],
       "last_verified": "2026-08-30"
     },
@@ -133,8 +138,9 @@
       "experimental": true,
       "mutable": false,
       "compatibility_notes": [
-        "This is the first image supported by the lexr image creation workflow.",
-        "Canonical does not publish a checksum alongside this snapshot; use --source-sha256 to pin independently verified bytes."
+        "The experimental Ubuntu Casper adapter can create and structurally validate a remastered image; this does not establish hardware bootability.",
+        "Canonical does not publish a checksum alongside this snapshot; use --source-sha256 to pin independently verified bytes.",
+        "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],
       "last_verified": "2026-08-30"
     }

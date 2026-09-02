@@ -858,6 +858,7 @@ func TestShippedCatalogContract(t *testing.T) {
 		t.Fatalf("shipped catalog Len() = %d, want %d", loaded.Len(), len(wantURLs))
 	}
 
+	const qualificationNote = "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
 	implementedIDs := make([]string, 0, 2)
 	for _, entry := range loaded.List() {
 		wantURL, exists := wantURLs[entry.ID]
@@ -889,6 +890,16 @@ func TestShippedCatalogContract(t *testing.T) {
 		} else if entry.Adapter != AdapterNone || entry.SupportLevel != SupportLevelCatalogOnly {
 			t.Errorf("entry %q adapter/support = %q/%q, want none/catalog-only", entry.ID, entry.Adapter, entry.SupportLevel)
 		}
+		hasQualificationNote := false
+		for _, note := range entry.CompatibilityNotes {
+			if note == qualificationNote {
+				hasQualificationNote = true
+				break
+			}
+		}
+		if !hasQualificationNote {
+			t.Errorf("entry %q omits the shared end-to-end qualification note", entry.ID)
+		}
 	}
 
 	if want := []string{"fedora-workstation-live-44", "ubuntu-concept-resolute-x1e"}; !reflect.DeepEqual(implementedIDs, want) {
@@ -898,15 +909,15 @@ func TestShippedCatalogContract(t *testing.T) {
 	if !ok {
 		t.Fatal("shipped catalog is missing Ubuntu Concept entry")
 	}
-	if ubuntu.Adapter != AdapterUbuntuCasper || !ubuntu.Experimental {
-		t.Fatalf("Ubuntu adapter/experimental = %q/%v, want %q/true", ubuntu.Adapter, ubuntu.Experimental, AdapterUbuntuCasper)
+	if ubuntu.Adapter != AdapterUbuntuCasper || ubuntu.SupportLevel != SupportLevelImplemented || !ubuntu.Experimental {
+		t.Fatalf("Ubuntu adapter/support/experimental = %q/%q/%v, want ubuntu-casper/implemented/true", ubuntu.Adapter, ubuntu.SupportLevel, ubuntu.Experimental)
 	}
 	fedora, ok := loaded.Get("fedora-workstation-live-44")
 	if !ok {
 		t.Fatal("shipped catalog is missing Fedora Workstation Live entry")
 	}
-	if fedora.Adapter != AdapterFedoraLive || !fedora.Experimental {
-		t.Fatalf("Fedora adapter/experimental = %q/%v, want %q/true", fedora.Adapter, fedora.Experimental, AdapterFedoraLive)
+	if fedora.Adapter != AdapterFedoraLive || fedora.SupportLevel != SupportLevelImplemented || !fedora.Experimental {
+		t.Fatalf("Fedora adapter/support/experimental = %q/%q/%v, want fedora-live/implemented/true", fedora.Adapter, fedora.SupportLevel, fedora.Experimental)
 	}
 }
 

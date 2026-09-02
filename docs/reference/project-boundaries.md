@@ -49,7 +49,11 @@ installed-system promise.
 
 Structural image, package and release validation proves the recorded bytes and
 layout. It does not replace a boot, device or lifecycle test on a physical
-Surface Pro 11.
+Surface Pro 11. `support_level: implemented` therefore means the named adapter
+is runnable, while `experimental: true` signals that the resulting media is not
+yet hardware-qualified. In the first Fedora 44 physical test, the image passed
+structural validation and USB read-back but reached the emergency boot path and
+then remained at a black screen after `quiet` was removed.
 
 ## What must stay private
 

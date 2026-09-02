@@ -41,7 +41,9 @@ lexr image release validate <release-directory>
 
 Begin with the [installation-media guide](../user-guide/installation-media.md)
 before using a whole-device write or assuming a catalogue entry has an
-implemented adapter.
+implemented adapter. In catalogue output, `implemented` means the adapter can
+create and structurally validate the image; inspect `Experimental` and `Notes`
+before treating that output as a hardware test candidate.
 
 ## Kernel commands
 

@@ -86,6 +86,15 @@ that do not apply.
 - Routed image validation, removable-media writing, and release preparation
   through the adapter declared by each generated manifest, and made Ubuntu and
   Fedora share the descriptor-anchored, no-replace output transaction.
+- Clarified the image catalogue's capability and maturity signals. Ubuntu
+  Concept and Fedora Workstation Live remain runnable through their implemented
+  adapters, but stay experimental and now state that image structure and
+  physical bootability still need complete end-to-end testing. A Fedora 44
+  candidate passed structural validation and USB read-back but reached the
+  emergency boot path followed by a persistent black screen on Surface Pro 11;
+  Ubuntu qualification is tracked in
+  [#16](https://github.com/ooaklee/lexr.sh/issues/16) and the Fedora failure in
+  [#17](https://github.com/ooaklee/lexr.sh/issues/17).
 - Advanced the trust-pinned IPTSD release to `sp11-iptsd-v2`. Its two-asset
   contract carries the complete Fedora package source beside the established
   payload while retaining the `iptsd-v1` component and internal archive root

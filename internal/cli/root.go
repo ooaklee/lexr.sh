@@ -70,8 +70,8 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 	buildVersion, _, _ := version.Info()
 	root := &cobra.Command{
 		Use:           "lexr",
-		Short:         "Build Surface Pro 11 ARM64 installation media",
-		Long:          "Lexr.sh makes it easy to run ARM64 Linux on the Microsoft Surface Pro 11. It bundles a ready-to-use image, a tailored kernel, and essential device support, then helps you track and manage what works out of the box. Fast, auditable, and Surface Pro 11-focused.",
+		Short:         "Coordinate Surface Pro 11 ARM64 Linux workflows",
+		Long:          "Lexr.sh coordinates auditable ARM64 Linux image, kernel, userspace, and diagnostic workflows for the Microsoft Surface Pro 11. Implemented image adapters can create and structurally validate media; entries marked experimental still require complete hardware boot and installation testing.",
 		Version:       buildVersion,
 		SilenceUsage:  true,
 		SilenceErrors: true,

@@ -11,6 +11,11 @@ records stable IDs, user-facing metadata, exact upstream filenames, artefact
 formats, HTTPS download and homepage links, support state, adapter, mutability,
 compatibility notes and verification dates.
 
+`last_verified` records the last check of the upstream catalogue metadata, URL,
+and publisher checksum where present. A newer compatibility test may be added to
+the notes without pretending that the upstream bytes were re-verified on the
+same day.
+
 The filename must be a portable basename, match the final URL segment exactly,
 and use the extension declared by `artifact_kind`. An optional catalogue
 checksum may use SHA-256 or SHA-512. Image creation currently consumes SHA-256
@@ -31,10 +36,14 @@ invalid dates. Both `arm64` and `aarch64` inputs normalise to `arm64`.
 
 Use `adapter: "none"` with `support_level: "catalog-only"` to make media
 discoverable before an adapter exists. Mark an entry `implemented` only when its
-named adapter can create and validate that exact artefact format. The
+named adapter can create and structurally validate that exact artefact format.
+This support level describes executable CLI capability, not successful physical
+boot or installation. Keep `experimental: true` until the workflow has completed
+its hardware qualification, and record known outcomes in `compatibility_notes`
+instead of hiding them behind a generic warning. The
 `ubuntu-concept-resolute-x1e` and `fedora-workstation-live-44` entries are
-implemented. Fedora's compressed raw disk image and the Debian, elementary OS,
-and Pop!_OS entries remain catalogue-only.
+implemented and experimental. Fedora's compressed raw disk image and the Debian,
+elementary OS, and Pop!_OS entries remain catalogue-only.
 
 ## Userspace catalogue
 
@@ -59,6 +68,8 @@ package set passes structural validation.
 - Use a stable, descriptive ID which does not encode a mutable alias.
 - Prefer exact upstream URLs and record when they were last verified.
 - State unsupported hardware or workflows plainly in compatibility notes.
+- Add the shared end-to-end testing note until image structure and bootability
+  have both been verified on physical hardware.
 - Add an adapter only with creation, validation and refusal-path tests.
 - Update user documentation when an entry changes what a person can actually do.
 - Run the full test suite after both catalogue-specific validators pass.

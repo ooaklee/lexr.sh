@@ -8,6 +8,15 @@ description: Architecture decision for Fedora Live remastering, Stubble boot int
 
 Accepted on 2026-08-31.
 
+Implementation status on 2026-09-02: the adapter and structural validator are
+implemented and remain experimental. A generated candidate passed structural
+validation and USB read-back, but its first physical Surface Pro 11 test reached
+the emergency boot path. With `quiet` removed, early text appeared before the
+display remained black for hours. This ADR records the intended contract, not a
+claim that the physical boot and installation gates have passed. Diagnosis and
+end-to-end qualification continue in
+[#17](https://github.com/ooaklee/lexr.sh/issues/17).
+
 ## Context
 
 Fedora Workstation Live 44 for ARM64 is a directly writable hybrid ISO. Its
@@ -160,8 +169,10 @@ qualified; its explicit-DTB stock path is live-only.
 - Third-party kmod packages that demand a versioned
   `kernel-uname-r = <exact-uname>` cannot resolve this multi-hyphen ABI through
   RPM 6; changing the upstream uname format is outside this adapter's scope.
-- Preserving the source hybrid layout retains direct USB bootability while the
-  adapter controls only the outer GRUB policy and remastered payload.
+- Preserving the source hybrid layout retains Fedora's upstream boot metadata
+  while the adapter controls only the outer GRUB policy and remastered payload;
+  the physical test result shows that this structure alone does not prove a
+  usable Surface Pro 11 boot.
 - The live-only DSP blacklist is absent from installed policy and is removed
   from state Anaconda may carry across the installation boundary.
 - X1E/OLED custom Stubble identity and installed hand-off are structurally
