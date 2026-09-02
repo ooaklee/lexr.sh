@@ -178,6 +178,32 @@ func TestCLIReleaseContainsBinariesNoticesAndChecksums(t *testing.T) {
 	}
 }
 
+// TestCLIReleaseNotesLeadWithVersionMatchedInstallation prevents published
+// notes from pointing at mutable main-branch installation instructions or
+// placing the exact installation command after the change list.
+func TestCLIReleaseNotesLeadWithVersionMatchedInstallation(t *testing.T) {
+	repositoryRoot := lexrRepositoryRoot(t)
+	workflow := readBoundedRepositoryFile(t, repositoryRoot, ".github/workflows/lexr.yml")
+	required := [][]byte{
+		[]byte("https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/tags/v%s/install.sh | sh -s -- --version %s"),
+		[]byte("https://github.com/ooaklee/lexr.sh/blob/v%s/docs/getting-started/install.md"),
+	}
+	for _, fragment := range required {
+		if !bytes.Contains(workflow, fragment) {
+			t.Errorf("CLI release notes omit version-matched installation fragment %q", fragment)
+		}
+	}
+
+	installHeading := bytes.Index(workflow, []byte("printf '## Install Lexr\\n\\n'"))
+	changesHeading := bytes.Index(workflow, []byte("printf '## Changes\\n\\n'"))
+	if installHeading < 0 || changesHeading < 0 || installHeading >= changesHeading {
+		t.Errorf("CLI release notes must place installation before changes: install=%d changes=%d", installHeading, changesHeading)
+	}
+	if bytes.Contains(workflow, []byte("refs/heads/main/install.sh | sh -s -- --version")) {
+		t.Error("CLI release notes use the mutable main-branch installer for an exact release")
+	}
+}
+
 // TestContributionEntryPointsPreserveSafetyAndDependencyReview keeps the
 // repository's public forms and automation aligned with CONTRIBUTING.md.
 func TestContributionEntryPointsPreserveSafetyAndDependencyReview(t *testing.T) {
