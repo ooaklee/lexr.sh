@@ -1,8 +1,10 @@
 # Lexr documentation
 
-Lexr brings the moving parts of an experimental Surface Pro 11 Linux setup into
-one checked workflow. These guides keep the first steps short while leaving the
-privacy, recovery and release details close to the actions they protect.
+Lexr brings the moving parts of experimental ARM64 Linux on Qualcomm Snapdragon
+X devices into one checked workflow. Its current implementation and physical
+test evidence centre on the Microsoft Surface Pro 11, the maintainer's daily
+driver. These guides keep the first steps short while leaving the privacy,
+recovery, device scope and release details close to the actions they protect.
 
 > [!WARNING]
 > Lexr-generated media and its custom kernel are experimental. Back up important

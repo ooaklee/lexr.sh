@@ -1,5 +1,5 @@
 site_name: Lexr documentation
-site_description: Build, validate, and support experimental ARM64 Linux media for the Microsoft Surface Pro 11.
+site_description: Build and validate experimental ARM64 Linux media for Qualcomm Snapdragon X devices.
 repo_url: https://github.com/ooaklee/lexr.sh
 repo_name: ooaklee/lexr.sh
 edit_uri: edit/main/docs/

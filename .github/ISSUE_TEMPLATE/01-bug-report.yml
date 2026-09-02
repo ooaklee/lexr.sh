@@ -49,9 +49,9 @@ body:
   - type: input
     id: surface-model
     attributes:
-      label: Surface Pro 11 model
+      label: Snapdragon X device model
       description: If a device is involved, give its model only—never a serial number or unique identifier.
-      placeholder: "Surface Pro 11 (X1E-80-100), or not applicable"
+      placeholder: "Surface Pro 11 (X1E-80-100), another Snapdragon X device, or not applicable"
 
   - type: textarea
     id: command

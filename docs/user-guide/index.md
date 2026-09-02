@@ -1,6 +1,11 @@
 # User guide
 
-Use this guide to move from a supported Lexr image to a working Surface Pro 11 system without losing the verification, privacy, or recovery boundaries built into the CLI. Each page focuses on one job, so you can follow the path you need instead of reading the complete command reference first.
+Use this guide to follow Lexr's current Snapdragon X workflow without losing
+the verification, privacy, or recovery boundaries built into the CLI. The
+implemented paths and physical test evidence currently centre on the Surface
+Pro 11; each page names the exact device scope that its instructions and claims
+cover. Each page focuses on one job, so you can follow the path you need instead
+of reading the complete command reference first.
 
 ## Who this guide is for
 
