@@ -315,6 +315,12 @@ jobs:
             printf '# Lexr %s\n\n' "$LEXR_VERSION"
             # shellcheck disable=SC2016
             printf 'This release contains the six standalone Lexr platform executables plus `LICENSE`, `NOTICE`, and `THIRD_PARTY_NOTICES.md`. The versioned SHA-256 manifest covers all nine payload files. Kernel, firmware, driver, userspace, catalogue, collector, and other project documentation are not published here.\n\n'
+            printf '## Install Lexr\n\n'
+            printf 'On Linux or macOS, install this exact release with its tag-pinned installer:\n\n'
+            printf '```sh\n'
+            printf 'curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/tags/v%s/install.sh | sh -s -- --version %s\n' "$LEXR_VERSION" "$LEXR_VERSION"
+            printf '```\n\n'
+            printf 'For manual downloads, checksum verification, and Windows installation, read the [version-matched installation guide](https://github.com/ooaklee/lexr.sh/blob/v%s/docs/getting-started/install.md).\n\n' "$LEXR_VERSION"
             printf '## Changes\n\n'
             if [[ -n "${PREVIOUS_LEXR_TAG:-}" ]]; then
               # shellcheck disable=SC2016

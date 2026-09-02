@@ -54,6 +54,9 @@ that do not apply.
 
 ### Added
 
+- Added a version-matched installation section to generated CLI release notes.
+  Each release now leads with its tag-pinned `install.sh` command and tagged
+  installation guide before listing changes.
 - Added an explicit `--force` override to kernel preflight and installation for
   retaining a known-good, fully verified fallback ABI that differs from the
   currently running kernel. The default exact-match guard remains in place;
