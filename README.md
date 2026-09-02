@@ -1,13 +1,8 @@
 # Lexr.sh
 
-Lexr (Linux Exchanger) brings the moving parts of ARM64 Linux on the Microsoft
-Surface Pro 11 into one auditable workflow. It can remaster selected upstream
-images with a tailored kernel and device support, then help you see what is
-present after boot. The image paths are experimental rather than ready-made or
-hardware-qualified.
+Lexr (Linux Exchanger) makes it easy to run ARM64 Linux on Qualcomm Snapdragon X Devices (initially focusing on Microsoft Surface Pro 11). It is a centralised tool that lets you manage and create ready-to-use images, tailored kernels, and essential device libraries to maximise your device's functionality when using Linux. With auditability as a core principle, it helps you track and manage what's implemented out of the box. Fast, auditable, and Qualcomm Snapdragon X-focused.
 
-Build a repeatable ARM64 Linux installer for the Microsoft Surface Pro 11, then
-see which device support is actually ready on the installed system.
+Build a repeatable ARM64 Linux kernel + installer for your Snapdragon Elite Device.
 
 [Download Lexr](https://github.com/ooaklee/lexr.sh/releases) ·
 [Get started](docs/getting-started/index.md) ·
@@ -16,7 +11,7 @@ see which device support is actually ready on the installed system.
 
 ## Why Lexr exists
 
-Running Linux on the Surface Pro 11 currently means bringing together an ARM64
+Running Linux on the Qualcomm Snapdragon X devices currently means bringing together an ARM64
 image, a compatible custom kernel, the matching modules and device trees, and a
 small set of hardware-support components. It is easy to combine the wrong
 versions or to finish an installation without knowing which pieces are still
@@ -41,7 +36,7 @@ verified project kernel release or accepts a local bundle.
 
 Dedicated image adapters support the experimental Ubuntu Concept Resolute
 Desktop image and Fedora Workstation Live 44 ARM64. The custom live and
-installed Fedora path is limited to the Snapdragon X Elite model; its X Plus
+installed Fedora path is limited to the Surface Pro 11 Qualcomm Snapdragon X Elite model; its X Plus
 entry is a stock-kernel, explicit-DTB live troubleshooting path only. Debian,
 elementary OS, Pop!_OS, and Fedora's compressed raw disk image remain
 `catalog-only` until their layouts have dedicated adapters. Here, `implemented`
@@ -55,7 +50,7 @@ separate Ubuntu end-to-end qualification.
 
 Lexr can help you:
 
-- create and validate Surface Pro 11 installation media;
+- create and validate Qualcomm Snapdragon X installation media;
 - inspect, download, build and install version-bound kernel bundles;
 - write a validated image to a whole USB device on Linux or macOS;
 - audit firmware, audio, pen, camera, wireless, Bluetooth and power support;
