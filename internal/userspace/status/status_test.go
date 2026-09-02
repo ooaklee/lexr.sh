@@ -40,7 +40,7 @@ func TestInspectReadyRequiredSupport(t *testing.T) {
 
 	inspector := New()
 	inspector.hash = matchingFixtureHasher(t, root)
-	inspector.inspectELF = func(_ *rootedFS, required bool) (Check, error) {
+	inspector.inspectELF = func(_ *rootedFS, required bool, _ []string) (Check, error) {
 		return Check{ID: "iptsd-elf-runtime", Feature: FeatureIPTSD, State: StatePass, Required: required, Detail: "test ELF runtime is complete"}, nil
 	}
 	report, err := inspector.Inspect(Options{
@@ -61,6 +61,115 @@ func TestInspectReadyRequiredSupport(t *testing.T) {
 		if check.State != StatePass {
 			t.Fatalf("check %s = %s: %s", check.ID, check.State, check.Detail)
 		}
+	}
+}
+
+// TestInspectFedoraNativeIPTSDLayout verifies that the /usr-owned package
+// topology is treated as one coherent installation, uses its native binaries
+// for ELF inspection, and does not require the portable /dev/null mask.
+func TestInspectFedoraNativeIPTSDLayout(t *testing.T) {
+	root := t.TempDir()
+	abi := "7.2.0-jg-0sp11v19-qcom-x1e"
+	mkdir(t, filepath.Join(root, "lib/modules", abi))
+	for _, requirement := range fedoraNativeIPTSDFiles {
+		writeRequirement(t, root, requirement)
+	}
+
+	inspector := New()
+	inspector.hash = matchingFixtureHasher(t, root)
+	var inspectedBinaries []string
+	inspector.inspectELF = func(_ *rootedFS, required bool, binaries []string) (Check, error) {
+		inspectedBinaries = append([]string(nil), binaries...)
+		return Check{ID: "iptsd-elf-runtime", Feature: FeatureIPTSD, State: StatePass, Required: required, Detail: "test native ELF runtime is complete"}, nil
+	}
+	report, err := inspector.Inspect(Options{Root: root, Features: []Feature{FeatureIPTSD}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Ready {
+		t.Fatalf("Fedora-native IPTSD report is not ready: %#v", report.Checks)
+	}
+	if strings.Join(inspectedBinaries, ",") != strings.Join(fedoraNativeIPTSDELFBinaries, ",") {
+		t.Fatalf("inspected binaries = %v, want %v", inspectedBinaries, fedoraNativeIPTSDELFBinaries)
+	}
+	if check := findCheck(t, report, "iptsd-v1-integration"); check.State != StatePass || !strings.Contains(check.Detail, "Fedora-native /usr layout") {
+		t.Fatalf("native integration check = %#v", check)
+	}
+	if check := findCheck(t, report, "iptsd-generic-service-conflict"); check.State != StatePass {
+		t.Fatalf("native generic-service check = %#v", check)
+	}
+}
+
+// TestPartialFedoraNativeIPTSDReportsNativePaths verifies that a damaged RPM
+// does not fall back to misleading /usr/local missing-file diagnostics.
+func TestPartialFedoraNativeIPTSDReportsNativePaths(t *testing.T) {
+	root := t.TempDir()
+	abi := "7.2.0-jg-0sp11v19-qcom-x1e"
+	mkdir(t, filepath.Join(root, "lib/modules", abi))
+	writeRequirement(t, root, fedoraNativeIPTSDStaticFiles[0])
+	inspector := New()
+	inspector.hash = matchingFixtureHasher(t, root)
+	inspector.inspectELF = func(_ *rootedFS, required bool, _ []string) (Check, error) {
+		return Check{ID: "iptsd-elf-runtime", Feature: FeatureIPTSD, State: optionalState(required), Required: required, Detail: "native executables are missing"}, nil
+	}
+	report, err := inspector.Inspect(Options{Root: root, Features: []Feature{FeatureIPTSD}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := findCheck(t, report, "iptsd-v1-integration")
+	if check.State != StateFail || !strings.Contains(check.Detail, "Fedora-native /usr layout") || !strings.Contains(check.Detail, "missing /usr/libexec/sp11-iptsd") {
+		t.Fatalf("partial native integration check = %#v", check)
+	}
+	if strings.Contains(check.Detail, "/usr/local/") {
+		t.Fatalf("partial native layout was misreported as portable: %#v", check)
+	}
+}
+
+// TestMixedFedoraAndPortableIPTSDLayoutsFail verifies that a native package
+// cannot conceal stale /usr/local integration paths that may shadow its units.
+func TestMixedFedoraAndPortableIPTSDLayoutsFail(t *testing.T) {
+	root := t.TempDir()
+	abi := "7.2.0-jg-0sp11v19-qcom-x1e"
+	mkdir(t, filepath.Join(root, "lib/modules", abi))
+	for _, requirement := range fedoraNativeIPTSDFiles {
+		writeRequirement(t, root, requirement)
+	}
+	writeRequirement(t, root, iptsdV1Files[0])
+	inspector := New()
+	inspector.hash = matchingFixtureHasher(t, root)
+	inspector.inspectELF = func(_ *rootedFS, required bool, _ []string) (Check, error) {
+		return Check{ID: "iptsd-elf-runtime", Feature: FeatureIPTSD, State: StatePass, Required: required, Detail: "test native ELF runtime is complete"}, nil
+	}
+	report, err := inspector.Inspect(Options{Root: root, Features: []Feature{FeatureIPTSD}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := findCheck(t, report, "iptsd-v1-integration")
+	if report.Ready || check.State != StateFail || !strings.Contains(check.Detail, "stale portable /usr/local") {
+		t.Fatalf("mixed-layout check = %#v, ready=%t", check, report.Ready)
+	}
+}
+
+// TestOptionalFedoraNativeIPTSDRoot checks the real static package bytes when
+// an extracted final RPM is supplied by the integration environment.
+func TestOptionalFedoraNativeIPTSDRoot(t *testing.T) {
+	root := strings.TrimSpace(os.Getenv("LEXR_TEST_FEDORA_IPTSD_ROOT"))
+	if root == "" {
+		t.Skip("set LEXR_TEST_FEDORA_IPTSD_ROOT to an extracted lexr-sp11-iptsd RPM root")
+	}
+	inspector := New()
+	inspector.inspectELF = func(_ *rootedFS, required bool, binaries []string) (Check, error) {
+		if strings.Join(binaries, ",") != strings.Join(fedoraNativeIPTSDELFBinaries, ",") {
+			t.Fatalf("RPM selected ELF paths %v, want %v", binaries, fedoraNativeIPTSDELFBinaries)
+		}
+		return Check{ID: "iptsd-elf-runtime", Feature: FeatureIPTSD, State: StatePass, Required: required, Detail: "RPM ELF fixture is validated separately"}, nil
+	}
+	report, err := inspector.Inspect(Options{Root: root, Features: []Feature{FeatureIPTSD}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if check := findCheck(t, report, "iptsd-v1-integration"); check.State != StatePass || !strings.Contains(check.Detail, "Fedora-native /usr layout") {
+		t.Fatalf("RPM static integration check = %#v", check)
 	}
 }
 
@@ -431,13 +540,18 @@ func TestSupportLevelReadinessPolicy(t *testing.T) {
 	}
 }
 
-// TestKernelCompatibilityBoundaries verifies the minimum generations for audio,
-// camera, and IPTSD and confirms FullIO audio remains valid with sp11v19.
+// TestKernelCompatibilityBoundaries verifies the patch-line-local generation
+// policy for audio, camera, and IPTSD. The newer 7.2.2 line restarts at sp11v1,
+// but remains a warning until its userspace pairings are qualified.
 func TestKernelCompatibilityBoundaries(t *testing.T) {
 	root := t.TempDir()
 	for _, abi := range []string{
-		"6.12.0-jg-0sp11v11-qcom-x1e",
+		"7.2.0-jg-0sp11v11-qcom-x1e",
 		"7.2.0-jg-0sp11v19-qcom-x1e",
+		"7.2.0-jg-0sp11v20-qcom-x1e",
+		"7.2.2-jg-0sp11v1-qcom-x1e",
+		"7.2.2-jg-0sp11v2-qcom-x1e",
+		"7.2.3-jg-0sp11v99-qcom-x1e",
 	} {
 		mkdir(t, filepath.Join(root, "lib/modules", abi))
 	}
@@ -448,10 +562,16 @@ func TestKernelCompatibilityBoundaries(t *testing.T) {
 		component string
 		want      State
 	}{
-		{name: "audio rejects v11", feature: FeatureAudio, abi: "6.12.0-jg-0sp11v11-qcom-x1e", component: audioComponent, want: StateFail},
+		{name: "audio rejects legacy v11", feature: FeatureAudio, abi: "7.2.0-jg-0sp11v11-qcom-x1e", component: audioComponent, want: StateFail},
 		{name: "audio accepts v19", feature: FeatureAudio, abi: "7.2.0-jg-0sp11v19-qcom-x1e", component: audioComponent, want: StatePass},
 		{name: "camera accepts v19", feature: FeatureCamera, abi: "7.2.0-jg-0sp11v19-qcom-x1e", component: cameraComponent, want: StatePass},
 		{name: "iptsd accepts v19", feature: FeatureIPTSD, abi: "7.2.0-jg-0sp11v19-qcom-x1e", component: iptsdComponent, want: StatePass},
+		{name: "legacy v20 is newer than evidence", feature: FeatureIPTSD, abi: "7.2.0-jg-0sp11v20-qcom-x1e", component: iptsdComponent, want: StateWarn},
+		{name: "audio warns on new v1", feature: FeatureAudio, abi: "7.2.2-jg-0sp11v1-qcom-x1e", component: audioComponent, want: StateWarn},
+		{name: "camera warns on new v1", feature: FeatureCamera, abi: "7.2.2-jg-0sp11v1-qcom-x1e", component: cameraComponent, want: StateWarn},
+		{name: "iptsd warns on new v1", feature: FeatureIPTSD, abi: "7.2.2-jg-0sp11v1-qcom-x1e", component: iptsdComponent, want: StateWarn},
+		{name: "new v2 remains unverified", feature: FeatureIPTSD, abi: "7.2.2-jg-0sp11v2-qcom-x1e", component: iptsdComponent, want: StateWarn},
+		{name: "unknown patch line fails", feature: FeatureIPTSD, abi: "7.2.3-jg-0sp11v99-qcom-x1e", component: iptsdComponent, want: StateFail},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -461,6 +581,51 @@ func TestKernelCompatibilityBoundaries(t *testing.T) {
 			}
 			check := findCheck(t, report, "kernel-compatibility-"+test.component)
 			if check.State != test.want || check.ComponentID != test.component || check.SupportLevel == "" {
+				t.Fatalf("compatibility check = %#v", check)
+			}
+			if !strings.Contains(check.Detail, test.abi) {
+				t.Fatalf("compatibility detail %q does not preserve ABI %q", check.Detail, test.abi)
+			}
+			if strings.HasPrefix(test.name, "iptsd warns on new v1") && strings.Contains(check.Detail, "sp11v20") {
+				t.Fatalf("compatibility detail %q treats 7.2.2/sp11v1 as a global generation", check.Detail)
+			}
+		})
+	}
+}
+
+// TestKernelCompatibilityRejectsUnsupportedIdentities verifies that a below-
+// floor 7.2.2 generation, unknown bases, and ambiguous identities cannot be
+// accepted merely because they contain an sp11vN marker.
+func TestKernelCompatibilityRejectsUnsupportedIdentities(t *testing.T) {
+	t.Parallel()
+
+	required, err := newPolicySet(nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	optional, err := newPolicySet(nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name  string
+		set   policySet
+		abi   string
+		want  State
+		patch string
+	}{
+		{name: "new line below floor", set: required, abi: "7.2.2-jg-0sp11v0-qcom-x1e", want: StateFail, patch: "7.2.2/sp11v1"},
+		{name: "unknown line required", set: required, abi: "7.2.3-jg-0sp11v99-qcom-x1e", want: StateFail, patch: "7.2.3"},
+		{name: "unknown line optional", set: optional, abi: "7.2.3-jg-0sp11v99-qcom-x1e", want: StateWarn, patch: "7.2.3"},
+		{name: "ambiguous identity", set: required, abi: "7.2.2-sp11v19-sp11v1-qcom-x1e", want: StateFail, patch: "unambiguous"},
+		{name: "mixed-case ambiguous identity", set: required, abi: "7.2.2-SP11V19-jg-0sp11v1-qcom-x1e", want: StateFail, patch: "unambiguous"},
+		{name: "generation above bound", set: required, abi: "7.2.2-jg-0sp11v1000-qcom-x1e", want: StateFail, patch: "unambiguous"},
+		{name: "malformed identity", set: required, abi: "7.2-jg-0sp11v1-qcom-x1e", want: StateFail, patch: "unambiguous"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			check := test.set.inspectKernelCompatibility(iptsdComponent, test.abi)
+			if check.State != test.want || !strings.Contains(check.Detail, test.abi) || !strings.Contains(check.Detail, test.patch) {
 				t.Fatalf("compatibility check = %#v", check)
 			}
 		})
@@ -714,10 +879,15 @@ func matchingFixtureHasher(t *testing.T, root string) fileHasher {
 		if err != nil {
 			return "", err
 		}
+		info, err := os.Stat(path)
+		if err != nil {
+			return "", err
+		}
 		logical := filepath.ToSlash(relative)
-		for _, requirements := range [][]fileRequirement{audioV19cFiles, iptsdV1Files, cameraFiles} {
+		for _, requirements := range [][]fileRequirement{audioV19cFiles, iptsdV1Files, fedoraNativeIPTSDStaticFiles, cameraFiles} {
 			for _, requirement := range requirements {
-				if requirement.Path == logical && requirement.SHA256 != "" {
+				if requirement.Path == logical && requirement.SHA256 != "" &&
+					(requirement.ExpectedSize == 0 || requirement.ExpectedSize == info.Size()) {
 					return requirement.SHA256, nil
 				}
 			}

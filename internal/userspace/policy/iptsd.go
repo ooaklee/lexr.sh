@@ -16,7 +16,7 @@ const (
 	// IPTSDRepository is the sole trusted publisher of the pinned IPTSD bundle.
 	IPTSDRepository = userspacerelease.DefaultRepository
 	// IPTSDTag is the exact immutable release accepted for offline installation.
-	IPTSDTag = "sp11-iptsd-v1"
+	IPTSDTag = "sp11-iptsd-v2"
 )
 
 // Artifact binds one immutable release filename to its exact digest and byte
@@ -51,9 +51,8 @@ func IPTSDRelease() Release {
 		Repository: IPTSDRepository,
 		Tag:        IPTSDTag,
 		Artifacts: []Artifact{
-			{Name: "SHA256SUMS", SHA256: "53835187b6b4cd1a85ee6d76eb56535fbfb77d86c48e6b429765ef0b35c13481", Size: 201},
-			{Name: "sp11-iptsd-3.1.0-sp11.1-arm64.tar.xz", SHA256: "ba88686ee3a18249a4be584989b5e52024bbd403f9df340552c852570e8e9901", Size: 4381736},
-			{Name: "sp11-iptsd-release-manifest.txt", SHA256: "f83cd5652f03001b2a57d2504d841cba29102ad7d7119dffdb08e1f03b353585", Size: 3566},
+			{Name: "SHA256SUMS", SHA256: "3910e64748674525b7e1e401aa18fcffd3c3918227086085e665034732f38141", Size: 103},
+			{Name: "sp11-iptsd-3.1.0-sp11.2-arm64.tar.xz", SHA256: "c3a6235d7c0a7cc588add7b1f5aab68c6e980b2e03c1e938cc4c5751899719e6", Size: 4375724},
 		},
 	}
 }

@@ -127,6 +127,9 @@ type Installer struct {
 	validateIPTSDRelease func(string) (userspaceiptsd.Release, error)
 	// isLiveRoot is injectable so service-state reporting can be tested safely.
 	isLiveRoot func(string) bool
+	// detectNativeIPTSD recognises the exact Fedora /usr-owned package layout
+	// before the portable installer can create a parallel /usr/local topology.
+	detectNativeIPTSD func(string) (fedoraNativeIPTSDState, error)
 	// beforeIPTSDPublish is an internal hostile-mutation test hook.
 	beforeIPTSDPublish func(int, string) error
 	// validateCameraBuild statically authenticates a native camera build against
@@ -149,6 +152,7 @@ func New(runner platform.Runner) *Installer {
 		now:                  time.Now,
 		activationTimeout:    15 * time.Second,
 		validateIPTSDRelease: userspaceiptsd.ValidateRelease,
+		detectNativeIPTSD:    fedoraNativeIPTSDInstalled,
 		validateCameraBuild:  camerabuild.ValidateBundleStatic,
 		validateCameraRelease: func(ctx context.Context, runner platform.Runner, request camerarelease.ValidationRequest) (camerarelease.ValidationReceipt, error) {
 			return camerarelease.New(runner).Validate(ctx, request)

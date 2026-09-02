@@ -810,11 +810,11 @@ func TestShippedUserspaceCatalogContract(t *testing.T) {
 	if got := len(releaseComponents["imx681-libcamera-v1"].AssetAllowlist); got != 9 {
 		t.Errorf("camera asset count = %d, want 9", got)
 	}
-	if got := releaseComponents["iptsd-v1"].Tag; got != "sp11-iptsd-v1" {
+	if got := releaseComponents["iptsd-v1"].Tag; got != "sp11-iptsd-v2" {
 		t.Errorf("iptsd release tag = %q", got)
 	}
-	if got := len(releaseComponents["iptsd-v1"].AssetAllowlist); got != 3 {
-		t.Errorf("iptsd asset count = %d, want 3", got)
+	if got := len(releaseComponents["iptsd-v1"].AssetAllowlist); got != 2 {
+		t.Errorf("iptsd asset count = %d, want 2", got)
 	}
 
 	firmware, _ := loaded.Get("firmware")

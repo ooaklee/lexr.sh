@@ -15,7 +15,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -27,6 +29,9 @@ const (
 	// IntegrationRelative is the archive-relative configuration and template
 	// directory used by the native installer.
 	IntegrationRelative = "userspace/iptsd-sp11"
+	// FedoraRPMSpecRelative is the exact OE-owned package template required by
+	// Fedora-native companion builds.
+	FedoraRPMSpecRelative = "packaging/fedora/lexr-sp11-iptsd.spec.in"
 	// Version is the exact upstream IPTSD version represented by the contract.
 	Version = "3.1.0"
 	// SourceRepository is the exact upstream source repository.
@@ -53,6 +58,12 @@ const (
 	maximumMetadataBytes = int64(1 << 20)
 )
 
+// fedoraRPMSpecTemplate pins the sole OE-owned Fedora package template that
+// may cross from a source-bearing companion into native RPM tooling.
+var fedoraRPMSpecTemplate = fileSpec{
+	path: FedoraRPMSpecRelative, sha256: "19aeeddf8a9342725c9f8ba54a811a09c7fce6782010313653cb12b35ce9a80d", size: 4820,
+}
+
 // fileSpec pins one archive-relative regular file by size and digest.
 type fileSpec struct {
 	path   string
@@ -60,8 +71,10 @@ type fileSpec struct {
 	size   int64
 }
 
-// integrationFiles is the exact current checked-in integration file set.
-var integrationFiles = []fileSpec{
+// releaseIntegrationFiles is the exact integration file set sealed into the
+// immutable sp11-iptsd-v1 source-bearing release archive. Repository additions
+// must never silently widen this archive profile.
+var releaseIntegrationFiles = []fileSpec{
 	{path: "LICENSE.integration", sha256: "f8126478d63d42239b27e3364ac188d56b5abb0716c021271c1265c556ceed65", size: 1067},
 	{path: "PAYLOAD.sha256", sha256: payloadManifestDigest, size: payloadManifestSize},
 	{path: "README.md", sha256: "af2f4657a15125a1288f2453162954bbf3ee958c2935935d28302e503a45fdf3", size: 3540},
@@ -71,6 +84,54 @@ var integrationFiles = []fileSpec{
 	{path: "packaging/70-sp11-iptsd.rules.in", sha256: "256c30e4b8b931ea04dc235e132d005645e1cb70e4a56f330e8c29e25289d95b", size: 685},
 	{path: "packaging/sp11-iptsd-restart.in", sha256: "12ce4e484da438fd3b1aa842488764bec27242c50bb081cbce6236b07b9d6382", size: 2779},
 	{path: "packaging/sp11-iptsd@.service.in", sha256: "7c30ee0d7aba247fc96cda0289da5385f0a876c5a7974ed0df3f314b2edbecaa", size: 340},
+}
+
+// repositoryIntegrationFiles is the exact current OE source-tree profile. It
+// records the current documentation and reviewed Fedora-native packaging
+// sources without widening the immutable v1 release profile.
+var repositoryIntegrationFiles = []fileSpec{
+	{path: "LICENSE.integration", sha256: "f8126478d63d42239b27e3364ac188d56b5abb0716c021271c1265c556ceed65", size: 1067},
+	{path: "PAYLOAD.sha256", sha256: payloadManifestDigest, size: payloadManifestSize},
+	{path: "README.md", sha256: "871d2b1b57b50584126eeec599c64cd5f7363fe42c151341111d1a1f31f67bb0", size: 4272},
+	{path: "SOURCE.env", sha256: "1ff7395738b95a0ef4ffd780a9b6415733e7003040ae0b56b4b984c3bcd25278", size: 336},
+	{path: "config/surface-pro-11-0c80.conf", sha256: "e629f67248df412d69952accc874b848e3e45ad3d8b31cbec4626f85c12c8c34", size: 98},
+	{path: "config/surface-pro-11-0c83.conf", sha256: "358953d2171b36879043dc46084cc9344ea2c28cc718ff75690acd479214bf59", size: 98},
+	{path: "packaging/70-sp11-iptsd.rules.in", sha256: "256c30e4b8b931ea04dc235e132d005645e1cb70e4a56f330e8c29e25289d95b", size: 685},
+	{path: "packaging/fedora/README.md", sha256: "d063a033c4f1c716589f99fc51b081328b88311a59e7e7239351fbeb49a1f799", size: 1794},
+	fedoraRPMSpecTemplate,
+	{path: "packaging/sp11-iptsd-restart.in", sha256: "12ce4e484da438fd3b1aa842488764bec27242c50bb081cbce6236b07b9d6382", size: 2779},
+	{path: "packaging/sp11-iptsd@.service.in", sha256: "7c30ee0d7aba247fc96cda0289da5385f0a876c5a7974ed0df3f314b2edbecaa", size: 340},
+}
+
+// integrationProfile names one closed set of accepted integration file
+// identities and any explicitly reviewed per-path historical alternatives.
+type integrationProfile struct {
+	name         string
+	files        []fileSpec
+	alternatives map[string][]fileSpec
+}
+
+// releaseIntegrationProfile keeps the immutable archive contract separate
+// from later repository-only integration additions.
+var releaseIntegrationProfile = integrationProfile{
+	name:         "sp11-iptsd-v1 release",
+	files:        releaseIntegrationFiles,
+	alternatives: legacyIntegrationAlternatives,
+}
+
+// repositoryIntegrationProfile pins the current OE integration source tree.
+var repositoryIntegrationProfile = integrationProfile{
+	name:  "current OE repository",
+	files: repositoryIntegrationFiles,
+}
+
+// fedoraReleaseIntegrationProfile requires a source-bearing companion to
+// carry the exact current OE integration, including its Fedora-native package
+// source. The older published v1 profile remains valid for portable installs,
+// but cannot authorise a Fedora RPM build.
+var fedoraReleaseIntegrationProfile = integrationProfile{
+	name:  "Fedora-capable source-bearing companion",
+	files: repositoryIntegrationFiles,
 }
 
 // legacyIntegrationAlternatives records reviewed historical identities for
@@ -156,16 +217,75 @@ type Release struct {
 	Files []InstallFile
 }
 
+// FedoraPackageSource is the fully validated OE-owned package input derived
+// from a source-bearing companion. Callers receive defensive byte copies and
+// never render repository or archive text themselves.
+type FedoraPackageSource struct {
+	// Release retains the complete validated portable release contract.
+	Release Release
+	// Template is the exact reviewed OE spec template carried by the archive.
+	Template []byte
+	// RenderedSpec is the deterministic RPM spec produced from reviewed values.
+	RenderedSpec []byte
+	// SourceDateEpoch is the authenticated upstream source timestamp.
+	SourceDateEpoch int64
+}
+
 // ValidateRelease validates the exact payload, configurations, templates,
 // licences, checksums, binaries, and provenance in an extracted pinned archive.
 func ValidateRelease(archiveRoot string) (Release, error) {
+	release, legacyErr := validateRelease(archiveRoot, releaseIntegrationProfile)
+	if legacyErr == nil {
+		return release, nil
+	}
+	release, fedoraErr := validateRelease(archiveRoot, fedoraReleaseIntegrationProfile)
+	if fedoraErr == nil {
+		return release, nil
+	}
+	return Release{}, errors.Join(
+		fmt.Errorf("validate legacy IPTSD release profile: %w", legacyErr),
+		fmt.Errorf("validate Fedora-capable IPTSD release profile: %w", fedoraErr),
+	)
+}
+
+// ValidateFedoraPackageSource requires the enriched, closed Fedora companion
+// profile, then renders its exact OE-owned RPM template from authenticated
+// release provenance. The immutable legacy v1 archive remains installable via
+// ValidateRelease but deliberately fails this stronger build boundary.
+func ValidateFedoraPackageSource(archiveRoot string) (FedoraPackageSource, error) {
+	release, err := validateRelease(archiveRoot, fedoraReleaseIntegrationProfile)
+	if err != nil {
+		return FedoraPackageSource{}, err
+	}
+	templatePath := filepath.Join(release.IntegrationRoot, filepath.FromSlash(FedoraRPMSpecRelative))
+	template, err := readRegularBounded(templatePath, fedoraRPMSpecTemplate.size)
+	if err != nil {
+		return FedoraPackageSource{}, fmt.Errorf("read validated Fedora IPTSD RPM template: %w", err)
+	}
+	epoch, err := readSourceDateEpoch(filepath.Join(release.PayloadRoot, "BUILD.env"))
+	if err != nil {
+		return FedoraPackageSource{}, err
+	}
+	rendered, err := RenderFedoraRPMSpec(template, epoch)
+	if err != nil {
+		return FedoraPackageSource{}, err
+	}
+	return FedoraPackageSource{
+		Release: release, Template: append([]byte(nil), template...),
+		RenderedSpec: append([]byte(nil), rendered...), SourceDateEpoch: epoch,
+	}, nil
+}
+
+// validateRelease applies one explicit integration profile before sharing the
+// common payload, rendering, and installation proof.
+func validateRelease(archiveRoot string, profile integrationProfile) (Release, error) {
 	archiveRoot, err := cleanRegularDirectory(archiveRoot)
 	if err != nil {
 		return Release{}, fmt.Errorf("validate IPTSD archive root: %w", err)
 	}
 	payloadRoot := filepath.Join(archiveRoot, filepath.FromSlash(PayloadRelative))
 	integrationRoot := filepath.Join(archiveRoot, filepath.FromSlash(IntegrationRelative))
-	integrationManifest, err := validateIntegration(integrationRoot)
+	integrationManifest, err := validateIntegration(integrationRoot, profile)
 	if err != nil {
 		return Release{}, err
 	}
@@ -181,37 +301,90 @@ func ValidateRelease(archiveRoot string) (Release, error) {
 	return Release{PayloadRoot: payloadRoot, IntegrationRoot: integrationRoot, Files: files}, nil
 }
 
-// ValidateIntegration checks the exact fixed integration tree against the
-// current contract and its explicitly reviewed historical documentation.
+// RenderFedoraRPMSpec substitutes only the reviewed version and timestamp
+// fields in the exact OE-owned template. Exact identity and placeholder counts
+// make a partial, broadened, or caller-authored template fail closed.
+func RenderFedoraRPMSpec(template []byte, sourceDateEpoch int64) ([]byte, error) {
+	if int64(len(template)) != fedoraRPMSpecTemplate.size || digestBytes(template) != fedoraRPMSpecTemplate.sha256 {
+		return nil, errors.New("Fedora IPTSD RPM template differs from the reviewed OE contract")
+	}
+	if sourceDateEpoch <= 0 {
+		return nil, errors.New("Fedora IPTSD RPM source timestamp must be a positive canonical integer")
+	}
+	date := time.Unix(sourceDateEpoch, 0).UTC()
+	if date.Year() < 1970 || date.Year() > 9999 {
+		return nil, errors.New("Fedora IPTSD RPM source timestamp is outside the supported changelog range")
+	}
+	counts := map[string]int{
+		"@IPTSD_VERSION@":     2,
+		"@SOURCE_DATE_EPOCH@": 1,
+		"@CHANGELOG_DATE@":    1,
+	}
+	for placeholder, want := range counts {
+		if got := bytes.Count(template, []byte(placeholder)); got != want {
+			return nil, fmt.Errorf("Fedora IPTSD RPM template contains %d %s placeholders, expected %d", got, placeholder, want)
+		}
+	}
+	rendered := strings.NewReplacer(
+		"@IPTSD_VERSION@", Version,
+		"@SOURCE_DATE_EPOCH@", strconv.FormatInt(sourceDateEpoch, 10),
+		"@CHANGELOG_DATE@", date.Format("Mon Jan 02 2006"),
+	).Replace(string(template))
+	if strings.Contains(rendered, "@IPTSD_VERSION@") || strings.Contains(rendered, "@SOURCE_DATE_EPOCH@") ||
+		strings.Contains(rendered, "@CHANGELOG_DATE@") {
+		return nil, errors.New("rendered Fedora IPTSD RPM spec retains a reviewed placeholder")
+	}
+	return []byte(rendered), nil
+}
+
+// ValidateIntegration checks either immutable release integration profile.
+// Legacy v1 remains accepted for portable installation, while v2 adds the
+// exact Fedora package source without widening either closed file set.
 func ValidateIntegration(root string) error {
-	_, err := validateIntegration(root)
+	if _, legacyErr := validateIntegration(root, releaseIntegrationProfile); legacyErr == nil {
+		return nil
+	} else if _, fedoraErr := validateIntegration(root, fedoraReleaseIntegrationProfile); fedoraErr == nil {
+		return nil
+	} else {
+		return errors.Join(
+			fmt.Errorf("validate legacy IPTSD integration profile: %w", legacyErr),
+			fmt.Errorf("validate Fedora-capable IPTSD integration profile: %w", fedoraErr),
+		)
+	}
+}
+
+// ValidateRepositoryIntegration checks the current closed OE source-tree
+// profile, including the Fedora-native RPM source templates that are not part
+// of the already published sp11-iptsd-v1 archive.
+func ValidateRepositoryIntegration(root string) error {
+	_, err := validateIntegration(root, repositoryIntegrationProfile)
 	return err
 }
 
-// validateIntegration checks the closed integration tree and returns the exact
-// approved file identities present in it for later transaction planning.
-func validateIntegration(root string) (map[string]fileSpec, error) {
+// validateIntegration checks one named closed integration profile and returns
+// the exact approved identities present for later transaction planning.
+func validateIntegration(root string, profile integrationProfile) (map[string]fileSpec, error) {
 	root, err := cleanRegularDirectory(root)
 	if err != nil {
-		return nil, fmt.Errorf("validate IPTSD integration: %w", err)
+		return nil, fmt.Errorf("validate IPTSD integration (%s): %w", profile.name, err)
 	}
-	expected := make(map[string]fileSpec, len(integrationFiles))
-	for _, spec := range integrationFiles {
+	expected := make(map[string]fileSpec, len(profile.files))
+	for _, spec := range profile.files {
 		expected[spec.path] = spec
 	}
 	actual, err := exactRegularFiles(root, len(expected), maximumMetadataBytes)
 	if err != nil {
-		return nil, fmt.Errorf("validate IPTSD integration: %w", err)
+		return nil, fmt.Errorf("validate IPTSD integration (%s): %w", profile.name, err)
 	}
 	if err := validateExactSet(actual, expected); err != nil {
-		return nil, fmt.Errorf("validate IPTSD integration: %w", err)
+		return nil, fmt.Errorf("validate IPTSD integration (%s): %w", profile.name, err)
 	}
 	validated := make(map[string]fileSpec, len(expected))
 	for relative, spec := range expected {
-		alternatives := append([]fileSpec{spec}, legacyIntegrationAlternatives[relative]...)
+		alternatives := append([]fileSpec{spec}, profile.alternatives[relative]...)
 		matched, err := validateFileAlternatives(filepath.Join(root, filepath.FromSlash(relative)), alternatives)
 		if err != nil {
-			return nil, fmt.Errorf("validate IPTSD integration %s: %w", relative, err)
+			return nil, fmt.Errorf("validate IPTSD integration (%s) %s: %w", profile.name, relative, err)
 		}
 		validated[relative] = matched
 	}
@@ -548,20 +721,9 @@ func validateAArch64ELF(path string) error {
 // validateBuildProvenance checks fixed architecture, image, and access-control
 // declarations without sourcing the untrusted environment file.
 func validateBuildProvenance(path string) error {
-	data, err := readRegularBounded(path, maximumMetadataBytes)
+	values, err := readBuildProvenance(path)
 	if err != nil {
-		return fmt.Errorf("read IPTSD build provenance: %w", err)
-	}
-	values := make(map[string]string)
-	seen := make(map[string]struct{})
-	for _, line := range strings.Split(strings.TrimSuffix(string(data), "\n"), "\n") {
-		key, value, found := strings.Cut(line, "=")
-		_, duplicate := seen[key]
-		if !found || key == "" || duplicate {
-			return errors.New("IPTSD BUILD.env is malformed or repeats a key")
-		}
-		seen[key] = struct{}{}
-		values[key] = value
+		return err
 	}
 	if values["BUILD_ARCH"] != "aarch64" {
 		return errors.New("IPTSD BUILD.env does not identify an AArch64 build")
@@ -576,7 +738,52 @@ func validateBuildProvenance(path string) error {
 	if !strings.Contains(values["MESON_OPTIONS"], "-Dforce_access_checks=true") {
 		return errors.New("IPTSD BUILD.env omits forced access checks")
 	}
+	if _, err := sourceDateEpochValue(values); err != nil {
+		return err
+	}
 	return nil
+}
+
+// readBuildProvenance parses the bounded build metadata as inert key/value
+// data. It never evaluates or sources archive-controlled text.
+func readBuildProvenance(path string) (map[string]string, error) {
+	data, err := readRegularBounded(path, maximumMetadataBytes)
+	if err != nil {
+		return nil, fmt.Errorf("read IPTSD build provenance: %w", err)
+	}
+	values := make(map[string]string)
+	seen := make(map[string]struct{})
+	for _, line := range strings.Split(strings.TrimSuffix(string(data), "\n"), "\n") {
+		key, value, found := strings.Cut(line, "=")
+		_, duplicate := seen[key]
+		if !found || key == "" || duplicate {
+			return nil, errors.New("IPTSD BUILD.env is malformed or repeats a key")
+		}
+		seen[key] = struct{}{}
+		values[key] = value
+	}
+	return values, nil
+}
+
+// readSourceDateEpoch returns the canonical authenticated timestamp used for
+// deterministic Fedora package metadata.
+func readSourceDateEpoch(path string) (int64, error) {
+	values, err := readBuildProvenance(path)
+	if err != nil {
+		return 0, err
+	}
+	return sourceDateEpochValue(values)
+}
+
+// sourceDateEpochValue rejects whitespace, signs, leading zeroes, overflow,
+// and non-positive timestamps before they can enter an RPM spec.
+func sourceDateEpochValue(values map[string]string) (int64, error) {
+	raw := values["SOURCE_DATE_EPOCH"]
+	epoch, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || epoch <= 0 || strconv.FormatInt(epoch, 10) != raw {
+		return 0, errors.New("IPTSD BUILD.env does not contain a positive canonical SOURCE_DATE_EPOCH")
+	}
+	return epoch, nil
 }
 
 // validateSourceIdentity checks the fixed source environment as plain data.

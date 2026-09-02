@@ -29,7 +29,7 @@ validation:
     unrecognized_links: warn
 
 # ADRs are built and remain linkable, but the task-oriented architecture page
-# is a more useful navigation entry than a 26-item decision-history menu.
+# is a more useful navigation entry than the full decision-history menu.
 not_in_nav: |
   /adr/**
 

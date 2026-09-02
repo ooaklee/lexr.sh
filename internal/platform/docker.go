@@ -20,10 +20,24 @@ const toolsDockerfile = `FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      binutils ca-certificates coreutils cpio dosfstools dpkg e2fsprogs \
-      file initramfs-tools kmod libarchive-tools md5deep mtools parted \
-      squashfs-tools xorriso xz-utils zstd \
+	  binutils ca-certificates coreutils cpio dosfstools dpkg e2fsprogs \
+	  file initramfs-tools kmod libarchive-tools md5deep mtools parted \
+	  squashfs-tools xorriso xz-utils zstd \
  && rm -rf /var/lib/apt/lists/*
+`
+
+// fedoraToolsDockerfile uses Fedora's current EROFS extractor because Ubuntu
+// 24.04's version cannot preserve the capabilities and SELinux xattrs carried
+// by Fedora 44 live roots.
+const fedoraToolsDockerfile = `FROM fedora@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
+RUN dnf install -y --setopt=install_weak_deps=False \
+	  attr binutils bzip2 coreutils cpio diffutils dpkg erofs-utils-1.9.2-2.fc44 file findutils gawk gcc-c++ grep \
+	  grub2-tools grub2-tools-extra gzip kmod meson mtools ninja-build pkgconf-pkg-config python3 rpm-build sed \
+	  systemd systemd-devel systemd-rpm-macros tar unzip util-linux-core xorriso xz zstd \
+ && test "$(rpm -q --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}' erofs-utils)" = \
+	  erofs-utils-1.9.2-2.fc44.aarch64 \
+ && fsck.erofs --help 2>&1 | grep -F -- '--path=X' \
+ && dnf clean all
 `
 
 // Docker provides the narrowly scoped container operations needed by image
@@ -51,11 +65,22 @@ func (d *Docker) Check(ctx context.Context) error {
 	return nil
 }
 
-// EnsureToolsImage returns the content-addressed tooling image name, building
+// EnsureToolsImage returns the definition-keyed tooling image name, building
 // it for ARM64 only when that exact definition is not already available.
 func (d *Docker) EnsureToolsImage(ctx context.Context) (string, error) {
-	digest := sha256.Sum256([]byte(toolsDockerfile))
-	name := fmt.Sprintf("lexr-builder:%x", digest[:6])
+	return d.ensureToolsImage(ctx, "lexr-builder", toolsDockerfile)
+}
+
+// EnsureFedoraToolsImage returns tooling whose EROFS implementation preserves
+// all Fedora filesystem xattrs during extraction.
+func (d *Docker) EnsureFedoraToolsImage(ctx context.Context) (string, error) {
+	return d.ensureToolsImage(ctx, "lexr-fedora-builder", fedoraToolsDockerfile)
+}
+
+// ensureToolsImage builds one definition-keyed ARM64 tool environment on demand.
+func (d *Docker) ensureToolsImage(ctx context.Context, repository, definition string) (string, error) {
+	digest := sha256.Sum256([]byte(definition))
+	name := fmt.Sprintf("%s:%x", repository, digest[:6])
 	if _, err := d.Runner.Capture(ctx, Command{Name: "docker", Args: []string{"image", "inspect", name}}); err == nil {
 		return name, nil
 	}
@@ -67,7 +92,7 @@ func (d *Docker) EnsureToolsImage(ctx context.Context) (string, error) {
 	err = d.Runner.Run(ctx, Command{
 		Name:  "docker",
 		Args:  []string{"build", "--platform", "linux/arm64", "--tag", name, "--file", "-", contextDir},
-		Stdin: strings.NewReader(toolsDockerfile),
+		Stdin: strings.NewReader(definition),
 	})
 	if err != nil {
 		return "", fmt.Errorf("build image tooling container: %w", err)
@@ -178,6 +203,20 @@ func (d *Docker) RunInWorkspaceVolume(ctx context.Context, image, workspace, vol
 	if err != nil {
 		return err
 	}
+	dockerArgs = append(dockerArgs, args...)
+	return d.Runner.Run(ctx, Command{Name: "docker", Args: dockerArgs})
+}
+
+// RunInWorkspaceVolumePreservingXattrs grants only the additional Linux
+// capabilities needed to restore Fedora security.selinux and capability xattrs
+// on a Docker-local filesystem. It is reserved for EROFS extraction/relabeling.
+func (d *Docker) RunInWorkspaceVolumePreservingXattrs(ctx context.Context, image, workspace, volume string, args ...string) error {
+	dockerArgs, err := workspaceVolumeArgs(image, workspace, volume)
+	if err != nil {
+		return err
+	}
+	capabilities := []string{"--cap-add", "SYS_ADMIN", "--cap-add", "MAC_ADMIN", "--security-opt", "label=disable"}
+	dockerArgs = append(dockerArgs[:4], append(capabilities, dockerArgs[4:]...)...)
 	dockerArgs = append(dockerArgs, args...)
 	return d.Runner.Run(ctx, Command{Name: "docker", Args: dockerArgs})
 }

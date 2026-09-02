@@ -145,10 +145,10 @@ func validate(raw document, entries []Entry) error {
 		adapterValid := false
 		if validateByteLength(add, prefix+".adapter", string(entry.Adapter), maximumIdentifierBytes) {
 			switch entry.Adapter {
-			case AdapterNone, AdapterUbuntuCasper:
+			case AdapterNone, AdapterUbuntuCasper, AdapterFedoraLive:
 				adapterValid = true
 			default:
-				add(prefix+".adapter", "must be %q or %q, got %q", AdapterNone, AdapterUbuntuCasper, entry.Adapter)
+				add(prefix+".adapter", "must be %q, %q, or %q, got %q", AdapterNone, AdapterUbuntuCasper, AdapterFedoraLive, entry.Adapter)
 			}
 		}
 		if adapterValid && artifactKindValid && entry.Adapter != AdapterNone && !AdapterSupportsArtifact(entry.Adapter, entry.ArtifactKind) {

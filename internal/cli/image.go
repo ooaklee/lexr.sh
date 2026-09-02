@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
-	"github.com/ooaklee/lexr.sh/internal/image/ubuntu"
+	imagevalidator "github.com/ooaklee/lexr.sh/internal/image/validate"
 	"github.com/ooaklee/lexr.sh/internal/kernel/release"
 	"github.com/ooaklee/lexr.sh/internal/manager"
 	"github.com/ooaklee/lexr.sh/internal/media"
@@ -204,13 +204,13 @@ func (a *application) newRemovableMediaWorkflow() (removableMediaWorkflow, error
 	return media.NewManager(media.ManagerOptions{Backend: backend}), nil
 }
 
-// validateImageForMedia invokes the injected validation boundary or the
-// implemented Ubuntu Casper adapter's complete structural validator.
+// validateImageForMedia invokes the injected validation boundary or routes the
+// generated image to its manifest-declared structural validator.
 func (a *application) validateImageForMedia(ctx context.Context, path string) (imagecontract.ValidationReport, error) {
 	if a.imageValidator != nil {
 		return a.imageValidator(ctx, path)
 	}
-	return ubuntu.NewValidator(nil).Validate(ctx, path)
+	return imagevalidator.NewValidator(nil).Validate(ctx, path)
 }
 
 // readMediaConfirmation prompts only an interactive terminal and otherwise
@@ -301,7 +301,7 @@ func (a *application) newImageCreateCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "create",
 		Short: "Create a custom-kernel hybrid ARM64 ISO",
-		Long:  "Create and structurally validate an experimental Surface Pro 11 ISO. The Ubuntu Concept Casper adapter is currently the only implemented image adapter.",
+		Long:  "Create and structurally validate an experimental Surface Pro 11 ISO using the implemented Ubuntu Casper or Fedora Live adapter.",
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
 			request.CatalogPath = a.catalogPath
@@ -328,7 +328,7 @@ func (a *application) newImageCreateCommand() *cobra.Command {
 	command.Flags().StringVar(&request.Source, "source", "", "source ISO path or HTTPS URL (defaults to the catalogue URL)")
 	command.Flags().StringVar(&request.SourceSHA256, "source-sha256", "", "expected SHA-256 for the source ISO")
 	command.Flags().BoolVar(&request.RefreshSource, "refresh-source", false, "replace the cached copy of a remote mutable source")
-	command.Flags().StringVar(&request.KernelDirectory, "kernel-dir", "", "directory containing a local image/modules .deb pair")
+	command.Flags().StringVar(&request.KernelDirectory, "kernel-dir", "", "directory containing a verified local kernel image/modules Debian package bundle")
 	command.Flags().StringVar(&request.KernelRepository, "kernel-repository", release.DefaultRepository, "GitHub owner/repository containing kernel releases")
 	command.Flags().StringVar(&request.KernelRelease, "kernel-release", "latest", "kernel release tag, or latest")
 	command.Flags().StringVar(&request.CacheDirectory, "cache-dir", "", "download cache (defaults to the user cache directory)")
@@ -362,7 +362,7 @@ func (a *application) newImageValidateCommand() *cobra.Command {
 		Short: "Validate a generated ISO and all version-bound boot artefacts",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
-			report, err := ubuntu.NewValidator(nil).Validate(command.Context(), args[0])
+			report, err := a.validateImageForMedia(command.Context(), args[0])
 			if asJSON {
 				if writeErr := a.writeJSON(report); writeErr != nil {
 					return writeErr

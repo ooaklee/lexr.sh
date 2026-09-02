@@ -26,7 +26,7 @@ on:
         default: false
         type: boolean
       release-name:
-        description: "Release tag name (derived from the ABI when empty)"
+        description: "Expected release tag (must equal sp11-qcom-x1e-<package-version>; derived when empty)"
         required: false
         default: ""
         type: string
@@ -137,6 +137,7 @@ jobs:
             --repository-root "${GITHUB_WORKSPACE}" \
             --git-url "${KERNEL_GIT_URL}" \
             --git-branch "${KERNEL_GIT_BRANCH}" \
+            --boot-image-mode stubble \
             --work-dir "build/lexr/kernel-build-ci-${source_identity}" \
             --output-dir build/lexr/kernel-ci \
             --reset-source \
@@ -206,14 +207,16 @@ jobs:
           tar -xOf "${source_archive}" "linux-${source_revision}/COPYING" |
             cmp --silent "${licence_file}" -
 
-          release_name="${REQUESTED_RELEASE_NAME}"
-          if [[ -z "${release_name}" ]]; then
-            kernel_abi="$(jq -er '.abi | strings' "${bundle_file}")"
-            release_name="sp11-kernel-${kernel_abi}"
+          kernel_version="$(jq -er '.version | strings' "${bundle_file}")"
+          canonical_release_name="sp11-qcom-x1e-${kernel_version}"
+          release_name="${REQUESTED_RELEASE_NAME:-${canonical_release_name}}"
+          if [[ "${release_name}" != "${canonical_release_name}" ]]; then
+            printf 'Kernel release name must match the package version: %s\n' "${canonical_release_name}" >&2
+            exit 1
           fi
-          if [[ ! "${release_name}" =~ ^sp11-kernel-[A-Za-z0-9][A-Za-z0-9._-]{0,114}$ ]] ||
+          if [[ ! "${release_name}" =~ ^sp11-qcom-x1e-[A-Za-z0-9][A-Za-z0-9._-]{0,113}$ ]] ||
              [[ "${release_name}" == *".."* ]]; then
-            printf 'Kernel release names must begin with sp11-kernel- and contain only letters, digits, dots, underscores, or hyphens.\n' >&2
+            printf 'Kernel release names must use sp11-qcom-x1e-<package-version> and contain only letters, digits, dots, underscores, or hyphens.\n' >&2
             exit 1
           fi
 
@@ -229,8 +232,10 @@ jobs:
 
           jq -e --arg release_name "${release_name}" \
             '.release_name == $release_name and
+             .release_name == ("sp11-qcom-x1e-" + .version) and
              .experimental == true and
              .hardware_qualified == false and
+             .source.boot_image_mode == "stubble" and
              ([.assets[].kind] | index("source") != null) and
              ([.assets[].kind] | index("licence") != null)' \
             "${RUNNER_TEMP}/kernel-release-validation.json" >/dev/null
@@ -287,9 +292,9 @@ jobs:
           RELEASE_NAME: ${{ needs.build.outputs.release-name }}
         run: |
           set -euo pipefail
-          if [[ ! "${RELEASE_NAME}" =~ ^sp11-kernel-[A-Za-z0-9][A-Za-z0-9._-]{0,114}$ ]] ||
+          if [[ ! "${RELEASE_NAME}" =~ ^sp11-qcom-x1e-[A-Za-z0-9][A-Za-z0-9._-]{0,113}$ ]] ||
              [[ "${RELEASE_NAME}" == *".."* ]]; then
-            printf 'The hosted publisher rejected a kernel release name outside the sp11-kernel namespace.\n' >&2
+            printf 'The hosted publisher rejected a kernel release name outside the sp11-qcom-x1e package-version namespace.\n' >&2
             exit 1
           fi
 
@@ -298,8 +303,10 @@ jobs:
             --json release-assets > "${validation_file}"
           jq -e --arg release_name "${RELEASE_NAME}" \
             '.release_name == $release_name and
+             .release_name == ("sp11-qcom-x1e-" + .version) and
              .experimental == true and
              .hardware_qualified == false and
+             .source.boot_image_mode == "stubble" and
              ([.assets[].kind] | index("source") != null) and
              ([.assets[].kind] | index("licence") != null)' \
             "${validation_file}" >/dev/null
@@ -376,6 +383,29 @@ jobs:
             --title "${RELEASE_NAME}" \
             --notes-file "${notes_file}" \
             "${assets[@]}"
+
+          draft_release_id="$(
+            gh api "repos/${GH_REPO}/releases?per_page=100" |
+              jq -er \
+                --arg release_name "${RELEASE_NAME}" \
+                --arg target "${OE_MAIN_REVISION}" \
+                '[.[] | select(
+                  .tag_name == $release_name and
+                  .target_commitish == $target and
+                  .draft == true and
+                  .prerelease == false
+                )] | if length == 1 then .[0].id else error("draft release identity is ambiguous") end'
+          )"
+          if [[ ! "${draft_release_id}" =~ ^[1-9][0-9]*$ ]]; then
+            printf 'The new OE draft does not retain the validated tag and target revision.\n' >&2
+            exit 1
+          fi
+
+          gh api \
+            --method POST \
+            "repos/${GH_REPO}/git/refs" \
+            -f "ref=refs/tags/${RELEASE_NAME}" \
+            -f "sha=${OE_MAIN_REVISION}" >/dev/null
 
           created_tag_revision="$(
             git ls-remote --exit-code --refs "${oe_remote}" \

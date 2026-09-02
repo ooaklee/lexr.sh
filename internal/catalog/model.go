@@ -34,13 +34,15 @@ const (
 	AdapterNone Adapter = "none"
 	// AdapterUbuntuCasper selects the Ubuntu Casper live-media remasterer.
 	AdapterUbuntuCasper Adapter = "ubuntu-casper"
+	// AdapterFedoraLive selects the Fedora Workstation EROFS live-media remasterer.
+	AdapterFedoraLive Adapter = "fedora-live"
 )
 
 // AdapterSupportsArtifact reports whether an implemented adapter can safely
 // consume the declared upstream artefact format.
 func AdapterSupportsArtifact(adapter Adapter, kind ArtifactKind) bool {
 	switch adapter {
-	case AdapterUbuntuCasper:
+	case AdapterUbuntuCasper, AdapterFedoraLive:
 		return kind == ArtifactKindISO
 	default:
 		return false

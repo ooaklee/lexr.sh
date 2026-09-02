@@ -17,7 +17,7 @@ required operating-system boundary is unavailable.
 | --- | --- | --- | --- |
 | Run version, help or catalogue commands | Matching release executable | None after download | Regular user |
 | Build Lexr from source | Go 1.26 or newer | Network for the initial clone and Go modules | Regular user |
-| Create or validate the current Ubuntu image | Linux or macOS; Docker CLI, running daemon and Linux ARM64 container support | At least 24 GiB free workspace; the readiness check fails below it. Network is needed only for remote image or kernel acquisition | Regular user when inputs are readable |
+| Create or validate an implemented, experimental Ubuntu or Fedora image | Linux or macOS; Docker CLI, running daemon and Linux ARM64 container support | At least 24 GiB free workspace; the readiness check fails below it. Network is needed for remote image or kernel acquisition and on first use unless the pinned tooling image is already cached. Physical bootability remains a separate qualification gate | Regular user when inputs are readable |
 | Add an offline companion | Image requirements plus Go for `--companion-source-dir` | Output and workspace must remain outside the clean source tree | Regular user |
 | Discover or write removable media | Linux: `lsblk`, `umount`, `udisksctl`; macOS: `diskutil`, `plutil` | A removable whole device large enough for the image | Discovery and dry run use a regular user; the real raw write needs elevation |
 | Prepare an image release | Linux or macOS plus host `zstd` | Space for the ISO, split parts and fresh release directory | Regular user |

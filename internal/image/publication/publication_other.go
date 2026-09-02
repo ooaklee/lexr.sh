@@ -1,6 +1,6 @@
 //go:build !linux && !darwin
 
-package ubuntu
+package publication
 
 import (
 	"errors"

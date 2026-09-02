@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ooaklee/lexr.sh/internal/image/releaseprep"
-	"github.com/ooaklee/lexr.sh/internal/image/ubuntu"
+	imagevalidator "github.com/ooaklee/lexr.sh/internal/image/validate"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
@@ -32,7 +32,7 @@ func (a *application) newImageReleasePrepareCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
 			request.ImagePath = args[0]
-			manager := releaseprep.New(ubuntu.NewValidator(nil), releaseprep.NewZstdCompressor(platform.ExecRunner{}))
+			manager := releaseprep.New(imagevalidator.NewValidator(nil), releaseprep.NewZstdCompressor(platform.ExecRunner{}))
 			if request.DryRun {
 				operationPlan, err := manager.Plan(command.Context(), request)
 				if err != nil {
@@ -76,7 +76,7 @@ func (a *application) newImageReleaseValidateCommand() *cobra.Command {
 		Short: "Validate exact release files and the reconstructed ISO identity",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
-			manager := releaseprep.New(ubuntu.NewValidator(nil), releaseprep.NewZstdCompressor(platform.ExecRunner{}))
+			manager := releaseprep.New(imagevalidator.NewValidator(nil), releaseprep.NewZstdCompressor(platform.ExecRunner{}))
 			result, err := manager.Validate(command.Context(), args[0])
 			if err != nil {
 				return err

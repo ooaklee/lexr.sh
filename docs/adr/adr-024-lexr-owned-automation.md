@@ -58,9 +58,13 @@ The IPTSD workflow checks out Lexr normally, fetches the public OE repository
 anonymously into temporary runner storage, and supplies its absolute path only
 to the optional cross-repository Go test. It runs for Lexr pull requests and
 pushes, on a nightly schedule, and by manual dispatch with a validated `oe_ref`
-input. This gives Lexr a bounded view of the separately owned recipe and
-integration files without nesting the OE checkout inside the Lexr source tree
-or granting write access to either repository.
+input. Branch pushes and same-repository pull requests select an exact,
+same-named head from the canonical OE repository when it exists, falling back
+to OE `main` only when the canonical remote query succeeds and reports no
+such head. Fork pull requests and scheduled runs use `main`; unsafe candidate
+names and transport failures fail closed. This gives Lexr a bounded view of the
+separately owned recipe and integration files without nesting the OE checkout
+inside the Lexr source tree or granting write access to either repository.
 
 The kernel workflow runs from the standalone Lexr root. Its build job requires
 a dedicated, isolated, self-hosted Linux x86-64 or ARM64 runner labelled
@@ -96,7 +100,8 @@ while the repository remains private.
 Before entering that secret-bearing step, the GitHub-hosted publication job
 independently revalidates the self-hosted builder's release directory, exact
 manifest release name, checksum set, experimental state, required source and
-licence assets, and `sp11-kernel-` tag namespace. Publication then creates an
+licence assets, and the established `sp11-qcom-x1e-<package-version>` tag
+contract. Publication then creates an
 OE draft targeting the exact revision resolved from OE `main`. It refuses an
 existing tag and verifies the newly created tag against that revision both
 after creation and immediately before promotion. It downloads every uploaded
@@ -132,9 +137,10 @@ already verified filtered history.
   explicit expiry, rotation, revocation, and secret-exposure responsibilities.
   Workload identity can replace it in a later decision when deployment and
   maintenance resources are available.
-- A change made only in OE cannot directly trigger a workflow in private Lexr.
-  The nightly run and explicit `oe_ref` dispatch bound that delay and provide a
-  way to validate an OE branch before it is merged.
+- A change made only in OE cannot directly trigger a workflow in Lexr. The
+  nightly run, same-named companion-branch selection, and explicit `oe_ref`
+  dispatch bound that delay and provide ways to validate an OE branch before
+  it is merged.
 - The public OE recipe and integration tree remain authoritative for OE image
   composition; the cross-repository test does not transfer that ownership to
   Lexr.

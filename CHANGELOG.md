@@ -54,17 +54,70 @@ that do not apply.
 
 ### Added
 
+- Added an experimental Fedora Workstation Live 44 ARM64 image adapter which
+  preserves the source hybrid boot layout, turns a verified patch-line-qualified
+  Surface kernel into a Lexr-built Fedora RPM, generates an exact-ABI
+  `dracut-live` initramfs, and structurally validates the live boot and Anaconda
+  installed-system hand-off contract before publication. Stock live fallbacks
+  load manifest-bound X1E/X1P device trees explicitly; installed-system support
+  is scoped to X1E until the X1P custom boot hand-off is qualified.
+- Added optional Fedora-native IPTSD integration for the exact source-bearing
+  `sp11-iptsd-v2` companion release. The adapter renders the exact OE-owned RPM
+  template from authenticated source provenance, rebuilds the pinned sources
+  and fallbacks as binary and source RPMs, installs the binary package into the
+  Anaconda-carried live root, and independently validates both RPMs, their
+  source template and their owned runtime layout. Images that omit the IPTSD
+  companion remain unchanged.
 - Added an explicit, build-and-release-provenance-recorded SP11 Stubble mode with packaged PE-section and Denali device-tree validation while retaining source-owned boot-image policy by default.
 - Added closed `all` and `runtime` local kernel package-set selection. Inspection and installation now select every exact ABI/version-matched package from the emitted bundle declaration by default, include a coherent development-header pair when declared, fail if a complete declaration loses either header, preserve intentional runtime-only downloads, and verify both selected header trees after installation; `--package-set runtime` deliberately retains the image-and-modules-only path.
 
+### Changed
+
+- Taught `doctor` and `userspace status` to keep each SP11 generation in its
+  kernel patch line. A `7.2.2/sp11v1` build is now reported honestly as newer
+  and awaiting userspace qualification, instead of being failed against the
+  older `7.2.0/sp11v19` evidence or quietly treated as `sp11v20`.
+- Restored the established `sp11-qcom-x1e-<package-version>` kernel release
+  tags, including `sp11-qcom-x1e-7.2.2-jg-0sp11v1`, and bound both publication
+  stages to the version recorded by the verified package bundle.
+- Made cross-repository IPTSD CI select a safely named, same-named branch from
+  the canonical OE repository for branch pushes and same-repository pull
+  requests, falling back to OE `main` only when that branch does not exist.
+- Routed image validation, removable-media writing, and release preparation
+  through the adapter declared by each generated manifest, and made Ubuntu and
+  Fedora share the descriptor-anchored, no-replace output transaction.
+- Clarified the image catalogue's capability and maturity signals. Ubuntu
+  Concept and Fedora Workstation Live remain runnable through their implemented
+  adapters, but stay experimental and now state that image structure and
+  physical bootability still need complete end-to-end testing. A Fedora 44
+  candidate passed structural validation and USB read-back but reached the
+  emergency boot path followed by a persistent black screen on Surface Pro 11;
+  Ubuntu qualification is tracked in
+  [#16](https://github.com/ooaklee/lexr.sh/issues/16) and the Fedora failure in
+  [#17](https://github.com/ooaklee/lexr.sh/issues/17).
+- Advanced the trust-pinned IPTSD release to `sp11-iptsd-v2`. Its two-asset
+  contract carries the complete Fedora package source beside the established
+  payload while retaining the `iptsd-v1` component and internal archive root
+  for compatible operator paths. Lexr verifies the tag, filenames, sizes, and
+  hashes rather than relying on GitHub's repository-wide release locking.
+
 ### Fixed
 
+- Made the kernel release workflow request Stubble explicitly, so the PE and
+  embedded device-tree contract it validates is also recorded accurately in
+  public build provenance.
+- Made draft-first kernel publication create and verify its release tag
+  explicitly, matching GitHub's draft semantics before remote byte validation.
 - Allowed `kernel build --reset-source` to move a managed shallow checkout
   between refs without mistaking the retained shallow tip for a local commit,
   while preserving the non-reset build guard.
 - Made native kernel builds package the common and ABI-specific headers as a complete pair alongside the signed image and modules.
 - Emitted the installed-toolchain provenance digest without a trailing newline so strict bundle publication can validate it.
 - Preserved package-postinst Surface device-tree injection by avoiding a redundant final GRUB regeneration after native kernel installation.
+- Removed Lexr's duplicate Fedora IPTSD spec. Fedora image creation now fails
+  before RPM tooling when the companion lacks the exact reviewed OE template,
+  and image validation re-derives the expected raw and rendered spec from that
+  same manifest-bound archive.
 
 ## [0.1.0] - 2026-08-31
 

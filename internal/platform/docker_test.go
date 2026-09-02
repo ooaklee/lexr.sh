@@ -141,6 +141,96 @@ func TestWorkspaceVolumeArgsMountsLinuxWorkVolume(t *testing.T) {
 	}
 }
 
+// TestSecurityXattrWorkspaceAddsOnlyTheDeclaredCapabilities locks the elevated
+// Fedora EROFS boundary to its explicit MAC and mount capability set.
+func TestSecurityXattrWorkspaceAddsOnlyTheDeclaredCapabilities(t *testing.T) {
+	runner := &volumeRunner{}
+	docker := NewDocker(runner)
+	name := workVolumePrefix + "0123456789abcdef01234567"
+
+	err := docker.RunInWorkspaceVolumePreservingXattrs(
+		context.Background(), "fedora-builder:test", t.TempDir(), name,
+		"fsck.erofs", "--xattrs", "/work/live.erofs",
+	)
+	if err != nil {
+		t.Fatalf("RunInWorkspaceVolumePreservingXattrs() error = %v", err)
+	}
+	if len(runner.commands) != 1 {
+		t.Fatalf("runner commands = %#v", runner.commands)
+	}
+	joined := strings.Join(runner.commands[0].Args, "\n")
+	for _, required := range []string{
+		"SYS_ADMIN",
+		"MAC_ADMIN",
+		"label=disable",
+		"MKNOD",
+		name + ":/linux-work",
+		"fedora-builder:test",
+		"fsck.erofs",
+		"--xattrs",
+	} {
+		if !strings.Contains(joined, required) {
+			t.Errorf("Docker arguments do not contain %q: %q", required, runner.commands[0].Args)
+		}
+	}
+	if strings.Contains(joined, "--privileged") {
+		t.Fatalf("security-xattr boundary unexpectedly grants --privileged: %q", runner.commands[0].Args)
+	}
+}
+
+// TestFedoraToolsDefinitionPinsTheEROFSContract prevents mutable Fedora package
+// drift from silently changing extraction semantics behind the cached tag.
+func TestFedoraToolsDefinitionPinsTheEROFSContract(t *testing.T) {
+	t.Parallel()
+
+	for _, required := range []string{
+		"fedora@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80",
+		"erofs-utils-1.9.2-2.fc44",
+		"erofs-utils-1.9.2-2.fc44.aarch64",
+		"--path=X",
+		"gcc-c++",
+		"meson",
+		"ninja-build",
+		"systemd-devel",
+		"systemd-rpm-macros",
+		"unzip",
+	} {
+		if !strings.Contains(fedoraToolsDockerfile, required) {
+			t.Errorf("Fedora tools definition does not contain %q", required)
+		}
+	}
+}
+
+// TestFedoraToolsImageIntegration optionally builds the pinned ARM64 image and
+// queries the exact EROFS implementation used by production remasters.
+func TestFedoraToolsImageIntegration(t *testing.T) {
+	if os.Getenv("LEXR_DOCKER_INTEGRATION") != "1" {
+		t.Skip("set LEXR_DOCKER_INTEGRATION=1 to exercise the Docker daemon")
+	}
+	docker := NewDocker(nil)
+	ctx := context.Background()
+	if err := docker.Check(ctx); err != nil {
+		t.Fatal(err)
+	}
+	image, err := docker.EnsureFedoraToolsImage(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := docker.Runner.Capture(ctx, Command{
+		Name: "docker",
+		Args: []string{
+			"run", "--rm", "--platform", "linux/arm64", image,
+			"rpm", "-q", "--qf", "%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}", "erofs-utils",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.TrimSpace(string(output)), "erofs-utils-1.9.2-2.fc44.aarch64"; got != want {
+		t.Fatalf("Fedora EROFS tool = %q, want %q", got, want)
+	}
+}
+
 // TestDockerWorkVolumeIntegration optionally exercises creation, inspection, and
 // exact removal against a real Docker daemon when explicitly enabled.
 func TestDockerWorkVolumeIntegration(t *testing.T) {

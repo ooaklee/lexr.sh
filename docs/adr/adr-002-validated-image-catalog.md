@@ -22,6 +22,15 @@ A dedicated catalogue package will decode JSON with unknown-field rejection, nor
 
 Initially, only `ubuntu-concept-resolute-x1e` is implemented through the `ubuntu-casper` adapter. Other entries remain visible as `catalog-only` media until purpose-built adapters can create and validate them.
 
+As of 2026-09-02, Fedora Workstation Live also has an implemented adapter. In
+this catalogue, `implemented` records runnable creation and structural
+validation capability. It does not claim physical boot or installation success;
+the separate `experimental` flag and compatibility notes carry that maturity
+and evidence. Both implemented entries remain experimental while their
+end-to-end qualification issues are open: Ubuntu in
+[#16](https://github.com/ooaklee/lexr.sh/issues/16) and Fedora in
+[#17](https://github.com/ooaklee/lexr.sh/issues/17).
+
 ## Consequences
 
 - Maintainers can review catalogue changes as readable data diffs.

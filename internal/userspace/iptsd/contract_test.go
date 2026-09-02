@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -26,6 +27,85 @@ func TestPinnedReleaseFixture(t *testing.T) {
 		if file.Size <= 0 || len(file.SHA256) != 64 || filepath.IsAbs(file.Target) {
 			t.Fatalf("invalid install file: %+v", file)
 		}
+	}
+}
+
+// TestFedoraPackageSourceFixture validates the enriched v2 archive profile and
+// proves its exact OE template is rendered from authenticated provenance.
+func TestFedoraPackageSourceFixture(t *testing.T) {
+	root := os.Getenv("LEXR_TEST_FEDORA_IPTSD_RELEASE_ROOT")
+	if root == "" {
+		t.Skip("set LEXR_TEST_FEDORA_IPTSD_RELEASE_ROOT to an extracted sp11-iptsd-v2 root")
+	}
+	source, err := ValidateFedoraPackageSource(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(source.Template) != int(fedoraRPMSpecTemplate.size) || source.SourceDateEpoch <= 0 {
+		t.Fatalf("Fedora package source identity = template %d bytes, epoch %d", len(source.Template), source.SourceDateEpoch)
+	}
+	rendered := string(source.RenderedSpec)
+	for _, required := range []string{
+		"Name:           lexr-sp11-iptsd",
+		"Version:        " + Version,
+		"export SOURCE_DATE_EPOCH=" + strconv.FormatInt(source.SourceDateEpoch, 10),
+		"%changelog",
+	} {
+		if !strings.Contains(rendered, required) {
+			t.Errorf("rendered Fedora RPM spec omits %q", required)
+		}
+	}
+	for _, unresolved := range []string{"@IPTSD_VERSION@", "@SOURCE_DATE_EPOCH@", "@CHANGELOG_DATE@"} {
+		if strings.Contains(rendered, unresolved) {
+			t.Errorf("rendered Fedora RPM spec retains %s", unresolved)
+		}
+	}
+	mutated := append([]byte(nil), source.Template...)
+	mutated[len(mutated)-1] ^= 1
+	if _, err := RenderFedoraRPMSpec(mutated, source.SourceDateEpoch); err == nil {
+		t.Fatal("unreviewed Fedora RPM template mutation passed rendering")
+	}
+}
+
+// TestFedoraPackageSourceRejectsLegacyProfile proves portable compatibility
+// does not let the narrower v1 integration authorise a Fedora RPM build.
+func TestFedoraPackageSourceRejectsLegacyProfile(t *testing.T) {
+	root := os.Getenv("LEXR_TEST_FEDORA_IPTSD_RELEASE_ROOT")
+	if root == "" {
+		t.Skip("set LEXR_TEST_FEDORA_IPTSD_RELEASE_ROOT to an extracted sp11-iptsd-v2 root")
+	}
+	legacyRoot := copyTree(t, root)
+	integrationRoot := filepath.Join(legacyRoot, filepath.FromSlash(IntegrationRelative))
+	if err := os.RemoveAll(filepath.Join(integrationRoot, "packaging", "fedora")); err != nil {
+		t.Fatal(err)
+	}
+	readme, err := os.ReadFile(filepath.Join("testdata", "sp11-iptsd-lexr-readme.fixture"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(integrationRoot, "README.md"), readme, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ValidateRelease(legacyRoot); err != nil {
+		t.Fatalf("legacy portable profile no longer validates: %v", err)
+	}
+	if _, err := ValidateFedoraPackageSource(legacyRoot); err == nil {
+		t.Fatal("legacy portable profile authorised a Fedora RPM build")
+	}
+}
+
+// TestSourceDateEpochValueRejectsNonCanonicalValues keeps archive-controlled
+// provenance from becoming syntax or ambiguous metadata in the rendered spec.
+func TestSourceDateEpochValueRejectsNonCanonicalValues(t *testing.T) {
+	if got, err := sourceDateEpochValue(map[string]string{"SOURCE_DATE_EPOCH": "1767049547"}); err != nil || got != 1767049547 {
+		t.Fatalf("canonical source epoch = %d, %v", got, err)
+	}
+	for _, raw := range []string{"", "0", "-1", "+1", "01", " 1", "1 ", "9223372036854775808"} {
+		t.Run(strconv.Quote(raw), func(t *testing.T) {
+			if _, err := sourceDateEpochValue(map[string]string{"SOURCE_DATE_EPOCH": raw}); err == nil {
+				t.Fatalf("non-canonical SOURCE_DATE_EPOCH %q passed validation", raw)
+			}
+		})
 	}
 }
 
@@ -82,7 +162,7 @@ func testDocumentationIdentity(t *testing.T, fixtureName, expectedDigest string,
 // focused fixture tests do not depend on the separate OE repository checkout.
 func integrationFileSpecification(t *testing.T, name string) fileSpec {
 	t.Helper()
-	for _, specification := range integrationFiles {
+	for _, specification := range releaseIntegrationFiles {
 		if specification.path == name {
 			return specification
 		}
@@ -238,7 +318,11 @@ func copyTree(t *testing.T, source string) string {
 		if err != nil {
 			return err
 		}
-		return os.WriteFile(target, data, 0o644)
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, info.Mode().Perm())
 	})
 	if err != nil {
 		t.Fatal(err)

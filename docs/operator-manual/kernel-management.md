@@ -115,21 +115,21 @@ Neither command publishes, installs, elevates privilege, or claims hardware qual
 
 ```sh
 lexr kernel release prepare \
-  --build-dir build/lexr/kernel-v19 \
-  --output-dir build/release/sp11-qcom-x1e-v19 \
-  --release-name sp11-qcom-x1e-v19 \
-  --source build/lexr/release-source/linux-v19.tar.xz \
+  --build-dir build/lexr/kernel-7.2.2-v1 \
+  --output-dir build/release/sp11-qcom-x1e-7.2.2-jg-0sp11v1 \
+  --release-name sp11-qcom-x1e-7.2.2-jg-0sp11v1 \
+  --source build/lexr/release-source/linux-7.2.2-v1.tar.xz \
   --licence build/lexr/release-source/LICENSE.kernel.txt \
   --dry-run
 
 lexr kernel release prepare \
-  --build-dir build/lexr/kernel-v19 \
-  --output-dir build/release/sp11-qcom-x1e-v19 \
-  --release-name sp11-qcom-x1e-v19 \
-  --source build/lexr/release-source/linux-v19.tar.xz \
+  --build-dir build/lexr/kernel-7.2.2-v1 \
+  --output-dir build/release/sp11-qcom-x1e-7.2.2-jg-0sp11v1 \
+  --release-name sp11-qcom-x1e-7.2.2-jg-0sp11v1 \
+  --source build/lexr/release-source/linux-7.2.2-v1.tar.xz \
   --licence build/lexr/release-source/LICENSE.kernel.txt
 
-lexr kernel release validate build/release/sp11-qcom-x1e-v19
+lexr kernel release validate build/release/sp11-qcom-x1e-7.2.2-jg-0sp11v1
 ```
 
 Preparation records the supplied source bytes. The operator still has to prove that each archive corresponds to the build manifest's exact revision and tree, and that the licence evidence is sufficient for redistribution. Follow the OE repository's [kernel release procedure](https://github.com/ooaklee/linux-surface-pro-11-oe/blob/main/docs/how-to/how-to-release-kernel-artifacts.md) for verified source materialisation. [ADR016](../adr/adr-016-native-kernel-release-preparation.md) records the closed release contract.

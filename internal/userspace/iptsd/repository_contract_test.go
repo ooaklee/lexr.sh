@@ -23,7 +23,7 @@ func TestOptionalOEIntegrationAndLayerRecipeRemainCoherent(t *testing.T) {
 	}
 	repositoryRoot = filepath.Clean(repositoryRoot)
 	integrationRoot := filepath.Join(repositoryRoot, "userspace", "iptsd-sp11")
-	if err := ValidateIntegration(integrationRoot); err != nil {
+	if err := ValidateRepositoryIntegration(integrationRoot); err != nil {
 		t.Fatalf("validate checked-in IPTSD integration: %v", err)
 	}
 	if _, err := RenderIntegration(integrationRoot); err != nil {
@@ -58,7 +58,7 @@ func TestOptionalOEIntegrationAndLayerRecipeRemainCoherent(t *testing.T) {
 		}
 	}
 	checkPublic("meta-sp11/recipes-support/iptsd-sp11/iptsd-sp11_3.1.0.bb", recipe)
-	for _, specification := range integrationFiles {
+	for _, specification := range repositoryIntegrationFiles {
 		path := filepath.Join(integrationRoot, filepath.FromSlash(specification.path))
 		label := "userspace/iptsd-sp11/" + specification.path
 		data, err := os.ReadFile(path)

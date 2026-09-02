@@ -18,7 +18,7 @@ import (
 
 const (
 	// iptsdArchiveName is the sole source-bearing payload accepted for pen input.
-	iptsdArchiveName = "sp11-iptsd-3.1.0-sp11.1-arm64.tar.xz"
+	iptsdArchiveName = "sp11-iptsd-3.1.0-sp11.2-arm64.tar.xz"
 	// iptsdMaskRelative is the sole intentional installed symbolic link.
 	iptsdMaskRelative = "etc/systemd/system/iptsd@.service"
 	// iptsdReceiptName is the private durable transaction record.
@@ -108,6 +108,19 @@ func (installer *Installer) IPTSD(ctx context.Context, options Options) (Result,
 	options, err := normalizeOptions(options)
 	if err != nil {
 		return Result{}, err
+	}
+	if installer.detectNativeIPTSD == nil {
+		return Result{}, errors.New("Fedora-native IPTSD detection policy is unavailable")
+	}
+	nativeState, err := installer.detectNativeIPTSD(options.Root)
+	if err != nil {
+		return Result{}, err
+	}
+	if nativeState == fedoraNativeIPTSDComplete {
+		return Result{}, errors.New("refusing portable IPTSD installation: target already contains the complete Fedora-native lexr-sp11-iptsd /usr layout; manage or remove the native RPM instead")
+	}
+	if nativeState == fedoraNativeIPTSDPartial {
+		return Result{}, errors.New("refusing portable IPTSD installation: target contains a partial, mutated, or incompatible Fedora-native lexr-sp11-iptsd /usr layout; repair or remove those native files first")
 	}
 	bundle, err := verifyBundle(options.BundleDir, iptsdSpec)
 	if err != nil {

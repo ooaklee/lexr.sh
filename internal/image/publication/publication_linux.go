@@ -1,6 +1,6 @@
 //go:build linux
 
-package ubuntu
+package publication
 
 import (
 	"os"
@@ -37,7 +37,7 @@ func openPublicationEntry(directory *os.File, name string) (*os.File, error) {
 	fileDescriptor, err := unix.Openat(
 		int(directory.Fd()),
 		name,
-		unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW,
+		unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW|unix.O_NONBLOCK,
 		0,
 	)
 	if err != nil {

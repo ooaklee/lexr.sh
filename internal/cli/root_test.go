@@ -30,8 +30,8 @@ func TestRootNoArgumentsOnNonTerminalPrintsHelp(t *testing.T) {
 		t.Fatalf("stderr = %q, want empty", errorOutput)
 	}
 	for _, text := range []string{
-		"Lexr.sh makes it easy to run ARM64 Linux on the Microsoft Surface Pro 11",
-		"Fast, auditable, and Surface Pro 11-focused.",
+		"Lexr.sh coordinates auditable ARM64 Linux image, kernel, userspace, and diagnostic workflows",
+		"entries marked experimental still require complete hardware boot and installation testing",
 		"Usage:",
 		"lexr [flags]",
 		"Available Commands:",
@@ -245,6 +245,7 @@ func TestCatalogShowDelivery(t *testing.T) {
 			"Mutable: false",
 			"Checksum: none (source bytes are not publisher-pinned)",
 			"Canonical does not publish a checksum",
+			"Complete end-to-end testing is still required",
 			"Notes:",
 		} {
 			if !strings.Contains(output, text) {

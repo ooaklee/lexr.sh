@@ -39,15 +39,21 @@ release. Restricted platform firmware is not downloaded or redistributed; it
 must come from an authorised Windows installation on the same device through
 the private hand-off workflow.
 
-Only `ubuntu-concept-resolute-x1e` currently has an implemented image adapter.
-Debian, elementary OS, Fedora and Pop!_OS entries are `catalog-only`: they are
-discoverable metadata, not buildable promises. Generated Ubuntu media includes
-X1E OLED and X1P LCD device trees and boot entries, but X1P hardware
-qualification remains pending.
+The `ubuntu-concept-resolute-x1e` and `fedora-workstation-live-44` entries have
+implemented image adapters. Debian, elementary OS, Pop!_OS, and Fedora's
+compressed raw disk entry are `catalog-only`: they are discoverable metadata,
+not buildable promises. Fedora's custom live and installed path is scoped to
+X1E/OLED. Its X1P/LCD entry retains a manifest-bound stock-kernel,
+explicit-DTB live troubleshooting path only and must not be treated as an
+installed-system promise.
 
 Structural image, package and release validation proves the recorded bytes and
 layout. It does not replace a boot, device or lifecycle test on a physical
-Surface Pro 11.
+Surface Pro 11. `support_level: implemented` therefore means the named adapter
+is runnable, while `experimental: true` signals that the resulting media is not
+yet hardware-qualified. In the first Fedora 44 physical test, the image passed
+structural validation and USB read-back but reached the emergency boot path and
+then remained at a black screen after `quiet` was removed.
 
 ## What must stay private
 

@@ -1,19 +1,43 @@
 # Create and write installation media
 
-Lexr turns the supported Ubuntu Concept image into live media that actually boots the selected Surface Pro 11 kernel, then validates the result before it can be written to a reviewed removable device. This page takes you from the shortest supported image command to a verified USB write.
+Lexr turns a supported upstream image into live media with the selected Surface
+Pro 11 kernel on a structurally validated boot path. It checks that result
+before it can be written to a reviewed removable device. This page covers the
+implemented Ubuntu Concept and Fedora Workstation Live adapters, from image
+creation to a verified USB write and the physical test which must follow.
+
+> [!CAUTION]
+> Both implemented adapters remain experimental. `implemented` means Lexr can
+> create and structurally validate their output; it does not mean that the image
+> has completed a physical boot or installation. A Fedora 44 candidate passed
+> structural validation and USB read-back, but a Surface Pro 11 boot reached the
+> emergency path. Removing `quiet` exposed early text before the display remained
+> black for hours. Reproduction and diagnosis continue in
+> [issue #17](https://github.com/ooaklee/lexr.sh/issues/17); Ubuntu's separate
+> end-to-end qualification is tracked in
+> [issue #16](https://github.com/ooaklee/lexr.sh/issues/16).
 
 ## Audience and context
 
-Follow this workflow when you want a bootable Lexr live image for a Surface Pro 11. If the live session also needs a self-contained CLI, source archive, catalogues, or IPTSD installer, read [Carry the offline companion](offline-companion.md) before creating the image; its image command adds those files without changing the verification boundary described here.
+Follow this workflow when you want to build a candidate live image and put it on
+a USB device for Surface Pro 11 testing. If the live session also needs a
+self-contained CLI, source archive, catalogues, or IPTSD support, read
+[Carry the offline companion](offline-companion.md) before creating the image;
+its image command adds those files without changing the verification boundary
+described here.
 
 ## Prerequisites and limits
 
 - The shortest command selects `ubuntu-concept-resolute-x1e` and the latest candidate kernel release. Those packages become trusted only after their publisher checksums and measured contents pass verification.
+- Fedora Workstation Live 44 must be selected explicitly and requires a patch-line-qualified verified Surface kernel bundle: 7.2.0/sp11v19+ or 7.2.2/sp11v1+. Its custom live and installed-system path is limited to X1E/OLED; X1P/LCD has a stock-kernel live troubleshooting entry only and must not be installed from this adapter.
 - Structural validation is a publication gate, not a substitute for booting the media on a Surface Pro 11. Disable Secure Boot before using the unsigned custom kernel, and treat an actual device boot as the final compatibility gate.
-- The current pre-write structural validator accepts only the implemented Lexr Ubuntu Casper output. Compressed raw disk images use a different partition and boot model and need a separate adapter.
+- Every current catalogue entry still needs complete end-to-end testing, especially to confirm its image structure and bootability. The implemented entries remain runnable so contributors can reproduce and improve them.
+- The pre-write router accepts only the implemented Lexr Ubuntu Casper and Fedora Live outputs after their adapter-owned structural validators pass. Compressed raw disk images use a different partition and boot model and need a separate adapter.
 - USB planning is read-only. The real write requires elevated privilege and the exact confirmation generated for the current source and device.
 
-## 1. Create and validate the supported image
+## 1. Choose, create and validate an image
+
+### Ubuntu Concept
 
 Run the host checks, create the image, and validate the completed output:
 
@@ -43,23 +67,49 @@ lexr image create \
 
 `--dry-run` prints the deterministic operation plan without remastering an image. `--keep-workspace` retains intermediate files for troubleshooting.
 
-## Why this is a true live-image remaster
+### Fedora Workstation Live 44
 
-Copying kernel packages beside an untouched installer does not change the kernel used by the live environment. The Ubuntu adapter instead unpacks the Casper filesystem, installs the custom runtime packages, rebuilds the initramfs, replaces `/casper/vmlinuz` and `/casper/initrd`, adds the paired device trees, and repacks the filesystem.
+Select Fedora's implemented ARM64 Live ISO explicitly and provide either a
+local patch-line-qualified bundle or a corresponding verified release:
 
-The source image is hybrid boot media: it contains ISO boot metadata and an appended GPT EFI System Partition. The adapter replays that layout and installs direct GRUB in both the ISO filesystem and appended EFI partition. Ubuntu's initramfs generation creates a Casper media UUID, so the adapter writes that same value to `.disk/casper-uuid-generic` and records the discovery contract in the image manifest. Output validation checks exact UUID agreement, Casper's default boot and live-layer declarations, the boot records, kernel, initramfs, module tree, device trees, manifests, and both EFI locations before descriptor-bound no-replace publication writes the manifest and journal first, then the ISO as the final commit marker.
+```sh
+KERNEL_BUNDLE=/path/to/verified-patch-line-kernel-bundle
 
-If publication fails, the CLI reports every recoverable transaction path and does not remove anything through a mutable pathname. Inspect the reported final and hidden staging entries before removing them; the absence of the requested ISO means the output set was not committed.
+lexr image create \
+  --catalog-id fedora-workstation-live-44 \
+  --kernel-dir "$KERNEL_BUNDLE" \
+  --output lexr-fedora-44-sp11-7.2.2-v1.iso
 
-Directly written hybrid media and a nested ISO stored on an outer filesystem are different strategies. The direct ISO does not use `iso-scan/filename`; that argument belongs to the labelled outer-disk loopback workflow. Both live and installed boot paths apply `soundwire_qcom.sp11_feedback_active_offset2_zero=1` for the validated FullIO audio behaviour. Live-USB entries also apply `modprobe.blacklist=qcom_q6v5_pas` because enabling the DSP while the live root remains on USB can reset or disconnect the medium. Installed-system entries must not carry that USB-only blacklist.
+lexr image validate lexr-fedora-44-sp11-7.2.2-v1.iso
+```
 
-The modified deployable root also registers the exact image and modules packages in dpkg, carries a separate non-Casper initramfs, seeds both model-specific device trees under `/boot`, and installs a bounded refresh helper plus explicit X1E and X1P GRUB entries. Ubuntu's default minimal layered installation is expected to deploy this root, so that path inherits the selected kernel support rather than depending on the live-only USB entry. The optional full-desktop upper layer carries its own package database and is not yet proven to preserve the same hand-off. The structural validator extracts and checks the default minimal-root assets; completing that installation, allowing the installer to run its target bootloader step, and booting the installed system on a Surface Pro 11 remain hardware gates.
+To use a published bundle instead, set `KERNEL_RELEASE` to its exact tag and
+replace the `--kernel-dir` line with `--kernel-release "$KERNEL_RELEASE"`.
+Without either flag, Lexr selects the latest candidate release; the Fedora
+adapter still rejects an unknown patch line, a generation below that line's
+floor, or an incomplete bundle.
 
-The extracted live filesystem stays inside a named Linux Docker volume throughout the remaster. This preserves case-sensitive paths, root ownership, device nodes, and Linux extended attributes even when the host filesystem cannot represent them faithfully. The source and completed artefacts cross the host boundary; the mutable Linux filesystem does not.
+The catalogue supplies Fedora's publisher SHA-256. The adapter accepts the
+explicit 7.2.0/sp11v19 and 7.2.2/sp11v1 lines, applies each line's generation
+floor, and rejects unknown, mixed, or incomplete ABIs. Secure Boot must be
+disabled for the unsigned custom Stubble kernel. X1P custom Stubble auto-DTB selection and
+installed-system hand-off are not supported; use its explicit-DTB stock entry
+for live investigation only. Physical USB boot, an X1E installation,
+installed-system boot, pen/touch, audio, and suspend/resume remain hardware
+qualification gates.
+
+The known Fedora physical result is not a successful boot: the candidate reached
+the emergency path, and removing `quiet` revealed early console output before a
+persistent black screen. Preserve the generated manifest and journal when
+reporting a reproduction; the follow-up work must find the first failing boot
+boundary rather than treating structural validation as proof of bootability.
 
 ## 2. Review the USB target
 
 `image devices` is read-only and lists every whole physical device with the evidence needed to review it, including whether the disk has an active non-mount consumer. It does not present an internal, non-removable, non-USB, read-only, system-backed, in-use, weakly identified, or undersized device as an acceptable target merely because its path was supplied explicitly.
+
+The commands below use the Ubuntu filename from the shortest example. Replace
+it with `lexr-fedora-44-sp11-7.2.2-v1.iso` when writing the Fedora output.
 
 ```sh
 lexr image devices
@@ -82,7 +132,61 @@ sudo lexr image write lexr-ubuntu-sp11.iso \
 
 An interactive terminal can omit `--confirm` and type the displayed phrase at the protected prompt. Automation must pass the exact phrase explicitly. Because the phrase contains the opaque fingerprint, a confirmation obtained for a previous USB device is rejected after another device takes over the same `/dev` path. Immediately before mutation, the manager reopens and rehashes the source, re-inspects the target, compares the already-open source descriptor with target mounts, checks privilege, unmounts only approved removable-style target filesystems, and refuses to continue if any mount, host-storage classification, active storage consumer, or identity drift remains. The production raw opener rejects links and ordinary files, proves that ordinary and raw nodes address the same kernel device, opens with `O_NOFOLLOW`, and proves that its descriptor still denotes that inspected device. The manager then writes bounded chunks, flushes them, reads back exactly the source length, verifies the SHA-256, re-inspects once more, and ejects or powers off the target. A failure returns the exact not-started, prepared, writing, written, verifying, or verified receipt state, complete byte counts, and only complete digests; it never claims that writing, verification, or ejection began before the corresponding boundary was crossed.
 
-This writer is distribution-neutral, but the current pre-write structural validator accepts only the implemented Lexr Ubuntu Casper output. Future Fedora, Debian, elementary OS, Pop!_OS, and raw-image adapters will retain their own image validation and live-media contracts while reusing the removable-device manager.
+This writer is distribution-neutral. Its pre-write router accepts the implemented Lexr Ubuntu Casper and Fedora Live outputs only after dispatching each image to its adapter-owned structural validator. Future Debian, elementary OS, Pop!_OS, and raw-image adapters will retain their own validation and live-media contracts while reusing the removable-device manager.
+
+## Why Lexr remasters the live root
+
+Dropping kernel packages beside an installer can look sufficient, but the live
+environment would still boot its original kernel and initramfs. Each
+implemented adapter changes the distribution's deployable root and rebuilds
+the initramfs for the exact selected ABI.
+
+### Ubuntu path
+
+The Ubuntu adapter unpacks Casper, installs the custom runtime packages,
+rebuilds the initramfs, replaces `/casper/vmlinuz` and `/casper/initrd`, adds
+both model-specific device trees, and repacks the filesystem. Its default
+minimal installation path carries that same kernel contract. The optional
+full-desktop upper layer has its own package database and is not yet proven to
+preserve the hand-off.
+
+### Fedora path
+
+The Fedora adapter extracts the LZMA-compressed EROFS root at
+`/LiveOS/squashfs.img`, turns the verified Debian kernel payload into the
+Lexr-built `lexr-kernel-sp11` RPM, generates an exact-ABI `dracut-live`
+initramfs, and recreates EROFS with SELinux labels and extended attributes
+intact. Anaconda sees only the custom `/boot/vmlinuz-*` candidate. The
+installed-system contract includes a one-shot finalizer which restores the
+package-owned stock image and its BLS fallback after the first non-live X1E
+boot while keeping the custom kernel as the default.
+
+[ADR027](../adr/adr-027-fedora-erofs-remaster-and-installed-handoff.md) records
+the complete EROFS, RPM, Anaconda, boot-policy, and validation decision.
+
+### Shared boot and publication safeguards
+
+Both source images are hybrid boot media with an appended GPT EFI System
+Partition. Ubuntu binds Casper to its generated UUID; Fedora binds
+`dracut-live` to the pinned `Fedora-WS-Live-44` volume label and preserves the
+ESP marker which hands off to `/boot/grub2/grub.cfg`. Validation checks those
+identities together with the boot records, kernel, initramfs, module tree,
+device trees, package ownership, manifests, and EFI locations before the
+manifest and journal are published and the ISO becomes the final commit marker.
+
+Both live and installed boot policies include
+`soundwire_qcom.sp11_feedback_active_offset2_zero=1` for the validated FullIO
+audio behaviour. Live-USB entries additionally blacklist `qcom_q6v5_pas`
+because starting the DSP can disrupt a USB-backed live root; installed systems
+must not retain that live-only blacklist. A directly written hybrid ISO does
+not use `iso-scan/filename`, which belongs to a labelled outer-disk loopback
+workflow.
+
+The mutable live filesystem remains inside a named Linux Docker volume during
+the build, preserving ownership, device nodes, case-sensitive paths, SELinux
+labels, and other extended attributes. If publication fails, Lexr reports the
+recoverable transaction paths without deleting through a mutable pathname; an
+absent requested ISO means the output set was not committed.
 
 ## Success and next steps
 

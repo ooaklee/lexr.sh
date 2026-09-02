@@ -68,7 +68,7 @@ jobs:
             exit 1
           fi
 
-      - name: Verify the immutable published IPTSD release
+      - name: Verify the trust-pinned published IPTSD release
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -79,13 +79,15 @@ jobs:
           mkdir -p "$extract_root" "$target_root"
 
           "${RUNNER_TEMP}/lexr-linux-amd64" userspace pull iptsd --cache-dir "$cache_root"
-          bundle_root="${cache_root}/iptsd-v1/sp11-iptsd-v1"
-          archive_path="${bundle_root}/sp11-iptsd-3.1.0-sp11.1-arm64.tar.xz"
+          bundle_root="${cache_root}/iptsd-v1/sp11-iptsd-v2"
+          archive_path="${bundle_root}/sp11-iptsd-3.1.0-sp11.2-arm64.tar.xz"
           tar -xJf "$archive_path" -C "$extract_root"
           release_root="${extract_root}/sp11-iptsd-v1"
 
           LEXR_TEST_IPTSD_RELEASE_ROOT="$release_root" \
-            go test ./internal/userspace/iptsd -run '^TestPinnedReleaseFixture$' -count=1
+          LEXR_TEST_FEDORA_IPTSD_RELEASE_ROOT="$release_root" \
+            go test ./internal/userspace/iptsd \
+              -run '^(TestPinnedReleaseFixture|TestFedoraPackageSourceFixture)$' -count=1
           "${RUNNER_TEMP}/lexr-linux-amd64" userspace install iptsd \
             --from "$bundle_root" \
             --root "$target_root" \

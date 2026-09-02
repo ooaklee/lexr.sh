@@ -47,40 +47,86 @@ jobs:
 
       - name: Fetch the public OE integration contract
         env:
-          OE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.oe_ref || 'main' }}
+          OE_EXPLICIT_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.oe_ref || 'main' }}
+          LEXR_BRANCH: ${{ github.head_ref || github.ref_name }}
+          LEXR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
         run: |
           set -euo pipefail
-          if [[ ! "${OE_REF}" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}$ ]] ||
-             [[ "${OE_REF}" == *".."* ]] ||
-             [[ "${OE_REF}" == *"//"* ]] ||
-             [[ "${OE_REF}" == *"@{"* ]] ||
-             [[ "${OE_REF}" == */ ]] ||
-             [[ "${OE_REF}" == *. ]]; then
-            printf 'OE reference is not a safe branch, tag, or commit identity.\n' >&2
-            exit 1
+          validate_oe_ref() {
+            local ref="$1"
+            if [[ ! "${ref}" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}$ ]] ||
+               [[ "${ref}" == *".."* ]] ||
+               [[ "${ref}" == *"//"* ]] ||
+               [[ "${ref}" == *"@{"* ]] ||
+               [[ "${ref}" == */ ]] ||
+               [[ "${ref}" == *. ]]; then
+              printf 'OE reference is not a safe branch, tag, or commit identity.\n' >&2
+              exit 1
+            fi
+          }
+
+          oe_remote="https://github.com/ooaklee/linux-surface-pro-11-oe.git"
+          oe_ref="${OE_EXPLICIT_REF}"
+          oe_fetch_ref="${OE_EXPLICIT_REF}"
+          selection="explicit workflow_dispatch input"
+          validate_oe_ref "${oe_ref}"
+
+          if [[ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]]; then
+            oe_ref="main"
+            oe_fetch_ref="refs/heads/main"
+            selection="OE main fallback"
+            candidate=""
+            case "${GITHUB_EVENT_NAME}" in
+              push)
+                candidate="${LEXR_BRANCH}"
+                ;;
+              pull_request)
+                if [[ "${LEXR_HEAD_REPOSITORY}" == "${GITHUB_REPOSITORY}" ]]; then
+                  candidate="${LEXR_BRANCH}"
+                fi
+                ;;
+            esac
+
+            if [[ -n "${candidate}" ]]; then
+              validate_oe_ref "${candidate}"
+              if GIT_TERMINAL_PROMPT=0 git -c credential.helper= \
+                   ls-remote --exit-code --heads "${oe_remote}" \
+                   "refs/heads/${candidate}" >/dev/null; then
+                oe_ref="${candidate}"
+                oe_fetch_ref="refs/heads/${candidate}"
+                selection="same-named canonical OE branch"
+              else
+                # git ls-remote returns 2 only when no exact ref matched.
+                status=$?
+                if (( status != 2 )); then
+                  printf 'Could not query the canonical OE branch namespace (git status %d).\n' \
+                    "${status}" >&2
+                  exit "${status}"
+                fi
+              fi
+            fi
           fi
 
           oe_root="${RUNNER_TEMP}/linux-surface-pro-11-oe"
           git init --quiet "${oe_root}"
-          git -C "${oe_root}" remote add origin \
-            https://github.com/ooaklee/linux-surface-pro-11-oe.git
+          git -C "${oe_root}" remote add origin "${oe_remote}"
           git -C "${oe_root}" sparse-checkout init --no-cone
           git -C "${oe_root}" sparse-checkout set \
             '/userspace/iptsd-sp11/' \
             '/meta-sp11/recipes-support/iptsd-sp11/'
           GIT_TERMINAL_PROMPT=0 git -c credential.helper= -C "${oe_root}" \
-            fetch --filter=blob:none --depth=1 --no-tags origin "${OE_REF}"
+            fetch --filter=blob:none --depth=1 --no-tags origin "${oe_fetch_ref}"
           git -C "${oe_root}" checkout --detach --quiet FETCH_HEAD
           oe_revision="$(git -C "${oe_root}" rev-parse HEAD)"
           printf 'LEXR_TEST_OE_ROOT=%s\n' "${oe_root}" >> "${GITHUB_ENV}"
-          printf 'Validated OE revision %s using the sparse IPTSD contract checkout.\n' \
-            "${oe_revision}" >> "${GITHUB_STEP_SUMMARY}"
+          printf 'Validated OE ref %s at revision %s (%s).\n' \
+            "${oe_ref}" "${oe_revision}" "${selection}" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Run race-enabled native IPTSD tests
-        run: go test -race -count=1 ./internal/userspace/... ./internal/cli ./internal/quality
+        run: go test -race -count=1 ./internal/userspace/... ./internal/image/fedora ./internal/cli ./internal/quality
 
       - name: Vet the native IPTSD packages
-        run: go vet ./internal/userspace/... ./internal/cli ./internal/quality
+        run: go vet ./internal/userspace/... ./internal/image/fedora ./internal/cli ./internal/quality
 
       - name: Compile the native CLI
         run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o "${RUNNER_TEMP}/lexr" ./cmd/lexr

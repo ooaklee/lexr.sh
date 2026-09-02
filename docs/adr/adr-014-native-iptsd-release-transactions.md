@@ -34,6 +34,22 @@ For the live root only, the installer then runs the fixed `systemctl` and `udeva
 
 The compiled contract remains byte-compatible with the published `sp11-iptsd-v1` archive and with OE checkouts created immediately before the Lexr migration. Documentation alone therefore has three explicitly pinned size-and-SHA-256 identities: the current Lexr guidance, the pre-Lexr OE guidance, and the immutable v1 release guidance. The validator returns whichever reviewed README identity it actually matched and carries that identity into the copy plan. Every executable, configuration, template, source, payload, and provenance file retains one exact identity; any other README variant is rejected. Bundled installer and validator scripts may remain present for historical release compatibility, but the CLI neither requires nor executes them.
 
+The Fedora adapter does not reinterpret that compatibility as package-source
+authority. `sp11-iptsd-v2` is a separate, trust-pinned two-asset release which
+retains the stable internal root while sealing the current OE integration and
+Fedora RPM template into an enriched closed profile. Portable installation
+continues to use the stable `iptsd-v1` component and archive root, while the
+release validator retains the historical v1 profile. Current acquisition and
+Fedora RPM creation require v2; Fedora revalidates its raw and rendered spec
+before and after the native build.
+
+“Trust-pinned” describes the guarantee Lexr enforces: the release tag,
+allow-listed filenames, byte lengths, and SHA-256 identities are compiled into
+the client, and any deletion or replacement fails closed. It does not mean that
+GitHub's optional repository-wide immutable-release setting is enabled. The
+contract therefore detects and refuses altered publication state; it does not
+claim that the hosting provider prevents a maintainer from changing it.
+
 ## Consequences
 
 - IPTSD build and installation policy is reviewable and testable as Go code rather than transitively trusted release code.

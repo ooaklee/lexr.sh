@@ -32,7 +32,15 @@ An alternate target root is a point-in-time inspection boundary, not a hostile-f
 
 `userspace build` will expose only maintained workflows for the pinned `iptsd` integration and the experimental camera packages. It will pass validated options to those workflows rather than evaluating catalogue text or arbitrary command fragments.
 
-The native kernel builder is standalone compiled policy and does not require an OE checkout. Userspace source-build adapters require a complete checkout where they authenticate maintained integration or packaging inputs before crossing the Docker boundary. Standalone release archives support image creation, downloads, verification, diagnosis, and published-bundle installation without claiming to contain those repository-backed userspace build inputs.
+The native kernel builder is standalone compiled policy and does not require an
+OE checkout. Userspace source-build adapters require a complete checkout where
+they authenticate maintained integration or packaging inputs before crossing
+the Docker boundary. Standalone release archives support image creation,
+downloads, verification, diagnosis, and published-bundle installation. A
+distribution-native image build may consume a repository-owned package
+template only after that exact template has been sealed into a new immutable,
+source-bearing release and accepted by a dedicated closed profile; the
+historical archive is never widened in place.
 
 > **Implementation amendment (2026-08-31):** ADR024 replaces standalone
 > release archives with raw Lexr platform binaries and one checksum manifest.

@@ -126,6 +126,38 @@ func TestImageWriteBindsValidatedPathToPlan(t *testing.T) {
 	}
 }
 
+// TestImageValidateUsesInjectedRouterBoundary keeps the standalone command on
+// the same distro-neutral validation path used before removable-media writes.
+func TestImageValidateUsesInjectedRouterBoundary(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	validatedPath := ""
+	app := &application{
+		out: &output,
+		imageValidator: func(_ context.Context, path string) (imagecontract.ValidationReport, error) {
+			validatedPath = path
+			return imagecontract.ValidationReport{
+				Valid: true, Path: path, Adapter: "fedora-live",
+				SHA256: strings.Repeat("a", 64), KernelABI: "7.2.0-test-sp11v19-qcom-x1e",
+			}, nil
+		},
+	}
+	command := app.newImageValidateCommand()
+	command.SetArgs([]string{"fedora.iso"})
+	if err := command.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if validatedPath != "fedora.iso" {
+		t.Fatalf("validated path = %q, want fedora.iso", validatedPath)
+	}
+	for _, expected := range []string{"valid hybrid ISO", strings.Repeat("a", 64), "sp11v19"} {
+		if !strings.Contains(output.String(), expected) {
+			t.Errorf("validation output does not contain %q:\n%s", expected, output.String())
+		}
+	}
+}
+
 // TestWriteImageCreateResultWarnsAboutUndeclaredCompanionLicence verifies the
 // human-readable result warns only when an included bundle lacks licence terms.
 func TestWriteImageCreateResultWarnsAboutUndeclaredCompanionLicence(t *testing.T) {

@@ -34,6 +34,13 @@ lexr userspace status --json
 
 With no feature filter, only catalogue-required support blocks readiness. When a supported or experimental feature is selected explicitly, its failed checks also produce a failing exit status so scripts receive a useful result. Diagnostic-only and obsolete checks remain clearly labelled and never make the complete default report claim that those components are required.
 
+SP11 generation numbers belong to a kernel patch line; they are not one global
+counter. The existing userspace evidence covers the `7.2.0` line through
+`sp11v19`, while the `7.2.2` line starts again at `sp11v1`. Until that newer
+kernel and userspace pairing has been qualified, the status commands preserve
+its exact ABI and report a warning. They do not reject it for being numerically
+below `sp11v19`, or pretend that `sp11v1` means `sp11v20`.
+
 An alternate or mounted target root must be trusted and quiescent while it is inspected. The doctor resolves symbolic links and confines its static reads at each check, but its report is a point-in-time diagnosis rather than a sandbox for a concurrently hostile filesystem.
 
 ## 3. Pull or build selected components

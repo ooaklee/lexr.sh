@@ -30,7 +30,7 @@ func TestIPTSDReleaseRejectsCatalogueStyleOverrides(t *testing.T) {
 		{
 			name: "release",
 			mutate: func(bundle *userspacerelease.Bundle) {
-				bundle.Release = "sp11-iptsd-v2"
+				bundle.Release = "sp11-iptsd-v3"
 			},
 			message: "release",
 		},
