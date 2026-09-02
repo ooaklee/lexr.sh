@@ -54,6 +54,13 @@ that do not apply.
 
 ### Added
 
+- Added a POSIX `install.sh` one-command installer that detects OS and
+  architecture, resolves the latest (or a pinned) version from GitHub releases,
+  verifies the SHA-256 checksum against the versioned manifest, and installs
+  the `lexr` binary to `/usr/local/bin` when writable or `~/.local/bin`
+  otherwise, with idempotent PATH editing and `--version`, `--binary`,
+  `--no-modify-path`, `--help`, and `LEXR_INSTALL_DIR`/`LEXR_OS`/`LEXR_ARCH`
+  overrides.
 - Added an experimental Fedora Workstation Live 44 ARM64 image adapter which
   preserves the source hybrid boot layout, turns a verified patch-line-qualified
   Surface kernel into a Lexr-built Fedora RPM, generates an exact-ABI
