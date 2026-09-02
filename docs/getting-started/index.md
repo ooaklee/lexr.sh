@@ -1,7 +1,8 @@
 # Get started with Lexr
 
 This path takes you from a downloaded CLI to a structurally validated,
-experimental Surface Pro 11 image candidate.
+experimental Snapdragon X image candidate using Lexr's current Surface Pro 11
+workflow.
 Nothing is written to a USB device until you inspect a separate dry run and
 provide the exact confirmation Lexr prints.
 

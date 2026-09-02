@@ -30,7 +30,7 @@ report normally includes:
 
 - the output of `lexr version`;
 - the host operating system and architecture;
-- the Surface Pro 11 model involved;
+- the Qualcomm Snapdragon X device and exact model involved;
 - the exact command or workflow;
 - what you expected and what happened instead; and
 - the smallest redacted error or log excerpt that shows the problem.

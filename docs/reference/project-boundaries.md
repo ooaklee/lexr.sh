@@ -4,6 +4,26 @@ Lexr coordinates several kinds of input and output without pretending they all
 belong to one release. These boundaries make it clear what you are downloading,
 what the CLI generates, and which evidence must remain private.
 
+## Hardware scope and evidence
+
+Lexr is a Qualcomm Snapdragon X project, not a promise that every Snapdragon X
+device shares one boot path or support level. The current image adapters,
+kernel and userspace contracts, and most physical test evidence were developed
+around the Microsoft Surface Pro 11 because it is the hardware available to the
+maintainer for daily use and repeated testing.
+
+Project-level descriptions may invite work across the Snapdragon X family.
+Capability claims must name the catalogue entry, processor variant, device
+model or physical test that supports them. A working or structurally validated
+Surface Pro 11 path must not be presented as evidence that another Snapdragon X
+device will boot, install or expose the same hardware. Extending that evidence
+requires contributors with other devices to add explicit catalogue and adapter
+policy, preserve model-specific safety boundaries, and report reproducible test
+results.
+
+[ADR028](../adr/adr-028-snapdragon-x-project-scope.md) records why project scope
+and device support are stated separately.
+
 ## What the Lexr release contains
 
 The [`ooaklee/lexr.sh` releases](https://github.com/ooaklee/lexr.sh/releases)
@@ -77,7 +97,8 @@ the `lexr-*.json` form.
 the completed standalone naming boundary. Compatibility exceptions which
 require an exact predecessor binary—such as old hand-off stores or recovery
 receipts—are documented beside their restore or purge actions, not hidden in
-the naming history.
+the naming history. SP11 names remain where they identify a real compatibility
+or provenance contract; they do not narrow Lexr's project scope.
 
 ## Where to go next
 

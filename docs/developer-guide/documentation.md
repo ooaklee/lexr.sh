@@ -38,6 +38,14 @@ the reader as “you”, use British English, define unavoidable technical terms
 and avoid claims such as “supported” or “safe” unless the code and hardware
 evidence establish exactly what that means.
 
+Describe Lexr itself as a Qualcomm Snapdragon X project. Describe a capability
+at the narrowest scope established by its evidence: name the catalogue entry,
+processor variant, device model or physical test where it matters. Most current
+implementation and qualification evidence comes from the maintainer's Surface
+Pro 11; do not turn that practical focus into either a project-wide limit or an
+unsupported claim about other Snapdragon X devices. Preserve SP11 names in
+commands, paths, schemas, release tags and compatibility contracts.
+
 ## Keep safety close to the action
 
 Do not hide a destructive warning in a general preface. Put whole-device erase
