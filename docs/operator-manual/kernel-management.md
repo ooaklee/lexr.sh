@@ -69,7 +69,7 @@ Omit the override when another branch or device should retain its source policy.
 
 ## Prove the fallback before installation
 
-`kernel preflight` is the read-only installation gate. It inspects exact Debian package metadata, rejects unexpected packages and mixed ABIs, proves that the explicitly selected fallback ABI is both running and bootable, requires the target ABI to be fresh, and prints the bounded package, initramfs, and GRUB sequence.
+`kernel preflight` is the read-only installation gate. It inspects exact Debian package metadata, rejects unexpected packages and mixed ABIs, proves that the explicitly selected fallback ABI is bootable, requires it to match the running ABI by default, requires the target ABI to be fresh, and prints the bounded package, initramfs, and GRUB sequence.
 
 The target root and fallback ABI are always explicit. `--running-abi` is accepted only for an alternate-root fixture; inspection of the live root always uses direct `uname` evidence.
 
@@ -90,6 +90,32 @@ lexr kernel install <kernel-bundle> \
 
 Both commands use `--package-set all` by default. Add `--package-set runtime` only when you deliberately want to leave the complete matching development-header pair uninstalled.
 
+When the running kernel is the broken candidate and an older installed kernel
+is the known-good recovery path, pass that older ABI with `--force` to both
+commands. The override bypasses only the running-versus-fallback equality
+check. Lexr still requires the selected fallback's kernel image, initramfs,
+System.map, configuration, populated module tree, `modules.dep`, and exactly one
+non-recovery GRUB entry, and repeats those checks during installation. The plan
+and receipt record the override and print a warning naming both ABIs:
+
+```sh
+KNOWN_GOOD_ABI="<installed-known-good-abi>"
+
+lexr kernel preflight <kernel-bundle> \
+  --root / \
+  --fallback-abi "$KNOWN_GOOD_ABI" \
+  --force
+
+lexr kernel install <kernel-bundle> \
+  --root / \
+  --fallback-abi "$KNOWN_GOOD_ABI" \
+  --force \
+  --dry-run
+```
+
+Do not use `--force` to name an untested or incomplete kernel. It authorises a
+different fallback selection; it does not make that selection bootable.
+
 ## Install with an explicit recovery path
 
 A real installation requires effective root privilege and `--yes`; Lexr never elevates itself:
@@ -100,6 +126,10 @@ sudo lexr kernel install <kernel-bundle> \
   --fallback-abi "$RUNNING_ABI" \
   --yes
 ```
+
+For the known-good non-running fallback path, keep the same ABI and `--force`
+from the reviewed dry run in the confirmed command; omitting either deliberately
+returns to the default exact-match guard.
 
 Immediately before mutation, `kernel install` repeats preflight. It stages immutable package copies, retains the fallback kernel, backs up GRUB, and verifies the installed kernel image, initramfs, module tree, boot entry, both Surface Pro 11 device trees, and both development-header trees when headers were selected.
 

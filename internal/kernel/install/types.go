@@ -35,8 +35,12 @@ type Request struct {
 	Bundle kernel.Bundle
 	// Root is the explicit absolute filesystem root that will receive the kernel.
 	Root string
-	// FallbackABI is the distinct, currently booted ABI that must remain usable.
+	// FallbackABI is the distinct ABI that must be verified and remain usable.
+	// It normally matches the running ABI unless ForceFallbackMismatch is set.
 	FallbackABI string
+	// ForceFallbackMismatch permits a verified fallback ABI to differ from the
+	// running ABI. It does not bypass any fallback bootability checks.
+	ForceFallbackMismatch bool
 	// RunningABI supplies uname evidence only for an alternate-root fixture.
 	// It must be empty when Root is the live system root.
 	RunningABI string
@@ -145,10 +149,15 @@ type Plan struct {
 	Root string `json:"root"`
 	// TargetABI is the distinct Surface kernel ABI selected for installation.
 	TargetABI string `json:"target_abi"`
-	// FallbackABI is the currently running, preserved Surface kernel ABI.
+	// FallbackABI is the verified, preserved Surface kernel ABI.
 	FallbackABI string `json:"fallback_abi"`
 	// RunningABI records the trusted live or fixture uname evidence.
 	RunningABI string `json:"running_abi"`
+	// FallbackMismatchForced reports that the caller explicitly allowed the
+	// verified fallback ABI to differ from the running ABI.
+	FallbackMismatchForced bool `json:"fallback_mismatch_forced"`
+	// Warnings records non-fatal safety information retained in JSON receipts.
+	Warnings []string `json:"warnings,omitempty"`
 	// Version is the coherent Debian version shared by all selected packages.
 	Version string `json:"version"`
 	// DryRun reports whether execution was intentionally disabled.

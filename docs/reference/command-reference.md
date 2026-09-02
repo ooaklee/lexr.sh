@@ -53,8 +53,9 @@ lexr kernel release download [ref]
 lexr kernel release prepare --help
 lexr kernel release validate <release-directory>
 lexr kernel inspect <directory>
-lexr kernel preflight <bundle-directory> --root <path> --fallback-abi <abi>
-lexr kernel install <bundle-directory> --root <path> --fallback-abi <abi> --dry-run
+lexr kernel preflight <bundle-directory> --root <path> --fallback-abi <abi> [--force]
+lexr kernel install <bundle-directory> --root <path> --fallback-abi <abi> --dry-run [--force]
+lexr kernel install <bundle-directory> --root <path> --fallback-abi <abi> --yes [--force]
 lexr kernel build
 ```
 

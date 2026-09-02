@@ -54,6 +54,10 @@ that do not apply.
 
 ### Added
 
+- Added an explicit `--force` override to kernel preflight and installation for
+  retaining a known-good, fully verified fallback ABI that differs from the
+  currently running kernel. The default exact-match guard remains in place;
+  forced plans and receipts record and print the ABI mismatch warning.
 - Added a POSIX `install.sh` one-command installer that detects OS and
   architecture, resolves the latest (or a pinned) version from GitHub releases,
   verifies the SHA-256 checksum against the versioned manifest, and installs

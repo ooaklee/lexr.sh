@@ -69,6 +69,7 @@ func TestKernelPreflightCommandPassesExplicitSafetyInputs(t *testing.T) {
 		"--fallback-abi", kernelCLIFallbackABI,
 		"--running-abi", kernelCLIFallbackABI,
 		"--allow-unverified",
+		"--force",
 		"--json",
 	)
 	if err != nil {
@@ -80,7 +81,7 @@ func TestKernelPreflightCommandPassesExplicitSafetyInputs(t *testing.T) {
 	request := stub.preflightRequests[0]
 	if request.Bundle.ABI != kernelCLITargetABI || request.Root != root ||
 		request.FallbackABI != kernelCLIFallbackABI || request.RunningABI != kernelCLIFallbackABI ||
-		!request.DryRun || !request.AllowUnverified || len(request.Bundle.Packages) != 4 {
+		!request.DryRun || !request.AllowUnverified || !request.ForceFallbackMismatch || len(request.Bundle.Packages) != 4 {
 		t.Fatalf("preflight request = %#v", request)
 	}
 	var plan kernelinstall.Plan
@@ -89,6 +90,74 @@ func TestKernelPreflightCommandPassesExplicitSafetyInputs(t *testing.T) {
 	}
 	if plan.TargetABI != kernelCLITargetABI || !plan.DryRun || plan.Root != root {
 		t.Fatalf("preflight JSON plan = %#v", plan)
+	}
+}
+
+// TestKernelForceFallbackMismatchIsAuditable verifies both commands forward
+// explicit authority, keep JSON parseable, and emit the warning on stderr.
+func TestKernelForceFallbackMismatchIsAuditable(t *testing.T) {
+	t.Parallel()
+	runningABI := "7.2.0-jg-0sp11v17-qcom-x1e"
+	warning := "warning: fallback ABI does not match the running ABI: running " + runningABI + ", fallback " + kernelCLIFallbackABI
+
+	for _, subcommand := range []string{"preflight", "install"} {
+		t.Run(subcommand, func(t *testing.T) {
+			t.Parallel()
+			root := t.TempDir()
+			plan := kernelCLIPlan(root, true)
+			plan.RunningABI = runningABI
+			plan.FallbackMismatchForced = true
+			plan.Warnings = []string{warning}
+			stub := &stubKernelInstallationManager{
+				preflightPlan:  plan,
+				installReceipt: kernelinstall.Receipt{Plan: plan},
+			}
+			output := &bytes.Buffer{}
+			errorOutput := &bytes.Buffer{}
+			app := &application{out: output, errOut: errorOutput, kernelInstaller: stub}
+			args := []string{
+				subcommand, kernelCLIBundleDirectory(t),
+				"--root", root,
+				"--fallback-abi", kernelCLIFallbackABI,
+				"--running-abi", runningABI,
+				"--allow-unverified",
+				"--force",
+				"--json",
+			}
+			if subcommand == "install" {
+				args = append(args, "--dry-run")
+			}
+			if err := executeKernelCLICommand(t, app.newKernelCommand(), args...); err != nil {
+				t.Fatalf("kernel %s --force error = %v", subcommand, err)
+			}
+			var request kernelinstall.Request
+			switch subcommand {
+			case "preflight":
+				if len(stub.preflightRequests) != 1 {
+					t.Fatalf("preflight requests = %#v", stub.preflightRequests)
+				}
+				request = stub.preflightRequests[0]
+				var decoded kernelinstall.Plan
+				if err := json.Unmarshal(output.Bytes(), &decoded); err != nil || !decoded.FallbackMismatchForced || len(decoded.Warnings) != 1 {
+					t.Fatalf("preflight JSON = %s, error = %v", output.String(), err)
+				}
+			case "install":
+				if len(stub.installRequests) != 1 {
+					t.Fatalf("install requests = %#v", stub.installRequests)
+				}
+				request = stub.installRequests[0]
+				var decoded kernelinstall.Receipt
+				if err := json.Unmarshal(output.Bytes(), &decoded); err != nil || !decoded.Plan.FallbackMismatchForced || len(decoded.Plan.Warnings) != 1 {
+					t.Fatalf("install JSON = %s, error = %v", output.String(), err)
+				}
+			}
+			if !request.ForceFallbackMismatch {
+				t.Fatalf("kernel %s request did not retain --force: %#v", subcommand, request)
+			}
+			if errorOutput.String() != warning+"\n" {
+				t.Fatalf("kernel %s warning = %q, want %q", subcommand, errorOutput.String(), warning+"\n")
+			}
+		})
 	}
 }
 
@@ -471,6 +540,28 @@ func TestKernelPackageSetHelpExplainsSelections(t *testing.T) {
 				"runtime image/modules only",
 				`(default "all")`,
 			} {
+				if !strings.Contains(output.String(), expected) {
+					t.Errorf("kernel %s help does not contain %q:\n%s", subcommand, expected, output.String())
+				}
+			}
+		})
+	}
+}
+
+// TestKernelFallbackForceHelpExplainsSafetyScope keeps the override explicit
+// and limited to an already verified bootable fallback ABI.
+func TestKernelFallbackForceHelpExplainsSafetyScope(t *testing.T) {
+	t.Parallel()
+	for _, subcommand := range []string{"preflight", "install"} {
+		t.Run(subcommand, func(t *testing.T) {
+			t.Parallel()
+			app, output := newKernelCLIApplication(&stubKernelInstallationManager{})
+			command := app.newKernelCommand()
+			command.SetOut(output)
+			if err := executeKernelCLICommand(t, command, subcommand, "--help"); err != nil {
+				t.Fatalf("kernel %s --help error = %v", subcommand, err)
+			}
+			for _, expected := range []string{"--force", "verified bootable fallback ABI", "differ from the running ABI"} {
 				if !strings.Contains(output.String(), expected) {
 					t.Errorf("kernel %s help does not contain %q:\n%s", subcommand, expected, output.String())
 				}
