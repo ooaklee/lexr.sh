@@ -114,6 +114,9 @@ that do not apply.
 
 ### Fixed
 
+- Scoped the retired out-of-tree touchscreen release guard to its historical
+  `6.12.0-jg-0sp11v3-qcom-x1e` ABI and module assets, allowing later patch
+  lines to use their own valid `sp11v3` generation for in-tree kernels.
 - Made the kernel release workflow request Stubble explicitly, so the PE and
   embedded device-tree contract it validates is also recorded accurately in
   public build provenance.

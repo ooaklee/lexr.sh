@@ -32,6 +32,11 @@ var sourceArchiveExpression = regexp.MustCompile(`(?i)\.(?:tar|tar\.gz|tgz|tar\.
 // licenceNameExpression accepts explicit redistribution and source-licence evidence.
 var licenceNameExpression = regexp.MustCompile(`(?i)^(?:licen[cs]e|copying|copyright|notice)(?:[._-].*)?$`)
 
+// retiredTouchscreenABI is the exact historical kernel whose touchscreen
+// stack was delivered as out-of-tree modules. Later patch lines may reuse the
+// same per-line generation number for kernels which carry the stack in-tree.
+const retiredTouchscreenABI = "6.12.0-jg-0sp11v3-qcom-x1e"
+
 // retiredTouchscreenNames identifies the out-of-tree v3 payload that current
 // kernels carry in-tree and release preparation must never reintroduce.
 var retiredTouchscreenNames = map[string]struct{}{
@@ -210,7 +215,7 @@ func inspectNativeBuild(ctx context.Context, directory, releaseName string) (ker
 	if err != nil || !reflect.DeepEqual(recorded, expectedRecorded) {
 		return kernel.Bundle{}, build.Provenance{}, nil, errors.New("native kernel bundle differs from the exact builder output contract")
 	}
-	if strings.Contains(recorded.ABI, "sp11v3") {
+	if isRetiredTouchscreenABI(recorded.ABI) {
 		return kernel.Bundle{}, build.Provenance{}, nil, errors.New("legacy sp11v3 out-of-tree touchscreen kernel bundles are retired")
 	}
 	return publicBundle, provenance, planned, nil
@@ -286,7 +291,13 @@ func retiredTouchscreenAsset(name string) bool {
 	if _, retired := retiredTouchscreenNames[lower]; retired {
 		return true
 	}
-	return strings.HasSuffix(lower, ".ko") || strings.Contains(lower, "touchscreen-modules") || strings.Contains(lower, "sp11v3")
+	return strings.HasSuffix(lower, ".ko") || strings.Contains(lower, "touchscreen-modules") || strings.Contains(lower, retiredTouchscreenABI)
+}
+
+// isRetiredTouchscreenABI distinguishes the one retired ABI from a generation
+// counter which is intentionally scoped to each kernel patch line.
+func isRetiredTouchscreenABI(abi string) bool {
+	return abi == retiredTouchscreenABI
 }
 
 // validLicenceText accepts readable UTF-8 licence evidence without NUL bytes.

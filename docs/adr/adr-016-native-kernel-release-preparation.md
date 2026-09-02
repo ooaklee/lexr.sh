@@ -28,11 +28,11 @@ bytes, a normal kernel bundle, exact Git and recipe provenance, and a checksum
 set covering only those packages. Release preparation can therefore consume a
 typed build contract instead of reconstructing policy from shell output.
 
-The `sp11v3` touchscreen release used separate `gpi`, `spi-geni-qcom`, and
-`mshw0485_touch` modules. Later kernels carry that stack in-tree. Continuing to
-accept the old ABI or its module bundle would make it possible to publish a
-current-looking release that reintroduced obsolete module precedence and
-initramfs repair requirements.
+The historical `6.12.0-jg-0sp11v3-qcom-x1e` touchscreen release used separate
+`gpi`, `spi-geni-qcom`, and `mshw0485_touch` modules. Later kernels carry that
+stack in-tree. Continuing to accept the old ABI or its module bundle would
+make it possible to publish a current-looking release that reintroduced
+obsolete module precedence and initramfs repair requirements.
 
 Public release metadata must not reveal a contributor's host paths or the
 Docker volume identity derived from their workspace. Preparation also must not
@@ -83,9 +83,11 @@ native builder's bounded repository-URL contract, ambiguous Git refs, mutable
 container images, absent source or licence evidence, and notes that do not
 match the manifest-derived text.
 
-The `sp11v3` ABI and recognisable out-of-tree touchscreen files are rejected
-explicitly. The old v3 release remains historical evidence in earlier ADRs,
-but it is not an input variant of the maintained release API.
+The exact historical `6.12.0-jg-0sp11v3-qcom-x1e` ABI and recognisable
+out-of-tree touchscreen files are rejected explicitly. The `sp11vN` counter is
+patch-line local, so later in-tree kernels using generation `sp11v3` remain
+valid. The old v3 release remains historical evidence in earlier ADRs, but it
+is not an input variant of the maintained release API.
 
 This domain performs no remote tag lookup, GitHub CLI invocation, upload,
 publication, installation, privilege escalation, or hardware probing. Every

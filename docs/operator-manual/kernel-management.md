@@ -137,7 +137,7 @@ Lexr does not change the default kernel, remove the fallback, reboot, or install
 
 ## Prepare a kernel release locally
 
-`kernel release prepare` accepts only the exact closed output from `kernel build`, one or more corresponding-source archives, explicit licence text, a tag-like release identity, and a fresh output path. The retired `sp11v3` ABI and separate out-of-tree touchscreen modules are rejected because the maintained kernel carries that stack in-tree.
+`kernel release prepare` accepts only the exact closed output from `kernel build`, one or more corresponding-source archives, explicit licence text, a tag-like release identity, and a fresh output path. The historical `6.12.0-jg-0sp11v3-qcom-x1e` ABI and separate out-of-tree touchscreen modules are rejected because the maintained kernel carries that stack in-tree. Generation numbers are scoped to each kernel patch line, so a later in-tree kernel may legitimately use `sp11v3`.
 
 A dry run hashes and validates every input without creating a parent or output directory. A real run repeats validation, copies through private staging, creates one path-free public manifest and British-English notes, checksums the complete closed set, validates it, and atomically publishes the new local directory. An existing or raced destination is never replaced. `kernel release validate` repeats the closed-directory structural checks without contacting a remote service.
 
