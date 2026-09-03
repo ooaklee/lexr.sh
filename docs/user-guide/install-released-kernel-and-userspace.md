@@ -140,6 +140,31 @@ be omitted only when the hardware variant can be established from bounded
 device-tree evidence. This static command never runs `update-grub`, changes a
 default, rewrites a DTB, elevates privileges, or proves physical bootability.
 
+### Audit shared boot-DTB usage per GRUB entry
+
+The JSON report audits DTB bindings one GRUB entry at a time. Each element of
+`entries` carries the entry's canonical `abi` (when the `vmlinuz-*` basename is
+unambiguous), the recognised `devicetree` path tokens, and the exact
+`boot_dtb_sha256`, `installed_dtb_sha256`, and `dtb_matches` digests for that
+entry. Entries whose `devicetree` token is the legacy shared
+`/boot/sp11-denali.dtb` path are the ones the retired OpenEmbedded helper
+bound; compare each such entry's `boot_dtb_sha256` against the
+`installed_dtb_sha256` values of other entries to see which installed ABI the
+shared bytes actually belong to. The top-level `dtb_attribution` object
+attributes only the effective default entry's boot DTB, so use `entries` for a
+host-wide audit. Kernels without a GRUB stanza, and entries whose kernel
+identity is not one canonical qcom ABI, have no digest comparison; the
+`legacy_hooks.retired_helper` field reports whether the retired helper is still
+present.
+
+Diagnosis is deliberately read-only. Lexr does not update, quarantine, or
+remove the retired helper or its kernel hooks, and it does not migrate an entry
+from the shared boot DTB to a per-ABI `/boot/dtbs/<abi>/` structure. Tracked
+per-ABI DTB binding policy, verified GRUB mutation, and legacy-path retirement
+are discussed in issue
+[#22](https://github.com/ooaklee/lexr.sh/issues/22); until then, any such
+changes are manual operator actions taken outside Lexr.
+
 Lexr does not reboot or explicitly select the default kernel. Package hooks
 regenerate the normal GRUB configuration. When you are ready to test, reboot
 through the normal system controls and select the new ABI deliberately. Keep
