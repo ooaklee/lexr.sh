@@ -22,7 +22,7 @@ required operating-system boundary is unavailable.
 | Discover or write removable media | Linux: `lsblk`, `umount`, `udisksctl`; macOS: `diskutil`, `plutil` | A removable whole device large enough for the image | Discovery and dry run use a regular user; the real raw write needs elevation |
 | Prepare an image release | Linux or macOS plus host `zstd` | Space for the ISO, split parts and fresh release directory | Regular user |
 | Build a kernel | Docker with Linux ARM64 execution | The managed build volume requires 40 GiB | Regular user with Docker access |
-| Install a kernel | Debian or Ubuntu target with `apt-get`, `dpkg`, `dpkg-deb`, `update-initramfs` and `chroot` as required | Complete bundle plus a proven bootable fallback ABI | Preflight and dry run use a regular user; installation needs effective root and `--yes` |
+| Install a kernel | Debian or Ubuntu target with `apt-get`, `dpkg`, `dpkg-deb`, `update-initramfs` and `chroot` as required | Complete bundle plus a proven bootable fallback ABI and either a fresh target ABI or explicit `--overwrite` consent | Preflight and dry run use a regular user; installation needs effective root and `--yes`; `--yes` alone never bypasses the fresh-target gate |
 | Inspect or pull userspace support | A readable live or mounted Linux target | Network only for pull | Regular user |
 | Install userspace support | Supported Linux target and its package tools | Verified component directory | Effective root and `--yes` for a real install |
 | Build camera packages | Native ARM64 Linux | 20 GiB working space by default and the authenticated OE checkout | Regular user for the build |

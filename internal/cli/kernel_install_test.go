@@ -692,3 +692,134 @@ func executeKernelCLICommand(t *testing.T, command *cobra.Command, arguments ...
 	command.SetArgs(arguments)
 	return command.ExecuteContext(context.Background())
 }
+
+// TestKernelOverwriteFlagReachesDeliveryManager keeps the explicit overwrite
+// consent plumbing on both delivery commands.
+func TestKernelOverwriteFlagReachesDeliveryManager(t *testing.T) {
+	t.Parallel()
+	bundleDirectory := kernelCLIBundleDirectory(t)
+	root := t.TempDir()
+	stub := &stubKernelInstallationManager{preflightPlan: kernelCLIPlan(root, true)}
+	app, _ := newKernelCLIApplication(stub)
+	for _, subcommand := range []string{"preflight", "install"} {
+		arguments := []string{subcommand, bundleDirectory, "--root", root, "--fallback-abi", kernelCLIFallbackABI, "--overwrite", "--json"}
+		if subcommand == "install" {
+			arguments = append(arguments, "--dry-run")
+		}
+		if err := executeKernelCLICommand(t, app.newKernelCommand(), arguments...); err != nil {
+			t.Fatalf("kernel %s --overwrite error = %v", subcommand, err)
+		}
+	}
+	var requests []kernelinstall.Request
+	requests = append(requests, stub.preflightRequests...)
+	requests = append(requests, stub.installRequests...)
+	if len(requests) != 2 {
+		t.Fatalf("request count = %d, want 2", len(requests))
+	}
+	for _, request := range requests {
+		if !request.Overwrite {
+			t.Errorf("request (dry run = %t) did not deliver --overwrite to the manager", request.DryRun)
+		}
+	}
+}
+
+// TestKernelOverwriteHelpExplainsRisk keeps the destructive override explicit
+// about what an unsafe overwrite can break.
+func TestKernelOverwriteHelpExplainsRisk(t *testing.T) {
+	t.Parallel()
+	for _, subcommand := range []string{"preflight", "install"} {
+		t.Run(subcommand, func(t *testing.T) {
+			t.Parallel()
+			app, output := newKernelCLIApplication(&stubKernelInstallationManager{})
+			command := app.newKernelCommand()
+			command.SetOut(output)
+			if err := executeKernelCLICommand(t, command, subcommand, "--help"); err != nil {
+				t.Fatalf("kernel %s --help error = %v", subcommand, err)
+			}
+			for _, expected := range []string{"--overwrite", "unsafe overwrite could break the system or prevent returning to the desktop on reboot"} {
+				if !strings.Contains(output.String(), expected) {
+					t.Errorf("kernel %s help does not contain %q:\n%s", subcommand, expected, output.String())
+				}
+			}
+		})
+	}
+}
+
+// TestKernelPreflightRendersBlockedTargetDiagnostics proves that a blocked
+// fresh-target gate still exposes stable human and JSON evidence.
+func TestKernelPreflightRendersBlockedTargetDiagnostics(t *testing.T) {
+	t.Parallel()
+	bundleDirectory := kernelCLIBundleDirectory(t)
+	root := t.TempDir()
+	evidence := kernelinstall.TargetStateEvidence{
+		ABI:             kernelCLITargetABI,
+		Classification:  kernelinstall.TargetStatePartial,
+		Reasons:         []string{"package linux-image-" + kernelCLITargetABI + " is half-configured"},
+		Recommendations: []string{"repair the interrupted package transaction"},
+	}
+	stub := &stubKernelInstallationManager{
+		preflightPlan: kernelinstall.Plan{Root: root, TargetABI: kernelCLITargetABI, TargetState: &evidence},
+		preflightErr:  &kernelinstall.TargetStateError{Evidence: evidence},
+	}
+	app, output := newKernelCLIApplication(stub)
+	err := executeKernelCLICommand(t, app.newKernelCommand(),
+		"preflight", bundleDirectory,
+		"--root", root,
+		"--fallback-abi", kernelCLIFallbackABI,
+		"--json",
+	)
+	if err == nil {
+		t.Fatal("blocked preflight must fail")
+	}
+	var blocked *kernelinstall.TargetStateError
+	if !errors.As(err, &blocked) {
+		t.Fatalf("error = %v, want a TargetStateError", err)
+	}
+	stdout := output.String()
+	for _, expected := range []string{
+		`"blocked": true`,
+		`"classification": "partial-or-inconsistent"`,
+		`"target_state"`,
+		"half-configured",
+	} {
+		if !strings.Contains(stdout, expected) {
+			t.Errorf("JSON diagnostics missing %q:\n%s", expected, stdout)
+		}
+	}
+}
+
+// TestKernelPreflightRendersBlockedTargetDiagnosticsForHumans keeps the
+// non-JSON blocker readable on stderr without corrupting stdout.
+func TestKernelPreflightRendersBlockedTargetDiagnosticsForHumans(t *testing.T) {
+	t.Parallel()
+	bundleDirectory := kernelCLIBundleDirectory(t)
+	root := t.TempDir()
+	evidence := kernelinstall.TargetStateEvidence{
+		ABI:             kernelCLITargetABI,
+		Classification:  kernelinstall.TargetStatePartial,
+		Reasons:         []string{"package linux-image-" + kernelCLITargetABI + " is half-configured"},
+		Recommendations: []string{"repair the interrupted package transaction"},
+	}
+	stub := &stubKernelInstallationManager{
+		preflightPlan: kernelinstall.Plan{Root: root, TargetABI: kernelCLITargetABI, TargetState: &evidence},
+		preflightErr:  &kernelinstall.TargetStateError{Evidence: evidence},
+	}
+	app, output := newKernelCLIApplication(stub)
+	err := executeKernelCLICommand(t, app.newKernelCommand(),
+		"preflight", bundleDirectory,
+		"--root", root,
+		"--fallback-abi", kernelCLIFallbackABI,
+	)
+	if err == nil {
+		t.Fatal("blocked preflight must fail")
+	}
+	if strings.Contains(output.String(), "half-configured") {
+		t.Errorf("human diagnostics must stay on stderr:\n%s", output.String())
+	}
+	stderr := app.errOut.(*bytes.Buffer).String()
+	for _, expected := range []string{"partial-or-inconsistent", "half-configured", "repair the interrupted package transaction"} {
+		if !strings.Contains(stderr, expected) {
+			t.Errorf("stderr diagnostics missing %q:\n%s", expected, stderr)
+		}
+	}
+}

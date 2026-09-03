@@ -69,7 +69,9 @@ Omit the override when another branch or device should retain its source policy.
 
 ## Prove the fallback before installation
 
-`kernel preflight` is the read-only installation gate. It inspects exact Debian package metadata, rejects unexpected packages and mixed ABIs, proves that the explicitly selected fallback ABI is bootable, requires it to match the running ABI by default, requires the target ABI to be fresh, and prints the bounded package, initramfs, and GRUB sequence.
+`kernel preflight` is the read-only installation gate. It inspects exact Debian package metadata, rejects unexpected packages and mixed ABIs, proves that the explicitly selected fallback ABI is bootable, requires it to match the running ABI by default, classifies the target ABI without changing anything, and prints the bounded package, initramfs, and GRUB sequence.
+
+The target ABI is classified as `absent-and-eligible`, `already-installed-complete`, or `partial-or-inconsistent`. The classification collects bounded read-only evidence: boot files, module trees, firmware and device trees, development headers, GRUB entries, and the package database states for the exact target-ABI packages. A target that is not absent blocks installation with the full evidence plus safe next steps scoped to the target ABI only; the running and fallback ABI are never proposed for removal, and nothing is purged or repaired automatically. Pass `--overwrite` to explicitly replace an existing complete or partial installation; Lexr then prints a warning that an unsafe overwrite could break the system or prevent returning to the desktop on reboot, and rejects `--overwrite` when the target ABI matches the running ABI. If an overwritten installation fails and rolls back, the rollback removes the whole target installation rather than restoring the previous one, so review the evidence before overwriting a working target. `--yes` alone never bypasses this gate.
 
 The target root and fallback ABI are always explicit. `--running-abi` is accepted only for an alternate-root fixture; inspection of the live root always uses direct `uname` evidence.
 

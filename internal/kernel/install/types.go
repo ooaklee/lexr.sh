@@ -52,6 +52,10 @@ type Request struct {
 	// AllowUnverified explicitly accepts locally hashed packages that were not
 	// covered by an authoritative checksum manifest.
 	AllowUnverified bool
+	// Overwrite explicitly replaces an already installed complete or partial
+	// target ABI. It never bypasses fallback bootability checks, and the
+	// running or fallback ABI is never removed or replaced by this request.
+	Overwrite bool
 }
 
 // Command describes one direct process invocation without shell interpretation.
@@ -167,6 +171,11 @@ type Plan struct {
 	DryRun bool `json:"dry_run"`
 	// UnverifiedAccepted reports that the caller explicitly accepted local trust.
 	UnverifiedAccepted bool `json:"unverified_accepted"`
+	// Overwrite reports that the caller explicitly allowed replacing an
+	// existing complete or partial target ABI installation.
+	Overwrite bool `json:"overwrite"`
+	// TargetState records the read-only fresh-target classification evidence.
+	TargetState *TargetStateEvidence `json:"target_state,omitempty"`
 	// Packages is the exact allow-listed, metadata-verified transaction.
 	Packages []Package `json:"packages"`
 	// DeviceTrees lists the exact DTBs that the installed modules must provide.

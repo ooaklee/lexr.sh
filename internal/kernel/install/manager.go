@@ -61,8 +61,36 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 	if err != nil {
 		return Plan{}, err
 	}
-	if err := verifyTargetAbsent(ctx, root, request.Bundle.ABI); err != nil {
+	if request.Overwrite {
+		// Overwrite replaces only the target ABI; it must never target the
+		// running ABI, which the fallback verification protects.
+		if runningABI == request.Bundle.ABI {
+			return Plan{}, errors.New("--overwrite must never replace the running ABI: choose a distinct target ABI")
+		}
+	}
+	targetState, err := classifyTargetState(ctx, root, request.Bundle.ABI, packages)
+	if err != nil {
 		return Plan{}, err
+	}
+	if request.Overwrite && targetState.Classification != TargetStateAbsent {
+		warnings = append(warnings, overwriteTargetWarning(targetState.Classification))
+	}
+	if targetState.Classification != TargetStateAbsent && !request.Overwrite {
+		// Return the partial plan with its evidence so both preflight and
+		// install receipts can expose structured blocker diagnostics.
+		return Plan{
+			Root:                   root,
+			TargetABI:              request.Bundle.ABI,
+			FallbackABI:            request.FallbackABI,
+			RunningABI:             runningABI,
+			FallbackMismatchForced: fallbackMismatchForced,
+			Warnings:               warnings,
+			Version:                request.Bundle.Version,
+			DryRun:                 request.DryRun,
+			UnverifiedAccepted:     unverified,
+			Overwrite:              request.Overwrite,
+			TargetState:            &targetState,
+		}, &TargetStateError{Evidence: targetState}
 	}
 	deviceTrees := make([]DeviceTree, 0, len(requiredDeviceTrees))
 	for _, tree := range requiredDeviceTrees {
@@ -99,6 +127,8 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 		Version:                request.Bundle.Version,
 		DryRun:                 request.DryRun,
 		UnverifiedAccepted:     unverified,
+		Overwrite:              request.Overwrite,
+		TargetState:            &targetState,
 		Packages:               packages,
 		DeviceTrees:            deviceTrees,
 		Fallback:               fallback,
@@ -150,6 +180,9 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 
 	plan, err := manager.prepare(ctx, request)
 	if err != nil {
+		// Retain any partial plan so receipts can expose structured
+		// fresh-target evidence alongside the blocking error.
+		receipt.Plan = plan
 		return receipt, err
 	}
 	receipt.Plan = plan
@@ -168,8 +201,21 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	if err := manager.revalidateStagedMetadata(ctx, plan.Packages, staged); err != nil {
 		return receipt, err
 	}
-	if err := verifyTargetAbsent(ctx, plan.Root, plan.TargetABI); err != nil {
+	// Re-run the complete read-only classification immediately before
+	// mutation so records or artefacts added after preflight cannot bypass
+	// the fresh-target gate.
+	recheckState, err := classifyTargetState(ctx, plan.Root, plan.TargetABI, plan.Packages)
+	if err != nil {
 		return receipt, fmt.Errorf("target changed after preflight: %w", err)
+	}
+	if recheckState.Classification != TargetStateAbsent {
+		if !plan.Overwrite || recheckState.Classification != plan.TargetState.Classification {
+			// Attach the recheck evidence to the plan so blocked receipts and
+			// diagnostics reflect the state observed just before mutation.
+			plan.TargetState = &recheckState
+			receipt.Plan = plan
+			return receipt, &TargetStateError{Evidence: recheckState}
+		}
 	}
 	currentFallback, err := verifyFallback(ctx, plan.Root, plan.FallbackABI)
 	if err != nil {
