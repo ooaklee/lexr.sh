@@ -153,6 +153,71 @@ func TestLinuxBackendRejectsMissingSafetyEvidence(t *testing.T) {
 	}
 }
 
+// TestLinuxBackendSkipsZeroCapacityWholeDisk verifies a zero-capacity whole
+// disk is omitted from discovery without hiding independent valid devices,
+// while explicit inspection of the unusable path still fails closed.
+func TestLinuxBackendSkipsZeroCapacityWholeDisk(t *testing.T) {
+	inventory := []byte(`{
+  "blockdevices": [
+    {
+      "name": "/dev/sda", "path": "/dev/sda", "kname": "sda", "pkname": null,
+      "maj:min": "8:0", "type": "disk", "size": 0, "log-sec": 512, "phy-sec": 512,
+      "model": null, "vendor": null, "serial": null, "wwn": null,
+      "tran": "usb", "rm": 1, "ro": 0, "hotplug": 1,
+      "mountpoints": [null], "fstype": null, "label": null, "uuid": null
+    },
+    {
+      "name": "/dev/sdb", "path": "/dev/sdb", "kname": "sdb", "pkname": null,
+      "maj:min": "8:16", "type": "disk", "size": 256003538944, "log-sec": 512, "phy-sec": 4096,
+      "model": "Flash Drive", "vendor": "Example", "serial": "usb-serial", "wwn": "usb-wwn",
+      "tran": "usb", "rm": 1, "ro": 0, "hotplug": 1,
+      "mountpoints": [null], "fstype": null, "label": null, "uuid": null
+    }
+  ]
+}`)
+	key := commandKey(platform.Command{Name: "lsblk", Args: []string{"--json", "--bytes", "--paths", "--output", linuxLSBLKColumns}})
+	runner := &scriptedRunner{captures: map[string][]byte{key: inventory}}
+	backendValue, err := NewSystemBackend(SystemBackendOptions{Runner: runner, GOOS: "linux"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	devices, err := backendValue.List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(devices) != 1 || devices[0].Path != "/dev/sdb" || devices[0].SizeBytes != 256003538944 || !devices[0].USB || !devices[0].Removable {
+		t.Fatalf("List() = %#v", devices)
+	}
+	if _, err := backendValue.Inspect(context.Background(), "/dev/sda"); err == nil || !strings.Contains(err.Error(), "positive size") {
+		t.Fatalf("Inspect(/dev/sda) error = %v", err)
+	}
+}
+
+// TestLinuxBackendRejectsZeroCapacityNestedDisk verifies a zero-capacity disk
+// node that is not a whole disk still fails closed instead of being skipped.
+func TestLinuxBackendRejectsZeroCapacityNestedDisk(t *testing.T) {
+	inventory := []byte(`{"blockdevices":[{
+      "path": "/dev/sdb", "kname": "sdb", "pkname": null, "maj:min": "8:16", "type": "disk",
+      "size": 4096, "log-sec": 512, "phy-sec": 512, "tran": "usb", "rm": true, "ro": false,
+      "hotplug": true, "mountpoints": [null], "fstype": null,
+      "children": [{
+        "path": "/dev/mapper/child", "kname": "dm-0", "pkname": "sdb", "maj:min": "254:0", "type": "disk",
+        "size": 0, "log-sec": 512, "phy-sec": 512, "tran": null, "rm": true, "ro": false,
+        "hotplug": true, "mountpoints": [null], "fstype": null
+      }]
+    }]}`)
+	runner := &scriptedRunner{captures: map[string][]byte{
+		commandKey(platform.Command{Name: "lsblk", Args: []string{"--json", "--bytes", "--paths", "--output", linuxLSBLKColumns}}): inventory,
+	}}
+	backendValue, err := NewSystemBackend(SystemBackendOptions{Runner: runner, GOOS: "linux"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := backendValue.List(context.Background()); err == nil || !strings.Contains(err.Error(), "positive size") {
+		t.Fatalf("List() error = %v", err)
+	}
+}
+
 // TestLinuxBackendRejectsMalformedDeviceNumber verifies kernel identity syntax is strict.
 func TestLinuxBackendRejectsMalformedDeviceNumber(t *testing.T) {
 	malformed := []byte(`{"blockdevices":[{"path":"/dev/sdb","pkname":null,"maj:min":"8:no","type":"disk","size":4096,"log-sec":512,"phy-sec":512,"tran":"usb","rm":true,"ro":false,"hotplug":true,"mountpoints":[]}]}`)
