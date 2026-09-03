@@ -214,14 +214,32 @@ func (backend *systemBackend) captureLinux(ctx context.Context) (linuxDocument, 
 	return document, nil
 }
 
+// isUnusableLinuxDisk reports whether an lsblk failure describes a whole-disk
+// node that cannot describe a write target because it reports no capacity.
+// Such a disk is skipped during discovery while explicit inspection of its
+// path keeps failing closed.
+func isUnusableLinuxDisk(node linuxBlockDevice, err error) bool {
+	return errors.Is(err, errLinuxDiskWithoutCapacity) && node.Type.Present && !node.Type.Null && node.Type.Value == "disk" && textValue(node.ParentKernelName) == ""
+}
+
+// errLinuxDiskWithoutCapacity marks a whole-disk node whose size is missing or zero.
+var errLinuxDiskWithoutCapacity = errors.New("lsblk device omitted a positive size")
+
 // collectLinuxDisks recursively converts disk nodes while retaining their child mounts.
+// A whole-disk node that reports no capacity is skipped rather than aborting the
+// inventory, because an independent valid disk may follow it; every other
+// malformed node still fails closed.
 func collectLinuxDisks(node *linuxBlockDevice, devices *[]Device) error {
 	if node.Type.Present && !node.Type.Null && node.Type.Value == "disk" {
 		device, err := linuxDevice(*node)
-		if err != nil {
+		switch {
+		case err == nil:
+			*devices = append(*devices, device)
+		case isUnusableLinuxDisk(*node, err):
+			// Skip the zero-capacity disk and keep scanning its siblings.
+		default:
 			return err
 		}
-		*devices = append(*devices, device)
 	}
 	for index := range node.Children {
 		if err := collectLinuxDisks(&node.Children[index], devices); err != nil {
@@ -253,7 +271,7 @@ func linuxDevice(node linuxBlockDevice) (Device, error) {
 		return Device{}, fmt.Errorf("lsblk device %s omitted its type", node.Path.Value)
 	}
 	if !node.Size.Present || node.Size.Value == 0 {
-		return Device{}, fmt.Errorf("lsblk device %s omitted a positive size", node.Path.Value)
+		return Device{}, fmt.Errorf("lsblk device %s omitted a positive size: %w", node.Path.Value, errLinuxDiskWithoutCapacity)
 	}
 	if !node.Removable.Present || !node.ReadOnly.Present || !node.Hotplug.Present {
 		return Device{}, fmt.Errorf("lsblk device %s omitted a safety boolean", node.Path.Value)

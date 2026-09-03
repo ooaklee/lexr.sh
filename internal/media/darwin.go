@@ -318,11 +318,20 @@ func (inventory darwinInventory) devices() ([]Device, error) {
 		if point == "" {
 			continue
 		}
-		backing, err := inventory.backingPhysicalDisks(identifier, make(map[string]bool))
+		backing, virtual, err := inventory.backingPhysicalDisks(identifier, make(map[string]bool))
 		if err != nil {
 			return nil, err
 		}
 		if len(backing) == 0 {
+			if virtual {
+				// The backing chain terminates at an explicitly virtual whole
+				// disk (a disk image or synthesised APFS container, for example
+				// CoreSimulator runtime images), so this mount is not backed by
+				// removable media. Skip it instead of aborting the whole
+				// listing; one unresolvable mount must never block discovery
+				// of every other device (issue #11).
+				continue
+			}
 			if strings.EqualFold(stringValue(info.VirtualOrPhysical), "Virtual") {
 				continue
 			}
@@ -364,30 +373,45 @@ func (inventory darwinInventory) devices() ([]Device, error) {
 	return devices, nil
 }
 
-// backingPhysicalDisks resolves one partition or APFS object to whole physical disks.
-func (inventory darwinInventory) backingPhysicalDisks(identifier string, visiting map[string]bool) ([]string, error) {
+// backingPhysicalDisks resolves one partition or APFS object to whole physical
+// disks. The second return value reports whether the chain terminated at an
+// explicitly virtual whole disk (a disk image or synthesised container) rather
+// than physical media.
+func (inventory darwinInventory) backingPhysicalDisks(identifier string, visiting map[string]bool) ([]string, bool, error) {
 	if visiting[identifier] {
-		return nil, fmt.Errorf("cycle in Darwin backing-device graph at %s", identifier)
+		return nil, false, fmt.Errorf("cycle in Darwin backing-device graph at %s", identifier)
 	}
 	info, exists := inventory.Infos[identifier]
 	if !exists {
-		return nil, fmt.Errorf("Darwin backing-device graph references missing %s", identifier)
+		return nil, false, fmt.Errorf("Darwin backing-device graph references missing %s", identifier)
 	}
 	visiting[identifier] = true
 	defer delete(visiting, identifier)
 
 	if len(info.APFSPhysicalStores) > 0 {
 		seen := make(map[string]bool)
+		resolved, virtual := false, true
 		var result []string
 		for _, store := range info.APFSPhysicalStores {
 			storeIdentifier := store.identifier()
 			if storeIdentifier == "" {
-				return nil, fmt.Errorf("Darwin device %s has an unnamed APFS physical store", identifier)
+				return nil, false, fmt.Errorf("Darwin device %s has an unnamed APFS physical store", identifier)
 			}
-			backing, err := inventory.backingPhysicalDisks(storeIdentifier, visiting)
+			backing, storeVirtual, err := inventory.backingPhysicalDisks(storeIdentifier, visiting)
 			if err != nil {
-				return nil, err
+				return nil, false, err
 			}
+			// Every store must resolve to physical media or to an explicitly
+			// virtual terminus; one unclassifiable store makes the whole
+			// chain unclassifiable so mounts fail closed instead of losing
+			// usage evidence.
+			if len(backing) == 0 && !storeVirtual {
+				return nil, false, nil
+			}
+			if storeVirtual {
+				continue
+			}
+			resolved = true
 			for _, candidate := range backing {
 				if !seen[candidate] {
 					seen[candidate] = true
@@ -396,7 +420,10 @@ func (inventory darwinInventory) backingPhysicalDisks(identifier string, visitin
 			}
 		}
 		sort.Strings(result)
-		return result, nil
+		if !resolved {
+			return nil, virtual, nil
+		}
+		return result, false, nil
 	}
 	parent := firstNonEmpty(info.ParentWholeDisk, info.PartOfWhole)
 	if parent != "" && parent != identifier {
@@ -404,9 +431,12 @@ func (inventory darwinInventory) backingPhysicalDisks(identifier string, visitin
 	}
 	whole, present := darwinWhole(info)
 	if present && whole && inventory.isPhysicalID(identifier) {
-		return []string{identifier}, nil
+		return []string{identifier}, false, nil
 	}
-	return nil, nil
+	if strings.EqualFold(stringValue(info.VirtualOrPhysical), "Virtual") {
+		return nil, true, nil
+	}
+	return nil, false, nil
 }
 
 // isPhysicalID reports authoritative membership in diskutil's physical-only list.

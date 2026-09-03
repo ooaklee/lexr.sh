@@ -52,6 +52,19 @@ that do not apply.
 
 ## [0.2.0] - Unreleased
 
+### Fixed
+
+- Fixed Linux removable-media discovery aborting when one whole-disk LUN
+  reports zero capacity. A zero-capacity whole disk is now skipped so
+  independent valid devices remain visible in `lexr image devices`, while
+  explicitly inspecting or writing to the zero-capacity path still fails
+  closed.
+- Fixed Darwin removable-media discovery aborting when a mounted volume is
+  backed by a disk image through a synthesised APFS container (for example
+  CoreSimulator runtime volumes). Such mounts are now skipped so independent
+  physical devices remain visible in `lexr image devices`, while mounts that
+  cannot be classified at all still fail closed.
+
 ### Added
 
 - Added a version-matched installation section to generated CLI release notes.
