@@ -145,8 +145,8 @@ default, rewrites a DTB, elevates privileges, or proves physical bootability.
 The JSON report audits DTB bindings one GRUB entry at a time. Each element of
 `entries` carries the entry's canonical `abi` (when the `vmlinuz-*` basename is
 unambiguous), the recognised `devicetree` path tokens, and the exact
-`boot_dtb_sha256`, `installed_dtb_sha256`, and `dtb_matches` digests for that
-entry. Entries whose `devicetree` token is the legacy shared
+`boot_dtb_sha256` and `installed_dtb_sha256` digests plus the `dtb_matches`
+comparison result for that entry. Entries whose `devicetree` token is the legacy shared
 `/boot/sp11-denali.dtb` path are the ones the retired OpenEmbedded helper
 bound; compare each such entry's `boot_dtb_sha256` against the
 `installed_dtb_sha256` values of other entries to see which installed ABI the
