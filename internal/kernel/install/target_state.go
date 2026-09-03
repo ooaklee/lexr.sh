@@ -83,6 +83,9 @@ type TargetStateEvidence struct {
 	// GRUBEntries counts ABI-labelled non-recovery GRUB entries, matching the
 	// post-install verification contract of exactly one such entry.
 	GRUBEntries int `json:"grub_entries"`
+	// GRUBDeviceTreeBindingProblem records why the target GRUB entry failed
+	// the same device-tree binding verification applied after installation.
+	GRUBDeviceTreeBindingProblem string `json:"grub_device_tree_binding_problem,omitempty"`
 	// Packages records every target-relevant package database record.
 	Packages []PackageStateFinding `json:"packages"`
 	// PackageDatabasePresent reports that var/lib/dpkg/status was readable.
@@ -358,6 +361,10 @@ func (e *TargetStateEvidence) isComplete(ctx context.Context, root, abi string, 
 	if e.GRUBEntries != 1 {
 		return false
 	}
+	if problem := e.grubDeviceTreeBindingProblem(ctx, root, abi); problem != "" {
+		e.GRUBDeviceTreeBindingProblem = problem
+		return false
+	}
 	if e.hasHeaderRoles(packages) {
 		if _, err := verifyInstalledHeaders(ctx, root, abi, packages); err != nil {
 			return false
@@ -400,6 +407,50 @@ func verifyDeviceTreeEvidence(findings []ArtefactFinding) error {
 	return nil
 }
 
+// grubDeviceTreeBindingProblem re-runs the GRUB device-tree binding
+// verification read-only against the same non-recovery entry set that
+// classification counted (identified by target kernel and initramfs basenames,
+// independent of title) and returns a bounded explanation when the entry has
+// no, ambiguous, or non-matching device-tree binding. An empty result means
+// the binding is sound.
+func (e *TargetStateEvidence) grubDeviceTreeBindingProblem(ctx context.Context, root, abi string) string {
+	grub, err := rootPath(root, "boot/grub/grub.cfg")
+	if err != nil {
+		return "GRUB device-tree bindings could not be inspected: " + err.Error()
+	}
+	parsedEntries, err := parseGRUBEntries(ctx, grub)
+	if err != nil {
+		return "GRUB device-tree bindings could not be inspected: " + err.Error()
+	}
+	targetEntries := make([]GRUBEntry, 0, 1)
+	for _, entry := range parsedEntries {
+		if entry.Recovery || !entryHasArtefact(entry.Linux, "vmlinuz-"+abi) ||
+			!entryHasArtefact(entry.Initrd, "initrd.img-"+abi) {
+			continue
+		}
+		targetEntries = append(targetEntries, entry)
+	}
+	if len(targetEntries) != 1 {
+		return fmt.Sprintf("expected exactly one bootable GRUB entry for the target ABI, found %d", len(targetEntries))
+	}
+	// Post-install verification requires the ABI-labelled title, so an
+	// unlabelled entry could never pass that contract either; fail closed
+	// here rather than let the shared verifier skip it silently.
+	if !strings.Contains(targetEntries[0].Title, abi) {
+		return "matching GRUB entry does not name the target ABI in its title"
+	}
+	if slicesContainString(targetEntries[0].UnsafeCommands, "devicetree") {
+		return "matching GRUB entry has an unsafe device-tree path"
+	}
+	if len(targetEntries[0].DeviceTrees) != 1 {
+		return fmt.Sprintf("matching GRUB entry has %d device-tree directives, want exactly one", len(targetEntries[0].DeviceTrees))
+	}
+	if err := verifyGRUBDeviceTreeBindings(ctx, root, abi, targetEntries, nil); err != nil {
+		return "GRUB device-tree binding verification failed: " + err.Error()
+	}
+	return ""
+}
+
 // hasHeaderRoles reports whether the reviewed bundle selected header packages.
 func (e *TargetStateEvidence) hasHeaderRoles(packages []Package) bool {
 	for _, item := range packages {
@@ -418,6 +469,9 @@ func (e *TargetStateEvidence) partialReasons() []string {
 	}
 	if e.GRUBEntries != 0 {
 		reasons = append(reasons, fmt.Sprintf("target ABI %s already has %d GRUB entries", e.ABI, e.GRUBEntries))
+	}
+	if e.GRUBDeviceTreeBindingProblem != "" {
+		reasons = append(reasons, fmt.Sprintf("target ABI %s has a GRUB device-tree binding problem: %s", e.ABI, e.GRUBDeviceTreeBindingProblem))
 	}
 	for _, item := range e.Packages {
 		if item.HalfConfigured {

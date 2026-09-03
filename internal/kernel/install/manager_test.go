@@ -1385,11 +1385,15 @@ func TestPreflightClassifiesCompleteInstalledTarget(t *testing.T) {
 		targetPackageStanza("linux-headers-"+fixtureTargetABI, "install ok installed"),
 		targetPackageStanza("linux-qcom-x1e-headers-"+strings.TrimSuffix(fixtureTargetABI, "-qcom-x1e"), "install ok installed"),
 	})
-	// Simulate the maintainer-script GRUB entry for the complete target.
+	// Simulate the maintainer-script GRUB entry for the complete target,
+	// including the device-tree directive that hook always writes.
 	targetEntry := "menuentry 'Ubuntu " + fixtureTargetABI + "' {\n" +
 		" linux /boot/vmlinuz-" + fixtureTargetABI + "\n" +
+		" devicetree /boot/dtbs/" + fixtureTargetABI + "/qcom/x1e80100-microsoft-denali-oled.dtb\n" +
 		" initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(false)+targetEntry)
+	// The boot-side DTB bytes must hash-equal the installed firmware blob.
+	writeFixtureFile(t, filepath.Join(root, "boot/dtbs", fixtureTargetABI, "qcom/x1e80100-microsoft-denali-oled.dtb"), "oled dtb")
 
 	t.Run("blocked without overwrite", func(t *testing.T) {
 		t.Parallel()
@@ -1425,6 +1429,113 @@ func TestPreflightClassifiesCompleteInstalledTarget(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestTargetStateClassifiesGenuinelyFreshTargetAsAbsent asserts the classifier
+// value directly: a root with no target artefacts and no package records is
+// absent-and-eligible, not merely behaviourally installable.
+func TestTargetStateClassifiesGenuinelyFreshTargetAsAbsent(t *testing.T) {
+	t.Parallel()
+	root, bundle := fixtureEnvironment(t)
+	runner := &fakeRunner{root: root}
+	packages, err := fixtureManager(runner).inspectBundle(context.Background(), bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := snapshotTree(t, root)
+	evidence, err := classifyTargetState(context.Background(), root, fixtureTargetABI, packages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNoTargetStateMutation(t, runner, root, before)
+	if evidence.Classification != TargetStateAbsent {
+		t.Fatalf("classification = %s, want %s", evidence.Classification, TargetStateAbsent)
+	}
+	if evidence.GRUBEntries != 0 || evidence.PackageDatabasePresent || len(evidence.Packages) != 0 {
+		t.Fatalf("fresh target reported pre-existing evidence: %+v", evidence)
+	}
+	for _, findings := range [][]ArtefactFinding{evidence.BootFiles, evidence.ModuleTrees, evidence.Firmware, evidence.FirmwareDeviceTrees, evidence.Headers} {
+		for _, finding := range findings {
+			if finding.Present {
+				t.Errorf("fresh target reported present artefact: %s", finding.Path)
+			}
+		}
+	}
+}
+
+// TestPreflightExplainsCompleteTargetWithBrokenGRUBDeviceTree proves a target
+// that looks complete but whose GRUB entry fails device-tree binding
+// verification is classified partial-or-inconsistent with an explicit reason,
+// mirroring the post-install verification contract.
+func TestPreflightExplainsCompleteTargetWithBrokenGRUBDeviceTree(t *testing.T) {
+	t.Parallel()
+	root, bundle := fixtureEnvironment(t)
+	if err := installFixtureTarget(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := installFixtureHeaders(root); err != nil {
+		t.Fatal(err)
+	}
+	writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+	writeTargetDPkgStatus(t, root, []string{
+		targetPackageStanza("linux-image-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-headers-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-qcom-x1e-headers-"+strings.TrimSuffix(fixtureTargetABI, "-qcom-x1e"), "install ok installed"),
+	})
+	// Complete target entry except its legacy device-tree directive binds
+	// bytes that do not match any installed target device tree.
+	targetEntry := "menuentry 'Ubuntu " + fixtureTargetABI + "' {\n" +
+		" linux /boot/vmlinuz-" + fixtureTargetABI + "\n" +
+		" devicetree /boot/sp11-denali.dtb\n" +
+		" initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(false)+targetEntry)
+	writeFixtureFile(t, filepath.Join(root, "boot/sp11-denali.dtb"), "wrong patch-line dtb")
+	runner := &fakeRunner{root: root}
+	before := snapshotTree(t, root)
+	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	evidence := expectBlockedTargetState(t, err)
+	assertNoTargetStateMutation(t, runner, root, before)
+	if evidence.Classification != TargetStatePartial {
+		t.Fatalf("classification = %s, want partial-or-inconsistent", evidence.Classification)
+	}
+	if evidence.GRUBDeviceTreeBindingProblem == "" {
+		t.Fatal("evidence must record the GRUB device-tree binding problem")
+	}
+	joined := strings.Join(evidence.Reasons, "\n")
+	if !strings.Contains(joined, "GRUB device-tree binding problem") ||
+		!strings.Contains(joined, "does not match installed ABI "+fixtureTargetABI) {
+		t.Errorf("reasons missing the GRUB device-tree binding explanation:\n%s", joined)
+	}
+}
+
+// TestPreflightExplainsCompleteTargetWithUnlabelledGRUBEntry proves an entry
+// booting the exact target kernel without naming the ABI in its title cannot
+// classify complete, because post-install verification requires that title.
+func TestPreflightExplainsCompleteTargetWithUnlabelledGRUBEntry(t *testing.T) {
+	t.Parallel()
+	root, bundle := fixtureEnvironment(t)
+	if err := installFixtureTarget(root); err != nil {
+		t.Fatal(err)
+	}
+	writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+	writeTargetDPkgStatus(t, root, []string{
+		targetPackageStanza("linux-image-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
+	})
+	targetEntry := "menuentry 'Ubuntu mainline' {\n" +
+		" linux /boot/vmlinuz-" + fixtureTargetABI + "\n" +
+		" initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(false)+targetEntry)
+	runner := &fakeRunner{root: root}
+	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	evidence := expectBlockedTargetState(t, err)
+	if evidence.Classification != TargetStatePartial {
+		t.Fatalf("classification = %s, want partial-or-inconsistent", evidence.Classification)
+	}
+	if !strings.Contains(evidence.GRUBDeviceTreeBindingProblem, "does not name the target ABI") {
+		t.Fatalf("binding problem = %q, want the unlabelled-title explanation", evidence.GRUBDeviceTreeBindingProblem)
+	}
 }
 
 // TestTargetStateEvidenceJSONIsStable keeps the machine-readable evidence
