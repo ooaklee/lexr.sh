@@ -178,14 +178,14 @@ func TestCLIReleaseContainsBinariesNoticesAndChecksums(t *testing.T) {
 	}
 }
 
-// TestCLIReleaseNotesLeadWithVersionMatchedInstallation prevents published
-// notes from pointing at mutable main-branch installation instructions or
-// placing the exact installation command after the change list.
-func TestCLIReleaseNotesLeadWithVersionMatchedInstallation(t *testing.T) {
+// TestCLIReleaseNotesLeadWithMainInstallerAndPinnedVersion keeps installer
+// fixes on main while pinning the downloaded binary and checksum manifest to
+// the release, before its change list.
+func TestCLIReleaseNotesLeadWithMainInstallerAndPinnedVersion(t *testing.T) {
 	repositoryRoot := lexrRepositoryRoot(t)
 	workflow := readBoundedRepositoryFile(t, repositoryRoot, ".github/workflows/lexr.yml")
 	required := [][]byte{
-		[]byte("https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/tags/v%s/install.sh | sh -s -- --version %s"),
+		[]byte("https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh -s -- --version %s"),
 		[]byte("https://github.com/ooaklee/lexr.sh/blob/v%s/docs/getting-started/install.md"),
 	}
 	for _, fragment := range required {
@@ -199,8 +199,8 @@ func TestCLIReleaseNotesLeadWithVersionMatchedInstallation(t *testing.T) {
 	if installHeading < 0 || changesHeading < 0 || installHeading >= changesHeading {
 		t.Errorf("CLI release notes must place installation before changes: install=%d changes=%d", installHeading, changesHeading)
 	}
-	if bytes.Contains(workflow, []byte("refs/heads/main/install.sh | sh -s -- --version")) {
-		t.Error("CLI release notes use the mutable main-branch installer for an exact release")
+	if bytes.Contains(workflow, []byte("refs/tags/v%s/install.sh | sh -s -- --version")) {
+		t.Error("CLI release notes pin install.sh to a tag instead of receiving fixes from main")
 	}
 }
 
