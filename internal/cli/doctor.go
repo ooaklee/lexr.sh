@@ -92,8 +92,8 @@ func (a *application) newBootDoctorCommand(factory bootDoctorFactory) *cobra.Com
 	var asJSON bool
 	command := &cobra.Command{
 		Use:   "boot",
-		Short: "Report static Surface kernel GRUB and DTB evidence",
-		Long: "Inspect bounded GRUB, boot artefact, firmware DTB, default-selection, and retired-hook evidence read-only. " +
+		Short: "Report static Surface kernel boot and DTB evidence",
+		Long: "Inspect bounded GRUB, embedded or external boot DTB, boot artefact, firmware DTB, default-selection, and retired-hook evidence read-only. " +
 			"The command never executes package hooks or GRUB tools, changes defaults, rewrites DTBs, or proves physical bootability.",
 		Args: cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
@@ -161,6 +161,12 @@ func (a *application) writeBootDoctorReport(report bootdoctor.Report) error {
 				return err
 			}
 		}
+		if entry.DeviceTreeBoot != nil {
+			if _, err := fmt.Fprintf(writer, "dtb-binding\t%d\t%s\t%s\t%s\t\n", entry.Index, entry.ABI,
+				entry.DeviceTreeBoot.Mode, entry.DeviceTreeBoot.SHA256); err != nil {
+				return err
+			}
+		}
 		if _, err := fmt.Fprintf(writer, "dtb-digest\t%d\t%s\tboot-side\t%s\t\n", entry.Index, entry.ABI, entry.BootDTBSHA256); err != nil {
 			return err
 		}
@@ -180,9 +186,16 @@ func (a *application) writeBootDoctorReport(report bootdoctor.Report) error {
 	if !report.Ready {
 		readiness = "not ready"
 	}
+	bootMode := ""
+	bootEntries := 0
+	if report.Attribution.DeviceTreeBoot != nil {
+		bootMode = string(report.Attribution.DeviceTreeBoot.Mode)
+		bootEntries = report.Attribution.DeviceTreeBoot.GRUBEntryCount
+	}
 	if _, err := fmt.Fprintf(writer,
-		"\npatch-line-first DTB ABI\t%s\nattributed boot DTB ABI\t%s\nboot-side SHA-256\t%s\ninstalled SHA-256\t%s\nobserved readiness\t%s\nphysical bootability\t%s\n",
-		report.Attribution.SelectedABI, report.Attribution.AttributedABI, report.Attribution.BootSHA256,
+		"\npatch-line-first DTB ABI\t%s\nattributed boot DTB ABI\t%s\nboot DTB mode\t%s\nboot DTB GRUB entries verified\t%d\nboot-side SHA-256\t%s\ninstalled SHA-256\t%s\nobserved readiness\t%s\nphysical bootability\t%s\n",
+		report.Attribution.SelectedABI, report.Attribution.AttributedABI,
+		bootMode, bootEntries, report.Attribution.BootSHA256,
 		report.Attribution.InstalledSHA256, readiness, report.PhysicalBootability); err != nil {
 		return err
 	}

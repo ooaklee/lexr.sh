@@ -130,14 +130,16 @@ func (a *application) writeKernelReleasePrepareReceipt(receipt releaseprep.Recei
 	packages, sources, licences := kernelReleaseAssetCounts(receipt.Plan.Manifest.Assets)
 	if receipt.Plan.DryRun {
 		_, err := fmt.Fprintf(a.out,
-			"kernel release dry run passed\nrelease: %s\nABI: %s\nversion: %s\npackages: %d\nsource archives: %d\nlicence files: %d\nhardware-qualified: false\nno changes were made\n",
+			"kernel release dry run passed\nrelease: %s\nABI: %s\nversion: %s\nbuild boot-image mode: %s\ninstalled boot binding: not inspected\npackages: %d\nsource archives: %d\nlicence files: %d\nhardware-qualified: false\nno changes were made\n",
 			receipt.Plan.Manifest.ReleaseName, receipt.Plan.Manifest.ABI, receipt.Plan.Manifest.Version,
+			receipt.Plan.Manifest.Source.BootImageMode,
 			packages, sources, licences)
 		return err
 	}
 	_, err := fmt.Fprintf(a.out,
-		"kernel release prepared\nrelease: %s\nABI: %s\nversion: %s\npackages: %d\nsource archives: %d\nlicence files: %d\npublished atomically: %t\ndurable: %t\nhardware-qualified: false\n",
+		"kernel release prepared\nrelease: %s\nABI: %s\nversion: %s\nbuild boot-image mode: %s\ninstalled boot binding: not inspected\npackages: %d\nsource archives: %d\nlicence files: %d\npublished atomically: %t\ndurable: %t\nhardware-qualified: false\n",
 		receipt.Plan.Manifest.ReleaseName, receipt.Plan.Manifest.ABI, receipt.Plan.Manifest.Version,
+		receipt.Plan.Manifest.Source.BootImageMode,
 		packages, sources, licences, receipt.Published, receipt.Durable)
 	return err
 }
@@ -150,8 +152,8 @@ func (a *application) writeKernelReleaseValidation(manifest releaseprep.Manifest
 	}
 	packages, sources, licences := kernelReleaseAssetCounts(manifest.Assets)
 	_, err := fmt.Fprintf(a.out,
-		"kernel release valid\nrelease: %s\nABI: %s\nversion: %s\npackages: %d\nsource archives: %d\nlicence files: %d\nhardware-qualified: false\n",
-		manifest.ReleaseName, manifest.ABI, manifest.Version, packages, sources, licences)
+		"kernel release valid\nrelease: %s\nABI: %s\nversion: %s\nbuild boot-image mode: %s\ninstalled boot binding: not inspected\npackages: %d\nsource archives: %d\nlicence files: %d\nhardware-qualified: false\n",
+		manifest.ReleaseName, manifest.ABI, manifest.Version, manifest.Source.BootImageMode, packages, sources, licences)
 	return err
 }
 
@@ -401,8 +403,10 @@ func (a *application) writeKernelInstallReceipt(receipt kernelinstall.Receipt, r
 	}
 	if receipt.Plan.DryRun {
 		_, err := fmt.Fprintf(a.out,
-			"kernel installation dry run passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\nplanned commands: %d\nconditional initramfs commands: %d\nno changes were made\n",
-			receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), len(receipt.Plan.Packages), len(receipt.Plan.Commands), len(receipt.Plan.ConditionalCommands))
+			"kernel installation dry run passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\nfallback boot device-tree mode: %s\nfallback boot device-tree GRUB entries verified: %d\nplanned commands: %d\nconditional initramfs commands: %d\nno changes were made\n",
+			receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), len(receipt.Plan.Packages),
+			receipt.Plan.Fallback.DeviceTreeBoot.Mode, receipt.Plan.Fallback.DeviceTreeBoot.GRUBEntryCount,
+			len(receipt.Plan.Commands), len(receipt.Plan.ConditionalCommands))
 		return errors.Join(warningErr, err)
 	}
 	if receipt.Installed == nil {
@@ -486,7 +490,8 @@ func (a *application) newKernelInspectCommand() *cobra.Command {
 	var asJSON bool
 	command := &cobra.Command{
 		Use:   "inspect <directory>",
-		Short: "Validate local kernel packages as one ABI-bound bundle",
+		Short: "Validate local kernel package contents as one ABI-bound bundle",
+		Long:  "Validate local package identities, checksums, and declared device trees as one ABI-bound bundle. Installed boot bindings are checked separately by kernel preflight, kernel install, and doctor boot.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			bundle, err := kernel.DiscoverLocalBundleWithOptions(args[0], kernel.LocalBundleOptions{PackageSet: kernel.LocalPackageSet(packageSet)})
@@ -496,7 +501,7 @@ func (a *application) newKernelInspectCommand() *cobra.Command {
 			if asJSON {
 				return a.writeJSON(bundle)
 			}
-			_, err = fmt.Fprintf(a.out, "kernel bundle valid\nrelease: %s\nABI: %s\nversion: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\n", bundle.Release, bundle.ABI, bundle.Version, packageSet, effectiveKernelPackageSet(len(bundle.Packages)), len(bundle.Packages))
+			_, err = fmt.Fprintf(a.out, "kernel package bundle valid\nrelease: %s\nABI: %s\nversion: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\npackaged device trees declared: %d\ninstalled boot binding: not inspected\n", bundle.Release, bundle.ABI, bundle.Version, packageSet, effectiveKernelPackageSet(len(bundle.Packages)), len(bundle.Packages), len(bundle.DeviceTrees))
 			return err
 		},
 	}

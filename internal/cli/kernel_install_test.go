@@ -250,6 +250,36 @@ func TestKernelInstallDryRunNeedsNoConfirmation(t *testing.T) {
 	}
 }
 
+// TestKernelInstallDryRunReportsFallbackDTBBinding keeps the human dry run in
+// parity with kernel preflight and its own structured plan.
+func TestKernelInstallDryRunReportsFallbackDTBBinding(t *testing.T) {
+	root := t.TempDir()
+	plan := kernelCLIPlan(root, true)
+	plan.Fallback.DeviceTreeBoot.Mode = kernelinstall.DeviceTreeBootEmbedded
+	plan.Fallback.DeviceTreeBoot.GRUBEntryCount = 2
+	stub := &stubKernelInstallationManager{installReceipt: kernelinstall.Receipt{Plan: plan}}
+	app, output := newKernelCLIApplication(stub)
+	err := executeKernelCLICommand(t, app.newKernelCommand(),
+		"install", kernelCLIBundleDirectory(t),
+		"--root", root,
+		"--fallback-abi", kernelCLIFallbackABI,
+		"--running-abi", kernelCLIFallbackABI,
+		"--allow-unverified",
+		"--dry-run",
+	)
+	if err != nil {
+		t.Fatalf("kernel install --dry-run error = %v", err)
+	}
+	for _, expected := range []string{
+		"fallback boot device-tree mode: embedded",
+		"fallback boot device-tree GRUB entries verified: 2",
+	} {
+		if !strings.Contains(output.String(), expected) {
+			t.Errorf("kernel install --dry-run output does not contain %q:\n%s", expected, output.String())
+		}
+	}
+}
+
 // TestKernelInstallJSONDistinguishesPackagedAndBootDTBEvidence keeps the
 // machine-readable receipt explicit about installed DTB files versus the
 // verified boot-time delivery path.
@@ -539,6 +569,16 @@ func TestKernelPackageSetHumanOutput(t *testing.T) {
 				}
 			}
 			switch test.command {
+			case "inspect":
+				for _, expected := range []string{
+					"kernel package bundle valid",
+					"packaged device trees declared: 2",
+					"installed boot binding: not inspected",
+				} {
+					if !strings.Contains(text, expected) {
+						t.Errorf("kernel inspect output does not contain %q:\n%s", expected, text)
+					}
+				}
 			case "preflight":
 				if len(stub.preflightRequests) != 1 || len(stub.preflightRequests[0].Bundle.Packages) != test.wantPackageCount {
 					t.Errorf("preflight requests = %#v, want %d packages", stub.preflightRequests, test.wantPackageCount)

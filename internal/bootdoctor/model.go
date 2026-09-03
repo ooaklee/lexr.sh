@@ -88,19 +88,21 @@ type Entry struct {
 	InitramfsExists bool `json:"initramfs_exists"`
 	// InitramfsState distinguishes present, missing, and permission-inaccessible evidence.
 	InitramfsState install.GRUBPathAvailability `json:"initramfs_state,omitempty"`
-	// BootDTBState classifies the boot-side devicetree path when recognised.
+	// BootDTBState classifies an external path or verified embedded payload.
 	BootDTBState install.GRUBPathAvailability `json:"boot_dtb_state,omitempty"`
 	// InstalledDTBState classifies the same-ABI firmware-side DTB evidence.
 	InstalledDTBState install.GRUBPathAvailability `json:"installed_dtb_state,omitempty"`
-	// BootDTBSHA256 is the exact digest of the referenced boot-side DTB.
+	// BootDTBSHA256 is the exact digest of the embedded or external boot DTB.
 	BootDTBSHA256 string `json:"boot_dtb_sha256,omitempty"`
 	// InstalledDTBSHA256 is the exact same-ABI firmware-side digest.
 	InstalledDTBSHA256 string `json:"installed_dtb_sha256,omitempty"`
 	// DTBMatches reports byte equality when both DTB digests were available.
 	DTBMatches *bool `json:"dtb_matches,omitempty"`
+	// DeviceTreeBoot records the verified boot-time delivery mode and digest.
+	DeviceTreeBoot *install.DeviceTreeBootEvidence `json:"device_tree_boot,omitempty"`
 }
 
-// DTBAttribution records patch-line-first selection and observed shared-DTB bytes.
+// DTBAttribution records patch-line-first selection and observed boot-DTB bytes.
 type DTBAttribution struct {
 	// SelectedABI is the highest canonical installed candidate for this device.
 	SelectedABI string `json:"selected_abi,omitempty"`
@@ -110,6 +112,9 @@ type DTBAttribution struct {
 	BootSHA256 string `json:"boot_sha256,omitempty"`
 	// InstalledSHA256 is the selected ABI's exact firmware-side digest.
 	InstalledSHA256 string `json:"installed_sha256,omitempty"`
+	// DeviceTreeBoot records the effective ABI's verified delivery mode,
+	// digest, and matching normal or recovery GRUB-entry count.
+	DeviceTreeBoot *install.DeviceTreeBootEvidence `json:"device_tree_boot,omitempty"`
 }
 
 // HookEvidence reports only the presence of the retired helper and hook paths.

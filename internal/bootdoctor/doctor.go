@@ -115,7 +115,7 @@ func (inspector *Inspector) Inspect(ctx context.Context, options Options) (_ Rep
 
 	seenRequired := map[string]bool{options.TargetABI: false, options.FallbackABI: false}
 	for _, parsedEntry := range parsed {
-		entry := inspectEntry(ctx, root, parsedEntry, relativeDTB)
+		entry := inspectEntry(ctx, root, parsedEntry, relativeDTB, device)
 		report.Entries = append(report.Entries, entry)
 		required := report.entryRequired(entry)
 		if entry.ABI == options.TargetABI || entry.ABI == options.FallbackABI {
@@ -127,6 +127,33 @@ func (inspector *Inspector) Inspect(ctx context.Context, options Options) (_ Rep
 		if abi != "" && !seenRequired[abi] {
 			report.add(Check{ID: "required-grub-entry", State: StateFail, Required: true, ABI: abi, Detail: "the explicitly required ABI has no GRUB menu entry"})
 		}
+	}
+
+	bindingByABI := make(map[string]install.DeviceTreeBootEvidence)
+	seenBindingABI := make(map[string]bool)
+	for _, entry := range report.Entries {
+		abi := entry.ABI
+		if _, valid := parseKernelRank(abi); !valid || seenBindingABI[abi] {
+			continue
+		}
+		seenBindingABI[abi] = true
+		required := report.abiRequired(abi)
+		binding, bindingValid := report.abiDeviceTreeBinding(abi)
+		if !bindingValid {
+			state := StateWarn
+			detail := "the ABI's normal and recovery entries do not share one verified embedded or external device-tree binding"
+			if report.abiBindingInaccessibleOnly(abi) {
+				detail = "some device-tree binding evidence is inaccessible; review the per-entry checks and re-run with sudo for complete evidence"
+			} else if required {
+				state = StateFail
+			}
+			report.add(Check{ID: "grub-abi-dtb-consistency", State: state, Required: required, ABI: abi,
+				Detail: detail})
+			continue
+		}
+		bindingByABI[abi] = binding
+		report.add(Check{ID: "grub-abi-dtb-consistency", State: StatePass, Required: required, ABI: abi,
+			Detail: fmt.Sprintf("%d normal or recovery entries share one verified %s device-tree binding", binding.GRUBEntryCount, binding.Mode)})
 	}
 
 	selected, found, selectErr := SelectDTBCandidate(candidates, device)
@@ -141,7 +168,12 @@ func (inspector *Inspector) Inspect(ctx context.Context, options Options) (_ Rep
 	}
 	if report.Default.EntryIndex != nil {
 		entry := report.Entries[*report.Default.EntryIndex]
-		report.Attribution.BootSHA256 = entry.BootDTBSHA256
+		if binding, found := bindingByABI[entry.ABI]; found {
+			report.Attribution.DeviceTreeBoot = &binding
+			report.Attribution.BootSHA256 = binding.SHA256
+		} else {
+			report.Attribution.BootSHA256 = entry.BootDTBSHA256
+		}
 		matching := make([]DTBCandidate, 0)
 		for _, candidate := range candidates {
 			if candidate.SHA256 == entry.BootDTBSHA256 {
@@ -183,6 +215,58 @@ func (report Report) entryRequired(entry Entry) bool {
 	return entry.ABI != "" && (entry.ABI == report.TargetABI || entry.ABI == report.FallbackABI)
 }
 
+// abiRequired reports whether any effective or explicitly selected entry uses
+// abi, allowing one cross-entry consistency result to retain role severity.
+func (report Report) abiRequired(abi string) bool {
+	for _, entry := range report.Entries {
+		if entry.ABI == abi && report.entryRequired(entry) {
+			return true
+		}
+	}
+	return false
+}
+
+// abiDeviceTreeBinding combines already verified per-entry evidence without
+// rereading a potentially large embedded kernel image for the same ABI.
+func (report Report) abiDeviceTreeBinding(abi string) (install.DeviceTreeBootEvidence, bool) {
+	var combined install.DeviceTreeBootEvidence
+	for _, entry := range report.Entries {
+		if entry.ABI != abi {
+			continue
+		}
+		if entry.DeviceTreeBoot == nil {
+			return install.DeviceTreeBootEvidence{}, false
+		}
+		current := *entry.DeviceTreeBoot
+		if combined.Mode == "" {
+			combined.Mode = current.Mode
+			combined.SHA256 = current.SHA256
+		} else if combined.Mode != current.Mode || combined.SHA256 != current.SHA256 {
+			return install.DeviceTreeBootEvidence{}, false
+		}
+		combined.GRUBEntryCount++
+	}
+	return combined, combined.Mode != "" && combined.GRUBEntryCount > 0
+}
+
+// abiBindingInaccessibleOnly reports that every unverified entry for one ABI
+// is inconclusive solely because required files could not be read. Any
+// definitive failure or inconsistent set of individually verified modes wins.
+func (report Report) abiBindingInaccessibleOnly(abi string) bool {
+	unverified := false
+	for _, entry := range report.Entries {
+		if entry.ABI != abi || entry.DeviceTreeBoot != nil {
+			continue
+		}
+		unverified = true
+		if entry.BootDTBState != install.GRUBPathInaccessible && entry.InstalledDTBState != install.GRUBPathInaccessible &&
+			(len(entry.DeviceTrees) != 0 || entry.KernelState != install.GRUBPathInaccessible) {
+			return false
+		}
+	}
+	return unverified
+}
+
 // addEntryChecks classifies stale artefacts and absent or mismatched DTBs for
 // one normal or recovery entry according to its required status.
 func (report *Report) addEntryChecks(entry Entry, required bool) {
@@ -213,9 +297,14 @@ func (report *Report) addEntryChecks(entry Entry, required bool) {
 		if required {
 			dtbState = StateFail
 		}
+	} else if entry.DeviceTreeBoot != nil {
+		dtbDetail = fmt.Sprintf("the %s boot DTB matches the installed same-ABI firmware DTB", entry.DeviceTreeBoot.Mode)
+	} else if len(entry.DeviceTrees) == 0 && entry.KernelState == install.GRUBPathInaccessible {
+		dtbState = StateWarn
+		dtbDetail = "the kernel image is inaccessible; re-run with sudo to inspect an embedded device tree"
 	} else if len(entry.DeviceTrees) == 0 {
 		dtbState = StateWarn
-		dtbDetail = "the GRUB entry has no devicetree directive"
+		dtbDetail = "the GRUB entry has neither a verified embedded DTB nor an external devicetree directive"
 		if required {
 			dtbState = StateFail
 		}
@@ -279,7 +368,7 @@ func selectDevice(ctx context.Context, root, requested string) (string, error) {
 }
 
 // inspectEntry checks recognised paths without retaining any other stanza arguments.
-func inspectEntry(ctx context.Context, root string, parsed install.GRUBEntry, relativeDTB string) Entry {
+func inspectEntry(ctx context.Context, root string, parsed install.GRUBEntry, relativeDTB, device string) Entry {
 	entry := Entry{
 		Index:          parsed.Index,
 		Depth:          parsed.Depth,
@@ -297,21 +386,32 @@ func inspectEntry(ctx context.Context, root string, parsed install.GRUBEntry, re
 	entry.InitramfsState = grubPathsAvailability(ctx, root, parsed.Initrd)
 	entry.KernelExists = entry.KernelState == install.GRUBPathPresent
 	entry.InitramfsExists = entry.InitramfsState == install.GRUBPathPresent
-	if len(parsed.DeviceTrees) != 1 || entry.ABI == "" || !entryTokenMatchesDevice(parsed.DeviceTrees[0].Path, parsed.Title, relativeDTB, entry.ABI) {
+	if entry.ABI == "" || len(parsed.DeviceTrees) > 1 ||
+		(len(parsed.DeviceTrees) == 1 && !entryTokenMatchesDevice(parsed.DeviceTrees[0].Path, parsed.Title, relativeDTB, entry.ABI)) {
 		return entry
 	}
-	bootSide, bootState, bootErr := install.InspectGRUBPath(ctx, root, parsed.DeviceTrees[0].Path)
 	installed, installedErr := install.HashRootFile(ctx, root, "usr/lib/firmware/"+entry.ABI+"/device-tree/"+relativeDTB, "installed device-tree")
-	entry.BootDTBState = bootState
 	entry.InstalledDTBState = rootFileAvailability(installedErr)
-	if bootErr == nil {
-		entry.BootDTBSHA256 = bootSide.SHA256
-	}
 	if installedErr == nil {
 		entry.InstalledDTBSHA256 = installed.SHA256
 	}
-	if bootErr == nil && installedErr == nil {
-		matches := bootSide.SHA256 == installed.SHA256
+	if len(parsed.DeviceTrees) == 1 {
+		bootSide, bootState, bootErr := install.InspectGRUBPath(ctx, root, parsed.DeviceTrees[0].Path)
+		entry.BootDTBState = bootState
+		if bootErr == nil {
+			entry.BootDTBSHA256 = bootSide.SHA256
+		}
+		if bootErr == nil && installedErr == nil {
+			matches := bootSide.SHA256 == installed.SHA256
+			entry.DTBMatches = &matches
+		}
+	}
+	binding, bindingErr := install.InspectDeviceTreeBootBinding(ctx, root, entry.ABI, device, []install.GRUBEntry{parsed})
+	if bindingErr == nil {
+		entry.DeviceTreeBoot = &binding
+		entry.BootDTBState = install.GRUBPathPresent
+		entry.BootDTBSHA256 = binding.SHA256
+		matches := installedErr == nil && binding.SHA256 == installed.SHA256
 		entry.DTBMatches = &matches
 	}
 	return entry
