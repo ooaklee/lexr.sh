@@ -59,6 +59,11 @@ that do not apply.
   independent valid devices remain visible in `lexr image devices`, while
   explicitly inspecting or writing to the zero-capacity path still fails
   closed.
+- Fixed Darwin removable-media discovery aborting when a mounted volume is
+  backed by a disk image through a synthesised APFS container (for example
+  CoreSimulator runtime volumes). Such mounts are now skipped so independent
+  physical devices remain visible in `lexr image devices`, while mounts that
+  cannot be classified at all still fail closed.
 
 ### Added
 

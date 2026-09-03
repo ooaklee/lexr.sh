@@ -462,6 +462,70 @@ func TestDarwinBackendIgnoresExplicitVirtualMounts(t *testing.T) {
 	}
 }
 
+// TestDarwinBackendIgnoresSynthesizedImageBackedMounts verifies that a mounted
+// volume backed through a synthesised APFS container by a disk image (as
+// CoreSimulator runtime volumes are) is skipped instead of aborting every
+// removable-media discovery (issue #11).
+func TestDarwinBackendIgnoresSynthesizedImageBackedMounts(t *testing.T) {
+	fixture := testDarwinFixture()
+	fixture.Complete = bytes.Replace(
+		fixture.Complete,
+		[]byte(`"disk3","disk3s1"`),
+		[]byte(`"disk3","disk3s1","disk4","disk4s1","disk5","disk5s1","disk6","disk6s1"`),
+		1,
+	)
+	fixture.Complete = bytes.Replace(
+		fixture.Complete,
+		[]byte(`{"DeviceIdentifier":"disk2","Partitions":[{"DeviceIdentifier":"disk2s1"}]}`),
+		[]byte(`{"DeviceIdentifier":"disk2","Partitions":[{"DeviceIdentifier":"disk2s1"}]},`+
+			`{"DeviceIdentifier":"disk4","Partitions":[{"DeviceIdentifier":"disk4s1"}]},`+
+			`{"DeviceIdentifier":"disk5","APFSPhysicalStores":[{"DeviceIdentifier":"disk4s1"}],"APFSVolumes":[{"DeviceIdentifier":"disk5s1"}]},`+
+			`{"DeviceIdentifier":"disk6","Partitions":[{"DeviceIdentifier":"disk6s1"}]}`),
+		1,
+	)
+	fixture.Physical = bytes.Replace(
+		fixture.Physical,
+		[]byte(`"AllDisks":["disk0","disk2"], "WholeDisks":["disk0","disk2"]`),
+		[]byte(`"AllDisks":["disk0","disk2","disk6"], "WholeDisks":["disk0","disk2","disk6"]`),
+		1,
+	)
+	fixture.Physical = bytes.Replace(
+		fixture.Physical,
+		[]byte(`{"DeviceIdentifier":"disk2","Partitions":[{"DeviceIdentifier":"disk2s1"}]}`),
+		[]byte(`{"DeviceIdentifier":"disk2","Partitions":[{"DeviceIdentifier":"disk2s1"}]},`+
+			`{"DeviceIdentifier":"disk6","Partitions":[{"DeviceIdentifier":"disk6s1"}]}`),
+		1,
+	)
+	fixture.Info["disk4"] = []byte(`{"DeviceIdentifier":"disk4","DeviceNode":"/dev/disk4","Whole":true,"Mounted":false,"VirtualOrPhysical":"Virtual","BusProtocol":"Disk Image","ParentWholeDisk":"disk4"}`)
+	fixture.Info["disk4s1"] = []byte(`{"DeviceIdentifier":"disk4s1","DeviceNode":"/dev/disk4s1","ParentWholeDisk":"disk4","Whole":false,"Mounted":false}`)
+	fixture.Info["disk5"] = []byte(`{"DeviceIdentifier":"disk5","DeviceNode":"/dev/disk5","Whole":true,"Mounted":false,"VirtualOrPhysical":"Virtual","BusProtocol":"Disk Image","APFSPhysicalStores":[{"APFSPhysicalStore":"disk4s1"}]}`)
+	fixture.Info["disk5s1"] = []byte(`{"DeviceIdentifier":"disk5s1","DeviceNode":"/dev/disk5s1","ParentWholeDisk":"disk5","Whole":false,"Mounted":true,"MountPoint":"/Library/Developer/CoreSimulator/Volumes/iOS_23F77","FilesystemType":"apfs","VolumeName":"iOS 26.5 Simulator","Writable":false,"APFSPhysicalStores":[{"APFSPhysicalStore":"disk4s1"}]}`)
+	fixture.Info["disk6"] = []byte(`{"DeviceIdentifier":"disk6","DeviceNode":"/dev/disk6","Whole":true,"Internal":false,"RemovableMedia":true,"WritableMedia":true,"Mounted":false,"BusProtocol":"USB","VirtualOrPhysical":"Physical","TotalSize":256003538944,"DeviceBlockSize":512,"PhysicalBlockSize":4096,"MediaName":"MassStorageClass","MediaUUID":"disk6-media-uuid"}`)
+	fixture.Info["disk6s1"] = []byte(`{"DeviceIdentifier":"disk6s1","DeviceNode":"/dev/disk6s1","ParentWholeDisk":"disk6","Whole":false,"Mounted":false}`)
+	backendValue, err := NewSystemBackend(SystemBackendOptions{Runner: darwinRunner(fixture), GOOS: "darwin"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	devices, err := backendValue.List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(devices) != 3 {
+		t.Fatalf("List() returned %d physical devices: %#v", len(devices), devices)
+	}
+	target := devices[2]
+	if target.Path != "/dev/disk6" || !target.External || !target.Removable || !target.USB || target.SizeBytes != 256003538944 {
+		t.Fatalf("external USB device = %#v", target)
+	}
+	for _, device := range devices {
+		for _, mount := range device.Mounts {
+			if strings.Contains(mount.Point, "CoreSimulator") {
+				t.Fatalf("simulator mount leaked onto physical devices: %#v", device)
+			}
+		}
+	}
+}
+
 // inertWriteDevice provides a no-op raw writer for system-boundary tests.
 type inertWriteDevice struct {
 	// bytes.Buffer retains any bytes supplied by a caller.
