@@ -526,6 +526,34 @@ func TestDarwinBackendIgnoresSynthesizedImageBackedMounts(t *testing.T) {
 	}
 }
 
+// TestDarwinBackendRejectsMixedResolvedAndUnresolvedStores verifies an APFS
+// container with one resolvable and one unclassifiable store fails closed
+// instead of silently dropping the unresolved branch's usage evidence.
+func TestDarwinBackendRejectsMixedResolvedAndUnresolvedStores(t *testing.T) {
+	fixture := testDarwinFixture()
+	fixture.Complete = bytes.Replace(
+		fixture.Complete,
+		[]byte(`"disk3","disk3s1"`),
+		[]byte(`"disk3","disk3s1","disk4","disk4s1"`),
+		1,
+	)
+	fixture.Complete = bytes.Replace(
+		fixture.Complete,
+		[]byte(`{"DeviceIdentifier":"disk3","APFSPhysicalStores":[{"DeviceIdentifier":"disk0s2"}],"APFSVolumes":[{"DeviceIdentifier":"disk3s1"}]}`),
+		[]byte(`{"DeviceIdentifier":"disk3","APFSPhysicalStores":[{"DeviceIdentifier":"disk0s2"},{"DeviceIdentifier":"disk4s1"}],"APFSVolumes":[{"DeviceIdentifier":"disk3s1"}]}`),
+		1,
+	)
+	fixture.Info["disk4"] = []byte(`{"DeviceIdentifier":"disk4","DeviceNode":"/dev/disk4","Whole":true,"Mounted":false,"VirtualOrPhysical":"Unknown","ParentWholeDisk":"disk4"}`)
+	fixture.Info["disk4s1"] = []byte(`{"DeviceIdentifier":"disk4s1","DeviceNode":"/dev/disk4s1","ParentWholeDisk":"disk4","Whole":false,"Mounted":false}`)
+	backendValue, err := NewSystemBackend(SystemBackendOptions{Runner: darwinRunner(fixture), GOOS: "darwin"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := backendValue.List(context.Background()); err == nil || !strings.Contains(err.Error(), "could not resolve the physical disk backing mounted") {
+		t.Fatalf("List() error = %v", err)
+	}
+}
+
 // inertWriteDevice provides a no-op raw writer for system-boundary tests.
 type inertWriteDevice struct {
 	// bytes.Buffer retains any bytes supplied by a caller.

@@ -390,7 +390,7 @@ func (inventory darwinInventory) backingPhysicalDisks(identifier string, visitin
 
 	if len(info.APFSPhysicalStores) > 0 {
 		seen := make(map[string]bool)
-		virtual := true
+		resolved, virtual := false, true
 		var result []string
 		for _, store := range info.APFSPhysicalStores {
 			storeIdentifier := store.identifier()
@@ -401,9 +401,17 @@ func (inventory darwinInventory) backingPhysicalDisks(identifier string, visitin
 			if err != nil {
 				return nil, false, err
 			}
-			if !storeVirtual {
-				virtual = false
+			// Every store must resolve to physical media or to an explicitly
+			// virtual terminus; one unclassifiable store makes the whole
+			// chain unclassifiable so mounts fail closed instead of losing
+			// usage evidence.
+			if len(backing) == 0 && !storeVirtual {
+				return nil, false, nil
 			}
+			if storeVirtual {
+				continue
+			}
+			resolved = true
 			for _, candidate := range backing {
 				if !seen[candidate] {
 					seen[candidate] = true
@@ -412,7 +420,10 @@ func (inventory darwinInventory) backingPhysicalDisks(identifier string, visitin
 			}
 		}
 		sort.Strings(result)
-		return result, virtual, nil
+		if !resolved {
+			return nil, virtual, nil
+		}
+		return result, false, nil
 	}
 	parent := firstNonEmpty(info.ParentWholeDisk, info.PartOfWhole)
 	if parent != "" && parent != identifier {
