@@ -111,6 +111,35 @@ the fallback, backs up GRUB, and verifies the installed package and boot state.
 Keep the printed receipt. A failure triggers a bounded rollback attempt, but
 the receipt may still require recovery action if rollback cannot finish.
 
+After installation, inspect the generated boot evidence before rebooting.
+Choose `x1e-oled` for the OLED model or `x1p-lcd` for the LCD model, and copy
+the exact target ABI from the installation plan or receipt:
+
+```sh
+TARGET_ABI="<exact-target-abi>"
+
+"$LEXR" doctor boot \
+  --root / \
+  --device x1e-oled \
+  --target-abi "$TARGET_ABI" \
+  --fallback-abi "$RUNNING_ABI"
+```
+
+Add `--json` for one stable machine-readable report. The command resolves the
+effective GRUB default and `saved_entry`, reports only recognised kernel,
+initramfs, and device-tree path tokens, identifies stale entries, and compares
+the exact boot-side and same-ABI firmware DTB SHA-256 digests. It also reports
+the presence of the retired `sp11-grub-inject-dtb` helper and matching kernel
+hooks as attribution evidence, but never executes them. A missing or mismatched
+DTB on the effective default or an explicitly selected target or fallback ABI
+makes the report not ready after the complete output has been written. Drift
+on another entry is a warning.
+
+For an alternate mounted root, `--device` is required. On the live root it may
+be omitted only when the hardware variant can be established from bounded
+device-tree evidence. This static command never runs `update-grub`, changes a
+default, rewrites a DTB, elevates privileges, or proves physical bootability.
+
 Lexr does not reboot or explicitly select the default kernel. Package hooks
 regenerate the normal GRUB configuration. When you are ready to test, reboot
 through the normal system controls and select the new ABI deliberately. Keep

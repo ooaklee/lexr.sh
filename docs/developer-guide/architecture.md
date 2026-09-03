@@ -33,7 +33,7 @@ share one manager and operation plan.
 | Removable media | `internal/media` | Whole-device identity, confirmation, raw writing, full read-back and ejection |
 | Private hand-offs | `internal/handoff` | Closed private stores, same-device evidence, application and restoration |
 | Userspace | `internal/userspace` plus audio and camera packages | Status, authenticated acquisition, bounded builds, installs and release preparation |
-| Diagnosis and recovery | `internal/doctor`, `internal/hardwaredoctor`, `internal/cleanup` | Read-only readiness evidence and reversible legacy clean-up |
+| Diagnosis and recovery | `internal/doctor`, `internal/hardwaredoctor`, `internal/bootdoctor`, `internal/cleanup` | Read-only readiness evidence and reversible legacy clean-up |
 | Host boundaries | `internal/platform` and feature-specific adapters | Argument-separated process execution and Docker isolation |
 
 Managers compose smaller services; they do not turn catalogue fields into shell

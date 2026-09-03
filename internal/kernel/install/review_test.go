@@ -112,6 +112,105 @@ func TestGRUBTitleParsingIgnoresRecoveryInFlags(t *testing.T) {
 	}
 }
 
+// TestVerifyFallbackRejectsWrongPatchLineDeviceTree verifies the retained ABI
+// cannot pass preflight with a legacy shared DTB containing different bytes.
+func TestVerifyFallbackRejectsWrongPatchLineDeviceTree(t *testing.T) {
+	root, _ := fixtureEnvironment(t)
+	writeFixtureFile(t, filepath.Join(root, "usr/lib/firmware", fixtureFallbackABI, "device-tree/qcom/x1e80100-microsoft-denali-oled.dtb"), "fallback oled dtb")
+	writeFixtureFile(t, filepath.Join(root, "boot/sp11-denali.dtb"), "another ABI's oled dtb")
+	grub := strings.Replace(
+		fixtureGRUB(false),
+		" initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
+		" devicetree /boot/sp11-denali.dtb\n initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
+		1,
+	)
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	if err == nil || !strings.Contains(err.Error(), "does not match installed ABI "+fixtureFallbackABI) {
+		t.Fatalf("fallback DTB mismatch error = %v", err)
+	}
+}
+
+// TestVerifyFallbackRejectsTraversingDeviceTreePath verifies a recognised
+// directive cannot disguise traversal as an absent optional DTB directive.
+func TestVerifyFallbackRejectsTraversingDeviceTreePath(t *testing.T) {
+	root, _ := fixtureEnvironment(t)
+	grub := strings.Replace(
+		fixtureGRUB(false),
+		" initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
+		" devicetree /boot/../private.dtb\n initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
+		1,
+	)
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	if err == nil || !strings.Contains(err.Error(), "unsafe device-tree path") {
+		t.Fatalf("traversing DTB error = %v", err)
+	}
+}
+
+// TestVerifyFallbackRejectsMixedSafeAndUnsafeDeviceTrees verifies a retained
+// valid directive cannot conceal a later traversal directive in the stanza.
+func TestVerifyFallbackRejectsMixedSafeAndUnsafeDeviceTrees(t *testing.T) {
+	root, _ := fixtureEnvironment(t)
+	deviceTree := "fallback oled dtb"
+	writeFixtureFile(t, filepath.Join(root, "usr/lib/firmware", fixtureFallbackABI, "device-tree/qcom/x1e80100-microsoft-denali-oled.dtb"), deviceTree)
+	writeFixtureFile(t, filepath.Join(root, "boot/sp11-denali.dtb"), deviceTree)
+	grub := strings.Replace(
+		fixtureGRUB(false),
+		" initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
+		" devicetree /boot/sp11-denali.dtb\n devicetree /boot/../private.dtb\n initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
+		1,
+	)
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	if err == nil || !strings.Contains(err.Error(), "unsafe device-tree path") {
+		t.Fatalf("mixed safe and unsafe DTB error = %v", err)
+	}
+}
+
+// TestHashGRUBPathRejectsAmbiguousRootAndBootFiles verifies a root-relative
+// token cannot silently prefer one of two distinct regular-file candidates.
+func TestHashGRUBPathRejectsAmbiguousRootAndBootFiles(t *testing.T) {
+	root := t.TempDir()
+	writeFixtureFile(t, filepath.Join(root, "boot/sp11-denali.dtb"), "boot-directory bytes")
+	writeFixtureFile(t, filepath.Join(root, "sp11-denali.dtb"), "root-directory bytes")
+	_, err := HashGRUBPath(context.Background(), root, "/sp11-denali.dtb")
+	if err == nil || !strings.Contains(err.Error(), "ambiguous") {
+		t.Fatalf("ambiguous GRUB path error = %v", err)
+	}
+}
+
+// TestHashGRUBPathRejectsRelativeToken verifies GRUB file evidence always
+// starts from an absolute target-system path after prefix normalisation.
+func TestHashGRUBPathRejectsRelativeToken(t *testing.T) {
+	root := t.TempDir()
+	writeFixtureFile(t, filepath.Join(root, "boot/sp11-denali.dtb"), "boot-directory bytes")
+	_, err := HashGRUBPath(context.Background(), root, "sp11-denali.dtb")
+	if err == nil || !strings.Contains(err.Error(), "safe absolute path") {
+		t.Fatalf("relative GRUB path error = %v", err)
+	}
+}
+
+// TestRequiredTreeForEntryDoesNotMixVariants verifies a title for one device
+// cannot silently validate a direct DTB path belonging to the other device.
+func TestRequiredTreeForEntryDoesNotMixVariants(t *testing.T) {
+	entry := GRUBEntry{
+		Title: "Surface Pro 11 X1P/LCD",
+		DeviceTrees: []GRUBPathToken{{
+			Command: "devicetree",
+			Path:    "/boot/x1e80100-microsoft-denali-oled.dtb",
+		}},
+	}
+	if device, relative, valid := requiredTreeForEntry(entry); valid || device != "" || relative != "" {
+		t.Fatalf("mixed device-tree variant = %q, %q, %t", device, relative, valid)
+	}
+	entry.DeviceTrees[0].Path = "/boot/sp11-denali.dtb"
+	device, relative, valid := requiredTreeForEntry(entry)
+	if !valid || device != requiredDeviceTrees[1].Device || relative != requiredDeviceTrees[1].Path {
+		t.Fatalf("shared X1P device-tree variant = %q, %q, %t", device, relative, valid)
+	}
+}
+
 // TestLegacyModuleTreeIsAccepted verifies non-usr-merged target roots retain parity.
 func TestLegacyModuleTreeIsAccepted(t *testing.T) {
 	t.Parallel()

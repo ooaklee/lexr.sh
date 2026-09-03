@@ -38,6 +38,19 @@ var requiredDeviceTrees = []kernel.DeviceTree{
 	{Device: "surface-pro-11-x1p-lcd", Path: "qcom/x1p64100-microsoft-denali.dtb"},
 }
 
+// DeviceTreeRelativePath returns the compiled firmware-side DTB path for one
+// accepted short or stable Surface Pro 11 hardware variant identifier.
+func DeviceTreeRelativePath(device string) (string, bool) {
+	switch device {
+	case "x1e-oled", requiredDeviceTrees[0].Device:
+		return requiredDeviceTrees[0].Path, true
+	case "x1p-lcd", requiredDeviceTrees[1].Device:
+		return requiredDeviceTrees[1].Path, true
+	default:
+		return "", false
+	}
+}
+
 // dependency identifies one parsed Debian dependency alternative.
 type dependency struct {
 	// name is the unqualified binary package name.
