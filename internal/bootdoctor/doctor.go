@@ -53,7 +53,7 @@ func (inspector *Inspector) Inspect(ctx context.Context, options Options) (_ Rep
 			continue
 		}
 		if _, valid := parseKernelRank(abi); !valid {
-			return Report{}, fmt.Errorf("%s ABI is not one canonical qcom-x1e identity", label)
+			return Report{}, fmt.Errorf("%s ABI is not one canonical qcom kernel identity", label)
 		}
 	}
 	parsed, err := install.InspectGRUB(ctx, root)

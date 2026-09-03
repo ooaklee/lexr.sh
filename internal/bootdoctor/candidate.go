@@ -9,18 +9,30 @@ import (
 	"strings"
 )
 
-// surfaceKernelIdentityPattern mirrors the canonical hardware-doctor ABI
-// shape while also admitting a same-patch-line build without an sp11 marker.
-var surfaceKernelIdentityPattern = regexp.MustCompile(`^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([A-Za-z0-9.+~_]+(?:-[A-Za-z0-9.+~_]+)*))?-qcom-x1e$`)
+// qcomPlatformSuffixes lists the platform flavour suffixes, longest first,
+// that one canonical Qualcomm kernel identity may end with. The suffix is
+// peeled before matching so it can never be captured as version text.
+var qcomPlatformSuffixes = []string{"-qcom-x1e", "-qcom"}
+
+// qcomPlatformSegments are version-suffix segments that always belong to the
+// platform flavour. Any of them remaining in the peeled version core marks
+// the identity as malformed, so platform text is never ranked as a version.
+var qcomPlatformSegments = map[string]bool{"qcom": true, "x1e": true}
+
+// qcomKernelIdentityPattern accepts one versioned kernel identity core,
+// mirroring the canonical hardware-doctor ABI shape while also admitting a
+// same-patch-line build without an sp11 marker. The optional platform
+// flavour suffix (-qcom, -qcom-x1e) or no suffix at all is accepted.
+var qcomKernelIdentityPattern = regexp.MustCompile(`^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([A-Za-z0-9.+~_]+(?:-[A-Za-z0-9.+~_]+)*))?$`)
 
 // surfaceGenerationPattern extracts the one optional patch-line-local Surface
-// generation marker from a canonical ABI suffix.
+// generation marker from a canonical version suffix.
 var surfaceGenerationPattern = regexp.MustCompile(`sp11v([0-9]+)$`)
 
 // DTBCandidate associates one installed ABI and hardware variant with the
 // digest of its firmware-side device tree.
 type DTBCandidate struct {
-	// ABI is the complete canonical qcom-x1e kernel identity.
+	// ABI is the complete canonical qcom kernel identity.
 	ABI string `json:"abi"`
 	// Device is the stable Surface hardware variant identifier.
 	Device string `json:"device"`
@@ -43,11 +55,14 @@ type kernelRank struct {
 // SelectDTBCandidate returns the greatest canonical candidate for one device,
 // ranking the numeric kernel patch line before the local sp11 generation.
 // Malformed candidates and candidates for other devices do not compete.
+// Two distinct ABIs sharing one rank always fail closed regardless of input
+// order.
 func SelectDTBCandidate(candidates []DTBCandidate, device string) (DTBCandidate, bool, error) {
 	var selected DTBCandidate
 	var selectedRank kernelRank
 	found := false
 	identities := make(map[string]string)
+	ranks := make(map[kernelRank]string)
 	for _, candidate := range candidates {
 		if candidate.Device != device || !canonicalDigest(candidate.SHA256) {
 			continue
@@ -61,9 +76,10 @@ func SelectDTBCandidate(candidates []DTBCandidate, device string) (DTBCandidate,
 			return DTBCandidate{}, false, errors.New("equal canonical DTB identities have different SHA-256 digests")
 		}
 		identities[identityKey] = candidate.SHA256
-		if found && rank == selectedRank && candidate.ABI != selected.ABI {
+		if existing, exists := ranks[rank]; exists && existing != candidate.ABI {
 			return DTBCandidate{}, false, errors.New("canonical DTB candidates have an equal patch-line and generation rank")
 		}
+		ranks[rank] = candidate.ABI
 		if !found || rank.greaterThan(selectedRank) {
 			selected = candidate
 			selectedRank = rank
@@ -73,13 +89,26 @@ func SelectDTBCandidate(candidates []DTBCandidate, device string) (DTBCandidate,
 	return selected, found, nil
 }
 
-// parseKernelRank accepts one complete canonical qcom-x1e identity and keeps
-// a Surface generation meaningful only within its numeric kernel patch line.
+// parseKernelRank accepts one complete canonical qcom kernel identity, with
+// or without the platform flavour suffix, and keeps a Surface generation
+// meaningful only within its numeric kernel patch line.
 func parseKernelRank(abi string) (kernelRank, bool) {
 	if len(abi) == 0 || len(abi) > 128 {
 		return kernelRank{}, false
 	}
-	matches := surfaceKernelIdentityPattern.FindStringSubmatch(abi)
+	core := abi
+	for _, suffix := range qcomPlatformSuffixes {
+		if strings.HasSuffix(core, suffix) {
+			core = strings.TrimSuffix(core, suffix)
+			break
+		}
+	}
+	for _, segment := range strings.Split(core, "-") {
+		if qcomPlatformSegments[segment] {
+			return kernelRank{}, false
+		}
+	}
+	matches := qcomKernelIdentityPattern.FindStringSubmatch(core)
 	if len(matches) != 5 {
 		return kernelRank{}, false
 	}
