@@ -290,6 +290,44 @@ func TestKernelInstallPackageSetSelection(t *testing.T) {
 	}
 }
 
+// TestKernelDryRunDisclosesConditionalInitramfsRepair verifies both human
+// dry-run renderers disclose the bounded conditional repair command count.
+func TestKernelDryRunDisclosesConditionalInitramfsRepair(t *testing.T) {
+	t.Parallel()
+
+	for _, subcommand := range []string{"preflight", "install"} {
+		t.Run(subcommand, func(t *testing.T) {
+			t.Parallel()
+			root := t.TempDir()
+			plan := kernelCLIPlan(root, true)
+			plan.ConditionalCommands = []kernelinstall.Command{
+				{Operation: kernelinstall.OperationEnsureInitramfs, Name: "/usr/sbin/update-initramfs", Args: []string{"-c", "-k", kernelCLITargetABI}},
+			}
+			stub := &stubKernelInstallationManager{
+				preflightPlan:  plan,
+				installReceipt: kernelinstall.Receipt{Plan: plan},
+			}
+			app, output := newKernelCLIApplication(stub)
+			args := []string{
+				subcommand, kernelCLIBundleDirectory(t),
+				"--root", root,
+				"--fallback-abi", kernelCLIFallbackABI,
+				"--running-abi", kernelCLIFallbackABI,
+				"--allow-unverified",
+			}
+			if subcommand == "install" {
+				args = append(args, "--dry-run")
+			}
+			if err := executeKernelCLICommand(t, app.newKernelCommand(), args...); err != nil {
+				t.Fatalf("kernel %s dry run error = %v", subcommand, err)
+			}
+			if !strings.Contains(output.String(), "conditional initramfs commands: 1") {
+				t.Fatalf("conditional initramfs disclosure missing from output: %q", output.String())
+			}
+		})
+	}
+}
+
 // TestKernelInstallRejectsUnknownPackageSet verifies selection remains a closed
 // enum rather than a filename expression or arbitrary package filter.
 func TestKernelInstallRejectsUnknownPackageSet(t *testing.T) {

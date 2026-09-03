@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -585,6 +586,146 @@ func TestInstallPreservesPackagePostinstDeviceTree(t *testing.T) {
 	}
 	if len(receipt.Executed) != 2 {
 		t.Fatalf("install executed redundant commands: %+v", receipt.Executed)
+	}
+}
+
+// TestInstallEnsuresInitramfsWhenMaintainerScriptsSkipIt proves the manager
+// repairs a staged install that completed without the target ABI initramfs.
+func TestInstallEnsuresInitramfsWhenMaintainerScriptsSkipIt(t *testing.T) {
+	root, bundle := fixtureEnvironment(t)
+	runner := &fakeRunner{root: root}
+	runner.runHook = func(_ context.Context, command platform.Command) error {
+		switch {
+		case slicesContain(command.Args, "--install"):
+			if err := installFixtureTarget(root); err != nil {
+				return err
+			}
+			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(true))
+		case command.Name == chrootCommand && slicesContain(command.Args, updateInitramfsCommand):
+			if slicesContain(command.Args, "-c") {
+				writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "repaired initramfs")
+			}
+		}
+		return nil
+	}
+	manager := fixtureManager(runner)
+	manager.effectiveUID = func() int { return 0 }
+	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, statErr := os.Lstat(filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI)); statErr != nil {
+		t.Fatalf("initramfs repair did not produce the ABI image: %v", statErr)
+	}
+	operations := make([]Operation, 0, len(receipt.Executed))
+	for _, command := range receipt.Executed {
+		operations = append(operations, command.Operation)
+	}
+	if !slices.Contains(operations, OperationEnsureInitramfs) {
+		t.Fatalf("receipt omitted the ensure-initramfs repair: %+v", receipt.Executed)
+	}
+	if !receipt.RebootRequired {
+		t.Fatal("repaired installation did not request a reboot")
+	}
+}
+
+// TestPlanDisclosesConditionalInitramfsRepair verifies the dry run discloses
+// the bounded create command that a missing-image install may later execute.
+func TestPlanDisclosesConditionalInitramfsRepair(t *testing.T) {
+	root, bundle := fixtureEnvironment(t)
+	runner := &fakeRunner{root: root}
+	plan, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.ConditionalCommands) != 1 {
+		t.Fatalf("unexpected conditional commands: %+v", plan.ConditionalCommands)
+	}
+	command := plan.ConditionalCommands[0]
+	if command.Operation != OperationEnsureInitramfs || !slices.Contains(command.Args, "-c") ||
+		!slices.Contains(command.Args, fixtureTargetABI) {
+		t.Fatalf("conditional repair command is not an exact-ABI create: %+v", command)
+	}
+}
+
+// TestInstallInitramfsRepairFailureRollsBack proves a failing create command
+// cannot reach the reboot hand-off and triggers the bounded rollback path.
+func TestInstallInitramfsRepairFailureRollsBack(t *testing.T) {
+	root, bundle := fixtureEnvironment(t)
+	originalGRUB, err := os.ReadFile(filepath.Join(root, "boot/grub/grub.cfg"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &fakeRunner{root: root}
+	runner.runHook = func(_ context.Context, command platform.Command) error {
+		switch {
+		case slicesContain(command.Args, "--install"):
+			if err := installFixtureTarget(root); err != nil {
+				return err
+			}
+			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(true))
+		case command.Name == chrootCommand && slicesContain(command.Args, updateInitramfsCommand):
+			if slicesContain(command.Args, "-c") {
+				writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "partially written initramfs")
+				return errors.New("fixture ensure-initramfs failure")
+			}
+		case slicesContain(command.Args, "--purge"):
+			return removeFixtureTarget(root)
+		}
+		return nil
+	}
+	manager := fixtureManager(runner)
+	manager.effectiveUID = func() int { return 0 }
+	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	if err == nil || !strings.Contains(err.Error(), "fixture ensure-initramfs failure") {
+		t.Fatalf("ensure-initramfs error = %v", err)
+	}
+	if receipt.Rollback == nil || !receipt.Rollback.Attempted || !receipt.Rollback.GRUBRestored || receipt.Rollback.Error != "" {
+		t.Fatalf("unexpected rollback receipt: %+v", receipt.Rollback)
+	}
+	if _, statErr := os.Lstat(filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI)); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("partially written initramfs was not removed: %v", statErr)
+	}
+	restored, readErr := os.ReadFile(filepath.Join(root, "boot/grub/grub.cfg"))
+	if readErr != nil || string(restored) != string(originalGRUB) {
+		t.Fatalf("GRUB was not restored: %q, %v", restored, readErr)
+	}
+}
+
+// TestInstallWithoutInitramfsFailsVerificationAndRollsBack proves the manager
+// never passes verification when the create command succeeds but still leaves
+// no initramfs image, keeping the postcondition evidence fail-closed.
+func TestInstallWithoutInitramfsFailsVerificationAndRollsBack(t *testing.T) {
+	root, bundle := fixtureEnvironment(t)
+	originalGRUB, err := os.ReadFile(filepath.Join(root, "boot/grub/grub.cfg"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &fakeRunner{root: root}
+	runner.runHook = func(_ context.Context, command platform.Command) error {
+		switch {
+		case slicesContain(command.Args, "--install"):
+			if err := installFixtureTarget(root); err != nil {
+				return err
+			}
+			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(true))
+		case slicesContain(command.Args, "--purge"):
+			return removeFixtureTarget(root)
+		}
+		return nil
+	}
+	manager := fixtureManager(runner)
+	manager.effectiveUID = func() int { return 0 }
+	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	if err == nil || !strings.Contains(err.Error(), "initrd.img-"+fixtureTargetABI) {
+		t.Fatalf("missing-initramfs error = %v", err)
+	}
+	if receipt.Rollback == nil || !receipt.Rollback.GRUBRestored {
+		t.Fatalf("unexpected rollback receipt: %+v", receipt.Rollback)
+	}
+	restored, readErr := os.ReadFile(filepath.Join(root, "boot/grub/grub.cfg"))
+	if readErr != nil || string(restored) != string(originalGRUB) {
+		t.Fatalf("GRUB was not restored: %q, %v", restored, readErr)
 	}
 }
 

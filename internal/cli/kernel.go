@@ -312,8 +312,8 @@ func (a *application) writeKernelPreflight(plan kernelinstall.Plan, requestedPac
 		verification = "explicitly accepted local hashes"
 	}
 	_, err := fmt.Fprintf(a.out,
-		"kernel installation preflight passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nversion: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\ndevice trees: %d\nverification: %s\nplanned commands: %d\nno changes were made\n",
-		plan.Root, plan.TargetABI, plan.FallbackABI, plan.Version, requestedPackageSet, effectiveKernelPackageSet(len(plan.Packages)), len(plan.Packages), len(plan.DeviceTrees), verification, len(plan.Commands))
+		"kernel installation preflight passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nversion: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\ndevice trees: %d\nverification: %s\nplanned commands: %d\nconditional initramfs commands: %d\nno changes were made\n",
+		plan.Root, plan.TargetABI, plan.FallbackABI, plan.Version, requestedPackageSet, effectiveKernelPackageSet(len(plan.Packages)), len(plan.Packages), len(plan.DeviceTrees), verification, len(plan.Commands), len(plan.ConditionalCommands))
 	return errors.Join(warningErr, err)
 }
 
@@ -352,8 +352,8 @@ func (a *application) writeKernelInstallReceipt(receipt kernelinstall.Receipt, r
 	}
 	if receipt.Plan.DryRun {
 		_, err := fmt.Fprintf(a.out,
-			"kernel installation dry run passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\nplanned commands: %d\nno changes were made\n",
-			receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), len(receipt.Plan.Packages), len(receipt.Plan.Commands))
+			"kernel installation dry run passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\nplanned commands: %d\nconditional initramfs commands: %d\nno changes were made\n",
+			receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), len(receipt.Plan.Packages), len(receipt.Plan.Commands), len(receipt.Plan.ConditionalCommands))
 		return errors.Join(warningErr, err)
 	}
 	_, err := fmt.Fprintf(a.out,

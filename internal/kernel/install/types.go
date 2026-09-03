@@ -25,6 +25,9 @@ const (
 	OperationInstallPackages Operation = "install-packages"
 	// OperationUpdateInitramfs refreshes the initramfs for the exact target ABI.
 	OperationUpdateInitramfs Operation = "update-initramfs"
+	// OperationEnsureInitramfs regenerates a missing initramfs after a staged
+	// install whose maintainer scripts did not produce the ABI image.
+	OperationEnsureInitramfs Operation = "ensure-initramfs"
 	// OperationRollbackPackages purges only target packages from a failed run.
 	OperationRollbackPackages Operation = "rollback-packages"
 )
@@ -172,6 +175,11 @@ type Plan struct {
 	Fallback BootEvidence `json:"fallback"`
 	// Commands previews the direct commands using reviewed source package paths.
 	Commands []Command `json:"commands"`
+	// ConditionalCommands previews bounded repair commands the manager may run
+	// after installation when filesystem evidence shows the target ABI's
+	// initramfs image missing. They are disclosed here because a dry run
+	// cannot know whether the maintainer scripts will produce the image.
+	ConditionalCommands []Command `json:"conditional_commands,omitempty"`
 }
 
 // RollbackReceipt records best-effort recovery after a failed package operation.

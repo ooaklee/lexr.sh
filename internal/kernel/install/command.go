@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
@@ -122,6 +123,9 @@ func (manager *Manager) captureCommand(ctx context.Context, command Command, max
 // installationCommands constructs the fixed package and initramfs sequence.
 // Kernel package lifecycle hooks own GRUB generation so a later generic
 // regeneration cannot discard device-tree injection performed by postinst.
+// The refresh reuses the trusted generator's existing image when the package
+// scripts already produced one. When evidence shows the image missing, the
+// manager additionally plans the generator's create path explicitly.
 func installationCommands(root, abi string, packagePaths []string) ([]Command, error) {
 	commands := make([]Command, 0, 2)
 	if root == string(filepath.Separator) {
@@ -134,6 +138,44 @@ func installationCommands(root, abi string, packagePaths []string) ([]Command, e
 		args = append(args, packagePaths...)
 		commands = append(commands, Command{Operation: OperationInstallPackages, Name: chrootCommand, Args: args})
 		commands = append(commands, Command{Operation: OperationUpdateInitramfs, Name: chrootCommand, Args: []string{root, updateInitramfsCommand, "-u", "-k", abi}})
+	}
+	for _, command := range commands {
+		if err := validateCommand(command); err != nil {
+			return nil, err
+		}
+	}
+	return commands, nil
+}
+
+// initramfsMissingAfterInstall detects a staged install that completed without
+// producing the ABI's initramfs image, so the manager can repair it explicitly.
+func initramfsMissingAfterInstall(root, abi string) (bool, error) {
+	relative := "boot/initrd.img-" + abi
+	target, err := rootPath(root, relative)
+	if err != nil {
+		return false, err
+	}
+	if err := validateTargetRoute(root, target, true); err != nil {
+		return false, err
+	}
+	if _, err := os.Lstat(target); err == nil {
+		return false, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return false, fmt.Errorf("inspect installed initramfs %s: %w", target, err)
+	}
+	return true, nil
+}
+
+// ensureInitramfsCommands builds the bounded create sequence for a staged
+// install whose maintainer scripts skipped the initramfs image. The single
+// create step is deliberately non-optional: without the image the transaction
+// must fail into its existing rollback path.
+func ensureInitramfsCommands(root, abi string) ([]Command, error) {
+	var commands []Command
+	if root == string(filepath.Separator) {
+		commands = []Command{{Operation: OperationEnsureInitramfs, Name: updateInitramfsCommand, Args: []string{"-c", "-k", abi}}}
+	} else {
+		commands = []Command{{Operation: OperationEnsureInitramfs, Name: chrootCommand, Args: []string{root, updateInitramfsCommand, "-c", "-k", abi}}}
 	}
 	for _, command := range commands {
 		if err := validateCommand(command); err != nil {
