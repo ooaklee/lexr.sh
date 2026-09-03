@@ -334,8 +334,8 @@ func (a *application) writeKernelPreflight(plan kernelinstall.Plan, requestedPac
 		verification = "explicitly accepted local hashes"
 	}
 	_, err := fmt.Fprintf(a.out,
-		"kernel installation preflight passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nversion: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\ndevice trees: %d\nverification: %s\nplanned commands: %d\nconditional initramfs commands: %d\nno changes were made\n",
-		plan.Root, plan.TargetABI, plan.FallbackABI, plan.Version, requestedPackageSet, effectiveKernelPackageSet(len(plan.Packages)), len(plan.Packages), len(plan.DeviceTrees), verification, len(plan.Commands), len(plan.ConditionalCommands))
+		"kernel installation preflight passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nversion: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\npackaged device trees required: %d\nfallback boot device-tree mode: %s\nfallback boot device-tree GRUB entries verified: %d\nverification: %s\nplanned commands: %d\nconditional initramfs commands: %d\nno changes were made\n",
+		plan.Root, plan.TargetABI, plan.FallbackABI, plan.Version, requestedPackageSet, effectiveKernelPackageSet(len(plan.Packages)), len(plan.Packages), len(plan.DeviceTrees), plan.Fallback.DeviceTreeBoot.Mode, plan.Fallback.DeviceTreeBoot.GRUBEntryCount, verification, len(plan.Commands), len(plan.ConditionalCommands))
 	return errors.Join(warningErr, err)
 }
 
@@ -405,9 +405,12 @@ func (a *application) writeKernelInstallReceipt(receipt kernelinstall.Receipt, r
 			receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), len(receipt.Plan.Packages), len(receipt.Plan.Commands), len(receipt.Plan.ConditionalCommands))
 		return errors.Join(warningErr, err)
 	}
+	if receipt.Installed == nil {
+		return errors.Join(warningErr, errors.New("kernel installation receipt has no verified target boot evidence"))
+	}
 	_, err := fmt.Fprintf(a.out,
-		"kernel installed\nroot: %s\ntarget ABI: %s\nfallback ABI retained: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\ndevice trees verified: %d\nheader trees verified: %d\nreboot required: %t\nReboot manually when ready; retain the fallback kernel until the new kernel has been tested.\n",
-		receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), len(receipt.Plan.Packages), len(receipt.DeviceTrees), len(receipt.Headers), receipt.RebootRequired)
+		"kernel installed\nroot: %s\ntarget ABI: %s\nfallback ABI retained: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\npackaged device trees verified: %d\nboot device-tree mode: %s\nboot device-tree GRUB entries verified: %d\nheader trees verified: %d\nreboot required: %t\nReboot manually when ready; retain the fallback kernel until the new kernel has been tested.\n",
+		receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), len(receipt.Plan.Packages), len(receipt.DeviceTrees), receipt.Installed.DeviceTreeBoot.Mode, receipt.Installed.DeviceTreeBoot.GRUBEntryCount, len(receipt.Headers), receipt.RebootRequired)
 	return errors.Join(warningErr, err)
 }
 

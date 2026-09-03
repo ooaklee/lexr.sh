@@ -422,30 +422,30 @@ func (e *TargetStateEvidence) grubDeviceTreeBindingProblem(ctx context.Context, 
 	if err != nil {
 		return "GRUB device-tree bindings could not be inspected: " + err.Error()
 	}
-	targetEntries := make([]GRUBEntry, 0, 1)
+	targetEntries := make([]GRUBEntry, 0, 2)
+	normalEntries := 0
 	for _, entry := range parsedEntries {
-		if entry.Recovery || !entryHasArtefact(entry.Linux, "vmlinuz-"+abi) ||
+		if !entryHasArtefact(entry.Linux, "vmlinuz-"+abi) ||
 			!entryHasArtefact(entry.Initrd, "initrd.img-"+abi) {
 			continue
 		}
 		targetEntries = append(targetEntries, entry)
+		if !entry.Recovery {
+			normalEntries++
+		}
 	}
-	if len(targetEntries) != 1 {
-		return fmt.Sprintf("expected exactly one bootable GRUB entry for the target ABI, found %d", len(targetEntries))
+	if normalEntries != 1 {
+		return fmt.Sprintf("expected exactly one bootable GRUB entry for the target ABI, found %d", normalEntries)
 	}
 	// Post-install verification requires the ABI-labelled title, so an
 	// unlabelled entry could never pass that contract either; fail closed
 	// here rather than let the shared verifier skip it silently.
-	if !strings.Contains(targetEntries[0].Title, abi) {
-		return "matching GRUB entry does not name the target ABI in its title"
+	for _, entry := range targetEntries {
+		if !strings.Contains(entry.Title, abi) {
+			return "matching GRUB entry does not name the target ABI in its title"
+		}
 	}
-	if slicesContainString(targetEntries[0].UnsafeCommands, "devicetree") {
-		return "matching GRUB entry has an unsafe device-tree path"
-	}
-	if len(targetEntries[0].DeviceTrees) != 1 {
-		return fmt.Sprintf("matching GRUB entry has %d device-tree directives, want exactly one", len(targetEntries[0].DeviceTrees))
-	}
-	if err := verifyGRUBDeviceTreeBindings(ctx, root, abi, targetEntries, nil); err != nil {
+	if _, err := verifyGRUBDeviceTreeBindings(ctx, root, abi, targetEntries, nil); err != nil {
 		return "GRUB device-tree binding verification failed: " + err.Error()
 	}
 	return ""

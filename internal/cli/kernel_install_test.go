@@ -250,6 +250,51 @@ func TestKernelInstallDryRunNeedsNoConfirmation(t *testing.T) {
 	}
 }
 
+// TestKernelInstallJSONDistinguishesPackagedAndBootDTBEvidence keeps the
+// machine-readable receipt explicit about installed DTB files versus the
+// verified boot-time delivery path.
+func TestKernelInstallJSONDistinguishesPackagedAndBootDTBEvidence(t *testing.T) {
+	root := t.TempDir()
+	plan := kernelCLIPlan(root, false)
+	receipt := kernelinstall.Receipt{
+		Plan:        plan,
+		DeviceTrees: make([]kernelinstall.FileEvidence, 2),
+		Installed: &kernelinstall.BootEvidence{
+			ABI: kernelCLITargetABI,
+			DeviceTreeBoot: kernelinstall.DeviceTreeBootEvidence{
+				Mode:           kernelinstall.DeviceTreeBootExternal,
+				SHA256:         strings.Repeat("a", 64),
+				GRUBEntryCount: 2,
+			},
+		},
+		RebootRequired: true,
+	}
+	stub := &stubKernelInstallationManager{installReceipt: receipt}
+	app, output := newKernelCLIApplication(stub)
+	err := executeKernelCLICommand(t, app.newKernelCommand(),
+		"install", kernelCLIBundleDirectory(t),
+		"--root", root,
+		"--fallback-abi", kernelCLIFallbackABI,
+		"--running-abi", kernelCLIFallbackABI,
+		"--allow-unverified",
+		"--yes",
+		"--json",
+	)
+	if err != nil {
+		t.Fatalf("kernel install --json error = %v", err)
+	}
+	var decoded kernelinstall.Receipt
+	if err := json.Unmarshal(output.Bytes(), &decoded); err != nil {
+		t.Fatalf("kernel install receipt JSON cannot be decoded: %v\n%s", err, output.String())
+	}
+	if len(decoded.DeviceTrees) != 2 || decoded.Installed == nil ||
+		decoded.Installed.DeviceTreeBoot.Mode != kernelinstall.DeviceTreeBootExternal ||
+		decoded.Installed.DeviceTreeBoot.GRUBEntryCount != 2 ||
+		decoded.Installed.DeviceTreeBoot.SHA256 != strings.Repeat("a", 64) {
+		t.Fatalf("kernel install DTB receipt = %#v", decoded)
+	}
+}
+
 // TestKernelInstallPackageSetSelection verifies complete local bundles are the
 // default while callers can explicitly request the runtime pair only.
 func TestKernelInstallPackageSetSelection(t *testing.T) {
@@ -440,8 +485,15 @@ func TestKernelPackageSetHumanOutput(t *testing.T) {
 			stub := &stubKernelInstallationManager{
 				preflightPlan: plan,
 				installReceipt: kernelinstall.Receipt{
-					Plan:           plan,
-					Headers:        make([]kernelinstall.HeaderEvidence, 2),
+					Plan:    plan,
+					Headers: make([]kernelinstall.HeaderEvidence, 2),
+					Installed: &kernelinstall.BootEvidence{
+						ABI: kernelCLITargetABI,
+						DeviceTreeBoot: kernelinstall.DeviceTreeBootEvidence{
+							Mode:           kernelinstall.DeviceTreeBootExternal,
+							GRUBEntryCount: 1,
+						},
+					},
 					RebootRequired: test.mutatingOperation,
 				},
 			}
@@ -491,12 +543,24 @@ func TestKernelPackageSetHumanOutput(t *testing.T) {
 				if len(stub.preflightRequests) != 1 || len(stub.preflightRequests[0].Bundle.Packages) != test.wantPackageCount {
 					t.Errorf("preflight requests = %#v, want %d packages", stub.preflightRequests, test.wantPackageCount)
 				}
+				if !strings.Contains(text, "fallback boot device-tree mode: grub-external") {
+					t.Errorf("kernel preflight output does not report fallback boot DTB verification:\n%s", text)
+				}
 			case "install":
 				if len(stub.installRequests) != 1 || len(stub.installRequests[0].Bundle.Packages) != test.wantPackageCount {
 					t.Errorf("install requests = %#v, want %d packages", stub.installRequests, test.wantPackageCount)
 				}
 				if !strings.Contains(text, "header trees verified: 2") {
 					t.Errorf("kernel install output does not report header verification:\n%s", text)
+				}
+				for _, expected := range []string{
+					"packaged device trees verified: 0",
+					"boot device-tree mode: grub-external",
+					"boot device-tree GRUB entries verified: 1",
+				} {
+					if !strings.Contains(text, expected) {
+						t.Errorf("kernel install output does not report %q:\n%s", expected, text)
+					}
 				}
 			}
 		})
@@ -660,6 +724,13 @@ func kernelCLIPlan(root string, dryRun bool) kernelinstall.Plan {
 		DeviceTrees: []kernelinstall.DeviceTree{
 			{Device: "surface-pro-11-x1e-oled"},
 			{Device: "surface-pro-11-x1p-lcd"},
+		},
+		Fallback: kernelinstall.BootEvidence{
+			ABI: kernelCLIFallbackABI,
+			DeviceTreeBoot: kernelinstall.DeviceTreeBootEvidence{
+				Mode:           kernelinstall.DeviceTreeBootExternal,
+				GRUBEntryCount: 1,
+			},
 		},
 		Commands: []kernelinstall.Command{{Operation: kernelinstall.OperationInstallPackages}},
 	}

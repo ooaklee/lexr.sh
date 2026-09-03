@@ -148,6 +148,35 @@ type BootEvidence struct {
 	ModuleFile FileEvidence `json:"module_file"`
 	// GRUBEntryCount is the number of matching non-recovery boot entries.
 	GRUBEntryCount int `json:"grub_entry_count"`
+	// DeviceTreeBoot records the verified boot-time DTB delivery path shared by
+	// every matching normal and recovery GRUB entry.
+	DeviceTreeBoot DeviceTreeBootEvidence `json:"device_tree_boot"`
+}
+
+// DeviceTreeBootMode identifies how a verified kernel receives its boot-time
+// device tree without conflating installed firmware files with boot evidence.
+type DeviceTreeBootMode string
+
+const (
+	// DeviceTreeBootEmbedded means the kernel PE contains one exact required
+	// same-ABI DTB in a .dtbauto section.
+	DeviceTreeBootEmbedded DeviceTreeBootMode = "embedded"
+	// DeviceTreeBootExternal means every matching GRUB entry references one
+	// exact required same-ABI external DTB.
+	DeviceTreeBootExternal DeviceTreeBootMode = "grub-external"
+)
+
+// DeviceTreeBootEvidence records the bounded result of boot-time DTB
+// verification. SHA256 identifies either the embedded payload or the
+// boot-side external DTB; GRUBEntryCount includes normal and recovery entries.
+type DeviceTreeBootEvidence struct {
+	// Mode identifies the verified embedded or external delivery path.
+	Mode DeviceTreeBootMode `json:"mode"`
+	// SHA256 is the exact digest shared by every verified boot-time DTB path.
+	SHA256 string `json:"sha256"`
+	// GRUBEntryCount is the number of matching normal and recovery entries
+	// covered by this evidence.
+	GRUBEntryCount int `json:"grub_entry_count"`
 }
 
 // GRUBPathToken records one bounded boot artefact path without retaining any
