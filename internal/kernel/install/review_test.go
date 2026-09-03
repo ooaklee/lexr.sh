@@ -174,9 +174,10 @@ func TestVerifyFallbackAcceptsABIStampedX1PDeviceTree(t *testing.T) {
 	}
 }
 
-// TestVerifyFallbackRejectsAmbiguousABIStampedDeviceTrees requires differing
-// installed variant candidates to fail closed even when one matches boot bytes.
-func TestVerifyFallbackRejectsAmbiguousABIStampedDeviceTrees(t *testing.T) {
+// TestVerifyFallbackAcceptsDistinctABIStampedDeviceTrees verifies the normal
+// healthy SP11 state: both OLED and LCD variants are installed with different
+// bytes and the boot-side token matches exactly one of them.
+func TestVerifyFallbackAcceptsDistinctABIStampedDeviceTrees(t *testing.T) {
 	root, _ := fixtureEnvironment(t)
 	token := "/dtb-7.2.0-sp11beta18"
 	writeFixtureFile(t, filepath.Join(root, "usr/lib/firmware", fixtureFallbackABI, "device-tree/qcom/x1e80100-microsoft-denali-oled.dtb"), "fallback oled dtb")
@@ -189,9 +190,8 @@ func TestVerifyFallbackRejectsAmbiguousABIStampedDeviceTrees(t *testing.T) {
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
-	if err == nil || !strings.Contains(err.Error(), "ambiguous installed variant candidates") {
-		t.Fatalf("stamped DTB ambiguity error = %v", err)
+	if _, err := verifyFallback(context.Background(), root, fixtureFallbackABI); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -223,6 +223,7 @@ func TestVerifyFallbackRejectsABIStampedDeviceTreeMismatch(t *testing.T) {
 	root, _ := fixtureEnvironment(t)
 	token := "/dtb-7.2.0-sp11beta18"
 	writeFixtureFile(t, filepath.Join(root, "usr/lib/firmware", fixtureFallbackABI, "device-tree/qcom/x1e80100-microsoft-denali-oled.dtb"), "fallback oled dtb")
+	writeFixtureFile(t, filepath.Join(root, "usr/lib/firmware", fixtureFallbackABI, "device-tree/qcom/x1p64100-microsoft-denali.dtb"), "fallback lcd dtb")
 	writeFixtureFile(t, filepath.Join(root, "boot", strings.TrimPrefix(token, "/")), "wrong device tree")
 	grub := strings.Replace(
 		fixtureGRUB(false),
@@ -232,8 +233,19 @@ func TestVerifyFallbackRejectsABIStampedDeviceTreeMismatch(t *testing.T) {
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
 	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
-	if err == nil || !strings.Contains(err.Error(), "does not match installed ABI "+fixtureFallbackABI) {
+	if err == nil || !strings.Contains(err.Error(), "does not match any installed variant") {
 		t.Fatalf("stamped DTB mismatch error = %v", err)
+	}
+}
+
+// TestVerifyABIStampedDeviceTreeBindingSingleVariantMatching proves one
+// installed variant whose bytes equal the boot-side token verifies cleanly.
+func TestVerifyABIStampedDeviceTreeBindingSingleVariantMatching(t *testing.T) {
+	root := t.TempDir()
+	writeFixtureFile(t, filepath.Join(root, "usr/lib/firmware", fixtureFallbackABI, "device-tree/qcom/x1e80100-microsoft-denali-oled.dtb"), "oled dtb")
+	writeFixtureFile(t, filepath.Join(root, "boot/dtb-7.2.0"), "oled dtb")
+	if err := verifyABIStampedDeviceTreeBinding(context.Background(), root, fixtureFallbackABI, "/boot/dtb-7.2.0"); err != nil {
+		t.Fatal(err)
 	}
 }
 
