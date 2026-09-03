@@ -111,6 +111,60 @@ the fallback, backs up GRUB, and verifies the installed package and boot state.
 Keep the printed receipt. A failure triggers a bounded rollback attempt, but
 the receipt may still require recovery action if rollback cannot finish.
 
+After installation, inspect the generated boot evidence before rebooting.
+Choose `x1e-oled` for the OLED model or `x1p-lcd` for the LCD model, and copy
+the exact target ABI from the installation plan or receipt:
+
+```sh
+TARGET_ABI="<exact-target-abi>"
+
+"$LEXR" doctor boot \
+  --root / \
+  --device x1e-oled \
+  --target-abi "$TARGET_ABI" \
+  --fallback-abi "$RUNNING_ABI"
+```
+
+Add `--json` for one stable machine-readable report. The command resolves the
+effective GRUB default and `saved_entry`, reports only recognised kernel,
+initramfs, and device-tree path tokens, identifies stale entries, and compares
+the exact boot-side and same-ABI firmware DTB SHA-256 digests. It also reports
+the presence of the retired `sp11-grub-inject-dtb` helper and matching kernel
+hooks as attribution evidence, but never executes them. A missing or mismatched
+DTB on the effective default or an explicitly selected target or fallback ABI
+makes the report not ready after the complete output has been written. Drift
+on another entry is a warning.
+
+For an alternate mounted root, `--device` is required. On the live root it may
+be omitted only when the hardware variant can be established from bounded
+device-tree evidence. This static command never runs `update-grub`, changes a
+default, rewrites a DTB, elevates privileges, or proves physical bootability.
+
+### Audit shared boot-DTB usage per GRUB entry
+
+The JSON report audits DTB bindings one GRUB entry at a time. Each element of
+`entries` carries the entry's canonical `abi` (when the `vmlinuz-*` basename is
+unambiguous), the recognised `devicetree` path tokens, and the exact
+`boot_dtb_sha256` and `installed_dtb_sha256` digests plus the `dtb_matches`
+comparison result for that entry. Entries whose `devicetree` token is the legacy shared
+`/boot/sp11-denali.dtb` path are the ones the retired OpenEmbedded helper
+bound; compare each such entry's `boot_dtb_sha256` against the
+`installed_dtb_sha256` values of other entries to see which installed ABI the
+shared bytes actually belong to. The top-level `dtb_attribution` object
+attributes only the effective default entry's boot DTB, so use `entries` for a
+host-wide audit. Kernels without a GRUB stanza, and entries whose kernel
+identity is not one canonical qcom ABI, have no digest comparison; the
+`legacy_hooks.retired_helper` field reports whether the retired helper is still
+present.
+
+Diagnosis is deliberately read-only. Lexr does not update, quarantine, or
+remove the retired helper or its kernel hooks, and it does not migrate an entry
+from the shared boot DTB to a per-ABI `/boot/dtbs/<abi>/` structure. Tracked
+per-ABI DTB binding policy, verified GRUB mutation, and legacy-path retirement
+are discussed in issue
+[#22](https://github.com/ooaklee/lexr.sh/issues/22); until then, any such
+changes are manual operator actions taken outside Lexr.
+
 Lexr does not reboot or explicitly select the default kernel. Package hooks
 regenerate the normal GRUB configuration. When you are ready to test, reboot
 through the normal system controls and select the new ABI deliberately. Keep

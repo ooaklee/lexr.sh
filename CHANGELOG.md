@@ -68,6 +68,11 @@ that do not apply.
 
 ### Fixed
 
+- Fixed native kernel installation accepting a GRUB entry whose legacy shared
+  boot DTB belongs to another installed kernel patch line. Verification now
+  compares any referenced boot-side DTB with the same-ABI firmware DTB without
+  rewriting either file, and `lexr doctor boot` reports bounded GRUB, digest,
+  default-selection, and retired-hook evidence read-only.
 - Fixed Linux removable-media discovery aborting when one whole-disk LUN
   reports zero capacity. A zero-capacity whole disk is now skipped so
   independent valid devices remain visible in `lexr image devices`, while

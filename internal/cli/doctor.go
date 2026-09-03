@@ -9,9 +9,19 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/ooaklee/lexr.sh/internal/bootdoctor"
 	"github.com/ooaklee/lexr.sh/internal/doctor"
 	"github.com/ooaklee/lexr.sh/internal/hardwaredoctor"
 )
+
+// bootDoctorWorkflow is the delivery layer's narrow view of static boot inspection.
+type bootDoctorWorkflow interface {
+	// Inspect returns one typed, path-redacted, read-only boot report.
+	Inspect(context.Context, bootdoctor.Options) (bootdoctor.Report, error)
+}
+
+// bootDoctorFactory constructs a read-only boot inspector for command tests.
+type bootDoctorFactory func() bootDoctorWorkflow
 
 // hardwareDoctorWorkflow is the delivery layer's narrow view of live hardware
 // inspection, keeping command tests independent of the host's devices.
@@ -67,8 +77,116 @@ func (a *application) newDoctorCommand() *cobra.Command {
 	command.AddCommand(
 		a.newUserspaceStatusDeliveryCommand("userspace", "Report missing Surface Pro 11 userspace support"),
 		a.newHardwareDoctorCommand(nil),
+		a.newBootDoctorCommand(nil),
 	)
 	return command
+}
+
+// newBootDoctorCommand builds a static, scriptable boot diagnostic that never
+// executes hooks, rewrites DTBs, changes defaults, or elevates privileges.
+func (a *application) newBootDoctorCommand(factory bootDoctorFactory) *cobra.Command {
+	var root string
+	var device string
+	var targetABI string
+	var fallbackABI string
+	var asJSON bool
+	command := &cobra.Command{
+		Use:   "boot",
+		Short: "Report static Surface kernel GRUB and DTB evidence",
+		Long: "Inspect bounded GRUB, boot artefact, firmware DTB, default-selection, and retired-hook evidence read-only. " +
+			"The command never executes package hooks or GRUB tools, changes defaults, rewrites DTBs, or proves physical bootability.",
+		Args: cobra.NoArgs,
+		RunE: func(command *cobra.Command, _ []string) error {
+			selectedFactory := factory
+			if selectedFactory == nil {
+				selectedFactory = func() bootDoctorWorkflow { return bootdoctor.New() }
+			}
+			report, err := selectedFactory().Inspect(command.Context(), bootdoctor.Options{
+				Root:        root,
+				Device:      device,
+				TargetABI:   targetABI,
+				FallbackABI: fallbackABI,
+			})
+			if err != nil {
+				return fmt.Errorf("inspect static boot evidence: %w", err)
+			}
+			if asJSON {
+				if err := a.writeJSON(report); err != nil {
+					return err
+				}
+			} else if err := a.writeBootDoctorReport(report); err != nil {
+				return err
+			}
+			if !report.Ready {
+				return fmt.Errorf("required static boot checks failed; physical bootability remains unproven")
+			}
+			return nil
+		},
+	}
+	command.Flags().StringVar(&root, "root", "/", "Linux filesystem root containing boot evidence")
+	command.Flags().StringVar(&device, "device", "", "Surface hardware variant: x1e-oled or x1p-lcd")
+	command.Flags().StringVar(&targetABI, "target-abi", "", "optional target ABI that must be ready")
+	command.Flags().StringVar(&fallbackABI, "fallback-abi", "", "optional fallback ABI that must be ready")
+	command.Flags().BoolVar(&asJSON, "json", false, "write machine-readable JSON")
+	return command
+}
+
+// writeBootDoctorReport renders only recognised boot paths, exact DTB digests,
+// and bounded diagnostic conclusions.
+func (a *application) writeBootDoctorReport(report bootdoctor.Report) error {
+	writer := tabwriter.NewWriter(a.out, 0, 4, 2, ' ', 0)
+	if _, err := fmt.Fprintf(writer, "GRUB default\t%s\nsaved_entry\t%s\ndevice\t%s\n", report.Default.Effective, report.Default.SavedEntry, report.Device); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(writer, "\nTYPE\tINDEX\tABI\tCOMMAND\tPATH\tEXISTS"); err != nil {
+		return err
+	}
+	for _, entry := range report.Entries {
+		kind := "normal"
+		if entry.Recovery {
+			kind = "recovery"
+		}
+		for _, token := range entry.Linux {
+			if _, err := fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t%s\t%t\n", kind, entry.Index, entry.ABI, token.Command, token.Path, entry.KernelExists); err != nil {
+				return err
+			}
+		}
+		for _, token := range entry.Initrd {
+			if _, err := fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t%s\t%t\n", kind, entry.Index, entry.ABI, token.Command, token.Path, entry.InitramfsExists); err != nil {
+				return err
+			}
+		}
+		for _, token := range entry.DeviceTrees {
+			if _, err := fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t%s\t%t\n", kind, entry.Index, entry.ABI, token.Command, token.Path, entry.BootDTBSHA256 != ""); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintf(writer, "dtb-digest\t%d\t%s\tboot-side\t%s\t\n", entry.Index, entry.ABI, entry.BootDTBSHA256); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(writer, "dtb-digest\t%d\t%s\tinstalled\t%s\t\n", entry.Index, entry.ABI, entry.InstalledDTBSHA256); err != nil {
+			return err
+		}
+	}
+	if _, err := fmt.Fprintln(writer, "\nSTATE\tREQUIRED\tABI\tCHECK\tDETAIL"); err != nil {
+		return err
+	}
+	for _, check := range report.Checks {
+		if _, err := fmt.Fprintf(writer, "%s\t%t\t%s\t%s\t%s\n", check.State, check.Required, check.ABI, check.ID, check.Detail); err != nil {
+			return err
+		}
+	}
+	readiness := "ready"
+	if !report.Ready {
+		readiness = "not ready"
+	}
+	if _, err := fmt.Fprintf(writer,
+		"\npatch-line-first DTB ABI\t%s\nattributed boot DTB ABI\t%s\nboot-side SHA-256\t%s\ninstalled SHA-256\t%s\nobserved readiness\t%s\nphysical bootability\t%s\n",
+		report.Attribution.SelectedABI, report.Attribution.AttributedABI, report.Attribution.BootSHA256,
+		report.Attribution.InstalledSHA256, readiness, report.PhysicalBootability); err != nil {
+		return err
+	}
+	return writer.Flush()
 }
 
 // newHardwareDoctorCommand builds scriptable live hardware diagnostics with
