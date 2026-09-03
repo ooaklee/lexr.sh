@@ -565,6 +565,7 @@ func TestInstallPreservesPackagePostinstDeviceTree(t *testing.T) {
 			if err := installFixtureTarget(root); err != nil {
 				return err
 			}
+			writeFixtureFile(t, filepath.Join(root, "boot/sp11-denali.dtb"), "oled dtb")
 			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), postinstGRUB)
 		case command.Name == chrootCommand && slicesContain(command.Args, updateInitramfsCommand):
 			writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
@@ -586,6 +587,44 @@ func TestInstallPreservesPackagePostinstDeviceTree(t *testing.T) {
 	}
 	if len(receipt.Executed) != 2 {
 		t.Fatalf("install executed redundant commands: %+v", receipt.Executed)
+	}
+}
+
+// TestInstallRejectsWrongPatchLineDeviceTree verifies post-install evidence
+// fails when a legacy hook binds the target entry to another ABI's DTB bytes.
+func TestInstallRejectsWrongPatchLineDeviceTree(t *testing.T) {
+	root, bundle := fixtureEnvironment(t)
+	injected := " devicetree /boot/sp11-denali.dtb\n"
+	postinstGRUB := strings.Replace(
+		fixtureGRUB(true),
+		" initrd /boot/initrd.img-"+fixtureTargetABI+"\n",
+		injected+" initrd /boot/initrd.img-"+fixtureTargetABI+"\n",
+		1,
+	)
+	runner := &fakeRunner{root: root}
+	runner.runHook = func(_ context.Context, command platform.Command) error {
+		switch {
+		case slicesContain(command.Args, "--install"):
+			if err := installFixtureTarget(root); err != nil {
+				return err
+			}
+			writeFixtureFile(t, filepath.Join(root, "boot/sp11-denali.dtb"), "wrong patch-line dtb")
+			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), postinstGRUB)
+		case command.Name == chrootCommand && slicesContain(command.Args, updateInitramfsCommand):
+			writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+		case slicesContain(command.Args, "--purge"):
+			return removeFixtureTarget(root)
+		}
+		return nil
+	}
+	manager := fixtureManager(runner)
+	manager.effectiveUID = func() int { return 0 }
+	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	if err == nil || !strings.Contains(err.Error(), "does not match installed ABI "+fixtureTargetABI) {
+		t.Fatalf("mismatched device-tree error = %v", err)
+	}
+	if receipt.Installed != nil || receipt.RebootRequired {
+		t.Fatalf("mismatched device tree produced successful receipt: %+v", receipt)
 	}
 }
 

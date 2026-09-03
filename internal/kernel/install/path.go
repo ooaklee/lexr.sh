@@ -204,3 +204,124 @@ func requireRegularEvidence(ctx context.Context, kind, path string) (FileEvidenc
 	evidence.Kind = kind
 	return evidence, nil
 }
+
+// HashRootFile hashes one bounded regular file at a compiled relative path
+// beneath an explicit root through the installer's existing safety boundary.
+func HashRootFile(ctx context.Context, root, relative, kind string) (FileEvidence, error) {
+	canonical, err := canonicalRoot(root)
+	if err != nil {
+		return FileEvidence{}, err
+	}
+	target, err := rootPath(canonical, relative)
+	if err != nil {
+		return FileEvidence{}, err
+	}
+	if err := validateTargetRoute(canonical, target, false); err != nil {
+		return FileEvidence{}, err
+	}
+	return requireRegularEvidence(ctx, kind, target)
+}
+
+// ReadRootFile reads one bounded regular file beneath an explicit root after
+// pinning it and checking the path identity before and after the read.
+func ReadRootFile(ctx context.Context, root, relative, kind string, maximum int64) ([]byte, error) {
+	if maximum < 0 {
+		return nil, fmt.Errorf("%s byte limit must not be negative", kind)
+	}
+	canonical, err := canonicalRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	target, err := rootPath(canonical, relative)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateTargetRoute(canonical, target, false); err != nil {
+		return nil, err
+	}
+	info, err := os.Lstat(target)
+	if err != nil {
+		return nil, fmt.Errorf("inspect %s %s: %w", kind, target, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Size() < 0 || info.Size() > maximum {
+		return nil, fmt.Errorf("%s must be a regular file no larger than %d bytes: %s", kind, maximum, target)
+	}
+	file, opened, err := openUnchangedRegular(target, info)
+	if err != nil {
+		return nil, fmt.Errorf("open %s: %w", kind, err)
+	}
+	content, readErr := io.ReadAll(io.LimitReader(file, maximum+1))
+	closeErr := file.Close()
+	entry, statErr := os.Lstat(target)
+	if readErr != nil || closeErr != nil || statErr != nil {
+		return nil, errors.Join(readErr, closeErr, statErr)
+	}
+	if int64(len(content)) > maximum || entry.Mode()&os.ModeSymlink != 0 || !os.SameFile(opened, entry) || entry.Size() != int64(len(content)) {
+		return nil, fmt.Errorf("%s changed or exceeded its bound while it was inspected: %s", kind, target)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return content, nil
+}
+
+// ListRootDirectories returns bounded direct child directory names beneath an
+// explicit root while rejecting a changed, symbolic-link, or non-directory base.
+func ListRootDirectories(ctx context.Context, root, relative, kind string, maximum int) ([]string, error) {
+	if maximum < 1 {
+		return nil, fmt.Errorf("%s entry limit must be positive", kind)
+	}
+	canonical, err := canonicalRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	base, err := rootPath(canonical, relative)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateTargetRoute(canonical, base, false); err != nil {
+		return nil, err
+	}
+	info, err := os.Lstat(base)
+	if err != nil {
+		return nil, fmt.Errorf("inspect %s %s: %w", kind, base, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return nil, fmt.Errorf("%s must be a non-symlink directory: %s", kind, base)
+	}
+	directory, err := os.Open(base)
+	if err != nil {
+		return nil, fmt.Errorf("open %s: %w", kind, err)
+	}
+	opened, statErr := directory.Stat()
+	if statErr != nil || !os.SameFile(info, opened) {
+		_ = directory.Close()
+		return nil, errors.Join(statErr, fmt.Errorf("%s changed before it could be pinned: %s", kind, base))
+	}
+	entries, readErr := directory.ReadDir(maximum + 1)
+	if errors.Is(readErr, io.EOF) {
+		readErr = nil
+	}
+	closeErr := directory.Close()
+	current, currentErr := os.Lstat(base)
+	if readErr != nil || closeErr != nil || currentErr != nil {
+		return nil, errors.Join(readErr, closeErr, currentErr)
+	}
+	if len(entries) > maximum || current.Mode()&os.ModeSymlink != 0 || !os.SameFile(opened, current) {
+		return nil, fmt.Errorf("%s changed or exceeded %d entries while it was inspected: %s", kind, maximum, base)
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if entry.Type()&os.ModeSymlink != 0 || !entry.IsDir() {
+			continue
+		}
+		if entry.Name() == "" || filepath.Base(entry.Name()) != entry.Name() {
+			continue
+		}
+		names = append(names, entry.Name())
+	}
+	return names, nil
+}

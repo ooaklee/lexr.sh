@@ -7,17 +7,29 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
+
+// abiStampedDTBExpression admits the bounded path-safe identity syntax used by
+// generated /dtb-<abi> files. It intentionally does not require the stricter
+// package ABI convention: deployed names such as 7.2.2-sp11beta2 use a looser
+// generation marker, while digest equality remains the correctness proof.
+var abiStampedDTBExpression = regexp.MustCompile(`^([0-9]+)\.([0-9]+)\.([0-9]+)(?:[.-][A-Za-z0-9+~_]+)*$`)
 
 const (
 	// maximumModuleEntries bounds recursive inspection of an installed module tree.
 	maximumModuleEntries = 500000
 	// maximumGRUBBytes bounds GRUB configuration parsing.
 	maximumGRUBBytes int64 = 16 << 20
+	// maximumGRUBMenuDepth bounds nested submenu state retained while parsing.
+	maximumGRUBMenuDepth = 32
+	// abiStampedDeviceTreeMarker defers hardware attribution to installed bytes.
+	abiStampedDeviceTreeMarker = "abi-stamped"
 )
 
 // verifyFallback proves that the running fallback has complete boot artefacts.
@@ -33,12 +45,16 @@ func verifyFallback(ctx context.Context, root, abi string) (BootEvidence, error)
 	if err := validateTargetRoute(root, grub, false); err != nil {
 		return BootEvidence{}, err
 	}
-	entries, err := countGRUBEntries(ctx, grub, abi, true, false)
+	parsedEntries, err := parseGRUBEntries(ctx, grub)
 	if err != nil {
 		return BootEvidence{}, err
 	}
+	entries := countMatchingGRUBEntries(parsedEntries, abi, true, false)
 	if entries != 1 {
 		return BootEvidence{}, fmt.Errorf("fallback ABI %s requires exactly one ABI-labelled non-recovery GRUB entry; found %d", abi, entries)
+	}
+	if err := verifyGRUBDeviceTreeBindings(ctx, root, abi, parsedEntries, nil); err != nil {
+		return BootEvidence{}, fmt.Errorf("fallback ABI %s: %w", abi, err)
 	}
 	evidence.GRUBEntryCount = entries
 	return evidence, nil
@@ -57,10 +73,11 @@ func verifyInstalled(ctx context.Context, root, abi string, trees []DeviceTree) 
 	if err := validateTargetRoute(root, grub, false); err != nil {
 		return BootEvidence{}, nil, err
 	}
-	entries, err := countGRUBEntries(ctx, grub, abi, true, false)
+	parsedEntries, err := parseGRUBEntries(ctx, grub)
 	if err != nil {
 		return BootEvidence{}, nil, err
 	}
+	entries := countMatchingGRUBEntries(parsedEntries, abi, true, false)
 	if entries != 1 {
 		return BootEvidence{}, nil, fmt.Errorf("installed ABI %s requires exactly one ABI-labelled non-recovery GRUB entry; found %d", abi, entries)
 	}
@@ -75,6 +92,9 @@ func verifyInstalled(ctx context.Context, root, abi string, trees []DeviceTree) 
 			return BootEvidence{}, nil, err
 		}
 		deviceTrees = append(deviceTrees, verified)
+	}
+	if err := verifyGRUBDeviceTreeBindings(ctx, root, abi, parsedEntries, trees); err != nil {
+		return BootEvidence{}, nil, fmt.Errorf("installed ABI %s: %w", abi, err)
 	}
 	return evidence, deviceTrees, nil
 }
@@ -372,74 +392,153 @@ func moduleTreeCandidates(root, abi string) ([]string, error) {
 
 // countGRUBEntries counts matching non-recovery menu entries without executing GRUB.
 func countGRUBEntries(ctx context.Context, path, abi string, requireTitle, includeRecovery bool) (int, error) {
+	entries, err := parseGRUBEntries(ctx, path)
+	if err != nil {
+		return 0, err
+	}
+	return countMatchingGRUBEntries(entries, abi, requireTitle, includeRecovery), nil
+}
+
+// parseGRUBEntries reads one pinned, bounded GRUB configuration and retains
+// only menu hierarchy, titles, identifiers, recovery state, and recognised
+// path tokens.
+func parseGRUBEntries(ctx context.Context, path string) ([]GRUBEntry, error) {
 	info, err := os.Lstat(path)
 	if err != nil {
-		return 0, fmt.Errorf("inspect GRUB configuration %s: %w", path, err)
+		return nil, fmt.Errorf("inspect GRUB configuration %s: %w", path, err)
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > maximumGRUBBytes {
-		return 0, fmt.Errorf("GRUB configuration must be a non-empty regular file no larger than %d bytes: %s", maximumGRUBBytes, path)
+		return nil, fmt.Errorf("GRUB configuration must be a non-empty regular file no larger than %d bytes: %s", maximumGRUBBytes, path)
 	}
 	file, opened, err := openUnchangedRegular(path, info)
 	if err != nil {
-		return 0, fmt.Errorf("open GRUB configuration: %w", err)
+		return nil, fmt.Errorf("open GRUB configuration: %w", err)
 	}
 	defer file.Close()
-
-	type entryState struct {
-		active       bool
-		titleMatches bool
-		recovery     bool
-		kernel       bool
-		initramfs    bool
-	}
-	state := entryState{}
-	count := 0
-	finish := func() {
-		if state.active && (includeRecovery || !state.recovery) && state.kernel && state.initramfs && (!requireTitle || state.titleMatches) {
-			count++
-		}
-	}
+	entries := make([]GRUBEntry, 0)
+	var active *GRUBEntry
+	menuPaths := [][]int{nil}
+	menuPositions := []int{0}
+	menuBlocks := make([]bool, 0)
 	scanner := bufio.NewScanner(io.LimitReader(file, maximumGRUBBytes+1))
 	scanner.Buffer(make([]byte, 4096), 1<<20)
 	for scanner.Scan() {
 		if err := ctx.Err(); err != nil {
-			return 0, err
+			return nil, err
 		}
 		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "menuentry ") {
-			finish()
-			title, _ := grubMenuTitle(line)
-			state = entryState{
-				active:       true,
-				titleMatches: strings.Contains(title, abi),
-				recovery:     strings.Contains(strings.ToLower(title), "recovery"),
+		if strings.HasPrefix(line, "}") {
+			active = nil
+			if len(menuBlocks) > 0 {
+				last := len(menuBlocks) - 1
+				if menuBlocks[last] && len(menuPaths) > 1 {
+					menuPaths = menuPaths[:len(menuPaths)-1]
+					menuPositions = menuPositions[:len(menuPositions)-1]
+				}
+				menuBlocks = menuBlocks[:last]
 			}
 			continue
 		}
-		if !state.active {
+		if strings.HasPrefix(line, "submenu ") {
+			active = nil
+			if len(menuPaths) >= maximumGRUBMenuDepth+1 {
+				return nil, fmt.Errorf("GRUB submenu nesting exceeds %d levels", maximumGRUBMenuDepth)
+			}
+			level := len(menuPaths) - 1
+			position := menuPositions[level]
+			menuPositions[level]++
+			submenuPath := append(append([]int(nil), menuPaths[level]...), position)
+			menuPaths = append(menuPaths, submenuPath)
+			menuPositions = append(menuPositions, 0)
+			menuBlocks = append(menuBlocks, true)
 			continue
 		}
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
+		if strings.HasPrefix(line, "menuentry ") {
+			active = nil
+			level := len(menuPaths) - 1
+			position := menuPositions[level]
+			menuPositions[level]++
+			menuPath := append(append([]int(nil), menuPaths[level]...), position)
+			menuBlocks = append(menuBlocks, false)
+			title, valid := grubMenuTitle(line)
+			if !valid || len(title) > 512 || strings.ContainsAny(title, "\x00\r\n") {
+				continue
+			}
+			entries = append(entries, GRUBEntry{
+				Index:    len(entries),
+				Depth:    level,
+				MenuPath: menuPath,
+				Title:    title,
+				ID:       grubMenuID(line),
+				Recovery: strings.Contains(strings.ToLower(title), "recovery"),
+			})
+			active = &entries[len(entries)-1]
+			continue
+		}
+		if active == nil {
+			continue
+		}
+		fields, valid := splitGRUBFields(line)
+		if !valid || len(fields) < 2 {
 			continue
 		}
 		command := fields[0]
+		pathFields := fields[1:2]
+		if command == "initrd" || command == "initrdefi" {
+			pathFields = fields[1:]
+		}
+		values := make([]GRUBPathToken, 0, len(pathFields))
+		for _, field := range pathFields {
+			token, valid := normaliseGRUBToken(field)
+			if !valid {
+				switch command {
+				case "linux", "linuxefi", "initrd", "initrdefi", "devicetree":
+					active.UnsafeCommands = append(active.UnsafeCommands, command)
+				}
+				continue
+			}
+			values = append(values, GRUBPathToken{Command: command, Path: token})
+		}
 		switch command {
 		case "linux", "linuxefi":
-			state.kernel = state.kernel || pathTokenMatches(fields[1:], "vmlinuz-"+abi)
+			active.Linux = append(active.Linux, values...)
 		case "initrd", "initrdefi":
-			state.initramfs = state.initramfs || pathTokenMatches(fields[1:], "initrd.img-"+abi)
+			active.Initrd = append(active.Initrd, values...)
+		case "devicetree":
+			active.DeviceTrees = append(active.DeviceTrees, values...)
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return 0, fmt.Errorf("read GRUB configuration: %w", err)
+		return nil, fmt.Errorf("read GRUB configuration: %w", err)
 	}
-	finish()
 	entry, statErr := os.Lstat(path)
 	if statErr != nil || entry.Mode()&os.ModeSymlink != 0 || !os.SameFile(opened, entry) {
-		return 0, fmt.Errorf("GRUB configuration changed while it was inspected: %s", path)
+		return nil, fmt.Errorf("GRUB configuration changed while it was inspected: %s", path)
 	}
-	return count, nil
+	return entries, nil
+}
+
+// countMatchingGRUBEntries counts complete ABI-labelled entries in already
+// bounded parsed evidence.
+func countMatchingGRUBEntries(entries []GRUBEntry, abi string, requireTitle, includeRecovery bool) int {
+	count := 0
+	for _, entry := range entries {
+		if (!includeRecovery && entry.Recovery) || (requireTitle && !strings.Contains(entry.Title, abi)) {
+			continue
+		}
+		kernel := false
+		for _, token := range entry.Linux {
+			kernel = kernel || pathTokenMatches([]string{token.Path}, "vmlinuz-"+abi)
+		}
+		initramfs := false
+		for _, token := range entry.Initrd {
+			initramfs = initramfs || pathTokenMatches([]string{token.Path}, "initrd.img-"+abi)
+		}
+		if kernel && initramfs {
+			count++
+		}
+	}
+	return count
 }
 
 // grubMenuTitle extracts the first quoted or unquoted GRUB menu title.
@@ -469,6 +568,400 @@ func grubMenuTitle(line string) (string, bool) {
 		escaped = false
 	}
 	return "", false
+}
+
+// grubMenuID returns one bounded literal identifier following --id or the
+// generated menuentry identifier option without interpreting shell syntax.
+func grubMenuID(line string) string {
+	fields, valid := splitGRUBFields(line)
+	if !valid {
+		return ""
+	}
+	for index, field := range fields {
+		if (field == "--id" || field == "$menuentry_id_option") && index+1 < len(fields) {
+			identifier := fields[index+1]
+			if len(identifier) <= 512 && !strings.ContainsAny(identifier, "\x00\r\n") {
+				return identifier
+			}
+		}
+	}
+	return ""
+}
+
+// splitGRUBFields separates a bounded GRUB line while retaining quoted path
+// tokens and without evaluating substitutions, escapes, or other shell input.
+func splitGRUBFields(line string) ([]string, bool) {
+	if len(line) > 1<<20 || strings.ContainsRune(line, '\x00') {
+		return nil, false
+	}
+	fields := make([]string, 0, 8)
+	var field strings.Builder
+	quote := rune(0)
+	escaped := false
+	flush := func() {
+		if field.Len() > 0 {
+			fields = append(fields, field.String())
+			field.Reset()
+		}
+	}
+	for _, character := range line {
+		if escaped {
+			field.WriteRune(character)
+			escaped = false
+			continue
+		}
+		if character == '\\' && quote != '\'' {
+			escaped = true
+			continue
+		}
+		if quote != 0 {
+			if character == quote {
+				quote = 0
+			} else {
+				field.WriteRune(character)
+			}
+			continue
+		}
+		switch character {
+		case '\'', '"':
+			quote = character
+		case ' ', '\t':
+			flush()
+		default:
+			field.WriteRune(character)
+		}
+	}
+	if quote != 0 || escaped {
+		return nil, false
+	}
+	flush()
+	return fields, true
+}
+
+// normaliseGRUBToken admits only a single absolute, traversal-free path token
+// and strips the literal GRUB root-device prefix used by generated entries.
+func normaliseGRUBToken(token string) (string, bool) {
+	for _, prefix := range []string{"($root)", "${root}", "$root"} {
+		if strings.HasPrefix(token, prefix) {
+			token = strings.TrimPrefix(token, prefix)
+			if !strings.HasPrefix(token, "/") {
+				return "", false
+			}
+			break
+		}
+	}
+	if len(token) == 0 || len(token) > 4096 || !strings.HasPrefix(token, "/") || strings.ContainsAny(token, "\\$(){}\x00\r\n") {
+		return "", false
+	}
+	if path.Clean(token) != token || token == "." || token == ".." || strings.HasPrefix(token, "../") || strings.Contains(token, "//") {
+		return "", false
+	}
+	return token, true
+}
+
+// InspectGRUB returns bounded, redacted menu-entry evidence from the selected
+// root without executing GRUB or any package hook.
+func InspectGRUB(ctx context.Context, root string) ([]GRUBEntry, error) {
+	canonical, err := canonicalRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	grub, err := rootPath(canonical, "boot/grub/grub.cfg")
+	if err != nil {
+		return nil, err
+	}
+	if err := validateTargetRoute(canonical, grub, false); err != nil {
+		return nil, err
+	}
+	entries, err := parseGRUBEntries(ctx, grub)
+	if err != nil {
+		return nil, err
+	}
+	if canonical != string(filepath.Separator) {
+		for index := range entries {
+			entries[index].Linux = rejectAlternateRootTokens(entries[index].Linux, canonical, &entries[index].UnsafeCommands)
+			entries[index].Initrd = rejectAlternateRootTokens(entries[index].Initrd, canonical, &entries[index].UnsafeCommands)
+			entries[index].DeviceTrees = rejectAlternateRootTokens(entries[index].DeviceTrees, canonical, &entries[index].UnsafeCommands)
+		}
+	}
+	return entries, nil
+}
+
+// rejectAlternateRootTokens prevents a host-side fixture prefix embedded in
+// GRUB evidence from being retained or exposed as a target-system boot path.
+func rejectAlternateRootTokens(tokens []GRUBPathToken, root string, unsafe *[]string) []GRUBPathToken {
+	filtered := make([]GRUBPathToken, 0, len(tokens))
+	for _, token := range tokens {
+		if token.Path == root || strings.HasPrefix(token.Path, root+string(filepath.Separator)) {
+			*unsafe = append(*unsafe, token.Command)
+			continue
+		}
+		filtered = append(filtered, token)
+	}
+	return filtered
+}
+
+// verifyGRUBDeviceTreeBindings proves that each matching normal entry with a
+// device-tree directive uses bytes from the same ABI and hardware variant.
+func verifyGRUBDeviceTreeBindings(ctx context.Context, root, abi string, entries []GRUBEntry, trees []DeviceTree) error {
+	for _, entry := range entries {
+		if entry.Recovery || !strings.Contains(entry.Title, abi) ||
+			!entryHasArtefact(entry.Linux, "vmlinuz-"+abi) || !entryHasArtefact(entry.Initrd, "initrd.img-"+abi) {
+			continue
+		}
+		if slicesContainString(entry.UnsafeCommands, "devicetree") {
+			return errors.New("matching GRUB entry has an unsafe device-tree path")
+		}
+		if len(entry.DeviceTrees) == 0 {
+			continue
+		}
+		if len(entry.DeviceTrees) != 1 {
+			return errors.New("matching GRUB entry has multiple device-tree directives")
+		}
+		device, relative, valid := requiredTreeForEntry(entry, abi)
+		if !valid {
+			return errors.New("matching GRUB entry has an unrecognised Surface device-tree path")
+		}
+		if device == abiStampedDeviceTreeMarker {
+			if err := verifyABIStampedDeviceTreeBinding(ctx, root, abi, entry.DeviceTrees[0].Path); err != nil {
+				return err
+			}
+			continue
+		}
+		installedPath := ""
+		for _, tree := range trees {
+			if tree.Device == device && tree.RelativePath == relative {
+				installedPath = tree.TargetPath
+				break
+			}
+		}
+		if installedPath == "" {
+			var err error
+			installedPath, err = rootPath(root, "usr/lib/firmware/"+abi+"/device-tree/"+relative)
+			if err != nil {
+				return err
+			}
+		}
+		if err := validateTargetRoute(root, installedPath, false); err != nil {
+			return err
+		}
+		installed, err := requireRegularEvidence(ctx, "installed device-tree", installedPath)
+		if err != nil {
+			return err
+		}
+		bootSide, err := hashGRUBPath(ctx, root, entry.DeviceTrees[0].Path)
+		if err != nil {
+			return fmt.Errorf("inspect GRUB device-tree for %s: %w", device, err)
+		}
+		if bootSide.SHA256 != installed.SHA256 {
+			return fmt.Errorf("GRUB device-tree for %s does not match installed ABI %s", device, abi)
+		}
+	}
+	return nil
+}
+
+// verifyABIStampedDeviceTreeBinding identifies the hardware variant from
+// installed same-ABI bytes instead of a title that necessarily contains the
+// ABI flavour suffix. Differing installed variants are ambiguous and fail
+// closed; identical variant bytes are interchangeable for digest comparison.
+func verifyABIStampedDeviceTreeBinding(ctx context.Context, root, abi, token string) error {
+	bootSide, err := hashGRUBPath(ctx, root, token)
+	if err != nil {
+		return fmt.Errorf("inspect ABI-stamped GRUB device-tree: %w", err)
+	}
+	type candidate struct {
+		device   string
+		evidence FileEvidence
+	}
+	candidates := make([]candidate, 0, len(requiredDeviceTrees))
+	for _, tree := range requiredDeviceTrees {
+		installed, err := HashRootFile(ctx, root, "usr/lib/firmware/"+abi+"/device-tree/"+tree.Path, "installed device-tree")
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		candidates = append(candidates, candidate{device: tree.Device, evidence: installed})
+	}
+	if len(candidates) == 0 {
+		return fmt.Errorf("ABI-stamped GRUB device-tree has no installed variant for ABI %s", abi)
+	}
+	for _, candidate := range candidates[1:] {
+		if candidate.evidence.SHA256 != candidates[0].evidence.SHA256 {
+			return fmt.Errorf("ABI-stamped GRUB device-tree has ambiguous installed variant candidates for ABI %s", abi)
+		}
+	}
+	if bootSide.SHA256 != candidates[0].evidence.SHA256 {
+		return fmt.Errorf("GRUB device-tree for %s does not match installed ABI %s", candidates[0].device, abi)
+	}
+	return nil
+}
+
+// slicesContainString reports whether values contains one exact string.
+func slicesContainString(values []string, expected string) bool {
+	for _, value := range values {
+		if value == expected {
+			return true
+		}
+	}
+	return false
+}
+
+// entryHasArtefact reports whether one recognised command list names the exact
+// kernel or initramfs basename.
+func entryHasArtefact(tokens []GRUBPathToken, basename string) bool {
+	for _, token := range tokens {
+		if pathTokenMatches([]string{token.Path}, basename) {
+			return true
+		}
+	}
+	return false
+}
+
+// requiredTreeForEntry maps canonical and legacy shared names to one compiled
+// Surface hardware variant. ABI-stamped names return a marker so the caller
+// can derive the variant from installed digest evidence rather than the title.
+func requiredTreeForEntry(entry GRUBEntry, abi string) (string, string, bool) {
+	token := strings.ToLower(entry.DeviceTrees[0].Path)
+	if _, valid := ABIStampedDTBIdentity(token); valid && ABIStampedDTBMatchesABI(token, abi) {
+		return abiStampedDeviceTreeMarker, "", true
+	}
+	title := strings.ToLower(entry.Title)
+	titleX1P := strings.Contains(title, "x1p") || strings.Contains(title, "lcd")
+	titleX1E := strings.Contains(title, "x1e") || strings.Contains(title, "oled")
+	for _, tree := range requiredDeviceTrees {
+		if filepath.Base(token) == strings.ToLower(filepath.Base(tree.Path)) {
+			if (strings.Contains(tree.Device, "x1p") && titleX1E) || (strings.Contains(tree.Device, "x1e") && titleX1P) {
+				return "", "", false
+			}
+			return tree.Device, tree.Path, true
+		}
+	}
+	if filepath.Base(token) == "sp11-denali.dtb" && titleX1P && !titleX1E {
+		return requiredDeviceTrees[1].Device, requiredDeviceTrees[1].Path, true
+	}
+	if filepath.Base(token) == "sp11-denali.dtb" && !titleX1P {
+		return requiredDeviceTrees[0].Device, requiredDeviceTrees[0].Path, true
+	}
+	return "", "", false
+}
+
+// ABIStampedDTBIdentity returns the bounded identity embedded in one safe
+// dtb-<identity> basename in any normalised directory. The suffix grammar is
+// deliberately looser than package ABI validation because deployed GRUB tokens
+// use markers such as sp11beta2.
+func ABIStampedDTBIdentity(token string) (string, bool) {
+	normalised, valid := normaliseGRUBToken(token)
+	if !valid {
+		return "", false
+	}
+	base := strings.ToLower(filepath.Base(normalised))
+	if !strings.HasPrefix(base, "dtb-") {
+		return "", false
+	}
+	identity := strings.TrimPrefix(base, "dtb-")
+	if len(identity) == 0 || len(identity) > maximumABIBytes || !abiStampedDTBExpression.MatchString(identity) {
+		return "", false
+	}
+	return identity, true
+}
+
+// ABIStampedDTBMatchesABI cross-checks the unambiguous numeric kernel version
+// in a stamped token against the entry's vmlinuz ABI. Local suffix conventions
+// may differ; byte-for-byte digest verification proves the actual DTB binding.
+func ABIStampedDTBMatchesABI(token, abi string) bool {
+	identity, valid := ABIStampedDTBIdentity(token)
+	if !valid || len(abi) == 0 || len(abi) > maximumABIBytes {
+		return false
+	}
+	tokenVersion := abiStampedDTBExpression.FindStringSubmatch(identity)
+	abiVersion := abiStampedDTBExpression.FindStringSubmatch(strings.ToLower(abi))
+	if len(tokenVersion) != 4 || len(abiVersion) != 4 {
+		return false
+	}
+	for index := 1; index <= 3; index++ {
+		if tokenVersion[index] != abiVersion[index] {
+			return false
+		}
+	}
+	return true
+}
+
+// hashGRUBPath resolves a GRUB path below the selected target root or its
+// mounted boot directory and returns bounded regular-file evidence.
+func hashGRUBPath(ctx context.Context, root, token string) (FileEvidence, error) {
+	normalised, valid := normaliseGRUBToken(token)
+	if !valid {
+		return FileEvidence{}, errors.New("GRUB device-tree token is not a safe absolute path")
+	}
+	relative := strings.TrimPrefix(normalised, "/")
+	candidates := []string{relative}
+	if !strings.HasPrefix(normalised, "/boot/") {
+		candidates = []string{"boot/" + relative, relative}
+	}
+	var missing error
+	available := make([]FileEvidence, 0, len(candidates))
+	for _, candidate := range candidates {
+		target, err := rootPath(root, candidate)
+		if err != nil {
+			return FileEvidence{}, err
+		}
+		if err := validateTargetRoute(root, target, false); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				missing = err
+				continue
+			}
+			return FileEvidence{}, err
+		}
+		evidence, err := requireRegularEvidence(ctx, "boot device-tree", target)
+		if err == nil {
+			available = append(available, evidence)
+			continue
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			missing = err
+			continue
+		}
+		return FileEvidence{}, err
+	}
+	if len(available) > 1 {
+		return FileEvidence{}, errors.New("GRUB device-tree path has ambiguous root and boot-directory resolutions")
+	}
+	if len(available) == 1 {
+		return available[0], nil
+	}
+	if missing != nil {
+		return FileEvidence{}, missing
+	}
+	return FileEvidence{}, errors.New("GRUB device-tree path is unavailable")
+}
+
+// HashGRUBPath resolves and hashes one recognised GRUB path through the same
+// bounded, symlink-rejecting evidence boundary used by installation.
+func HashGRUBPath(ctx context.Context, root, token string) (FileEvidence, error) {
+	canonical, err := canonicalRoot(root)
+	if err != nil {
+		return FileEvidence{}, err
+	}
+	return hashGRUBPath(ctx, canonical, token)
+}
+
+// InspectGRUBPath resolves and hashes one recognised path while exposing the
+// missing-versus-permission distinction needed by read-only diagnostics. Other
+// safety errors retain an empty availability and must continue to fail closed.
+func InspectGRUBPath(ctx context.Context, root, token string) (FileEvidence, GRUBPathAvailability, error) {
+	evidence, err := HashGRUBPath(ctx, root, token)
+	switch {
+	case err == nil:
+		return evidence, GRUBPathPresent, nil
+	case errors.Is(err, os.ErrPermission):
+		return FileEvidence{}, GRUBPathInaccessible, err
+	case errors.Is(err, os.ErrNotExist):
+		return FileEvidence{}, GRUBPathMissing, err
+	default:
+		return FileEvidence{}, "", err
+	}
 }
 
 // pathTokenMatches reports whether any GRUB path token ends in the exact artefact.

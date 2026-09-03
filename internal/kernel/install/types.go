@@ -146,6 +146,53 @@ type BootEvidence struct {
 	GRUBEntryCount int `json:"grub_entry_count"`
 }
 
+// GRUBPathToken records one bounded boot artefact path without retaining any
+// unrelated kernel arguments from its source stanza.
+type GRUBPathToken struct {
+	// Command is the recognised GRUB command that introduced the path.
+	Command string `json:"command"`
+	// Path is the single normalised path token supplied to that command.
+	Path string `json:"path"`
+}
+
+// GRUBPathAvailability classifies bounded filesystem evidence for one safe
+// GRUB path without conflating a missing file with permission-denied access.
+type GRUBPathAvailability string
+
+const (
+	// GRUBPathPresent means the token resolved to non-empty regular evidence.
+	GRUBPathPresent GRUBPathAvailability = "present"
+	// GRUBPathMissing means every safe resolution was absent.
+	GRUBPathMissing GRUBPathAvailability = "missing"
+	// GRUBPathInaccessible means permission denied prevented verification.
+	GRUBPathInaccessible GRUBPathAvailability = "inaccessible"
+)
+
+// GRUBEntry records only the bounded, non-sensitive fields needed to inspect
+// one normal or recovery menu entry.
+type GRUBEntry struct {
+	// Index is the zero-based order of the menu entry in the parsed file.
+	Index int `json:"index"`
+	// Depth is the number of enclosing GRUB submenus.
+	Depth int `json:"depth"`
+	// MenuPath is the numeric GRUB selection path from the top-level menu.
+	MenuPath []int `json:"menu_path"`
+	// Title is the bounded GRUB menu title used for default selection.
+	Title string `json:"title"`
+	// ID is the optional bounded menu entry identifier.
+	ID string `json:"id,omitempty"`
+	// Recovery reports whether the title marks this as a recovery entry.
+	Recovery bool `json:"recovery"`
+	// Linux contains recognised linux and linuxefi path tokens.
+	Linux []GRUBPathToken `json:"linux,omitempty"`
+	// Initrd contains recognised initrd and initrdefi path tokens.
+	Initrd []GRUBPathToken `json:"initrd,omitempty"`
+	// DeviceTrees contains recognised devicetree path tokens.
+	DeviceTrees []GRUBPathToken `json:"devicetree,omitempty"`
+	// UnsafeCommands names recognised commands whose path token was rejected.
+	UnsafeCommands []string `json:"unsafe_commands,omitempty"`
+}
+
 // Plan is the complete read-only result that must be reviewed before mutation.
 type Plan struct {
 	// Root is the canonical target filesystem root.
