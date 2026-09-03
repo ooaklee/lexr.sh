@@ -54,6 +54,11 @@ that do not apply.
 
 ### Fixed
 
+- Fixed kernel preflight falsely reporting ambiguity whenever both Surface Pro
+  11 device-tree variants were installed. ABI-stamped GRUB device-tree
+  verification now attributes the physical hardware variant by digest before
+  comparison, so coexisting OLED and LCD variants remain accepted while a boot
+  device tree matching no installed variant still fails closed.
 - Fixed native kernel installation accepting a GRUB entry whose legacy shared
   boot DTB belongs to another installed kernel patch line. Verification now
   compares any referenced boot-side DTB with the same-ABI firmware DTB without

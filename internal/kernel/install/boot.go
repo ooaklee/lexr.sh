@@ -760,10 +760,12 @@ func verifyGRUBDeviceTreeBindings(ctx context.Context, root, abi string, entries
 	return nil
 }
 
-// verifyABIStampedDeviceTreeBinding identifies the hardware variant from
-// installed same-ABI bytes instead of a title that necessarily contains the
-// ABI flavour suffix. Differing installed variants are ambiguous and fail
-// closed; identical variant bytes are interchangeable for digest comparison.
+// verifyABIStampedDeviceTreeBinding attributes the physical hardware variant
+// before digest comparison, mirroring the bootdoctor digest-filtering used by
+// SelectDTBCandidate: installed same-ABI variant candidates are filtered by
+// the boot-side digest so coexisting OLED and LCD variants remain the normal
+// healthy state. The binding fails closed when the boot bytes match no
+// installed variant; byte-identical variant matches are interchangeable.
 func verifyABIStampedDeviceTreeBinding(ctx context.Context, root, abi, token string) error {
 	bootSide, err := hashGRUBPath(ctx, root, token)
 	if err != nil {
@@ -787,13 +789,14 @@ func verifyABIStampedDeviceTreeBinding(ctx context.Context, root, abi, token str
 	if len(candidates) == 0 {
 		return fmt.Errorf("ABI-stamped GRUB device-tree has no installed variant for ABI %s", abi)
 	}
-	for _, candidate := range candidates[1:] {
-		if candidate.evidence.SHA256 != candidates[0].evidence.SHA256 {
-			return fmt.Errorf("ABI-stamped GRUB device-tree has ambiguous installed variant candidates for ABI %s", abi)
+	attributed := make([]candidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidate.evidence.SHA256 == bootSide.SHA256 {
+			attributed = append(attributed, candidate)
 		}
 	}
-	if bootSide.SHA256 != candidates[0].evidence.SHA256 {
-		return fmt.Errorf("GRUB device-tree for %s does not match installed ABI %s", candidates[0].device, abi)
+	if len(attributed) == 0 {
+		return fmt.Errorf("ABI-stamped GRUB device-tree for ABI %s does not match any installed variant", abi)
 	}
 	return nil
 }
