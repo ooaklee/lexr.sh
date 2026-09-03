@@ -340,8 +340,10 @@ func (manager *Manager) failAndRollback(plan Plan, backup grubBackup, receipt Re
 	if verificationErr != nil {
 		rollbackErr = errors.Join(rollbackErr, fmt.Errorf("verify fallback after rollback: %w", verificationErr))
 	}
-	if err := verifyTargetAbsent(rollbackContext, plan.Root, plan.TargetABI); err != nil {
-		rollbackErr = errors.Join(rollbackErr, fmt.Errorf("verify target removal after rollback: %w", err))
+	if !plan.Overwrite {
+		if err := verifyTargetAbsent(rollbackContext, plan.Root, plan.TargetABI); err != nil {
+			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("verify target removal after rollback: %w", err))
+		}
 	}
 	if rollbackErr != nil {
 		recovery.Error = boundedError(rollbackErr)

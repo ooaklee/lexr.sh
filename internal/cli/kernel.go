@@ -178,6 +178,7 @@ func (a *application) newKernelPreflightCommand() *cobra.Command {
 	var runningABI string
 	var allowUnverified bool
 	var force bool
+	var overwrite bool
 	packageSet := string(kernel.LocalPackageSetAll)
 	var asJSON bool
 	command := &cobra.Command{
@@ -188,14 +189,18 @@ func (a *application) newKernelPreflightCommand() *cobra.Command {
 			request, err := kernelInstallationRequest(args[0], kernelInstallationOptions{
 				Root: root, FallbackABI: fallbackABI, RunningABI: runningABI,
 				DryRun: true, AllowUnverified: allowUnverified,
-				ForceFallbackMismatch: force, PackageSet: packageSet,
+				ForceFallbackMismatch: force, Overwrite: overwrite, PackageSet: packageSet,
 			})
 			if err != nil {
 				return err
 			}
 			plan, err := a.kernelInstallerForCommand().Preflight(command.Context(), request)
 			if err != nil {
-				return err
+				var blocked *kernelinstall.TargetStateError
+				if !errors.As(err, &blocked) {
+					return err
+				}
+				return errors.Join(err, a.writeKernelTargetDiagnostics(plan, asJSON))
 			}
 			return a.writeKernelPreflight(plan, kernel.LocalPackageSet(packageSet), asJSON)
 		},
@@ -205,6 +210,7 @@ func (a *application) newKernelPreflightCommand() *cobra.Command {
 	command.Flags().StringVar(&runningABI, "running-abi", "", "running ABI evidence for an alternate-root fixture only")
 	command.Flags().BoolVar(&allowUnverified, "allow-unverified", false, "accept a locally hashed bundle without an authoritative checksum manifest")
 	command.Flags().BoolVar(&force, "force", false, "allow a verified bootable fallback ABI to differ from the running ABI")
+	command.Flags().BoolVar(&overwrite, "overwrite", false, "replace an existing complete or partial target installation; an unsafe overwrite could break the system or prevent returning to the desktop on reboot")
 	command.Flags().StringVar(&packageSet, "package-set", string(kernel.LocalPackageSetAll), "packages to select: all exact-version packages (including matching headers when available), or runtime image/modules only")
 	command.Flags().BoolVar(&asJSON, "json", false, "write the machine-readable installation plan")
 	_ = command.MarkFlagRequired("root")
@@ -221,6 +227,7 @@ func (a *application) newKernelInstallCommand() *cobra.Command {
 	var allowUnverified bool
 	var dryRun bool
 	var force bool
+	var overwrite bool
 	packageSet := string(kernel.LocalPackageSetAll)
 	var yes bool
 	var asJSON bool
@@ -235,13 +242,25 @@ func (a *application) newKernelInstallCommand() *cobra.Command {
 			request, err := kernelInstallationRequest(args[0], kernelInstallationOptions{
 				Root: root, FallbackABI: fallbackABI, RunningABI: runningABI,
 				DryRun: dryRun, AllowUnverified: allowUnverified,
-				ForceFallbackMismatch: force, PackageSet: packageSet,
+				ForceFallbackMismatch: force, Overwrite: overwrite, PackageSet: packageSet,
 			})
 			if err != nil {
 				return err
 			}
 			receipt, installErr := a.kernelInstallerForCommand().Install(command.Context(), request)
-			return a.writeKernelInstallReceipt(receipt, kernel.LocalPackageSet(packageSet), asJSON, installErr)
+			if installErr != nil {
+				var blocked *kernelinstall.TargetStateError
+				if !errors.As(installErr, &blocked) {
+					return a.writeKernelInstallReceipt(receipt, kernel.LocalPackageSet(packageSet), asJSON, installErr)
+				}
+				if asJSON {
+					// Keep stdout a single JSON document: emit only the
+					// structured blocker diagnostics for a blocked install.
+					return errors.Join(installErr, a.writeKernelTargetDiagnostics(receipt.Plan, true))
+				}
+				return errors.Join(installErr, a.writeKernelTargetDiagnostics(receipt.Plan, false))
+			}
+			return a.writeKernelInstallReceipt(receipt, kernel.LocalPackageSet(packageSet), asJSON, nil)
 		},
 	}
 	command.Flags().StringVar(&root, "root", "", "explicit absolute target Linux root filesystem")
@@ -250,6 +269,7 @@ func (a *application) newKernelInstallCommand() *cobra.Command {
 	command.Flags().BoolVar(&allowUnverified, "allow-unverified", false, "accept a locally hashed bundle without an authoritative checksum manifest")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "perform complete preflight without privileged changes")
 	command.Flags().BoolVar(&force, "force", false, "allow a verified bootable fallback ABI to differ from the running ABI")
+	command.Flags().BoolVar(&overwrite, "overwrite", false, "replace an existing complete or partial target installation; an unsafe overwrite could break the system or prevent returning to the desktop on reboot")
 	command.Flags().StringVar(&packageSet, "package-set", string(kernel.LocalPackageSetAll), "packages to select: all exact-version packages (including matching headers when available), or runtime image/modules only")
 	command.Flags().BoolVar(&yes, "yes", false, "confirm the reviewed target filesystem changes")
 	command.Flags().BoolVar(&asJSON, "json", false, "write the machine-readable installation receipt")
@@ -267,6 +287,7 @@ type kernelInstallationOptions struct {
 	DryRun                bool
 	AllowUnverified       bool
 	ForceFallbackMismatch bool
+	Overwrite             bool
 	PackageSet            string
 }
 
@@ -288,6 +309,7 @@ func kernelInstallationRequest(bundleDirectory string, options kernelInstallatio
 		DryRun:                options.DryRun,
 		AllowUnverified:       options.AllowUnverified,
 		ForceFallbackMismatch: options.ForceFallbackMismatch,
+		Overwrite:             options.Overwrite,
 	}, nil
 }
 
@@ -315,6 +337,33 @@ func (a *application) writeKernelPreflight(plan kernelinstall.Plan, requestedPac
 		"kernel installation preflight passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nversion: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\ndevice trees: %d\nverification: %s\nplanned commands: %d\nconditional initramfs commands: %d\nno changes were made\n",
 		plan.Root, plan.TargetABI, plan.FallbackABI, plan.Version, requestedPackageSet, effectiveKernelPackageSet(len(plan.Packages)), len(plan.Packages), len(plan.DeviceTrees), verification, len(plan.Commands), len(plan.ConditionalCommands))
 	return errors.Join(warningErr, err)
+}
+
+// writeKernelTargetDiagnostics renders fresh-target blocker evidence as
+// human-readable lines on stderr and, in JSON mode, the structured evidence
+// with its explicit classification on stdout.
+func (a *application) writeKernelTargetDiagnostics(plan kernelinstall.Plan, asJSON bool) error {
+	if plan.TargetState == nil {
+		return nil
+	}
+	warningErr := a.writeKernelWarnings(plan.Warnings)
+	if plan.TargetState.Classification == kernelinstall.TargetStateAbsent {
+		return warningErr
+	}
+	if _, err := fmt.Fprintf(a.errOut, "target ABI %s is %s\n", plan.TargetState.ABI, plan.TargetState.Classification); err != nil {
+		return errors.Join(warningErr, err)
+	}
+	if err := a.writeKernelWarnings(plan.TargetState.DiagnosticLines()); err != nil {
+		return errors.Join(warningErr, err)
+	}
+	if !asJSON {
+		return warningErr
+	}
+	return errors.Join(warningErr, a.writeJSON(struct {
+		Blocked        bool                                    `json:"blocked"`
+		Classification kernelinstall.TargetStateClassification `json:"classification"`
+		TargetState    kernelinstall.TargetStateEvidence       `json:"target_state"`
+	}{Blocked: true, Classification: plan.TargetState.Classification, TargetState: *plan.TargetState}))
 }
 
 // writeKernelWarnings emits non-fatal safety information on stderr so JSON

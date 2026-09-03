@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -24,6 +25,10 @@ const (
 	fixtureTargetABI = "7.2.0-jg-0sp11v19-qcom-x1e"
 	// fixtureFallbackABI is a distinct earlier Surface ABI kept bootable in fixtures.
 	fixtureFallbackABI = "7.2.0-jg-0sp11v18-qcom-x1e"
+
+	// altTargetABI is a third distinct ABI for overwrite-guard tests so the
+	// renamed target never collides with the fixture fallback ABI.
+	altTargetABI = "7.2.0-jg-0sp11v17-qcom-x1e"
 	// fixtureVersion is the Debian package version shared by the target pair.
 	fixtureVersion = "7.2.0-jg-0sp11v19"
 )
@@ -132,11 +137,15 @@ func fixtureMetadata(name, field string) (string, error) {
 		}
 		return "arm64", nil
 	case "Depends":
+		abi := fixtureTargetABI
+		if strings.Contains(name, altTargetABI) {
+			abi = altTargetABI
+		}
 		switch role {
 		case kernel.RoleImage:
-			return "kmod, linux-modules-" + fixtureTargetABI, nil
+			return "kmod, linux-modules-" + abi, nil
 		case kernel.RoleHeaders:
-			return "linux-qcom-x1e-headers-" + strings.TrimSuffix(fixtureTargetABI, "-qcom-x1e") + " (= " + fixtureVersion + ")", nil
+			return "linux-qcom-x1e-headers-" + strings.TrimSuffix(abi, "-qcom-x1e") + " (= " + version + ")", nil
 		default:
 			return "", nil
 		}
@@ -1135,4 +1144,498 @@ func slicesContain(values []string, expected string) bool {
 		}
 	}
 	return false
+}
+
+// targetDPkgStatusPath returns the package database path inside a test root.
+func targetDPkgStatusPath(root string) string {
+	return filepath.Join(root, "var/lib/dpkg/status")
+}
+
+// writeTargetDPkgStatus writes a minimal but structurally valid package database.
+func writeTargetDPkgStatus(t *testing.T, root string, stanzas []string) {
+	t.Helper()
+	writeFixtureFile(t, targetDPkgStatusPath(root), strings.Join(stanzas, "\n\n")+"\n")
+}
+
+// targetPackageStanza renders one dpkg status stanza for a package name.
+func targetPackageStanza(name, status string) string {
+	return "Package: " + name + "\nStatus: " + status + "\nVersion: " + fixtureVersion
+}
+
+// snapshotTree hashes every path beneath root so tests can prove that target
+// classification performs no filesystem mutation.
+func snapshotTree(t *testing.T, root string) map[string]string {
+	t.Helper()
+	snapshot := map[string]string{}
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		checksum := "dir"
+		if !entry.IsDir() {
+			content, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return readErr
+			}
+			digest := sha256.Sum256(content)
+			checksum = hex.EncodeToString(digest[:])
+		}
+		relative, relativeErr := filepath.Rel(root, path)
+		if relativeErr != nil {
+			return relativeErr
+		}
+		snapshot[relative] = checksum
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return snapshot
+}
+
+// expectBlockedTargetState asserts the typed fresh-target blocker.
+func expectBlockedTargetState(t *testing.T, err error) TargetStateEvidence {
+	t.Helper()
+	if err == nil {
+		t.Fatal("expected the fresh-target gate to block the request")
+	}
+	var blocked *TargetStateError
+	if !errors.As(err, &blocked) {
+		t.Fatalf("error = %v, want a TargetStateError", err)
+	}
+	return blocked.Evidence
+}
+
+// assertNoTargetStateMutation proves that classification ran no commands and
+// wrote nothing to the target root.
+func assertNoTargetStateMutation(t *testing.T, runner *fakeRunner, root string, before map[string]string) {
+	t.Helper()
+	if len(runner.runs) != 0 {
+		t.Fatalf("classification executed commands: %+v", runner.runs)
+	}
+	after := snapshotTree(t, root)
+	if len(before) != len(after) {
+		t.Fatalf("classification changed the target tree: %d paths before, %d after", len(before), len(after))
+	}
+	for path, checksum := range before {
+		if after[path] != checksum {
+			t.Fatalf("classification modified %s", path)
+		}
+	}
+}
+
+// TestPreflightExplainsHalfConfiguredImage preserves the reported real-world
+// case: modules and headers installed, image half-configured, no GRUB entry.
+func TestPreflightExplainsHalfConfiguredImage(t *testing.T) {
+	t.Parallel()
+	root, bundle := fixtureEnvironment(t)
+	if err := installFixtureTarget(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(root, "boot/vmlinuz-"+fixtureTargetABI)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(root, "boot/grub/grub.cfg")); err != nil {
+		t.Fatal(err)
+	}
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(false))
+	base := strings.TrimSuffix(fixtureTargetABI, "-qcom-x1e")
+	writeTargetDPkgStatus(t, root, []string{
+		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-headers-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-qcom-x1e-headers-"+base, "install ok installed"),
+		targetPackageStanza("linux-image-"+fixtureTargetABI, "install ok half-configured"),
+	})
+	runner := &fakeRunner{root: root}
+	before := snapshotTree(t, root)
+	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	evidence := expectBlockedTargetState(t, err)
+	assertNoTargetStateMutation(t, runner, root, before)
+	if evidence.Classification != TargetStatePartial {
+		t.Fatalf("classification = %s, want partial-or-inconsistent", evidence.Classification)
+	}
+	joined := strings.Join(evidence.Reasons, "\n")
+	for _, expected := range []string{"half-configured", "incomplete boot baseline", "incomplete"} {
+		if !strings.Contains(joined, expected) {
+			t.Errorf("reasons missing %q:\n%s", expected, joined)
+		}
+	}
+	recommendations := strings.Join(evidence.Recommendations, "\n")
+	if !strings.Contains(recommendations, "linux-image-"+fixtureTargetABI) ||
+		!strings.Contains(recommendations, "dpkg --configure") {
+		t.Errorf("recommendations must propose repairing the exact half-configured package:\n%s", recommendations)
+	}
+	if strings.Contains(recommendations, fixtureFallbackABI) {
+		t.Errorf("recommendations must never propose removing the fallback ABI:\n%s", recommendations)
+	}
+}
+
+// TestPreflightExplainsBootArtefactsWithoutGRUBEntry classifies orphan boot
+// artefacts as partial even when every package record is cleanly installed.
+func TestPreflightExplainsBootArtefactsWithoutGRUBEntry(t *testing.T) {
+	t.Parallel()
+	root, bundle := fixtureEnvironment(t)
+	if err := installFixtureTarget(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := installFixtureHeaders(root); err != nil {
+		t.Fatal(err)
+	}
+	// Keep the fallback-only GRUB configuration from fixtureEnvironment.
+	writeTargetDPkgStatus(t, root, []string{
+		targetPackageStanza("linux-image-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
+	})
+	runner := &fakeRunner{root: root}
+	before := snapshotTree(t, root)
+	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	evidence := expectBlockedTargetState(t, err)
+	assertNoTargetStateMutation(t, runner, root, before)
+	if evidence.Classification != TargetStatePartial {
+		t.Fatalf("classification = %s, want partial-or-inconsistent", evidence.Classification)
+	}
+	joined := strings.Join(evidence.Reasons, "\n")
+	if !strings.Contains(joined, "incomplete boot baseline") {
+		t.Errorf("reasons missing the boot baseline gap:\n%s", joined)
+	}
+	if !strings.Contains(joined, "leftover boot-file") {
+		t.Errorf("reasons must name the leftover boot artefacts:\n%s", joined)
+	}
+}
+
+// TestPreflightExplainsRecordsWithoutFiles classifies a recorded package set
+// whose expected boot files are missing as partial-or-inconsistent.
+func TestPreflightExplainsRecordsWithoutFiles(t *testing.T) {
+	t.Parallel()
+	root, bundle := fixtureEnvironment(t)
+	writeTargetDPkgStatus(t, root, []string{
+		targetPackageStanza("linux-image-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
+	})
+	runner := &fakeRunner{root: root}
+	before := snapshotTree(t, root)
+	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	evidence := expectBlockedTargetState(t, err)
+	assertNoTargetStateMutation(t, runner, root, before)
+	if evidence.Classification != TargetStatePartial {
+		t.Fatalf("classification = %s, want partial-or-inconsistent", evidence.Classification)
+	}
+	if len(evidence.Packages) != 2 {
+		t.Fatalf("package findings = %d, want 2", len(evidence.Packages))
+	}
+	for _, item := range evidence.Packages {
+		if !item.Installed {
+			t.Errorf("package %s should be recorded as installed", item.Package)
+		}
+	}
+	joined := strings.Join(evidence.Recommendations, "\n")
+	if !strings.Contains(joined, "purge only the exact target-ABI packages") {
+		t.Errorf("recommendations must propose a scoped purge:\n%s", joined)
+	}
+	if strings.Contains(joined, fixtureFallbackABI) {
+		t.Errorf("recommendations must never propose removing the fallback ABI:\n%s", joined)
+	}
+}
+
+// TestPreflightExplainsOrphanArtefactsWithoutRecords classifies leftover
+// artefacts that have no package database records at all.
+func TestPreflightExplainsOrphanArtefactsWithoutRecords(t *testing.T) {
+	t.Parallel()
+	root, bundle := fixtureEnvironment(t)
+	if err := os.MkdirAll(filepath.Join(root, "boot"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFixtureFile(t, filepath.Join(root, "boot/vmlinuz-"+fixtureTargetABI), "orphan kernel image")
+	runner := &fakeRunner{root: root}
+	before := snapshotTree(t, root)
+	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	evidence := expectBlockedTargetState(t, err)
+	assertNoTargetStateMutation(t, runner, root, before)
+	if evidence.Classification != TargetStatePartial {
+		t.Fatalf("classification = %s, want partial-or-inconsistent", evidence.Classification)
+	}
+	if evidence.PackageDatabasePresent {
+		t.Error("package database should be reported as absent")
+	}
+	joined := strings.Join(evidence.Reasons, "\n")
+	if !strings.Contains(joined, "incomplete boot baseline") || !strings.Contains(joined, "leftover boot-file") {
+		t.Errorf("reasons missing the orphan explanations:\n%s", joined)
+	}
+	if len(evidence.Packages) != 0 {
+		t.Errorf("package findings = %+v, want none", evidence.Packages)
+	}
+}
+
+// TestPreflightClassifiesCompleteInstalledTarget proves a fully installed
+// target is blocked as complete and proceeds only with --overwrite plus a
+// risk warning.
+func TestPreflightClassifiesCompleteInstalledTarget(t *testing.T) {
+	t.Parallel()
+	root, bundle := fixtureEnvironment(t)
+	if err := installFixtureTarget(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := installFixtureHeaders(root); err != nil {
+		t.Fatal(err)
+	}
+	writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+	writeTargetDPkgStatus(t, root, []string{
+		targetPackageStanza("linux-image-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-headers-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-qcom-x1e-headers-"+strings.TrimSuffix(fixtureTargetABI, "-qcom-x1e"), "install ok installed"),
+	})
+	// Simulate the maintainer-script GRUB entry for the complete target,
+	// including the device-tree directive that hook always writes.
+	targetEntry := "menuentry 'Ubuntu " + fixtureTargetABI + "' {\n" +
+		" linux /boot/vmlinuz-" + fixtureTargetABI + "\n" +
+		" devicetree /boot/dtbs/" + fixtureTargetABI + "/qcom/x1e80100-microsoft-denali-oled.dtb\n" +
+		" initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(false)+targetEntry)
+	// The boot-side DTB bytes must hash-equal the installed firmware blob.
+	writeFixtureFile(t, filepath.Join(root, "boot/dtbs", fixtureTargetABI, "qcom/x1e80100-microsoft-denali-oled.dtb"), "oled dtb")
+
+	t.Run("blocked without overwrite", func(t *testing.T) {
+		t.Parallel()
+		runner := &fakeRunner{root: root}
+		before := snapshotTree(t, root)
+		_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+		evidence := expectBlockedTargetState(t, err)
+		assertNoTargetStateMutation(t, runner, root, before)
+		if evidence.Classification != TargetStateComplete {
+			t.Fatalf("classification = %s, want already-installed-complete", evidence.Classification)
+		}
+	})
+
+	t.Run("allowed with overwrite and warning", func(t *testing.T) {
+		t.Parallel()
+		runner := &fakeRunner{root: root}
+		request := fixtureRequest(root, bundle, true)
+		request.Overwrite = true
+		plan, err := fixtureManager(runner).Preflight(context.Background(), request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !plan.Overwrite {
+			t.Error("plan must record the overwrite request")
+		}
+		if plan.TargetState == nil || plan.TargetState.Classification != TargetStateComplete {
+			t.Fatalf("plan target state = %+v, want already-installed-complete", plan.TargetState)
+		}
+		joined := strings.Join(plan.Warnings, "\n")
+		for _, expected := range []string{"--overwrite", "could break the system or prevent returning to the desktop on reboot"} {
+			if !strings.Contains(joined, expected) {
+				t.Errorf("warnings missing %q:\n%s", expected, joined)
+			}
+		}
+	})
+}
+
+// TestTargetStateClassifiesGenuinelyFreshTargetAsAbsent asserts the classifier
+// value directly: a root with no target artefacts and no package records is
+// absent-and-eligible, not merely behaviourally installable.
+func TestTargetStateClassifiesGenuinelyFreshTargetAsAbsent(t *testing.T) {
+	t.Parallel()
+	root, bundle := fixtureEnvironment(t)
+	runner := &fakeRunner{root: root}
+	packages, err := fixtureManager(runner).inspectBundle(context.Background(), bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := snapshotTree(t, root)
+	evidence, err := classifyTargetState(context.Background(), root, fixtureTargetABI, packages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNoTargetStateMutation(t, runner, root, before)
+	if evidence.Classification != TargetStateAbsent {
+		t.Fatalf("classification = %s, want %s", evidence.Classification, TargetStateAbsent)
+	}
+	if evidence.GRUBEntries != 0 || evidence.PackageDatabasePresent || len(evidence.Packages) != 0 {
+		t.Fatalf("fresh target reported pre-existing evidence: %+v", evidence)
+	}
+	for _, findings := range [][]ArtefactFinding{evidence.BootFiles, evidence.ModuleTrees, evidence.Firmware, evidence.FirmwareDeviceTrees, evidence.Headers} {
+		for _, finding := range findings {
+			if finding.Present {
+				t.Errorf("fresh target reported present artefact: %s", finding.Path)
+			}
+		}
+	}
+}
+
+// TestPreflightExplainsCompleteTargetWithBrokenGRUBDeviceTree proves a target
+// that looks complete but whose GRUB entry fails device-tree binding
+// verification is classified partial-or-inconsistent with an explicit reason,
+// mirroring the post-install verification contract.
+func TestPreflightExplainsCompleteTargetWithBrokenGRUBDeviceTree(t *testing.T) {
+	t.Parallel()
+	root, bundle := fixtureEnvironment(t)
+	if err := installFixtureTarget(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := installFixtureHeaders(root); err != nil {
+		t.Fatal(err)
+	}
+	writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+	writeTargetDPkgStatus(t, root, []string{
+		targetPackageStanza("linux-image-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-headers-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-qcom-x1e-headers-"+strings.TrimSuffix(fixtureTargetABI, "-qcom-x1e"), "install ok installed"),
+	})
+	// Complete target entry except its legacy device-tree directive binds
+	// bytes that do not match any installed target device tree.
+	targetEntry := "menuentry 'Ubuntu " + fixtureTargetABI + "' {\n" +
+		" linux /boot/vmlinuz-" + fixtureTargetABI + "\n" +
+		" devicetree /boot/sp11-denali.dtb\n" +
+		" initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(false)+targetEntry)
+	writeFixtureFile(t, filepath.Join(root, "boot/sp11-denali.dtb"), "wrong patch-line dtb")
+	runner := &fakeRunner{root: root}
+	before := snapshotTree(t, root)
+	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	evidence := expectBlockedTargetState(t, err)
+	assertNoTargetStateMutation(t, runner, root, before)
+	if evidence.Classification != TargetStatePartial {
+		t.Fatalf("classification = %s, want partial-or-inconsistent", evidence.Classification)
+	}
+	if evidence.GRUBDeviceTreeBindingProblem == "" {
+		t.Fatal("evidence must record the GRUB device-tree binding problem")
+	}
+	joined := strings.Join(evidence.Reasons, "\n")
+	if !strings.Contains(joined, "GRUB device-tree binding problem") ||
+		!strings.Contains(joined, "does not match installed ABI "+fixtureTargetABI) {
+		t.Errorf("reasons missing the GRUB device-tree binding explanation:\n%s", joined)
+	}
+}
+
+// TestPreflightExplainsCompleteTargetWithUnlabelledGRUBEntry proves an entry
+// booting the exact target kernel without naming the ABI in its title cannot
+// classify complete, because post-install verification requires that title.
+func TestPreflightExplainsCompleteTargetWithUnlabelledGRUBEntry(t *testing.T) {
+	t.Parallel()
+	root, bundle := fixtureEnvironment(t)
+	if err := installFixtureTarget(root); err != nil {
+		t.Fatal(err)
+	}
+	writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+	writeTargetDPkgStatus(t, root, []string{
+		targetPackageStanza("linux-image-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
+	})
+	targetEntry := "menuentry 'Ubuntu mainline' {\n" +
+		" linux /boot/vmlinuz-" + fixtureTargetABI + "\n" +
+		" initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(false)+targetEntry)
+	runner := &fakeRunner{root: root}
+	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	evidence := expectBlockedTargetState(t, err)
+	if evidence.Classification != TargetStatePartial {
+		t.Fatalf("classification = %s, want partial-or-inconsistent", evidence.Classification)
+	}
+	if !strings.Contains(evidence.GRUBDeviceTreeBindingProblem, "does not name the target ABI") {
+		t.Fatalf("binding problem = %q, want the unlabelled-title explanation", evidence.GRUBDeviceTreeBindingProblem)
+	}
+}
+
+// TestTargetStateEvidenceJSONIsStable keeps the machine-readable evidence
+// contract deterministic for receipt consumers.
+func TestTargetStateEvidenceJSONIsStable(t *testing.T) {
+	t.Parallel()
+	evidence := TargetStateEvidence{
+		ABI:             fixtureTargetABI,
+		Classification:  TargetStatePartial,
+		GRUBEntries:     0,
+		Reasons:         []string{"target ABI " + fixtureTargetABI + " has an incomplete boot baseline"},
+		Recommendations: []string{"never remove or overwrite the running or fallback ABI"},
+	}
+	encoded, err := json.MarshalIndent(evidence, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		`"classification": "partial-or-inconsistent"`,
+		`"boot_files"`,
+		`"grub_entries": 0`,
+		`"package_database_present": false`,
+		`"reasons"`,
+		`"recommendations"`,
+	} {
+		if !strings.Contains(string(encoded), expected) {
+			t.Errorf("stable JSON missing %q:\n%s", expected, encoded)
+		}
+	}
+}
+
+// TestOverwriteRejectsRunningTargetABI proves that --overwrite never targets
+// the running kernel, which the fallback verification protects.
+func TestOverwriteRejectsRunningTargetABI(t *testing.T) {
+	t.Parallel()
+	root, bundle := fixtureEnvironment(t)
+	request := fixtureRequest(root, bundle, true)
+	request.Bundle = renameBundleABI(bundle, altTargetABI)
+	request.FallbackABI = fixtureTargetABI
+	request.RunningABI = altTargetABI
+	request.ForceFallbackMismatch = true
+	request.Overwrite = true
+	for index := range request.Bundle.Packages {
+		source := bundle.Packages[index].Path
+		renamedPath := filepath.Join(filepath.Dir(source), filepath.Base(request.Bundle.Packages[index].Name))
+		if err := os.Rename(source, renamedPath); err != nil {
+			t.Fatal(err)
+		}
+		request.Bundle.Packages[index].Path = renamedPath
+	}
+	// The verified fallback ABI is the fixture target ABI in this scenario;
+	// populate its boot evidence alongside the renamed target's artefacts.
+	for _, relative := range []string{
+		"boot/vmlinuz-" + request.FallbackABI,
+		"boot/initrd.img-" + request.FallbackABI,
+		"boot/System.map-" + request.FallbackABI,
+		"boot/config-" + request.FallbackABI,
+		filepath.Join("usr/lib/modules", request.FallbackABI, "modules.dep"),
+		filepath.Join("usr/lib/modules", request.FallbackABI, "kernel/fallback.ko.zst"),
+	} {
+		source := filepath.Join(root, "boot/vmlinuz-"+fixtureFallbackABI)
+		if strings.Contains(relative, "initrd") {
+			source = filepath.Join(root, "boot/initrd.img-"+fixtureFallbackABI)
+		} else if strings.Contains(relative, "System.map") {
+			source = filepath.Join(root, "boot/System.map-"+fixtureFallbackABI)
+		} else if strings.Contains(relative, "config-") {
+			source = filepath.Join(root, "boot/config-"+fixtureFallbackABI)
+		} else if strings.Contains(relative, "modules.dep") {
+			source = filepath.Join(root, "usr/lib/modules", fixtureFallbackABI, "modules.dep")
+		}
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, relative)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		content, err := os.ReadFile(source)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFixtureFile(t, filepath.Join(root, relative), string(content))
+	}
+	// GRUB must label a non-recovery entry for the verified fallback ABI.
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"),
+		fixtureGRUB(false)+
+			"menuentry 'Ubuntu "+request.FallbackABI+"' {\n"+
+			" linux /boot/vmlinuz-"+request.FallbackABI+" root=fixture\n"+
+			" initrd /boot/initrd.img-"+request.FallbackABI+"\n}\n")
+	_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), request)
+	if err == nil || !strings.Contains(err.Error(), "must never replace the running ABI") {
+		t.Fatalf("error = %v, want the running-ABI overwrite guard", err)
+	}
+}
+
+// renameBundleABI rewrites every package name in a fixture bundle so tests
+// can exercise an alternate target ABI without crafting new archives.
+func renameBundleABI(bundle kernel.Bundle, abi string) kernel.Bundle {
+	renamed := bundle
+	renamed.ABI = abi
+	renamed.Packages = slices.Clone(bundle.Packages)
+	for index := range renamed.Packages {
+		renamed.Packages[index].Name = strings.Replace(
+			renamed.Packages[index].Name, bundle.ABI, abi, 1)
+	}
+	return renamed
 }

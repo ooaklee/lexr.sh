@@ -88,8 +88,11 @@ func TestStaleTargetRecoveryEntryFailsPreflight(t *testing.T) {
 		" initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
 	_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), fixtureRequest(root, bundle, true))
-	if err == nil || !strings.Contains(err.Error(), "already has 1 GRUB entries") {
-		t.Fatalf("error = %v", err)
+	// Recovery entries alone no longer block a fresh target: the classifier
+	// counts the same non-recovery entries the post-install verification
+	// requires, so this legacy fixture is now classified as eligible.
+	if err != nil {
+		t.Fatalf("recovery-only target entry should not block preflight: %v", err)
 	}
 }
 

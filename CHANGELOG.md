@@ -52,6 +52,20 @@ that do not apply.
 
 ## [0.2.0] - Unreleased
 
+### Added
+
+- Added partial-target detection for kernel delivery. `kernel preflight` and
+  `kernel install` now classify an already used target ABI as
+  `already-installed-complete` or `partial-or-inconsistent`, record bounded
+  read-only evidence (boot files, module trees, firmware, device trees,
+  headers, GRUB entries, and package database states), and explain safe,
+  target-ABI-scoped next steps instead of failing on the first mismatch.
+- Added `--overwrite` to `kernel preflight` and `kernel install` for
+  explicitly replacing an existing complete or partial target installation.
+  The flag prints a warning that an unsafe overwrite could break the system
+  or prevent returning to the desktop on reboot; `--yes` alone never bypasses
+  the fresh-target gate.
+
 ### Fixed
 
 - Fixed native kernel installation accepting a GRUB entry whose legacy shared
