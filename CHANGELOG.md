@@ -119,6 +119,13 @@ that do not apply.
 
 ### Fixed
 
+- Made `kernel install` detect a staged installation that completed without the
+  target ABI's `/boot/initrd.img-<abi>` image and explicitly regenerate it with
+  the trusted `update-initramfs` generator before boot verification, so a
+  package whose maintainer scripts skipped the image can no longer reach the
+  reboot hand-off without an initramfs. The conditional create command is
+  disclosed in preflight plans and dry-run output, and a failed repair triggers
+  the existing bounded rollback.
 - Scoped the retired out-of-tree touchscreen release guard to its historical
   `6.12.0-jg-0sp11v3-qcom-x1e` ABI and module assets, allowing later patch
   lines to use their own valid `sp11v3` generation for in-tree kernels.

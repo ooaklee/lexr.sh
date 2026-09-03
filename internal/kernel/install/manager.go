@@ -85,6 +85,10 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 	if err != nil {
 		return Plan{}, err
 	}
+	conditionalCommands, err := ensureInitramfsCommands(root, request.Bundle.ABI)
+	if err != nil {
+		return Plan{}, err
+	}
 	return Plan{
 		Root:                   root,
 		TargetABI:              request.Bundle.ABI,
@@ -99,6 +103,7 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 		DeviceTrees:            deviceTrees,
 		Fallback:               fallback,
 		Commands:               commands,
+		ConditionalCommands:    conditionalCommands,
 	}, nil
 }
 
@@ -184,6 +189,14 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 		return receipt, err
 	}
 	mutationStarted := false
+	runCommand := func(command Command) error {
+		if err := validateCommand(command); err != nil {
+			return err
+		}
+		receipt.Executed = append(receipt.Executed, cloneCommand(command))
+		mutationStarted = true
+		return manager.runner.Run(ctx, platform.Command{Name: command.Name, Args: append([]string(nil), command.Args...)})
+	}
 	for _, command := range commands {
 		if err := ctx.Err(); err != nil {
 			if mutationStarted {
@@ -191,16 +204,30 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 			}
 			return receipt, err
 		}
-		if err := validateCommand(command); err != nil {
-			if mutationStarted {
+		if err := runCommand(command); err != nil {
+			return manager.failAndRollback(plan, backup, receipt, fmt.Errorf("%s: %w", command.Operation, err))
+		}
+	}
+
+	// A staged install can complete without producing the new ABI's initramfs
+	// when maintainer scripts skip it. Repair that evidence gap explicitly
+	// before boot verification, so the target can never pass without an image.
+	initramfsMissing, err := initramfsMissingAfterInstall(plan.Root, plan.TargetABI)
+	if err != nil {
+		return manager.failAndRollback(plan, backup, receipt, err)
+	}
+	if initramfsMissing {
+		repairs, err := ensureInitramfsCommands(plan.Root, plan.TargetABI)
+		if err != nil {
+			return manager.failAndRollback(plan, backup, receipt, err)
+		}
+		for _, command := range repairs {
+			if err := ctx.Err(); err != nil {
 				return manager.failAndRollback(plan, backup, receipt, err)
 			}
-			return receipt, err
-		}
-		receipt.Executed = append(receipt.Executed, cloneCommand(command))
-		mutationStarted = true
-		if err := manager.runner.Run(ctx, platform.Command{Name: command.Name, Args: append([]string(nil), command.Args...)}); err != nil {
-			return manager.failAndRollback(plan, backup, receipt, fmt.Errorf("%s: %w", command.Operation, err))
+			if err := runCommand(command); err != nil {
+				return manager.failAndRollback(plan, backup, receipt, fmt.Errorf("%s: %w", command.Operation, err))
+			}
 		}
 	}
 

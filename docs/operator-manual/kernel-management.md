@@ -131,7 +131,7 @@ For the known-good non-running fallback path, keep the same ABI and `--force`
 from the reviewed dry run in the confirmed command; omitting either deliberately
 returns to the default exact-match guard.
 
-Immediately before mutation, `kernel install` repeats preflight. It stages immutable package copies, retains the fallback kernel, backs up GRUB, and verifies the installed kernel image, initramfs, module tree, boot entry, both Surface Pro 11 device trees, and both development-header trees when headers were selected.
+Immediately before mutation, `kernel install` repeats preflight. It stages immutable package copies, retains the fallback kernel, backs up GRUB, and verifies the installed kernel image, initramfs, module tree, boot entry, both Surface Pro 11 device trees, and both development-header trees when headers were selected. If the package maintainer scripts skipped the target ABI's initramfs image, Lexr regenerates it explicitly with the trusted `update-initramfs` generator before verification, and a repair that still fails triggers the same bounded rollback as any other verification failure.
 
 Lexr does not change the default kernel, remove the fallback, reboot, or install historical out-of-tree workarounds. If mutation or final verification fails, it attempts a bounded rollback and reports the recovery evidence in its receipt. Keep that receipt and the fallback available until the new kernel has passed the required device boot and hardware checks.
 
