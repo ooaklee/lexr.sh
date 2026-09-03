@@ -2,6 +2,9 @@ package install
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
@@ -13,6 +16,35 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
+
+// writeFixtureEmbeddedDTBImage writes the smallest AArch64 COFF image accepted
+// by debug/pe with one .dtbauto section and file-alignment padding.
+func writeFixtureEmbeddedDTBImage(t *testing.T, path string, payload []byte) {
+	t.Helper()
+	const (
+		coffHeaderSize    = 20
+		sectionHeaderSize = 40
+		rawSectionSize    = 512
+	)
+	if len(payload) > rawSectionSize {
+		t.Fatalf("embedded DTB fixture is too large: %d", len(payload))
+	}
+	image := make([]byte, coffHeaderSize+sectionHeaderSize+rawSectionSize)
+	binary.LittleEndian.PutUint16(image[0:2], 0xaa64)
+	binary.LittleEndian.PutUint16(image[2:4], 1)
+	section := image[coffHeaderSize : coffHeaderSize+sectionHeaderSize]
+	copy(section[:8], ".dtbauto")
+	binary.LittleEndian.PutUint32(section[8:12], uint32(len(payload)))
+	binary.LittleEndian.PutUint32(section[16:20], rawSectionSize)
+	binary.LittleEndian.PutUint32(section[20:24], coffHeaderSize+sectionHeaderSize)
+	copy(image[coffHeaderSize+sectionHeaderSize:], payload)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, image, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
 
 // TestKnownHeaderSymlinksAreIgnoredWithoutFollowing verifies developer headers
 // do not make an otherwise bootable fallback fail preflight.
@@ -123,8 +155,8 @@ func TestVerifyFallbackRejectsWrongPatchLineDeviceTree(t *testing.T) {
 	writeFixtureFile(t, filepath.Join(root, "boot/sp11-denali.dtb"), "another ABI's oled dtb")
 	grub := strings.Replace(
 		fixtureGRUB(false),
-		" initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
-		" devicetree /boot/sp11-denali.dtb\n initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
+		" devicetree /dtb-"+fixtureFallbackABI+"\n",
+		" devicetree /boot/sp11-denali.dtb\n",
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
@@ -144,8 +176,8 @@ func TestVerifyFallbackAcceptsABIStampedDeviceTree(t *testing.T) {
 	writeFixtureFile(t, filepath.Join(root, "boot", strings.TrimPrefix(token, "/")), deviceTree)
 	grub := strings.Replace(
 		fixtureGRUB(false),
-		" initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
-		" devicetree "+token+"\n initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
+		" devicetree /dtb-"+fixtureFallbackABI+"\n",
+		" devicetree "+token+"\n",
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
@@ -164,8 +196,8 @@ func TestVerifyFallbackAcceptsABIStampedX1PDeviceTree(t *testing.T) {
 	writeFixtureFile(t, filepath.Join(root, "boot", strings.TrimPrefix(token, "/")), deviceTree)
 	grub := strings.Replace(
 		fixtureGRUB(false),
-		" initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
-		" devicetree "+token+"\n initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
+		" devicetree /dtb-"+fixtureFallbackABI+"\n",
+		" devicetree "+token+"\n",
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
@@ -185,8 +217,8 @@ func TestVerifyFallbackAcceptsDistinctABIStampedDeviceTrees(t *testing.T) {
 	writeFixtureFile(t, filepath.Join(root, "boot", strings.TrimPrefix(token, "/")), "fallback lcd dtb")
 	grub := strings.Replace(
 		fixtureGRUB(false),
-		" initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
-		" devicetree "+token+"\n initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
+		" devicetree /dtb-"+fixtureFallbackABI+"\n",
+		" devicetree "+token+"\n",
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
@@ -207,8 +239,8 @@ func TestVerifyFallbackAcceptsIdenticalABIStampedDeviceTrees(t *testing.T) {
 	writeFixtureFile(t, filepath.Join(root, "boot", strings.TrimPrefix(token, "/")), deviceTree)
 	grub := strings.Replace(
 		fixtureGRUB(false),
-		" initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
-		" devicetree "+token+"\n initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
+		" devicetree /dtb-"+fixtureFallbackABI+"\n",
+		" devicetree "+token+"\n",
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
@@ -227,8 +259,8 @@ func TestVerifyFallbackRejectsABIStampedDeviceTreeMismatch(t *testing.T) {
 	writeFixtureFile(t, filepath.Join(root, "boot", strings.TrimPrefix(token, "/")), "wrong device tree")
 	grub := strings.Replace(
 		fixtureGRUB(false),
-		" initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
-		" devicetree "+token+"\n initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
+		" devicetree /dtb-"+fixtureFallbackABI+"\n",
+		" devicetree "+token+"\n",
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
@@ -244,7 +276,7 @@ func TestVerifyABIStampedDeviceTreeBindingSingleVariantMatching(t *testing.T) {
 	root := t.TempDir()
 	writeFixtureFile(t, filepath.Join(root, "usr/lib/firmware", fixtureFallbackABI, "device-tree/qcom/x1e80100-microsoft-denali-oled.dtb"), "oled dtb")
 	writeFixtureFile(t, filepath.Join(root, "boot/dtb-7.2.0"), "oled dtb")
-	if err := verifyABIStampedDeviceTreeBinding(context.Background(), root, fixtureFallbackABI, "/boot/dtb-7.2.0"); err != nil {
+	if _, err := verifyABIStampedDeviceTreeBinding(context.Background(), root, fixtureFallbackABI, "/boot/dtb-7.2.0"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -259,13 +291,71 @@ func TestVerifyFallbackAcceptsCanonicalDeviceTree(t *testing.T) {
 	writeFixtureFile(t, filepath.Join(root, "boot", basename), deviceTree)
 	grub := strings.Replace(
 		fixtureGRUB(false),
-		" initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
-		" devicetree /boot/"+basename+"\n initrd /boot/initrd.img-"+fixtureFallbackABI+"\n",
+		" devicetree /dtb-"+fixtureFallbackABI+"\n",
+		" devicetree /boot/"+basename+"\n",
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
 	if _, err := verifyFallback(context.Background(), root, fixtureFallbackABI); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestVerifyFallbackAcceptsEmbeddedDeviceTree proves an absent GRUB directive
+// is safe only when the installed AArch64 PE contains an exact same-ABI DTB.
+func TestVerifyFallbackAcceptsEmbeddedDeviceTree(t *testing.T) {
+	root, _ := fixtureEnvironment(t)
+	payload := []byte("fallback oled dtb")
+	writeFixtureEmbeddedDTBImage(t, filepath.Join(root, "boot/vmlinuz-"+fixtureFallbackABI), payload)
+	grub := strings.Replace(
+		fixtureGRUB(false),
+		" devicetree /dtb-"+fixtureFallbackABI+"\n",
+		"",
+		1,
+	)
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+	evidence, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(payload)
+	if evidence.DeviceTreeBoot.Mode != DeviceTreeBootEmbedded ||
+		evidence.DeviceTreeBoot.SHA256 != hex.EncodeToString(digest[:]) ||
+		evidence.DeviceTreeBoot.GRUBEntryCount != 1 {
+		t.Fatalf("embedded DTB evidence = %+v", evidence.DeviceTreeBoot)
+	}
+}
+
+// TestVerifyFallbackRejectsMissingBootDeviceTree proves packaged DTBs alone
+// cannot make a source-built image with no GRUB devicetree directive bootable.
+func TestVerifyFallbackRejectsMissingBootDeviceTree(t *testing.T) {
+	root, _ := fixtureEnvironment(t)
+	grub := strings.Replace(
+		fixtureGRUB(false),
+		" devicetree /dtb-"+fixtureFallbackABI+"\n",
+		"",
+		1,
+	)
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	if err == nil || !strings.Contains(err.Error(), "no inspectable embedded device tree") {
+		t.Fatalf("missing boot DTB error = %v", err)
+	}
+}
+
+// TestVerifyFallbackRejectsMixedEmbeddedAndExternalBindings proves recovery
+// entries cannot silently boot with a different DTB delivery mode.
+func TestVerifyFallbackRejectsMixedEmbeddedAndExternalBindings(t *testing.T) {
+	root, _ := fixtureEnvironment(t)
+	writeFixtureEmbeddedDTBImage(t, filepath.Join(root, "boot/vmlinuz-"+fixtureFallbackABI), []byte("fallback oled dtb"))
+	grub := fixtureGRUB(false) +
+		"menuentry 'Ubuntu " + fixtureFallbackABI + " (recovery mode)' {\n" +
+		" linux /boot/vmlinuz-" + fixtureFallbackABI + " root=fixture single\n" +
+		" initrd /boot/initrd.img-" + fixtureFallbackABI + "\n}\n"
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	if err == nil || !strings.Contains(err.Error(), "inconsistent device-tree bindings") {
+		t.Fatalf("mixed boot DTB mode error = %v", err)
 	}
 }
 

@@ -68,6 +68,12 @@ that do not apply.
 
 ### Fixed
 
+- Fixed kernel installation reporting success when package contents included
+  the required device trees but the installed kernel had no boot-time device
+  tree. Final target and fallback verification now require either an exact
+  same-ABI embedded `.dtbauto` payload or a consistent external GRUB binding;
+  an unbound target fails closed and uses the existing bounded rollback. Human
+  and JSON receipts now distinguish packaged DTBs from verified boot binding.
 - Fixed kernel preflight falsely reporting ambiguity whenever both Surface Pro
   11 device-tree variants were installed. ABI-stamped GRUB device-tree
   verification now attributes the physical hardware variant by digest before

@@ -78,8 +78,11 @@ Run the read-only preflight and dry run as your regular user:
 ```
 
 Review the target root, new ABI, package set, initramfs and GRUB operations,
-and retained fallback. These checks do not modify the system and do not prove
-that either kernel passes physical hardware qualification.
+retained fallback, and the fallback's reported boot device-tree mode. A valid
+mode is either an exact same-ABI DTB embedded in the kernel image or a matching
+external DTB referenced consistently by its GRUB entries. These checks do not
+modify the system and do not prove that either kernel passes physical hardware
+qualification.
 
 If the running kernel is the broken candidate and another installed kernel is
 your known-good fallback, replace `$RUNNING_ABI` with that exact installed ABI
@@ -108,8 +111,12 @@ ABI and add `--force` to this confirmed command as well.
 
 The real installation repeats preflight immediately before mutation, retains
 the fallback, backs up GRUB, and verifies the installed package and boot state.
-Keep the printed receipt. A failure triggers a bounded rollback attempt, but
-the receipt may still require recovery action if rollback cannot finish.
+The receipt distinguishes the number of packaged DTBs from the verified
+boot-time mode. Packaged DTBs alone are insufficient: Lexr requires an exact
+same-ABI embedded DTB or a matching external GRUB binding before reporting
+`reboot required: true`. Keep the printed receipt. A failure triggers a bounded
+rollback attempt, but the receipt may still require recovery action if rollback
+cannot finish.
 
 After installation, inspect the generated boot evidence before rebooting.
 Choose `x1e-oled` for the OLED model or `x1p-lcd` for the LCD model, and copy
