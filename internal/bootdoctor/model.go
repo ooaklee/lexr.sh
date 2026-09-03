@@ -82,8 +82,16 @@ type Entry struct {
 	UnsafeCommands []string `json:"unsafe_commands,omitempty"`
 	// KernelExists reports safe regular-file evidence for the kernel token.
 	KernelExists bool `json:"kernel_exists"`
+	// KernelState distinguishes present, missing, and permission-inaccessible evidence.
+	KernelState install.GRUBPathAvailability `json:"kernel_state,omitempty"`
 	// InitramfsExists reports safe regular-file evidence for the initramfs token.
 	InitramfsExists bool `json:"initramfs_exists"`
+	// InitramfsState distinguishes present, missing, and permission-inaccessible evidence.
+	InitramfsState install.GRUBPathAvailability `json:"initramfs_state,omitempty"`
+	// BootDTBState classifies the boot-side devicetree path when recognised.
+	BootDTBState install.GRUBPathAvailability `json:"boot_dtb_state,omitempty"`
+	// InstalledDTBState classifies the same-ABI firmware-side DTB evidence.
+	InstalledDTBState install.GRUBPathAvailability `json:"installed_dtb_state,omitempty"`
 	// BootDTBSHA256 is the exact digest of the referenced boot-side DTB.
 	BootDTBSHA256 string `json:"boot_dtb_sha256,omitempty"`
 	// InstalledDTBSHA256 is the exact same-ABI firmware-side digest.

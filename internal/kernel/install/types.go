@@ -155,6 +155,19 @@ type GRUBPathToken struct {
 	Path string `json:"path"`
 }
 
+// GRUBPathAvailability classifies bounded filesystem evidence for one safe
+// GRUB path without conflating a missing file with permission-denied access.
+type GRUBPathAvailability string
+
+const (
+	// GRUBPathPresent means the token resolved to non-empty regular evidence.
+	GRUBPathPresent GRUBPathAvailability = "present"
+	// GRUBPathMissing means every safe resolution was absent.
+	GRUBPathMissing GRUBPathAvailability = "missing"
+	// GRUBPathInaccessible means permission denied prevented verification.
+	GRUBPathInaccessible GRUBPathAvailability = "inaccessible"
+)
+
 // GRUBEntry records only the bounded, non-sensitive fields needed to inspect
 // one normal or recovery menu entry.
 type GRUBEntry struct {

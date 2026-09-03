@@ -158,7 +158,7 @@ func (inspector *Inspector) Inspect(ctx context.Context, options Options) (_ Rep
 				detail = "the effective boot DTB matches multiple canonical installed ABI candidates; attribution is ambiguous"
 			}
 			report.add(Check{ID: "boot-dtb-attribution", State: StatePass, Detail: detail})
-		} else if entry.BootDTBSHA256 != "" {
+		} else if entry.BootDTBSHA256 != "" && entry.InstalledDTBState != install.GRUBPathInaccessible {
 			report.add(Check{ID: "boot-dtb-attribution", State: StateFail, Required: true, Detail: "the effective boot DTB matches no canonical installed ABI candidate"})
 		}
 	}
@@ -189,13 +189,19 @@ func (report *Report) addEntryChecks(entry Entry, required bool) {
 	state := StatePass
 	detail := "the kernel and initramfs paths exist as regular files"
 	unsafeArtefact := slicesContain(entry.UnsafeCommands, "linux") || slicesContain(entry.UnsafeCommands, "linuxefi") ||
-		slicesContain(entry.UnsafeCommands, "initrd") || slicesContain(entry.UnsafeCommands, "initrdefi")
-	if !entry.KernelExists || !entry.InitramfsExists || unsafeArtefact {
+		slicesContain(entry.UnsafeCommands, "initrd") || slicesContain(entry.UnsafeCommands, "initrdefi") ||
+		entry.KernelState == "" || entry.InitramfsState == ""
+	inaccessibleArtefact := entry.KernelState == install.GRUBPathInaccessible || entry.InitramfsState == install.GRUBPathInaccessible
+	missingArtefact := entry.KernelState == install.GRUBPathMissing || entry.InitramfsState == install.GRUBPathMissing
+	if unsafeArtefact || missingArtefact {
 		state = StateWarn
 		detail = "the GRUB entry is stale or has an unsafe kernel or initramfs path token"
 		if required {
 			state = StateFail
 		}
+	} else if inaccessibleArtefact {
+		state = StateWarn
+		detail = "a kernel or initramfs path is inaccessible; re-run with sudo to verify"
 	}
 	report.add(Check{ID: "grub-entry-artefacts", State: state, Required: required, ABI: entry.ABI, Detail: detail})
 
@@ -213,12 +219,23 @@ func (report *Report) addEntryChecks(entry Entry, required bool) {
 		if required {
 			dtbState = StateFail
 		}
-	} else if entry.DTBMatches == nil || !*entry.DTBMatches {
+	} else if entry.BootDTBState == "" || entry.InstalledDTBState == "" {
+		dtbState = StateWarn
+		dtbDetail = "the GRUB entry has an unrecognised or unsafe devicetree path"
+		if required {
+			dtbState = StateFail
+		}
+	} else if entry.BootDTBState == install.GRUBPathMissing || entry.InstalledDTBState == install.GRUBPathMissing ||
+		(entry.DTBMatches != nil && !*entry.DTBMatches) ||
+		(entry.BootDTBState == install.GRUBPathPresent && entry.InstalledDTBState == install.GRUBPathPresent && entry.DTBMatches == nil) {
 		dtbState = StateWarn
 		dtbDetail = "the boot-side DTB is missing or does not match the installed same-ABI firmware DTB"
 		if required {
 			dtbState = StateFail
 		}
+	} else if entry.BootDTBState == install.GRUBPathInaccessible || entry.InstalledDTBState == install.GRUBPathInaccessible {
+		dtbState = StateWarn
+		dtbDetail = "a boot-side or installed DTB path is inaccessible; re-run with sudo to verify"
 	}
 	report.add(Check{ID: "grub-entry-dtb", State: dtbState, Required: required, ABI: entry.ABI, Detail: dtbDetail})
 }
@@ -276,13 +293,17 @@ func inspectEntry(ctx context.Context, root string, parsed install.GRUBEntry, re
 		DeviceTrees:    parsed.DeviceTrees,
 		UnsafeCommands: parsed.UnsafeCommands,
 	}
-	entry.KernelExists = anyGRUBPathExists(ctx, root, parsed.Linux)
-	entry.InitramfsExists = anyGRUBPathExists(ctx, root, parsed.Initrd)
-	if len(parsed.DeviceTrees) != 1 || entry.ABI == "" || !entryTokenMatchesDevice(parsed.DeviceTrees[0].Path, parsed.Title, relativeDTB) {
+	entry.KernelState = grubPathsAvailability(ctx, root, parsed.Linux)
+	entry.InitramfsState = grubPathsAvailability(ctx, root, parsed.Initrd)
+	entry.KernelExists = entry.KernelState == install.GRUBPathPresent
+	entry.InitramfsExists = entry.InitramfsState == install.GRUBPathPresent
+	if len(parsed.DeviceTrees) != 1 || entry.ABI == "" || !entryTokenMatchesDevice(parsed.DeviceTrees[0].Path, parsed.Title, relativeDTB, entry.ABI) {
 		return entry
 	}
-	bootSide, bootErr := install.HashGRUBPath(ctx, root, parsed.DeviceTrees[0].Path)
+	bootSide, bootState, bootErr := install.InspectGRUBPath(ctx, root, parsed.DeviceTrees[0].Path)
 	installed, installedErr := install.HashRootFile(ctx, root, "usr/lib/firmware/"+entry.ABI+"/device-tree/"+relativeDTB, "installed device-tree")
+	entry.BootDTBState = bootState
+	entry.InstalledDTBState = rootFileAvailability(installedErr)
 	if bootErr == nil {
 		entry.BootDTBSHA256 = bootSide.SHA256
 	}
@@ -322,13 +343,17 @@ func redactAlternateRootError(root string, err error) error {
 	return errors.New(message)
 }
 
-// entryTokenMatchesDevice prevents X1E and X1P DTB paths from being compared,
-// using an explicit title variant when the retired helper used a shared name.
-func entryTokenMatchesDevice(token, title, relativeDTB string) bool {
+// entryTokenMatchesDevice prevents X1E and X1P canonical DTB paths from being
+// compared, while accepting a safe ABI-stamped name only when its numeric
+// kernel version agrees with the entry ABI. Digest equality then proves bytes.
+func entryTokenMatchesDevice(token, title, relativeDTB, abi string) bool {
 	base := strings.ToLower(filepath.Base(token))
 	expected := strings.ToLower(filepath.Base(relativeDTB))
 	if base == expected {
 		return true
+	}
+	if _, valid := install.ABIStampedDTBIdentity(token); valid {
+		return install.ABIStampedDTBMatchesABI(token, abi)
 	}
 	if base != "sp11-denali.dtb" {
 		return false
@@ -340,15 +365,66 @@ func entryTokenMatchesDevice(token, title, relativeDTB string) bool {
 	return !strings.Contains(title, "x1p") && !strings.Contains(title, "lcd")
 }
 
-// anyGRUBPathExists reports whether any recognised path resolves to bounded
-// regular evidence through the shared installation verifier.
-func anyGRUBPathExists(ctx context.Context, root string, tokens []install.GRUBPathToken) bool {
+// grubPathsAvailability inspects every recognised token so an unsafe sibling
+// cannot be hidden by present evidence. Without an unsafe token, any present
+// path preserves the historical any-token-exists result; otherwise genuine
+// missing evidence takes precedence over permission-inaccessible evidence.
+func grubPathsAvailability(ctx context.Context, root string, tokens []install.GRUBPathToken) install.GRUBPathAvailability {
+	states := make([]install.GRUBPathAvailability, 0, len(tokens))
 	for _, token := range tokens {
-		if _, err := install.HashGRUBPath(ctx, root, token.Path); err == nil {
-			return true
+		_, state, _ := install.InspectGRUBPath(ctx, root, token.Path)
+		states = append(states, state)
+	}
+	return aggregateGRUBPathAvailability(states)
+}
+
+// aggregateGRUBPathAvailability applies the fail-closed multi-token ordering
+// after every path has been inspected.
+func aggregateGRUBPathAvailability(states []install.GRUBPathAvailability) install.GRUBPathAvailability {
+	unsafe := false
+	present := false
+	missing := len(states) == 0
+	inaccessible := false
+	for _, state := range states {
+		switch state {
+		case install.GRUBPathPresent:
+			present = true
+		case install.GRUBPathMissing:
+			missing = true
+		case install.GRUBPathInaccessible:
+			inaccessible = true
+		default:
+			unsafe = true
 		}
 	}
-	return false
+	if unsafe {
+		return ""
+	}
+	if present {
+		return install.GRUBPathPresent
+	}
+	if missing {
+		return install.GRUBPathMissing
+	}
+	if inaccessible {
+		return install.GRUBPathInaccessible
+	}
+	return install.GRUBPathMissing
+}
+
+// rootFileAvailability applies the same bounded classification to a compiled
+// root-relative evidence path.
+func rootFileAvailability(err error) install.GRUBPathAvailability {
+	switch {
+	case err == nil:
+		return install.GRUBPathPresent
+	case errors.Is(err, os.ErrPermission):
+		return install.GRUBPathInaccessible
+	case errors.Is(err, os.ErrNotExist):
+		return install.GRUBPathMissing
+	default:
+		return ""
+	}
 }
 
 // entryABI infers one canonical ABI only from unambiguous vmlinuz basenames.

@@ -9,10 +9,17 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
+
+// abiStampedDTBExpression admits the bounded path-safe identity syntax used by
+// generated /dtb-<abi> files. It intentionally does not require the stricter
+// package ABI convention: deployed names such as 7.2.2-sp11beta2 use a looser
+// generation marker, while digest equality remains the correctness proof.
+var abiStampedDTBExpression = regexp.MustCompile(`^([0-9]+)\.([0-9]+)\.([0-9]+)(?:[.-][A-Za-z0-9+~_]+)*$`)
 
 const (
 	// maximumModuleEntries bounds recursive inspection of an installed module tree.
@@ -21,6 +28,8 @@ const (
 	maximumGRUBBytes int64 = 16 << 20
 	// maximumGRUBMenuDepth bounds nested submenu state retained while parsing.
 	maximumGRUBMenuDepth = 32
+	// abiStampedDeviceTreeMarker defers hardware attribution to installed bytes.
+	abiStampedDeviceTreeMarker = "abi-stamped"
 )
 
 // verifyFallback proves that the running fallback has complete boot artefacts.
@@ -709,9 +718,15 @@ func verifyGRUBDeviceTreeBindings(ctx context.Context, root, abi string, entries
 		if len(entry.DeviceTrees) != 1 {
 			return errors.New("matching GRUB entry has multiple device-tree directives")
 		}
-		device, relative, valid := requiredTreeForEntry(entry)
+		device, relative, valid := requiredTreeForEntry(entry, abi)
 		if !valid {
 			return errors.New("matching GRUB entry has an unrecognised Surface device-tree path")
+		}
+		if device == abiStampedDeviceTreeMarker {
+			if err := verifyABIStampedDeviceTreeBinding(ctx, root, abi, entry.DeviceTrees[0].Path); err != nil {
+				return err
+			}
+			continue
 		}
 		installedPath := ""
 		for _, tree := range trees {
@@ -745,6 +760,44 @@ func verifyGRUBDeviceTreeBindings(ctx context.Context, root, abi string, entries
 	return nil
 }
 
+// verifyABIStampedDeviceTreeBinding identifies the hardware variant from
+// installed same-ABI bytes instead of a title that necessarily contains the
+// ABI flavour suffix. Differing installed variants are ambiguous and fail
+// closed; identical variant bytes are interchangeable for digest comparison.
+func verifyABIStampedDeviceTreeBinding(ctx context.Context, root, abi, token string) error {
+	bootSide, err := hashGRUBPath(ctx, root, token)
+	if err != nil {
+		return fmt.Errorf("inspect ABI-stamped GRUB device-tree: %w", err)
+	}
+	type candidate struct {
+		device   string
+		evidence FileEvidence
+	}
+	candidates := make([]candidate, 0, len(requiredDeviceTrees))
+	for _, tree := range requiredDeviceTrees {
+		installed, err := HashRootFile(ctx, root, "usr/lib/firmware/"+abi+"/device-tree/"+tree.Path, "installed device-tree")
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		candidates = append(candidates, candidate{device: tree.Device, evidence: installed})
+	}
+	if len(candidates) == 0 {
+		return fmt.Errorf("ABI-stamped GRUB device-tree has no installed variant for ABI %s", abi)
+	}
+	for _, candidate := range candidates[1:] {
+		if candidate.evidence.SHA256 != candidates[0].evidence.SHA256 {
+			return fmt.Errorf("ABI-stamped GRUB device-tree has ambiguous installed variant candidates for ABI %s", abi)
+		}
+	}
+	if bootSide.SHA256 != candidates[0].evidence.SHA256 {
+		return fmt.Errorf("GRUB device-tree for %s does not match installed ABI %s", candidates[0].device, abi)
+	}
+	return nil
+}
+
 // slicesContainString reports whether values contains one exact string.
 func slicesContainString(values []string, expected string) bool {
 	for _, value := range values {
@@ -766,10 +819,14 @@ func entryHasArtefact(tokens []GRUBPathToken, basename string) bool {
 	return false
 }
 
-// requiredTreeForEntry maps only the two compiled Surface hardware variants,
-// including the retired helper's unambiguous X1E/OLED shared filename.
-func requiredTreeForEntry(entry GRUBEntry) (string, string, bool) {
+// requiredTreeForEntry maps canonical and legacy shared names to one compiled
+// Surface hardware variant. ABI-stamped names return a marker so the caller
+// can derive the variant from installed digest evidence rather than the title.
+func requiredTreeForEntry(entry GRUBEntry, abi string) (string, string, bool) {
 	token := strings.ToLower(entry.DeviceTrees[0].Path)
+	if _, valid := ABIStampedDTBIdentity(token); valid && ABIStampedDTBMatchesABI(token, abi) {
+		return abiStampedDeviceTreeMarker, "", true
+	}
 	title := strings.ToLower(entry.Title)
 	titleX1P := strings.Contains(title, "x1p") || strings.Contains(title, "lcd")
 	titleX1E := strings.Contains(title, "x1e") || strings.Contains(title, "oled")
@@ -788,6 +845,47 @@ func requiredTreeForEntry(entry GRUBEntry) (string, string, bool) {
 		return requiredDeviceTrees[0].Device, requiredDeviceTrees[0].Path, true
 	}
 	return "", "", false
+}
+
+// ABIStampedDTBIdentity returns the bounded identity embedded in one safe
+// dtb-<identity> basename in any normalised directory. The suffix grammar is
+// deliberately looser than package ABI validation because deployed GRUB tokens
+// use markers such as sp11beta2.
+func ABIStampedDTBIdentity(token string) (string, bool) {
+	normalised, valid := normaliseGRUBToken(token)
+	if !valid {
+		return "", false
+	}
+	base := strings.ToLower(filepath.Base(normalised))
+	if !strings.HasPrefix(base, "dtb-") {
+		return "", false
+	}
+	identity := strings.TrimPrefix(base, "dtb-")
+	if len(identity) == 0 || len(identity) > maximumABIBytes || !abiStampedDTBExpression.MatchString(identity) {
+		return "", false
+	}
+	return identity, true
+}
+
+// ABIStampedDTBMatchesABI cross-checks the unambiguous numeric kernel version
+// in a stamped token against the entry's vmlinuz ABI. Local suffix conventions
+// may differ; byte-for-byte digest verification proves the actual DTB binding.
+func ABIStampedDTBMatchesABI(token, abi string) bool {
+	identity, valid := ABIStampedDTBIdentity(token)
+	if !valid || len(abi) == 0 || len(abi) > maximumABIBytes {
+		return false
+	}
+	tokenVersion := abiStampedDTBExpression.FindStringSubmatch(identity)
+	abiVersion := abiStampedDTBExpression.FindStringSubmatch(strings.ToLower(abi))
+	if len(tokenVersion) != 4 || len(abiVersion) != 4 {
+		return false
+	}
+	for index := 1; index <= 3; index++ {
+		if tokenVersion[index] != abiVersion[index] {
+			return false
+		}
+	}
+	return true
 }
 
 // hashGRUBPath resolves a GRUB path below the selected target root or its
@@ -847,6 +945,23 @@ func HashGRUBPath(ctx context.Context, root, token string) (FileEvidence, error)
 		return FileEvidence{}, err
 	}
 	return hashGRUBPath(ctx, canonical, token)
+}
+
+// InspectGRUBPath resolves and hashes one recognised path while exposing the
+// missing-versus-permission distinction needed by read-only diagnostics. Other
+// safety errors retain an empty availability and must continue to fail closed.
+func InspectGRUBPath(ctx context.Context, root, token string) (FileEvidence, GRUBPathAvailability, error) {
+	evidence, err := HashGRUBPath(ctx, root, token)
+	switch {
+	case err == nil:
+		return evidence, GRUBPathPresent, nil
+	case errors.Is(err, os.ErrPermission):
+		return FileEvidence{}, GRUBPathInaccessible, err
+	case errors.Is(err, os.ErrNotExist):
+		return FileEvidence{}, GRUBPathMissing, err
+	default:
+		return FileEvidence{}, "", err
+	}
 }
 
 // pathTokenMatches reports whether any GRUB path token ends in the exact artefact.
