@@ -15,8 +15,9 @@ import (
 var packageRoleOrder = map[kernel.PackageRole]int{
 	kernel.RoleModules:       0,
 	kernel.RoleImage:         1,
-	kernel.RoleCommonHeaders: 2,
-	kernel.RoleHeaders:       3,
+	kernel.RoleBootSupport:   2,
+	kernel.RoleCommonHeaders: 3,
+	kernel.RoleHeaders:       4,
 }
 
 // inspectBundle validates all package bytes and Debian control metadata without
@@ -37,8 +38,12 @@ func (manager *Manager) inspectBundle(ctx context.Context, bundle kernel.Bundle)
 	if err := validateDeviceTrees(bundle); err != nil {
 		return nil, err
 	}
-	if len(bundle.Packages) != 2 && len(bundle.Packages) != 4 {
-		return nil, fmt.Errorf("kernel transaction must contain exactly the runtime pair or runtime and header pairs; found %d packages", len(bundle.Packages))
+	wantCounts := map[int]bool{2: true, 4: true}
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		wantCounts = map[int]bool{3: true, 5: true}
+	}
+	if !wantCounts[len(bundle.Packages)] {
+		return nil, fmt.Errorf("kernel transaction package count %d does not match %s DTB delivery", len(bundle.Packages), bundle.EffectiveDTBDelivery)
 	}
 
 	expected := expectedPackageNames(bundle.ABI)
@@ -60,14 +65,14 @@ func (manager *Manager) inspectBundle(ctx context.Context, bundle kernel.Bundle)
 		}
 		seen[role] = true
 		packageArchitecture := "arm64"
-		if role == kernel.RoleCommonHeaders {
+		if role == kernel.RoleCommonHeaders || role == kernel.RoleBootSupport {
 			packageArchitecture = "all"
 		}
 		expectedFilename := expected[role] + "_" + bundle.Version + "_" + packageArchitecture + ".deb"
 		if manifestPackage.Name != expectedFilename {
 			return nil, fmt.Errorf("unexpected %s package %q; expected %q", role, manifestPackage.Name, expectedFilename)
 		}
-		if role != kernel.RoleCommonHeaders && abi != bundle.ABI {
+		if role != kernel.RoleCommonHeaders && role != kernel.RoleBootSupport && abi != bundle.ABI {
 			return nil, fmt.Errorf("package %s ABI is %q, expected %q", manifestPackage.Name, abi, bundle.ABI)
 		}
 		if version != bundle.Version {
@@ -120,6 +125,9 @@ func (manager *Manager) inspectBundle(ctx context.Context, bundle kernel.Bundle)
 	if !seen[kernel.RoleImage] || !seen[kernel.RoleModules] {
 		return nil, errors.New("kernel transaction requires one image and one modules package")
 	}
+	if seen[kernel.RoleBootSupport] != (bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired) {
+		return nil, errors.New("kernel transaction boot-support package does not match effective DTB delivery")
+	}
 	if seen[kernel.RoleHeaders] != seen[kernel.RoleCommonHeaders] {
 		return nil, errors.New("kernel headers and common headers must be supplied together")
 	}
@@ -141,13 +149,24 @@ func (manager *Manager) inspectBundle(ctx context.Context, bundle kernel.Bundle)
 	if seen[kernel.RoleHeaders] && !hasDependency(dependencies[kernel.RoleHeaders], expected[kernel.RoleCommonHeaders]) {
 		return nil, fmt.Errorf("%s must depend on %s", expected[kernel.RoleHeaders], expected[kernel.RoleCommonHeaders])
 	}
+	if seen[kernel.RoleBootSupport] {
+		bootSupport := packageForRole(packages, kernel.RoleBootSupport)
+		recommendations, err := validateLocalRelationships(bootSupport.Name, "Recommends", bootSupport.Recommends, allowed, bundle.Version)
+		if err != nil {
+			return nil, err
+		}
+		if !hasExactDependency(recommendations, expected[kernel.RoleImage], bundle.Version) ||
+			!hasExactDependency(recommendations, expected[kernel.RoleModules], bundle.Version) {
+			return nil, fmt.Errorf("%s must recommend the exact image and modules pair", expected[kernel.RoleBootSupport])
+		}
+	}
 	sort.Slice(packages, func(left, right int) bool {
 		return packageRoleOrder[packages[left].Role] < packageRoleOrder[packages[right].Role]
 	})
 	return packages, nil
 }
 
-// inspectPackageMetadata reads the four bounded control fields required by policy.
+// inspectPackageMetadata reads the five bounded control fields required by policy.
 func (manager *Manager) inspectPackageMetadata(ctx context.Context, path string) (Package, error) {
 	packageName, err := manager.captureDebianField(ctx, path, "Package", maximumPackageNameBytes)
 	if err != nil {
@@ -168,12 +187,27 @@ func (manager *Manager) inspectPackageMetadata(ctx context.Context, path string)
 	if err != nil {
 		return Package{}, err
 	}
+	recommends, err := manager.captureDebianField(ctx, path, "Recommends", maximumDependencyBytes)
+	if err != nil {
+		return Package{}, err
+	}
 	return Package{
 		DebianPackage: packageName,
 		Version:       version,
 		Architecture:  architecture,
 		Depends:       depends,
+		Recommends:    recommends,
 	}, nil
+}
+
+// packageForRole returns the package assigned to role, or a zero value if absent.
+func packageForRole(packages []Package, role kernel.PackageRole) Package {
+	for _, item := range packages {
+		if item.Role == role {
+			return item
+		}
+	}
+	return Package{}
 }
 
 // captureDebianField invokes dpkg-deb directly for one allow-listed field.
@@ -194,7 +228,7 @@ func (manager *Manager) captureDebianField(ctx context.Context, path, field stri
 		return "", fmt.Errorf("Debian field %s exceeds %d bytes", field, maximum)
 	}
 	value := strings.TrimSuffix(strings.TrimSuffix(string(output), "\n"), "\r")
-	if err := validateText("Debian field "+field, value, maximum, field == "Depends"); err != nil {
+	if err := validateText("Debian field "+field, value, maximum, field == "Depends" || field == "Recommends"); err != nil {
 		return "", err
 	}
 	return value, nil

@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -19,6 +20,7 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/image/companion"
 	"github.com/ooaklee/lexr.sh/internal/image/ubuntu/caspermedia"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
+	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
@@ -136,13 +138,18 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	abiSafe := safeKernelABI(manifest.KernelBundle.ABI)
 	manifestMediaContract, markerRecord, manifestMediaErr := caspermedia.FromDiscoveryRecord(manifest.MediaDiscovery)
 	companionRecordErr := companion.ValidateRecord(manifest.CompanionBundle)
+	manifestBundleErr := validateManifestKernelBundle(manifest.KernelBundle)
 	manifestOK := manifest.SchemaVersion == imagecontract.ManifestSchemaVersion &&
 		manifest.Adapter == AdapterID &&
-		manifest.KernelBundle.SchemaVersion == kernel.BundleSchemaVersion &&
+		manifestBundleErr == nil &&
 		manifestMediaErr == nil &&
 		companionRecordErr == nil &&
 		abiSafe
-	addCheck("embedded-manifest", manifestOK, fmt.Sprintf("schema=%d adapter=%s abi=%s", manifest.SchemaVersion, manifest.Adapter, manifest.KernelBundle.ABI))
+	manifestDetails := fmt.Sprintf("schema=%d adapter=%s abi=%s", manifest.SchemaVersion, manifest.Adapter, manifest.KernelBundle.ABI)
+	if manifestBundleErr != nil {
+		manifestDetails = manifestBundleErr.Error()
+	}
+	addCheck("embedded-manifest", manifestOK, manifestDetails)
 	report.Checks = append(report.Checks, v.validateCompanionBundle(ctx, toolsImage, workspace, manifest.CompanionBundle, companionRecordErr)...)
 	if !abiSafe {
 		report.Valid = false
@@ -269,7 +276,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	grubPassed := strings.Contains(grubText, "devicetree /sp11/dtb/x1e80100-microsoft-denali-oled.dtb") &&
 		strings.Contains(grubText, "devicetree /sp11/dtb/x1p64100-microsoft-denali.dtb") &&
 		strings.Contains(grubText, "modprobe.blacklist=qcom_q6v5_pas") &&
-		strings.Contains(grubText, "soundwire_qcom.sp11_feedback_active_offset2_zero=1")
+		!strings.Contains(grubText, "sp11_feedback_active_offset2_zero")
 	for _, line := range strings.Split(grubText, "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "linux /casper/vmlinuz") && !strings.Contains(line, "modprobe.blacklist=qcom_q6v5_pas") {
@@ -277,7 +284,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 		}
 	}
 	grubPassed = grubPassed && !strings.Contains(grubText, "allow aDSP")
-	addCheck("surface-grub-menu", grubPassed, "X1E/X1P DTBs, the audio argument, and aDSP-safe live entries")
+	addCheck("surface-grub-menu", grubPassed, "X1E/X1P DTBs and aDSP-safe live entries without the retired SoundWire parameter")
 	selfLocationPassed := strings.Contains(grubText, "insmod part_gpt") &&
 		strings.Contains(grubText, "insmod iso9660") &&
 		strings.Contains(grubText, "insmod search") &&
@@ -323,6 +330,30 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 		return report, errors.New("ISO validation failed")
 	}
 	return report, nil
+}
+
+// validateManifestKernelBundle proves that on-media delivery provenance is
+// canonical and every package path matches whether the package is embedded.
+func validateManifestKernelBundle(bundle kernel.Bundle) error {
+	canonical, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: bundle.Release, Repository: bundle.Repository,
+		RequestedBootImageMode: bundle.RequestedBootImageMode, EffectiveDTBDelivery: bundle.EffectiveDTBDelivery,
+		EmbeddedDTBCount: bundle.EmbeddedDTBCount, DTBSelectionProvenance: bundle.DTBSelectionProvenance,
+		Packages: bundle.Packages, DeviceTrees: bundle.DeviceTrees,
+	})
+	if err != nil || !reflect.DeepEqual(bundle, canonical) {
+		return errors.Join(errors.New("manifest kernel bundle delivery contract is invalid or non-canonical"), err)
+	}
+	for _, pkg := range bundle.Packages {
+		expectedPath := ""
+		if pkg.Role == kernel.RoleImage || pkg.Role == kernel.RoleModules || pkg.Role == kernel.RoleBootSupport {
+			expectedPath = "sp11/kernel/" + pkg.Name
+		}
+		if pkg.Path != expectedPath {
+			return fmt.Errorf("manifest kernel package %s has unexpected media path %q", pkg.Name, pkg.Path)
+		}
+	}
+	return nil
 }
 
 // snapshotValidationImage copies and hashes one descriptor-pinned ISO into the
@@ -538,12 +569,17 @@ func isoDirectoryListingContains(listing []byte, name string) bool {
 // validateInstalledSystemSupport extracts and checks the minimal root assets
 // that Ubuntu's installer is expected to copy into the target filesystem.
 func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsImage, workspace string, manifest imagecontract.Manifest) []imagecontract.ValidationCheck {
-	checks := make([]imagecontract.ValidationCheck, 0, 7)
+	checks := make([]imagecontract.ValidationCheck, 0, 9)
 	addCheck := func(name string, passed bool, details string) {
 		checks = append(checks, imagecontract.ValidationCheck{Name: name, Passed: passed, Details: details})
 	}
-	abi := manifest.KernelBundle.ABI
-	paths := installedSupportPaths(abi)
+	bundle := manifest.KernelBundle
+	abi := bundle.ABI
+	paths, pathsErr := installedSupportPaths(bundle)
+	if pathsErr != nil {
+		addCheck("installed-system-support-members", false, pathsErr.Error())
+		return checks
+	}
 	arguments := []string{
 		"unsquashfs", "-no-xattrs", "-no-progress", "-d", "/work/installed-root", "/work/minimal.squashfs",
 	}
@@ -552,26 +588,42 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 		addCheck("installed-system-support-members", false, err.Error())
 		return checks
 	}
-	addCheck("installed-system-support-members", true, "dpkg records, installed initramfs, paired DTBs, GRUB configuration, and kernel hooks are present")
+	addCheck("installed-system-support-members", true, "delivery-specific dpkg records, initramfs, GRUB configuration, and boot support are present")
+
+	listingBytes, listingErr := v.Docker.CaptureInWorkspace(ctx, toolsImage, workspace,
+		"unsquashfs", "-ll", "/work/minimal.squashfs")
+	listing := string(listingBytes)
+	retiredAbsent := listingErr == nil
+	for _, retired := range retiredInstalledSupportPaths {
+		retiredAbsent = retiredAbsent && !squashFSListingContainsPath(listing, retired)
+	}
+	retiredDetails := "retired SP11-specific refresh helper, hooks, seed DTBs, and GRUB generator are absent"
+	if listingErr != nil {
+		retiredDetails = listingErr.Error()
+	}
+	addCheck("installed-system-retired-support-absent", retiredAbsent, retiredDetails)
 
 	root := filepath.Join(workspace, "installed-root")
 	statusBytes, statusErr := os.ReadFile(filepath.Join(root, "var/lib/dpkg/status"))
 	packagesInstalled := statusErr == nil
-	for _, packageName := range installedPackageNames(abi) {
-		packagesInstalled = packagesInstalled && installedPackageStatus(string(statusBytes), packageName, manifest.KernelBundle.Version)
-		if info, err := os.Stat(filepath.Join(root, "var/lib/dpkg/info", packageName+".list")); err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
+	for _, expected := range installedPackageExpectations(bundle) {
+		packagesInstalled = packagesInstalled && installedPackageStatus(
+			string(statusBytes), expected.name, expected.version, expected.architecture)
+		if info, err := os.Stat(filepath.Join(root, "var/lib/dpkg/info", expected.name+".list")); err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
 			packagesInstalled = false
 		}
 	}
-	packageDetails := "exact ARM64 image and modules packages are registered as installed"
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryEmbedded {
+		packagesInstalled = packagesInstalled && !installedPackagePresent(string(statusBytes), "lexr-kernel-boot-support")
+	}
+	packageDetails := "the exact delivery-specific package set is registered as installed"
 	if statusErr != nil {
 		packageDetails = statusErr.Error()
 	}
 	addCheck("installed-system-kernel-packages", packagesInstalled, packageDetails)
 	installedKernelDigest, installedKernelErr := artifact.HashFile(filepath.Join(root, "boot", "vmlinuz-"+abi))
 	installedKernelPassed := installedKernelErr == nil &&
-		manifest.BootArtifacts.Kernel.SHA256 != "" &&
-		installedKernelDigest == manifest.BootArtifacts.Kernel.SHA256
+		manifest.BootArtifacts.Kernel.SHA256 != "" && installedKernelDigest == manifest.BootArtifacts.Kernel.SHA256
 	installedKernelDetails := fmt.Sprintf("expected=%s actual=%s", manifest.BootArtifacts.Kernel.SHA256, installedKernelDigest)
 	if installedKernelErr != nil {
 		installedKernelDetails = installedKernelErr.Error()
@@ -598,64 +650,101 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 	}
 	addCheck("installed-system-initramfs", installedInitrdPassed, initrdDetails)
 
-	dtbPassed := true
-	for _, name := range []string{"x1e80100-microsoft-denali-oled.dtb", "x1p64100-microsoft-denali.dtb"} {
-		record := findArtifact(manifest.BootArtifacts.DTBs, name)
-		for _, path := range []string{
-			filepath.Join(root, "boot", "dtbs", abi, "qcom", name),
-			filepath.Join(root, "usr", "lib", "lexr", "sp11", "dtb", name),
-		} {
-			actual, err := artifact.HashFile(path)
-			if err != nil || record.SHA256 == "" || actual != record.SHA256 {
-				dtbPassed = false
+	dtbPassed := listingErr == nil
+	dtbDetails := "the installed kernel retains its manifest-bound embedded DTB inventory without external support"
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		profile, tree, profileErr := requiredExternalProfile(bundle)
+		dtbPassed = dtbPassed && profileErr == nil
+		relative, ok := tree.FirmwareRelativePath(abi)
+		dtbPassed = dtbPassed && ok
+		if ok {
+			for _, path := range []string{
+				filepath.Join(root, "boot", "dtbs", abi, filepath.FromSlash(relative)),
+				filepath.Join(root, "boot", "dtb-"+abi),
+			} {
+				actual, hashErr := artifact.HashFile(path)
+				dtbPassed = dtbPassed && hashErr == nil && actual == tree.SHA256
+			}
+			for _, stateRoot := range []string{
+				filepath.Join(root, "usr", "lib", "lexr", "kernel-platforms", profile),
+				filepath.Join(root, "var", "lib", "lexr", "kernel-boot", abi, profile),
+			} {
+				pathBytes, pathErr := os.ReadFile(filepath.Join(stateRoot, "dtb-path"))
+				digestBytes, digestErr := os.ReadFile(filepath.Join(stateRoot, "dtb-sha256"))
+				dtbPassed = dtbPassed && pathErr == nil && digestErr == nil &&
+					strings.TrimSpace(string(pathBytes)) == relative && strings.TrimSpace(string(digestBytes)) == tree.SHA256
+			}
+		}
+		dtbDetails = "the selected profile has digest-bound canonical and stock-GRUB exact-ABI DTBs with package-owned state"
+	} else {
+		dtbPassed = dtbPassed && bundle.EffectiveDTBDelivery == kernel.DTBDeliveryEmbedded && bundle.EmbeddedDTBCount > 0 &&
+			!squashFSListingContainsPath(listing, "boot/dtbs/"+abi) &&
+			!squashFSListingContainsPath(listing, "boot/dtb-"+abi)
+		for _, tree := range bundle.DeviceTrees {
+			if tree.Required {
+				dtbPassed = dtbPassed && tree.EmbeddedMatches == 1
 			}
 		}
 	}
-	seedABI, seedABIErr := os.ReadFile(filepath.Join(root, "usr", "lib", "lexr", "sp11", "kernel-abi"))
-	dtbPassed = dtbPassed && seedABIErr == nil && strings.TrimSpace(string(seedABI)) == abi
-	addCheck("installed-system-device-trees", dtbPassed, "versioned and refresh-seed X1E/X1P DTBs match the exact kernel ABI")
+	addCheck("installed-system-device-trees", dtbPassed, dtbDetails)
 
 	grubDefaults, defaultsErr := os.ReadFile(filepath.Join(root, "etc/default/grub.d/99-surface-pro-11.cfg"))
-	grubGenerator, generatorErr := os.ReadFile(filepath.Join(root, "etc/grub.d/09_lexr_sp11"))
-	installedGrubText := string(grubDefaults) + string(grubGenerator)
-	grubSupportPassed := defaultsErr == nil && generatorErr == nil
+	grubConfig, configErr := os.ReadFile(filepath.Join(root, "boot/grub/grub.cfg"))
+	grubEntries, entriesErr := kernelinstall.InspectGRUB(ctx, root)
+	installedGrubText := string(grubDefaults) + string(grubConfig)
+	grubSupportPassed := defaultsErr == nil && configErr == nil && entriesErr == nil &&
+		strings.Contains(string(grubConfig), "vmlinuz-"+abi) && strings.Contains(string(grubConfig), "initrd.img-"+abi)
+	if entriesErr == nil {
+		entriesErr = validateInstalledGRUBEntries(ctx, root, bundle, grubEntries)
+		grubSupportPassed = grubSupportPassed && entriesErr == nil
+	}
 	for _, required := range []string{
 		"clk_ignore_unused",
 		"pd_ignore_unused",
 		"arm64.nopauth",
 		"systemd.tpm2_wait=0",
-		"soundwire_qcom.sp11_feedback_active_offset2_zero=1",
-		"x1e80100-microsoft-denali-oled.dtb",
-		"x1p64100-microsoft-denali.dtb",
 	} {
 		grubSupportPassed = grubSupportPassed && strings.Contains(installedGrubText, required)
 	}
-	grubSupportPassed = grubSupportPassed && installedGrubModelTitlesPresent(installedGrubText)
 	grubSupportPassed = grubSupportPassed && !strings.Contains(installedGrubText, "qcom_q6v5_pas")
-	addCheck("installed-system-grub-support", grubSupportPassed, "explicit X1E/X1P entries use installed-system arguments without the live USB blacklist")
+	grubSupportPassed = grubSupportPassed && !strings.Contains(installedGrubText, "sp11_feedback_active_offset2_zero")
+	grubDetails := "embedded delivery has exact-ABI kernel and initramfs entries without an external DTB binding"
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		grubSupportPassed = grubSupportPassed && strings.Contains(string(grubConfig), "dtb-"+abi)
+		grubDetails = "every stock exact-ABI entry binds the selected /dtb-<abi> copy without the live USB blacklist"
+	} else {
+		grubSupportPassed = grubSupportPassed && !strings.Contains(string(grubConfig), "dtbs/"+abi+"/") &&
+			!strings.Contains(string(grubConfig), "dtb-"+abi)
+	}
+	if entriesErr != nil {
+		grubDetails = entriesErr.Error()
+	}
+	addCheck("installed-system-grub-support", grubSupportPassed, grubDetails)
 
-	refresh, refreshErr := os.ReadFile(filepath.Join(root, "usr/local/sbin/lexr-refresh-sp11-boot"))
-	postInstall, postInstallErr := os.ReadFile(filepath.Join(root, "etc/kernel/postinst.d/05-lexr-sp11-dtb"))
-	postRemove, postRemoveErr := os.ReadFile(filepath.Join(root, "etc/kernel/postrm.d/05-lexr-sp11-dtb"))
-	refreshText := string(refresh)
-	refreshPassed := refreshErr == nil && postInstallErr == nil && postRemoveErr == nil &&
-		strings.Contains(refreshText, "is_safe_abi") &&
-		strings.Contains(refreshText, "/usr/lib/firmware/$abi/device-tree/qcom/$name") &&
-		strings.Contains(refreshText, "/usr/lib/linux-image-$abi/qcom/$name") &&
-		strings.Contains(string(postInstall), "/usr/local/sbin/lexr-refresh-sp11-boot") &&
-		strings.Contains(string(postRemove), `*[!A-Za-z0-9.+_~-]*`) &&
-		strings.Contains(string(postRemove), `rm -rf -- "/boot/dtbs/$abi"`) &&
-		!strings.Contains(string(postRemove), "/usr/local/sbin/lexr-refresh-sp11-boot") &&
-		!strings.Contains(refreshText+string(postInstall)+string(postRemove), "qcom_q6v5_pas")
-	addCheck("installed-system-kernel-refresh", refreshPassed, "bounded hooks refresh new ABI-paired DTBs and remove only the retired ABI directory")
+	refreshPassed := listingErr == nil
+	refreshDetails := "embedded delivery has no external boot-support package or lifecycle files"
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		refresh, refreshErr := os.ReadFile(filepath.Join(root, "usr/libexec/lexr/kernel-boot-refresh"))
+		postInstall, postInstallErr := os.ReadFile(filepath.Join(root, "etc/kernel/postinst.d/05-lexr-kernel-boot"))
+		postRemove, postRemoveErr := os.ReadFile(filepath.Join(root, "etc/kernel/postrm.d/05-lexr-kernel-boot"))
+		lifecycle := string(refresh) + string(postInstall) + string(postRemove)
+		refreshPassed = refreshPassed && refreshErr == nil && postInstallErr == nil && postRemoveErr == nil &&
+			strings.Contains(string(refresh), `--defer-grub`) &&
+			strings.Contains(string(refresh), `"$target_root/boot/dtbs/$abi/$dtb_path"`) &&
+			strings.Contains(string(refresh), `compatibility="$target_root/boot/dtb-$abi"`) &&
+			strings.Contains(string(refresh), `ensure_single_profile`) &&
+			strings.Contains(string(postInstall), "/usr/libexec/lexr/kernel-boot-refresh refresh") &&
+			strings.Contains(string(postRemove), "/usr/libexec/lexr/kernel-boot-refresh remove") &&
+			!strings.Contains(strings.ToLower(lifecycle), "sp11") && !strings.Contains(strings.ToLower(lifecycle), "denali")
+		refreshDetails = "the installed generic package owns exact-ABI selection, refresh, removal, and stock-GRUB compatibility state"
+	} else {
+		refreshPassed = refreshPassed && !installedPackagePresent(string(statusBytes), "lexr-kernel-boot-support")
+		for _, path := range genericInstalledSupportPaths {
+			refreshPassed = refreshPassed && !squashFSListingContainsPath(listing, path)
+		}
+	}
+	addCheck("installed-system-kernel-refresh", refreshPassed, refreshDetails)
 	return checks
-}
-
-// installedGrubModelTitlesPresent reports whether an installed-system GRUB
-// generator contains the complete pair of current Lexr Surface model titles.
-func installedGrubModelTitlesPresent(content string) bool {
-	return strings.Contains(content, `title="Lexr Surface Pro 11 X1E/OLED`) &&
-		strings.Contains(content, `title="Lexr Surface Pro 11 X1P/LCD`)
 }
 
 // appendedESPOffset parses xorriso's GPT report and returns the byte offset of

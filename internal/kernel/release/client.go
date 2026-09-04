@@ -8,10 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -23,6 +25,13 @@ import (
 // DefaultRepository is the release source used when callers do not select a
 // different owner and repository.
 const DefaultRepository = "ooaklee/linux-surface-pro-11-oe"
+
+const (
+	// releaseBundleManifestName is the authoritative published delivery contract.
+	releaseBundleManifestName = "lexr-kernel-bundle.json"
+	// maximumReleaseBundleBytes bounds the downloaded delivery contract.
+	maximumReleaseBundleBytes = 1 << 20
+)
 
 // Asset is the subset of GitHub release-asset metadata needed for verified
 // acquisition.
@@ -161,38 +170,54 @@ func (c *Client) DownloadBundle(ctx context.Context, repository, ref, directory 
 	if err != nil {
 		return kernel.Bundle{}, err
 	}
-	type selectedPackage struct {
-		asset Asset
-		role  kernel.PackageRole
+	bundleAsset, ok := findAsset(selected, func(name string) bool { return name == releaseBundleManifestName })
+	if !ok {
+		return kernel.Bundle{}, errors.New("release has no kernel bundle manifest")
 	}
-	packageAssets := make([]selectedPackage, 0, 4)
-	for _, asset := range selected.Assets {
-		role, _, _, parseErr := kernel.ParsePackageName(asset.Name)
-		if parseErr != nil {
-			continue
-		}
-		if !includeHeaders && role != kernel.RoleImage && role != kernel.RoleModules {
-			continue
-		}
-		packageAssets = append(packageAssets, selectedPackage{asset: asset, role: role})
+	bundleDigest, covered := checksums[bundleAsset.Name]
+	if !covered {
+		return kernel.Bundle{}, errors.New("SHA256SUMS does not cover the kernel bundle manifest")
 	}
-	selectionPackages := make([]kernel.Package, 0, len(packageAssets))
-	for _, candidate := range packageAssets {
-		selectionPackages = append(selectionPackages, kernel.Package{
-			Role: candidate.role, Name: candidate.asset.Name, SHA256: "selection-pending",
-		})
+	if githubDigest := assetSHA256(bundleAsset); githubDigest != "" && githubDigest != bundleDigest {
+		return kernel.Bundle{}, errors.New("GitHub digest and SHA256SUMS disagree for the kernel bundle manifest")
 	}
-	selectionBundle, err := kernel.NewBundle(selected.TagName, repository, selectionPackages)
+	bundleInput := filepath.Join(directory, ".lexr-kernel-bundle.download")
+	bundleResult, err := c.Artifacts.Acquire(ctx, artifact.Source{
+		Location: bundleAsset.DownloadURL, ExpectedSHA256: bundleDigest,
+	}, bundleInput)
 	if err != nil {
-		return kernel.Bundle{}, fmt.Errorf("select kernel release packages: %w", err)
+		return kernel.Bundle{}, fmt.Errorf("download kernel bundle manifest: %w", err)
+	}
+	defer os.Remove(bundleResult.Path)
+	recorded, err := decodeReleaseBundle(bundleResult.Path)
+	if err != nil {
+		return kernel.Bundle{}, err
+	}
+	if recorded.Release != selected.TagName {
+		return kernel.Bundle{}, errors.New("release bundle identity differs from the selected GitHub release")
+	}
+	type selectedPackage struct {
+		asset    Asset
+		declared kernel.Package
+	}
+	packageAssets := make([]selectedPackage, 0, len(recorded.Packages))
+	for _, declared := range recorded.Packages {
+		if !includeHeaders && (declared.Role == kernel.RoleHeaders || declared.Role == kernel.RoleCommonHeaders) {
+			continue
+		}
+		asset, present := findAsset(selected, func(name string) bool { return name == declared.Name })
+		if !present {
+			return kernel.Bundle{}, fmt.Errorf("release is missing declared package %s", declared.Name)
+		}
+		packageAssets = append(packageAssets, selectedPackage{asset: asset, declared: declared})
 	}
 	if includeHeaders {
-		_, hasHeaders := selectionBundle.Package(kernel.RoleHeaders)
-		commonHeaders, hasCommonHeaders := selectionBundle.Package(kernel.RoleCommonHeaders)
+		_, hasHeaders := recorded.Package(kernel.RoleHeaders)
+		commonHeaders, hasCommonHeaders := recorded.Package(kernel.RoleCommonHeaders)
 		if !hasHeaders || !hasCommonHeaders {
 			return kernel.Bundle{}, errors.New("including headers requires both ABI-specific headers and common headers packages")
 		}
-		expectedCommonHeaders := "linux-qcom-x1e-headers-" + strings.TrimSuffix(selectionBundle.ABI, "-qcom-x1e") + "_" + selectionBundle.Version + "_all.deb"
+		expectedCommonHeaders := "linux-qcom-x1e-headers-" + strings.TrimSuffix(recorded.ABI, "-qcom-x1e") + "_" + recorded.Version + "_all.deb"
 		if commonHeaders.Name != expectedCommonHeaders {
 			return kernel.Bundle{}, fmt.Errorf("including headers requires common headers package %s, got %s", expectedCommonHeaders, commonHeaders.Name)
 		}
@@ -208,22 +233,34 @@ func (c *Client) DownloadBundle(ctx context.Context, repository, ref, directory 
 		if githubDigest := assetSHA256(asset); githubDigest != "" && githubDigest != expected {
 			return kernel.Bundle{}, fmt.Errorf("GitHub digest and SHA256SUMS disagree for %s", asset.Name)
 		}
+		if candidate.declared.SHA256 != expected {
+			return kernel.Bundle{}, fmt.Errorf("authoritative kernel bundle and SHA256SUMS disagree for %s", asset.Name)
+		}
 		result, err := c.Artifacts.Acquire(ctx, artifact.Source{
 			Location: asset.DownloadURL, ExpectedSHA256: expected,
 		}, filepath.Join(directory, asset.Name))
 		if err != nil {
 			return kernel.Bundle{}, fmt.Errorf("download %s: %w", asset.Name, err)
 		}
+		if result.SHA256 != candidate.declared.SHA256 || result.Size != candidate.declared.Size {
+			return kernel.Bundle{}, fmt.Errorf("downloaded package bytes disagree with authoritative kernel bundle for %s", asset.Name)
+		}
 		packages = append(packages, kernel.Package{
-			Role: candidate.role, Name: asset.Name, Path: result.Path, URL: asset.DownloadURL,
+			Role: candidate.declared.Role, Name: asset.Name, Path: result.Path, URL: asset.DownloadURL,
 			SHA256: result.SHA256, Size: result.Size, Verified: result.Verified,
 		})
 	}
-	bundle, err := kernel.NewBundle(selected.TagName, repository, packages)
+	bundle, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: recorded.Release, Repository: recorded.Repository,
+		RequestedBootImageMode: recorded.RequestedBootImageMode,
+		EffectiveDTBDelivery:   recorded.EffectiveDTBDelivery, EmbeddedDTBCount: recorded.EmbeddedDTBCount,
+		DTBSelectionProvenance: recorded.DTBSelectionProvenance,
+		Packages:               packages, DeviceTrees: recorded.DeviceTrees,
+	})
 	if err != nil {
 		return kernel.Bundle{}, err
 	}
-	manifestPath := filepath.Join(directory, "lexr-kernel-bundle.json")
+	manifestPath := filepath.Join(directory, releaseBundleManifestName)
 	file, err := os.OpenFile(manifestPath+".tmp", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
 	if err != nil {
 		return kernel.Bundle{}, fmt.Errorf("create kernel bundle manifest: %w", err)
@@ -238,6 +275,54 @@ func (c *Client) DownloadBundle(ctx context.Context, repository, ref, directory 
 		return kernel.Bundle{}, fmt.Errorf("publish kernel bundle manifest: %w", err)
 	}
 	return bundle, nil
+}
+
+// decodeReleaseBundle strictly reads and canonicalises one downloaded contract.
+func decodeReleaseBundle(path string) (kernel.Bundle, error) {
+	listed, err := os.Lstat(path)
+	if err != nil {
+		return kernel.Bundle{}, err
+	}
+	if listed.Mode()&os.ModeSymlink != 0 || !listed.Mode().IsRegular() || listed.Size() <= 0 || listed.Size() > maximumReleaseBundleBytes {
+		return kernel.Bundle{}, errors.New("release kernel bundle is not a bounded non-empty regular file")
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return kernel.Bundle{}, err
+	}
+	defer file.Close()
+	opened, err := file.Stat()
+	if err != nil || !os.SameFile(listed, opened) {
+		return kernel.Bundle{}, errors.Join(errors.New("release kernel bundle changed before it was read"), err)
+	}
+	decoder := json.NewDecoder(io.LimitReader(file, maximumReleaseBundleBytes+1))
+	decoder.DisallowUnknownFields()
+	var recorded kernel.Bundle
+	if err := decoder.Decode(&recorded); err != nil {
+		return kernel.Bundle{}, fmt.Errorf("decode release kernel bundle: %w", err)
+	}
+	var trailing json.RawMessage
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		return kernel.Bundle{}, errors.New("release kernel bundle contains trailing JSON")
+	}
+	if recorded.SchemaVersion != kernel.BundleSchemaVersion {
+		return kernel.Bundle{}, fmt.Errorf("release kernel bundle schema is %d, expected %d", recorded.SchemaVersion, kernel.BundleSchemaVersion)
+	}
+	current, err := os.Lstat(path)
+	if err != nil || current.Mode()&os.ModeSymlink != 0 || !os.SameFile(listed, current) || current.Size() != listed.Size() {
+		return kernel.Bundle{}, errors.Join(errors.New("release kernel bundle changed while it was read"), err)
+	}
+	canonical, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: recorded.Release, Repository: recorded.Repository,
+		RequestedBootImageMode: recorded.RequestedBootImageMode,
+		EffectiveDTBDelivery:   recorded.EffectiveDTBDelivery, EmbeddedDTBCount: recorded.EmbeddedDTBCount,
+		DTBSelectionProvenance: recorded.DTBSelectionProvenance,
+		Packages:               recorded.Packages, DeviceTrees: recorded.DeviceTrees,
+	})
+	if err != nil || !reflect.DeepEqual(recorded, canonical) {
+		return kernel.Bundle{}, errors.Join(errors.New("release kernel bundle is invalid or non-canonical"), err)
+	}
+	return canonical, nil
 }
 
 // getJSON performs one authenticated GitHub API request and decodes its success

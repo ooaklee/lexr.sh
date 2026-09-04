@@ -336,40 +336,6 @@ func writeCompanionValidationFixture(t *testing.T, root string) imagecontract.Co
 	}
 }
 
-// TestInstalledGrubModelTitlesPresentRequiresCurrentBranding verifies the
-// validator requires both Surface models under the current product identity.
-func TestInstalledGrubModelTitlesPresentRequiresCurrentBranding(t *testing.T) {
-	for _, test := range []struct {
-		name    string
-		content string
-		want    bool
-	}{
-		{
-			name: "current Lexr pair",
-			content: `title="Lexr Surface Pro 11 X1E/OLED (abi)"` + "\n" +
-				`title="Lexr Surface Pro 11 X1P/LCD (abi)"`,
-			want: true,
-		},
-		{
-			name:    "incomplete pair",
-			content: `title="Lexr Surface Pro 11 X1E/OLED (abi)"`,
-			want:    false,
-		},
-		{
-			name: "different product pair",
-			content: `title="Other Surface Pro 11 X1E/OLED (abi)"` + "\n" +
-				`title="Other Surface Pro 11 X1P/LCD (abi)"`,
-			want: false,
-		},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			if got := installedGrubModelTitlesPresent(test.content); got != test.want {
-				t.Fatalf("installedGrubModelTitlesPresent() = %t, want %t", got, test.want)
-			}
-		})
-	}
-}
-
 // minimalAArch64ELF returns a header-only, statically linked AArch64 ELF that
 // is sufficient for the companion format and interpreter checks.
 func minimalAArch64ELF() []byte {

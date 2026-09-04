@@ -152,8 +152,8 @@ func inspectNativeBuild(ctx context.Context, directory, releaseName string) (ker
 	if recorded.SchemaVersion != kernel.BundleSchemaVersion || recorded.Architecture != "arm64" {
 		return kernel.Bundle{}, build.Provenance{}, nil, errors.New("native kernel bundle has an unsupported schema or architecture")
 	}
-	if len(recorded.Packages) < 2 || len(recorded.Packages) > 4 {
-		return kernel.Bundle{}, build.Provenance{}, nil, fmt.Errorf("native kernel bundle contains %d packages; expected two or four", len(recorded.Packages))
+	if len(recorded.Packages) < 2 || len(recorded.Packages) > 5 {
+		return kernel.Bundle{}, build.Provenance{}, nil, fmt.Errorf("native kernel bundle contains %d packages; expected a valid embedded or external delivery set", len(recorded.Packages))
 	}
 	checksums, err := checksumEntries(ctx, filepath.Join(directory, ChecksumFileName))
 	if err != nil {
@@ -170,7 +170,8 @@ func inspectNativeBuild(ctx context.Context, directory, releaseName string) (ker
 			return kernel.Bundle{}, build.Provenance{}, nil, fmt.Errorf("native kernel bundle has a duplicate or unsafe package: %q", item.Name)
 		}
 		role, abi, version, err := kernel.ParsePackageName(item.Name)
-		if err != nil || role != item.Role || (role != kernel.RoleCommonHeaders && abi != recorded.ABI) || version != recorded.Version {
+		if err != nil || role != item.Role ||
+			(role != kernel.RoleCommonHeaders && role != kernel.RoleBootSupport && abi != recorded.ABI) || version != recorded.Version {
 			return kernel.Bundle{}, build.Provenance{}, nil, fmt.Errorf("native kernel package identity is inconsistent: %s", item.Name)
 		}
 		roles[role] = true
@@ -199,7 +200,13 @@ func inspectNativeBuild(ctx context.Context, directory, releaseName string) (ker
 	if err := requireExactDirectory(directory, expectedEntries); err != nil {
 		return kernel.Bundle{}, build.Provenance{}, nil, err
 	}
-	publicBundle, err := kernel.NewBundle(releaseName, provenance.GitURL, packages)
+	publicBundle, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: releaseName, Repository: provenance.GitURL,
+		RequestedBootImageMode: kernel.RequestedBootImageMode(provenance.BootImageMode),
+		EffectiveDTBDelivery:   provenance.EffectiveDTBDelivery, EmbeddedDTBCount: provenance.EmbeddedDTBCount,
+		DTBSelectionProvenance: provenance.DTBSelectionProvenance,
+		Packages:               packages, DeviceTrees: provenance.DeviceTrees,
+	})
 	if err != nil {
 		return kernel.Bundle{}, build.Provenance{}, nil, err
 	}
@@ -211,7 +218,13 @@ func inspectNativeBuild(ctx context.Context, directory, releaseName string) (ker
 		item.Path = filepath.Join(directory, item.Name)
 		expectedPackages = append(expectedPackages, item)
 	}
-	expectedRecorded, err := kernel.NewBundle("build:"+provenance.Revision, provenance.GitURL, expectedPackages)
+	expectedRecorded, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: "build:" + provenance.Revision, Repository: provenance.GitURL,
+		RequestedBootImageMode: kernel.RequestedBootImageMode(provenance.BootImageMode),
+		EffectiveDTBDelivery:   provenance.EffectiveDTBDelivery, EmbeddedDTBCount: provenance.EmbeddedDTBCount,
+		DTBSelectionProvenance: provenance.DTBSelectionProvenance,
+		Packages:               expectedPackages, DeviceTrees: provenance.DeviceTrees,
+	})
 	if err != nil || !reflect.DeepEqual(recorded, expectedRecorded) {
 		return kernel.Bundle{}, build.Provenance{}, nil, errors.New("native kernel bundle differs from the exact builder output contract")
 	}
@@ -326,6 +339,9 @@ func validateBuildProvenance(provenance build.Provenance) error {
 	case build.BootImageModeSource, build.BootImageModeStubble, build.BootImageModeNoStubble:
 	default:
 		return errors.New("native build provenance contains an unsupported boot-image mode")
+	}
+	if provenance.EffectiveDTBDelivery != kernel.DTBDeliveryEmbedded && provenance.EffectiveDTBDelivery != kernel.DTBDeliveryExternalRequired {
+		return errors.New("native build provenance contains an unsupported effective DTB delivery")
 	}
 	if provenance.RefKind != "branch" && provenance.RefKind != "tag" {
 		return errors.New("native build provenance contains an unsupported ref kind")

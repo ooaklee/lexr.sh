@@ -16,6 +16,7 @@ import (
 	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
 	"github.com/ooaklee/lexr.sh/internal/kernel/release"
 	"github.com/ooaklee/lexr.sh/internal/kernel/releaseprep"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // kernelInstallationManager is the delivery-layer boundary for native kernel
@@ -52,12 +53,52 @@ func (a *application) newKernelCommand() *cobra.Command {
 	)
 	command.AddCommand(
 		releaseCommand,
+		a.newKernelBootCommand(),
 		a.newKernelInspectCommand(),
 		a.newKernelPreflightCommand(),
 		a.newKernelInstallCommand(),
 		a.newKernelBuildCommand(),
 	)
 	return command
+}
+
+// newKernelBootCommand exposes the generic exact-ABI boot-support lifecycle.
+func (a *application) newKernelBootCommand() *cobra.Command {
+	command := &cobra.Command{Use: "boot", Short: "Manage exact-ABI kernel boot support", Args: cobra.NoArgs}
+	var root, abi, profile string
+	refresh := &cobra.Command{
+		Use:   "refresh",
+		Short: "Refresh an ABI-scoped external DTB and GRUB binding",
+		Args:  cobra.NoArgs,
+		RunE: func(command *cobra.Command, _ []string) error {
+			if !filepath.IsAbs(root) {
+				return errors.New("kernel boot refresh requires an absolute --root")
+			}
+			cleanRoot := filepath.Clean(root)
+			helperArgs := []string{"refresh", "--root", "/", "--abi", abi,
+				"--image", "/boot/vmlinuz-" + abi, "--platform", profile}
+			run := platform.Command{Name: "/usr/libexec/lexr/kernel-boot-refresh", Args: helperArgs}
+			if cleanRoot != string(filepath.Separator) {
+				run = platform.Command{Name: "/usr/sbin/chroot", Args: append([]string{cleanRoot, "/usr/libexec/lexr/kernel-boot-refresh"}, helperArgs...)}
+			}
+			return a.kernelBootRunnerForCommand().Run(command.Context(), run)
+		},
+	}
+	refresh.Flags().StringVar(&root, "root", "/", "absolute target filesystem root")
+	refresh.Flags().StringVar(&abi, "abi", "", "exact kernel ABI to refresh")
+	refresh.Flags().StringVar(&profile, "profile", "auto", "registered platform profile or auto")
+	_ = refresh.MarkFlagRequired("abi")
+	command.AddCommand(refresh)
+	return command
+}
+
+// kernelBootRunnerForCommand returns the injectable direct-process boundary
+// used by the boot-support command.
+func (a *application) kernelBootRunnerForCommand() platform.Runner {
+	if a != nil && a.kernelBootRunner != nil {
+		return a.kernelBootRunner
+	}
+	return platform.ExecRunner{}
 }
 
 // newKernelReleasePrepareCommand creates a local, publication-ready release
@@ -130,16 +171,16 @@ func (a *application) writeKernelReleasePrepareReceipt(receipt releaseprep.Recei
 	packages, sources, licences := kernelReleaseAssetCounts(receipt.Plan.Manifest.Assets)
 	if receipt.Plan.DryRun {
 		_, err := fmt.Fprintf(a.out,
-			"kernel release dry run passed\nrelease: %s\nABI: %s\nversion: %s\nbuild boot-image mode: %s\ninstalled boot binding: not inspected\npackages: %d\nsource archives: %d\nlicence files: %d\nhardware-qualified: false\nno changes were made\n",
+			"kernel release dry run passed\nrelease: %s\nABI: %s\nversion: %s\nrequested boot image mode: %s\neffective DTB delivery: %s\nembedded DTBs: %d\ninstalled boot binding: not inspected\npackages: %d\nsource archives: %d\nlicence files: %d\nhardware-qualified: false\nno changes were made\n",
 			receipt.Plan.Manifest.ReleaseName, receipt.Plan.Manifest.ABI, receipt.Plan.Manifest.Version,
-			receipt.Plan.Manifest.Source.BootImageMode,
+			receipt.Plan.Manifest.Source.BootImageMode, receipt.Plan.Manifest.Source.EffectiveDTBDelivery, receipt.Plan.Manifest.Source.EmbeddedDTBCount,
 			packages, sources, licences)
 		return err
 	}
 	_, err := fmt.Fprintf(a.out,
-		"kernel release prepared\nrelease: %s\nABI: %s\nversion: %s\nbuild boot-image mode: %s\ninstalled boot binding: not inspected\npackages: %d\nsource archives: %d\nlicence files: %d\npublished atomically: %t\ndurable: %t\nhardware-qualified: false\n",
+		"kernel release prepared\nrelease: %s\nABI: %s\nversion: %s\nrequested boot image mode: %s\neffective DTB delivery: %s\nembedded DTBs: %d\ninstalled boot binding: not inspected\npackages: %d\nsource archives: %d\nlicence files: %d\npublished atomically: %t\ndurable: %t\nhardware-qualified: false\n",
 		receipt.Plan.Manifest.ReleaseName, receipt.Plan.Manifest.ABI, receipt.Plan.Manifest.Version,
-		receipt.Plan.Manifest.Source.BootImageMode,
+		receipt.Plan.Manifest.Source.BootImageMode, receipt.Plan.Manifest.Source.EffectiveDTBDelivery, receipt.Plan.Manifest.Source.EmbeddedDTBCount,
 		packages, sources, licences, receipt.Published, receipt.Durable)
 	return err
 }
@@ -152,8 +193,8 @@ func (a *application) writeKernelReleaseValidation(manifest releaseprep.Manifest
 	}
 	packages, sources, licences := kernelReleaseAssetCounts(manifest.Assets)
 	_, err := fmt.Fprintf(a.out,
-		"kernel release valid\nrelease: %s\nABI: %s\nversion: %s\nbuild boot-image mode: %s\ninstalled boot binding: not inspected\npackages: %d\nsource archives: %d\nlicence files: %d\nhardware-qualified: false\n",
-		manifest.ReleaseName, manifest.ABI, manifest.Version, manifest.Source.BootImageMode, packages, sources, licences)
+		"kernel release valid\nrelease: %s\nABI: %s\nversion: %s\nrequested boot image mode: %s\neffective DTB delivery: %s\nembedded DTBs: %d\ninstalled boot binding: not inspected\npackages: %d\nsource archives: %d\nlicence files: %d\nhardware-qualified: false\n",
+		manifest.ReleaseName, manifest.ABI, manifest.Version, manifest.Source.BootImageMode, manifest.Source.EffectiveDTBDelivery, manifest.Source.EmbeddedDTBCount, packages, sources, licences)
 	return err
 }
 
@@ -336,8 +377,8 @@ func (a *application) writeKernelPreflight(plan kernelinstall.Plan, requestedPac
 		verification = "explicitly accepted local hashes"
 	}
 	_, err := fmt.Fprintf(a.out,
-		"kernel installation preflight passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nversion: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\npackaged device trees required: %d\nfallback boot device-tree mode: %s\nfallback boot device-tree GRUB entries verified: %d\nverification: %s\nplanned commands: %d\nconditional initramfs commands: %d\nno changes were made\n",
-		plan.Root, plan.TargetABI, plan.FallbackABI, plan.Version, requestedPackageSet, effectiveKernelPackageSet(len(plan.Packages)), len(plan.Packages), len(plan.DeviceTrees), plan.Fallback.DeviceTreeBoot.Mode, plan.Fallback.DeviceTreeBoot.GRUBEntryCount, verification, len(plan.Commands), len(plan.ConditionalCommands))
+		"kernel installation preflight passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nversion: %s\nrequested package set: %s\neffective package set: %s\neffective DTB delivery: %s\npackages: %d\npackaged device trees required: %d\nfallback boot device-tree mode: %s\nfallback boot device-tree GRUB entries verified: %d\nverification: %s\nplanned commands: %d\nconditional initramfs commands: %d\nno changes were made\n",
+		plan.Root, plan.TargetABI, plan.FallbackABI, plan.Version, requestedPackageSet, effectiveKernelPackageSet(len(plan.Packages)), plan.EffectiveDTBDelivery, len(plan.Packages), len(plan.DeviceTrees), plan.Fallback.DeviceTreeBoot.Mode, plan.Fallback.DeviceTreeBoot.GRUBEntryCount, verification, len(plan.Commands), len(plan.ConditionalCommands))
 	return errors.Join(warningErr, err)
 }
 
@@ -385,7 +426,7 @@ func (a *application) writeKernelWarnings(warnings []string) error {
 // effectiveKernelPackageSet reports the closed role set represented by the
 // packages selected from a validated local bundle.
 func effectiveKernelPackageSet(packageCount int) kernel.LocalPackageSet {
-	if packageCount == 4 {
+	if packageCount == 4 || packageCount == 5 {
 		return kernel.LocalPackageSetAll
 	}
 	return kernel.LocalPackageSetRuntime
@@ -403,8 +444,8 @@ func (a *application) writeKernelInstallReceipt(receipt kernelinstall.Receipt, r
 	}
 	if receipt.Plan.DryRun {
 		_, err := fmt.Fprintf(a.out,
-			"kernel installation dry run passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\nfallback boot device-tree mode: %s\nfallback boot device-tree GRUB entries verified: %d\nplanned commands: %d\nconditional initramfs commands: %d\nno changes were made\n",
-			receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), len(receipt.Plan.Packages),
+			"kernel installation dry run passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nrequested package set: %s\neffective package set: %s\neffective DTB delivery: %s\npackages: %d\nfallback boot device-tree mode: %s\nfallback boot device-tree GRUB entries verified: %d\nplanned commands: %d\nconditional initramfs commands: %d\nno changes were made\n",
+			receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), receipt.Plan.EffectiveDTBDelivery, len(receipt.Plan.Packages),
 			receipt.Plan.Fallback.DeviceTreeBoot.Mode, receipt.Plan.Fallback.DeviceTreeBoot.GRUBEntryCount,
 			len(receipt.Plan.Commands), len(receipt.Plan.ConditionalCommands))
 		return errors.Join(warningErr, err)
@@ -413,8 +454,8 @@ func (a *application) writeKernelInstallReceipt(receipt kernelinstall.Receipt, r
 		return errors.Join(warningErr, errors.New("kernel installation receipt has no verified target boot evidence"))
 	}
 	_, err := fmt.Fprintf(a.out,
-		"kernel installed\nroot: %s\ntarget ABI: %s\nfallback ABI retained: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\npackaged device trees verified: %d\nboot device-tree mode: %s\nboot device-tree GRUB entries verified: %d\nheader trees verified: %d\nreboot required: %t\nReboot manually when ready; retain the fallback kernel until the new kernel has been tested.\n",
-		receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), len(receipt.Plan.Packages), len(receipt.DeviceTrees), receipt.Installed.DeviceTreeBoot.Mode, receipt.Installed.DeviceTreeBoot.GRUBEntryCount, len(receipt.Headers), receipt.RebootRequired)
+		"kernel installed\nroot: %s\ntarget ABI: %s\nfallback ABI retained: %s\nrequested package set: %s\neffective package set: %s\neffective DTB delivery: %s\npackages: %d\npackaged device trees verified: %d\nboot device-tree mode: %s\nboot device-tree GRUB entries verified: %d\nheader trees verified: %d\nreboot required: %t\nReboot manually when ready; retain the fallback kernel until the new kernel has been tested.\n",
+		receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), receipt.Plan.EffectiveDTBDelivery, len(receipt.Plan.Packages), len(receipt.DeviceTrees), receipt.Installed.DeviceTreeBoot.Mode, receipt.Installed.DeviceTreeBoot.GRUBEntryCount, len(receipt.Headers), receipt.RebootRequired)
 	return errors.Join(warningErr, err)
 }
 
@@ -501,7 +542,7 @@ func (a *application) newKernelInspectCommand() *cobra.Command {
 			if asJSON {
 				return a.writeJSON(bundle)
 			}
-			_, err = fmt.Fprintf(a.out, "kernel package bundle valid\nrelease: %s\nABI: %s\nversion: %s\nrequested package set: %s\neffective package set: %s\npackages: %d\npackaged device trees declared: %d\ninstalled boot binding: not inspected\n", bundle.Release, bundle.ABI, bundle.Version, packageSet, effectiveKernelPackageSet(len(bundle.Packages)), len(bundle.Packages), len(bundle.DeviceTrees))
+			_, err = fmt.Fprintf(a.out, "kernel package bundle valid\nrelease: %s\nABI: %s\nversion: %s\nrequested package set: %s\neffective package set: %s\nrequested boot image mode: %s\neffective DTB delivery: %s\npackages: %d\npackaged device trees declared: %d\ninstalled boot binding: not inspected\n", bundle.Release, bundle.ABI, bundle.Version, packageSet, effectiveKernelPackageSet(len(bundle.Packages)), bundle.RequestedBootImageMode, bundle.EffectiveDTBDelivery, len(bundle.Packages), len(bundle.DeviceTrees))
 			return err
 		},
 	}
@@ -549,21 +590,22 @@ func (a *application) newKernelBuildCommand() *cobra.Command {
 func (a *application) writeKernelBuildReceipt(receipt kernelbuild.Receipt) error {
 	if receipt.Plan.DryRun {
 		_, err := fmt.Fprintf(a.out,
-			"kernel build dry run\nrepository root: %s\nsource: %s\nref: %s\nboot image mode: %s\nwork directory: %s\noutput directory: %s\ncontainer: %s\nbuild target: %s\nminimum free space: %d GiB\nwork volume: %s\nrecipe SHA-256: %s\njobs: %d\nreset source: %t\nskip clean: %t\nno changes were made\n",
+			"kernel build dry run\nrepository root: %s\nsource: %s\nref: %s\nboot image mode: %s\nwork directory: %s\noutput directory: %s\ncontainer: %s\nbuild target: %s\nminimum free space: %d GiB\nwork volume: %s\nrecipe SHA-256: %s\njobs: %d\nreset source: %t\nskip clean: %t\nconditional external-DTB packaging commands: %d\nno changes were made\n",
 			receipt.Plan.RepositoryRoot, receipt.Plan.GitURL, receipt.Plan.GitRef,
 			receipt.Plan.BootImageMode,
 			receipt.Plan.WorkDirectory, receipt.Plan.OutputDirectory, receipt.Plan.ContainerImage,
 			receipt.Plan.BuildTarget, receipt.Plan.MinimumFreeGiB,
 			receipt.Plan.WorkVolume, receipt.Plan.RecipeSHA256, receipt.Plan.Jobs,
-			receipt.Plan.ResetSource, receipt.Plan.SkipClean)
+			receipt.Plan.ResetSource, receipt.Plan.SkipClean, len(receipt.Plan.ConditionalCommands))
 		return err
 	}
 	if receipt.Provenance == nil {
 		return errors.New("kernel build completed without source provenance")
 	}
 	_, err := fmt.Fprintf(a.out,
-		"kernel build complete\nsource revision: %s\nsource tree: %s\nboot image mode: %s\nrecipe SHA-256: %s\npackages: %d\noutput directory: %s\n",
-		receipt.Provenance.Revision, receipt.Provenance.Tree, receipt.Provenance.BootImageMode, receipt.Provenance.RecipeSHA256,
+		"kernel build complete\nsource revision: %s\nsource tree: %s\nrequested boot image mode: %s\neffective DTB delivery: %s\nembedded DTBs: %d\nrecipe SHA-256: %s\npackages: %d\noutput directory: %s\n",
+		receipt.Provenance.Revision, receipt.Provenance.Tree, receipt.Provenance.BootImageMode,
+		receipt.Provenance.EffectiveDTBDelivery, receipt.Provenance.EmbeddedDTBCount, receipt.Provenance.RecipeSHA256,
 		len(receipt.Artifacts), receipt.Plan.OutputDirectory)
 	return err
 }

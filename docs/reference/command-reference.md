@@ -31,7 +31,7 @@ lexr catalog list
 lexr catalog show <id>
 lexr catalog validate [path]
 
-lexr image create --output <iso>
+lexr image create --output <iso> [--kernel-profile <platform-id>]
 lexr image validate <iso>
 lexr image devices
 lexr image write <iso> --device <whole-device> --dry-run
@@ -53,6 +53,7 @@ lexr kernel release download [ref]
 lexr kernel release prepare --help
 lexr kernel release validate <release-directory>
 lexr kernel inspect <directory>
+lexr kernel boot refresh --root <path> --abi <abi> --profile <profile|auto>
 lexr kernel preflight <bundle-directory> --root <path> --fallback-abi <abi> [--force]
 lexr kernel install <bundle-directory> --root <path> --fallback-abi <abi> --dry-run [--force]
 lexr kernel install <bundle-directory> --root <path> --fallback-abi <abi> --yes [--force]

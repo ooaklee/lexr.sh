@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -20,29 +21,146 @@ import (
 // writeFixtureEmbeddedDTBImage writes the smallest AArch64 COFF image accepted
 // by debug/pe with one .dtbauto section and file-alignment padding.
 func writeFixtureEmbeddedDTBImage(t *testing.T, path string, payload []byte) {
+	writeFixtureEmbeddedDTBImageSet(t, path, [][]byte{payload})
+}
+
+// writeFixtureEmbeddedDTBImageSet writes an AArch64 COFF image with a closed DTB set.
+func writeFixtureEmbeddedDTBImageSet(t *testing.T, path string, payloads [][]byte) {
 	t.Helper()
 	const (
 		coffHeaderSize    = 20
 		sectionHeaderSize = 40
 		rawSectionSize    = 512
 	)
-	if len(payload) > rawSectionSize {
-		t.Fatalf("embedded DTB fixture is too large: %d", len(payload))
+	for _, payload := range payloads {
+		if len(payload) > rawSectionSize {
+			t.Fatalf("embedded DTB fixture is too large: %d", len(payload))
+		}
 	}
-	image := make([]byte, coffHeaderSize+sectionHeaderSize+rawSectionSize)
+	headerBytes := coffHeaderSize + len(payloads)*sectionHeaderSize
+	image := make([]byte, headerBytes+len(payloads)*rawSectionSize)
 	binary.LittleEndian.PutUint16(image[0:2], 0xaa64)
-	binary.LittleEndian.PutUint16(image[2:4], 1)
-	section := image[coffHeaderSize : coffHeaderSize+sectionHeaderSize]
-	copy(section[:8], ".dtbauto")
-	binary.LittleEndian.PutUint32(section[8:12], uint32(len(payload)))
-	binary.LittleEndian.PutUint32(section[16:20], rawSectionSize)
-	binary.LittleEndian.PutUint32(section[20:24], coffHeaderSize+sectionHeaderSize)
-	copy(image[coffHeaderSize+sectionHeaderSize:], payload)
+	binary.LittleEndian.PutUint16(image[2:4], uint16(len(payloads)))
+	for index, payload := range payloads {
+		sectionStart := coffHeaderSize + index*sectionHeaderSize
+		section := image[sectionStart : sectionStart+sectionHeaderSize]
+		copy(section[:8], ".dtbauto")
+		binary.LittleEndian.PutUint32(section[8:12], uint32(len(payload)))
+		binary.LittleEndian.PutUint32(section[16:20], rawSectionSize)
+		rawStart := headerBytes + index*rawSectionSize
+		binary.LittleEndian.PutUint32(section[20:24], uint32(rawStart))
+		copy(image[rawStart:rawStart+rawSectionSize], payload)
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(path, image, 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestVerifyInstalledClosesEmbeddedMultiDTBInventory proves every declared
+// embedded DTB appears exactly once and contributes to persisted evidence.
+func TestVerifyInstalledClosesEmbeddedMultiDTBInventory(t *testing.T) {
+	root, bundle := fixtureEnvironment(t)
+	if err := installFixtureTarget(root); err != nil {
+		t.Fatal(err)
+	}
+	writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+	trees, err := plannedDeviceTrees(root, bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index := range trees {
+		trees[index].EmbeddedMatches = 1
+	}
+	writeFixtureEmbeddedDTBImageSet(t, filepath.Join(root, "boot/vmlinuz-"+fixtureTargetABI), [][]byte{
+		[]byte("lcd dtb"), []byte("oled dtb"),
+	})
+	grub := fixtureGRUB(false) +
+		"menuentry 'Ubuntu " + fixtureTargetABI + "' {\n linux /boot/vmlinuz-" + fixtureTargetABI + "\n initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n" +
+		"menuentry 'Ubuntu " + fixtureTargetABI + " (recovery mode)' {\n linux /boot/vmlinuz-" + fixtureTargetABI + " single\n initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+	evidence, _, err := verifyInstalled(context.Background(), root, fixtureTargetABI, trees)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantDigests := []string{digestText("lcd dtb"), digestText("oled dtb")}
+	slices.Sort(wantDigests)
+	if evidence.DeviceTreeBoot.Mode != DeviceTreeBootEmbedded ||
+		evidence.DeviceTreeBoot.GRUBEntryCount != 2 ||
+		!slices.Equal(evidence.DeviceTreeBoot.SHA256s, wantDigests) {
+		t.Fatalf("multi-DTB embedded evidence = %+v", evidence.DeviceTreeBoot)
+	}
+
+	writeFixtureEmbeddedDTBImage(t, filepath.Join(root, "boot/vmlinuz-"+fixtureTargetABI), []byte("oled dtb"))
+	if _, _, err := verifyInstalled(context.Background(), root, fixtureTargetABI, trees); err == nil || !strings.Contains(err.Error(), "for 2 required same-ABI DTBs") {
+		t.Fatalf("incomplete embedded DTB set error = %v", err)
+	}
+}
+
+// TestVerifyInstalledAcceptsStockSimpleAdvancedAndRecoveryEntries proves an
+// unlabelled Ubuntu simple entry is still closed by exact artefact paths and
+// the same exact-ABI DTB digest as the labelled advanced entries.
+func TestVerifyInstalledAcceptsStockSimpleAdvancedAndRecoveryEntries(t *testing.T) {
+	root, bundle := fixtureEnvironment(t)
+	if err := installFixtureTarget(root); err != nil {
+		t.Fatal(err)
+	}
+	writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+	grub := fixtureGRUB(false) +
+		"menuentry 'Ubuntu' {\n linux /boot/vmlinuz-" + fixtureTargetABI + "\n devicetree /boot/dtb-" + fixtureTargetABI + "\n initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n" +
+		"menuentry 'Ubuntu " + fixtureTargetABI + "' {\n linux /boot/vmlinuz-" + fixtureTargetABI + "\n devicetree /boot/dtb-" + fixtureTargetABI + "\n initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n" +
+		"menuentry 'Ubuntu " + fixtureTargetABI + " (recovery mode)' {\n linux /boot/vmlinuz-" + fixtureTargetABI + " single\n devicetree /boot/dtb-" + fixtureTargetABI + "\n initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+	trees, err := plannedDeviceTrees(root, bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidence, _, err := verifyInstalled(context.Background(), root, fixtureTargetABI, trees)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if evidence.GRUBEntryCount != 1 || evidence.DeviceTreeBoot.GRUBEntryCount != 3 ||
+		evidence.DeviceTreeBoot.NormalGRUBEntryCount != 2 || evidence.DeviceTreeBoot.RecoveryGRUBEntryCount != 1 ||
+		evidence.DeviceTreeBoot.Mode != DeviceTreeBootExternal || evidence.DeviceTreeBoot.SHA256 != digestText("oled dtb") {
+		t.Fatalf("stock GRUB evidence = %+v", evidence)
+	}
+	writeTargetDPkgStatus(t, root, []string{
+		targetPackageStanza("linux-image-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("lexr-kernel-boot-support", "install ok installed"),
+	})
+	packages, err := fixtureManager(&fakeRunner{root: root}).inspectBundle(context.Background(), bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := classifyTargetState(context.Background(), root, fixtureTargetABI, packages, trees)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Classification != TargetStateComplete {
+		t.Fatalf("stock GRUB target classification = %s, want %s; problem: %s", state.Classification, TargetStateComplete, state.GRUBDeviceTreeBindingProblem)
+	}
+}
+
+// TestVerifyInstalledRejectsExactKernelEntryWithForeignInitramfs ensures every
+// stanza naming the target image is validated rather than silently skipped.
+func TestVerifyInstalledRejectsExactKernelEntryWithForeignInitramfs(t *testing.T) {
+	root, bundle := fixtureEnvironment(t)
+	if err := installFixtureTarget(root); err != nil {
+		t.Fatal(err)
+	}
+	writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+	grub := fixtureGRUB(true) +
+		"menuentry 'Unexpected target entry' {\n linux /boot/vmlinuz-" + fixtureTargetABI + "\n devicetree /boot/dtb-" + fixtureTargetABI + "\n initrd /boot/initrd.img-foreign\n}\n"
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+	trees, err := plannedDeviceTrees(root, bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := verifyInstalled(context.Background(), root, fixtureTargetABI, trees); err == nil || !strings.Contains(err.Error(), "exactly one exact-ABI initramfs") {
+		t.Fatalf("foreign initramfs error = %v", err)
 	}
 }
 
@@ -144,6 +262,102 @@ func TestGRUBTitleParsingIgnoresRecoveryInFlags(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("entry count = %d, want 1", count)
+	}
+}
+
+// TestVerifyFallbackRejectsAdditionalBootArtefacts proves an exact token does
+// not conceal a later foreign kernel or a concatenated foreign initramfs.
+func TestVerifyFallbackRejectsAdditionalBootArtefacts(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		marker      string
+		replacement string
+		want        string
+	}{
+		{
+			name:        "foreign kernel",
+			marker:      " linux /boot/vmlinuz-" + fixtureFallbackABI + " root=fixture\n",
+			replacement: " linux /boot/vmlinuz-" + fixtureFallbackABI + " root=fixture\n linux /boot/vmlinuz-foreign\n",
+			want:        "exactly one exact-ABI kernel",
+		},
+		{
+			name:        "foreign initramfs",
+			marker:      " initrd /boot/initrd.img-" + fixtureFallbackABI + "\n",
+			replacement: " initrd /boot/initrd.img-" + fixtureFallbackABI + " /boot/initrd.img-foreign\n",
+			want:        "exactly one exact-ABI initramfs",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root, _ := fixtureEnvironment(t)
+			grub := strings.Replace(fixtureGRUB(false), test.marker, test.replacement, 1)
+			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+			_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("additional boot artefact error = %v", err)
+			}
+		})
+	}
+}
+
+// TestVerifyFallbackBindsActualGRUBArtefactBytes rejects a same-basename
+// kernel or initramfs from another directory when its bytes differ from the
+// canonical exact-ABI file.
+func TestVerifyFallbackBindsActualGRUBArtefactBytes(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		marker string
+		path   string
+		want   string
+	}{
+		{
+			name:   "kernel",
+			marker: "/boot/vmlinuz-" + fixtureFallbackABI,
+			path:   "/attacker/vmlinuz-" + fixtureFallbackABI,
+			want:   "GRUB kernel token differs",
+		},
+		{
+			name:   "initramfs",
+			marker: "/boot/initrd.img-" + fixtureFallbackABI,
+			path:   "/attacker/initrd.img-" + fixtureFallbackABI,
+			want:   "GRUB initramfs token differs",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root, _ := fixtureEnvironment(t)
+			writeFixtureFile(t, filepath.Join(root, strings.TrimPrefix(test.path, "/")), "foreign boot bytes")
+			grub := strings.Replace(fixtureGRUB(false), test.marker, test.path, 1)
+			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+			_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("redirected %s error = %v", test.name, err)
+			}
+		})
+	}
+}
+
+// TestVerifyFallbackRejectsDiscardedUnsafeLinuxToken proves a traversal token
+// cannot disappear during parsing and thereby evade exact-ABI verification.
+func TestVerifyFallbackRejectsDiscardedUnsafeLinuxToken(t *testing.T) {
+	root, _ := fixtureEnvironment(t)
+	grub := fixtureGRUB(false) +
+		"menuentry 'unsafe kernel' {\n linux /boot/../vmlinuz-" + fixtureFallbackABI + "\n initrd /boot/initrd.img-" + fixtureFallbackABI + "\n}\n"
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	if err == nil || !strings.Contains(err.Error(), "unsafe kernel or initramfs path") {
+		t.Fatalf("discarded unsafe Linux token error = %v", err)
+	}
+}
+
+// TestVerifyFallbackAcceptsSeparateBootArtifactTokens proves root-relative
+// GRUB tokens resolve through the mounted /boot filesystem and hash to the
+// same canonical exact-ABI artefacts.
+func TestVerifyFallbackAcceptsSeparateBootArtifactTokens(t *testing.T) {
+	root, _ := fixtureEnvironment(t)
+	grub := strings.ReplaceAll(fixtureGRUB(false), "/boot/vmlinuz-"+fixtureFallbackABI, "/vmlinuz-"+fixtureFallbackABI)
+	grub = strings.ReplaceAll(grub, "/boot/initrd.img-"+fixtureFallbackABI, "/initrd.img-"+fixtureFallbackABI)
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+	if _, err := verifyFallback(context.Background(), root, fixtureFallbackABI); err != nil {
+		t.Fatalf("separate-/boot tokens: %v", err)
 	}
 }
 
@@ -323,6 +537,47 @@ func TestVerifyFallbackAcceptsEmbeddedDeviceTree(t *testing.T) {
 		evidence.DeviceTreeBoot.SHA256 != hex.EncodeToString(digest[:]) ||
 		evidence.DeviceTreeBoot.GRUBEntryCount != 1 {
 		t.Fatalf("embedded DTB evidence = %+v", evidence.DeviceTreeBoot)
+	}
+}
+
+// TestVerifyFallbackRejectsDuplicateEmbeddedDeviceTree prevents duplicate
+// sections from producing empty or partially attributable digest evidence.
+func TestVerifyFallbackRejectsDuplicateEmbeddedDeviceTree(t *testing.T) {
+	root, _ := fixtureEnvironment(t)
+	payload := []byte("fallback oled dtb")
+	writeFixtureEmbeddedDTBImageSet(t, filepath.Join(root, "boot/vmlinuz-"+fixtureFallbackABI), [][]byte{payload, payload})
+	grub := strings.Replace(
+		fixtureGRUB(false),
+		" devicetree /dtb-"+fixtureFallbackABI+"\n",
+		"",
+		1,
+	)
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+	if _, err := verifyFallback(context.Background(), root, fixtureFallbackABI); err == nil || !strings.Contains(err.Error(), "2 embedded matches") {
+		t.Fatalf("duplicate embedded fallback error = %v", err)
+	}
+}
+
+// TestVerifyFallbackRejectsMalformedEmbeddedSection ensures a valid payload
+// cannot mask a second empty .dtbauto section outside the closed inventory.
+func TestVerifyFallbackRejectsMalformedEmbeddedSection(t *testing.T) {
+	root, _ := fixtureEnvironment(t)
+	payload := []byte("fallback oled dtb")
+	imagePath := filepath.Join(root, "boot/vmlinuz-"+fixtureFallbackABI)
+	writeFixtureEmbeddedDTBImageSet(t, imagePath, [][]byte{payload, payload})
+	image, err := os.ReadFile(imagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const secondSectionVirtualSize = 20 + 40 + 8
+	binary.LittleEndian.PutUint32(image[secondSectionVirtualSize:secondSectionVirtualSize+4], 0)
+	if err := os.WriteFile(imagePath, image, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	grub := strings.Replace(fixtureGRUB(false), " devicetree /dtb-"+fixtureFallbackABI+"\n", "", 1)
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+	if _, err := verifyFallback(context.Background(), root, fixtureFallbackABI); err == nil || !strings.Contains(err.Error(), "invalid bounded payload size") {
+		t.Fatalf("malformed embedded fallback error = %v", err)
 	}
 }
 

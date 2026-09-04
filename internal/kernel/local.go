@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 )
@@ -37,7 +38,7 @@ type localCandidate struct {
 	name string
 	// path is the absolute local package path.
 	path string
-	// role distinguishes the required image and modules packages.
+	// role distinguishes runtime, optional headers, and boot-support packages.
 	role PackageRole
 	// abi is the exact Surface kernel ABI encoded in the filename.
 	abi string
@@ -64,8 +65,9 @@ type LocalBundleOptions struct {
 
 // DiscoverLocalBundle finds one version-bound Surface Pro 11 linux-image and
 // linux-modules package pair in directory. If SHA256SUMS is present, both
-// packages must be covered by it and match their declared digests. Without a
-// manifest the packages are still hashed, but are marked as unverified.
+// packages must be covered by it and match their declared digests. The
+// schema-2 bundle manifest is always required; without SHA256SUMS its packages
+// are still hashed, but are marked as unverified.
 func DiscoverLocalBundle(directory string) (Bundle, error) {
 	return DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetRuntime})
 }
@@ -101,6 +103,7 @@ func DiscoverLocalBundleWithOptions(directory string, options LocalBundleOptions
 		RoleModules:       nil,
 		RoleHeaders:       nil,
 		RoleCommonHeaders: nil,
+		RoleBootSupport:   nil,
 	}
 	for _, entry := range entries {
 		candidate, applicable, candidateErr := inspectLocalCandidate(absoluteDirectory, entry, options.PackageSet)
@@ -148,15 +151,27 @@ func DiscoverLocalBundleWithOptions(directory string, options LocalBundleOptions
 		return Bundle{}, fmt.Errorf("discover local kernel bundle: %w", err)
 	}
 	declaredPackageSet := LocalPackageSet("")
-	if bundleManifestPresent {
-		declaredPackageSet, err = validateLocalBundleManifest(declaredBundle, image, modules, checksums, checksumManifestPresent)
-		if err != nil {
-			return Bundle{}, fmt.Errorf("discover local kernel bundle: %w", err)
-		}
+	if !bundleManifestPresent {
+		return Bundle{}, errors.New("discover local kernel bundle: schema-2 lexr-kernel-bundle.json is required to prove requested and effective DTB delivery")
+	}
+	declaredPackageSet, err = validateLocalBundleManifest(declaredBundle, image, modules, checksums, checksumManifestPresent)
+	if err != nil {
+		return Bundle{}, fmt.Errorf("discover local kernel bundle: %w", err)
 	}
 
 	selected := []localCandidate{image, modules}
-	if options.PackageSet == LocalPackageSetAll && (!bundleManifestPresent || declaredPackageSet == LocalPackageSetAll) {
+	if declaredBundle.EffectiveDTBDelivery == DTBDeliveryExternalRequired {
+		declaredSupport, ok := declaredBundle.Package(RoleBootSupport)
+		if !ok {
+			return Bundle{}, errors.New("discover local kernel bundle: external-required manifest has no boot-support package")
+		}
+		support, present := localCandidateByName(candidates[RoleBootSupport], declaredSupport.Name)
+		if !present {
+			return Bundle{}, fmt.Errorf("discover local kernel bundle: missing declared boot-support package %s", declaredSupport.Name)
+		}
+		selected = append(selected, support)
+	}
+	if options.PackageSet == LocalPackageSetAll && declaredPackageSet == LocalPackageSetAll {
 		headers, err := selectLocalHeaderPair(candidates, image, checksums, checksumManifestPresent, bundleManifestPresent)
 		if err != nil {
 			return Bundle{}, fmt.Errorf("discover local kernel bundle: %w", err)
@@ -202,7 +217,14 @@ func DiscoverLocalBundleWithOptions(directory string, options LocalBundleOptions
 		})
 	}
 
-	bundle, err := NewBundle(localReleasePrefix+image.abi, "", packages)
+	bundle, err := NewBundle(BundleOptions{
+		Release: localReleasePrefix + image.abi, Repository: declaredBundle.Repository,
+		RequestedBootImageMode: declaredBundle.RequestedBootImageMode,
+		EffectiveDTBDelivery:   declaredBundle.EffectiveDTBDelivery,
+		EmbeddedDTBCount:       declaredBundle.EmbeddedDTBCount,
+		DTBSelectionProvenance: declaredBundle.DTBSelectionProvenance,
+		Packages:               packages, DeviceTrees: declaredBundle.DeviceTrees,
+	})
 	if err != nil {
 		return Bundle{}, fmt.Errorf("discover local kernel bundle: validate package pair: %w", err)
 	}
@@ -238,6 +260,9 @@ func inspectLocalCandidate(directory string, entry os.DirEntry, packageSet Local
 		if packageSet != LocalPackageSetAll {
 			return localCandidate{}, false, nil
 		}
+	case RoleBootSupport:
+		// Boot support is part of the runtime delivery contract, independent of
+		// whether development headers were requested.
 	default:
 		return localCandidate{}, false, nil
 	}
@@ -292,8 +317,8 @@ func selectLocalHeaderPair(candidates map[PackageRole][]localCandidate, runtime 
 	return []localCandidate{headers, common}, nil
 }
 
-// loadLocalBundleManifest safely decodes the optional Lexr package-set
-// declaration without trusting any recorded package path.
+// loadLocalBundleManifest safely decodes the Lexr delivery declaration without
+// trusting any recorded package path.
 func loadLocalBundleManifest(directory string) (Bundle, bool, error) {
 	path := filepath.Join(directory, localBundleManifest)
 	info, err := os.Lstat(path)
@@ -346,29 +371,28 @@ func loadLocalBundleManifest(directory string) (Bundle, bool, error) {
 	return bundle, true, nil
 }
 
-// validateLocalBundleManifest proves that a decoded declaration is exactly the
-// two-package runtime set or the coherent four-package set for runtime.
+// validateLocalBundleManifest proves that a decoded declaration is a canonical
+// embedded or external-required package and device-tree contract.
 func validateLocalBundleManifest(manifest Bundle, image, modules localCandidate, checksums map[string]string, checksumManifestPresent bool) (LocalPackageSet, error) {
 	if manifest.SchemaVersion != BundleSchemaVersion {
 		return "", fmt.Errorf("%s schema is %d, expected %d", localBundleManifest, manifest.SchemaVersion, BundleSchemaVersion)
 	}
-	if len(manifest.Packages) != 2 && len(manifest.Packages) != 4 {
-		return "", fmt.Errorf("%s must declare exactly the runtime pair or runtime and header pairs; found %d packages", localBundleManifest, len(manifest.Packages))
-	}
-	normalized, err := NewBundle(manifest.Release, manifest.Repository, manifest.Packages)
+	normalized, err := NewBundle(BundleOptions{
+		Release: manifest.Release, Repository: manifest.Repository,
+		RequestedBootImageMode: manifest.RequestedBootImageMode,
+		EffectiveDTBDelivery:   manifest.EffectiveDTBDelivery,
+		EmbeddedDTBCount:       manifest.EmbeddedDTBCount,
+		DTBSelectionProvenance: manifest.DTBSelectionProvenance,
+		Packages:               manifest.Packages, DeviceTrees: manifest.DeviceTrees,
+	})
 	if err != nil {
 		return "", fmt.Errorf("validate %s packages: %w", localBundleManifest, err)
 	}
 	if manifest.ABI != image.abi || normalized.ABI != image.abi || manifest.Version != image.version || normalized.Version != image.version || manifest.Architecture != "arm64" {
 		return "", fmt.Errorf("%s identity does not match runtime ABI %s version %s", localBundleManifest, image.abi, image.version)
 	}
-	if len(manifest.DeviceTrees) != len(normalized.DeviceTrees) {
-		return "", fmt.Errorf("%s device-tree declaration is incomplete", localBundleManifest)
-	}
-	for index := range normalized.DeviceTrees {
-		if manifest.DeviceTrees[index] != normalized.DeviceTrees[index] {
-			return "", fmt.Errorf("%s device-tree declaration differs from the current bundle contract", localBundleManifest)
-		}
+	if !reflect.DeepEqual(manifest.DeviceTrees, normalized.DeviceTrees) {
+		return "", fmt.Errorf("%s device-tree declaration is incomplete or not canonical", localBundleManifest)
 	}
 
 	base := strings.TrimSuffix(image.abi, surfaceABISuffix)
@@ -379,14 +403,20 @@ func validateLocalBundleManifest(manifest Bundle, image, modules localCandidate,
 		RoleCommonHeaders: "linux-qcom-x1e-headers-" + base + "_" + image.version + "_all.deb",
 	}
 	roles := map[PackageRole]bool{RoleImage: true, RoleModules: true}
+	if manifest.EffectiveDTBDelivery == DTBDeliveryExternalRequired {
+		roles[RoleBootSupport] = true
+	}
 	packageSet := LocalPackageSetRuntime
-	if len(manifest.Packages) == 4 {
+	if _, hasHeaders := manifest.Package(RoleHeaders); hasHeaders {
 		roles[RoleHeaders] = true
 		roles[RoleCommonHeaders] = true
 		packageSet = LocalPackageSetAll
 	}
 	for _, item := range manifest.Packages {
-		if !roles[item.Role] || item.Name != expected[item.Role] {
+		if !roles[item.Role] {
+			return "", fmt.Errorf("%s contains unexpected %s package %q", localBundleManifest, item.Role, item.Name)
+		}
+		if item.Role != RoleBootSupport && item.Name != expected[item.Role] {
 			return "", fmt.Errorf("%s contains unexpected %s package %q", localBundleManifest, item.Role, item.Name)
 		}
 		if len(item.SHA256) != sha256.Size*2 || strings.ToLower(item.SHA256) != item.SHA256 {

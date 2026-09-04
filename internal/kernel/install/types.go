@@ -88,18 +88,27 @@ type Package struct {
 	Architecture string `json:"architecture"`
 	// Depends is the bounded dependency expression read from the package.
 	Depends string `json:"depends,omitempty"`
+	// Recommends is the bounded relationship set used by the singleton boot
+	// support package to identify its exact image and modules pair.
+	Recommends string `json:"recommends,omitempty"`
 	// PublisherVerified reports whether the input bundle had authoritative hashes.
 	PublisherVerified bool `json:"publisher_verified"`
 }
 
 // DeviceTree records one exact DTB required after package installation.
 type DeviceTree struct {
-	// Device is the stable Surface Pro 11 hardware variant identifier.
+	// Device is the stable platform identifier supplied by the bundle.
 	Device string `json:"device"`
 	// RelativePath is the compiled device-tree path beneath the ABI directory.
 	RelativePath string `json:"relative_path"`
 	// TargetPath is the absolute target-root path checked after installation.
 	TargetPath string `json:"target_path"`
+	// ExpectedSHA256 is the immutable package-side digest recorded by the build.
+	ExpectedSHA256 string `json:"expected_sha256"`
+	// EmbeddedMatches is the build-observed number of matching .dtbauto sections.
+	EmbeddedMatches int `json:"embedded_matches"`
+	// Required retains the selected profile's applicability assertion.
+	Required bool `json:"required"`
 }
 
 // HeaderEvidence proves that one selected development-header package left its
@@ -174,9 +183,16 @@ type DeviceTreeBootEvidence struct {
 	Mode DeviceTreeBootMode `json:"mode"`
 	// SHA256 is the exact digest shared by every verified boot-time DTB path.
 	SHA256 string `json:"sha256"`
+	// SHA256s is the complete sorted digest set. SHA256 equals its sole member
+	// for one DTB and a deterministic aggregate for a multi-DTB embedded image.
+	SHA256s []string `json:"sha256s"`
 	// GRUBEntryCount is the number of matching normal and recovery entries
 	// covered by this evidence.
 	GRUBEntryCount int `json:"grub_entry_count"`
+	// NormalGRUBEntryCount is the number of matching non-recovery entries.
+	NormalGRUBEntryCount int `json:"normal_grub_entry_count"`
+	// RecoveryGRUBEntryCount is the number of matching recovery entries.
+	RecoveryGRUBEntryCount int `json:"recovery_grub_entry_count"`
 }
 
 // GRUBPathToken records one bounded boot artefact path without retaining any
@@ -245,6 +261,9 @@ type Plan struct {
 	Warnings []string `json:"warnings,omitempty"`
 	// Version is the coherent Debian version shared by all selected packages.
 	Version string `json:"version"`
+	// EffectiveDTBDelivery is the build-verified delivery contract which the
+	// installed boot evidence must fulfil exactly.
+	EffectiveDTBDelivery kernel.DTBDelivery `json:"effective_dtb_delivery"`
 	// DryRun reports whether execution was intentionally disabled.
 	DryRun bool `json:"dry_run"`
 	// UnverifiedAccepted reports that the caller explicitly accepted local trust.

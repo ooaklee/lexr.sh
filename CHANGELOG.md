@@ -50,6 +50,49 @@ that do not apply.
 
 ---
 
+## [0.3.0] - Unreleased
+
+### Added
+
+- Added a complete kernel device-tree delivery contract. Kernel bundles now
+  record requested boot-image policy separately from effective embedded or
+  external delivery and carry a deterministic, attributable device-tree
+  inventory with Stubble and ukify selection provenance.
+- Added the generic `lexr-kernel-boot-support` Debian package for raw kernel
+  images. Its exact-ABI lifecycle hooks materialise the packaged DTB under
+  `/boot/dtbs/<abi>/`, maintain the stock-GRUB-compatible `/boot/dtb-<abi>`
+  binding, verify digests and converge regardless of Debian package order.
+- Added `lexr kernel boot refresh --root <root> --abi <abi> --profile <profile>`
+  for explicit, bounded refresh of an external device-tree boot binding.
+- Added `image create --kernel-profile <platform-id>` so offline images made
+  from multi-platform raw bundles record one explicit external-DTB deployment
+  profile. The image contains a derived deployment inventory which retains all
+  source package and DTB identities, bytes, digests and selectors while
+  changing only which existing profile is required on that image.
+
+### Changed
+
+- Stubble validation now treats every embedded DTB as part of a closed,
+  attributable compatibility set. Every DTB required by the selected build
+  profile must appear exactly once; extra embedded DTBs must map to packaged
+  output and explicit HWID, compatible-string or machine-database selection
+  evidence. Embedded DTBs are never treated as arbitrary board fallbacks.
+- Guarded installation, direct complete-bundle `dpkg` installation and Ubuntu
+  image creation now use the same exact-ABI boot-support lifecycle. External
+  delivery uses stock GRUB generation, permits one selected platform per root
+  and ABI, and fails closed instead of reporting an unbound firmware-tree DTB
+  as bootable.
+- Kernel build, release, local discovery and image manifests now preserve the
+  effective delivery mode, boot-support package and device-tree provenance as
+  one validated schema contract.
+
+### Fixed
+
+- Fixed raw kernel bundles being buildable but not independently consumable by
+  Lexr or direct `sudo dpkg -i ./*.deb` because no package owned external-DTB
+  provisioning. Failed provisioning and guarded installation now use bounded
+  rollback while retaining independently verified fallback kernels.
+
 ## [0.2.0] - Unreleased
 
 ### Added

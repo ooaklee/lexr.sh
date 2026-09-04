@@ -336,7 +336,7 @@ func TestFedoraManifestRequiresCompleteProvenanceAndPolicy(t *testing.T) {
 			t.Parallel()
 			manifest := valid
 			manifest.KernelBundle.Packages = append([]kernel.Package(nil), valid.KernelBundle.Packages...)
-			manifest.KernelBundle.DeviceTrees = append([]kernel.DeviceTree(nil), valid.KernelBundle.DeviceTrees...)
+			manifest.KernelBundle.DeviceTrees = kernel.CloneDeviceTrees(valid.KernelBundle.DeviceTrees)
 			manifest.BootArguments = append([]string(nil), valid.BootArguments...)
 			manifest.MediaDiscovery.Evidence = append([]imagecontract.MediaDiscoveryEvidence(nil), valid.MediaDiscovery.Evidence...)
 			testCase.mutate(&manifest)
@@ -367,18 +367,27 @@ func completeFedoraManifestFixture() imagecontract.Manifest {
 		Adapter:       AdapterID,
 		SourceImage:   record("source.iso"),
 		KernelBundle: kernel.Bundle{
-			SchemaVersion: kernel.BundleSchemaVersion,
-			Release:       "sp11-test",
-			ABI:           abi,
-			Version:       version,
-			Architecture:  "arm64",
+			SchemaVersion: kernel.BundleSchemaVersion, Release: "sp11-test", ABI: abi, Version: version, Architecture: "arm64",
+			RequestedBootImageMode: kernel.RequestedBootImageModeStubble,
+			EffectiveDTBDelivery:   kernel.DTBDeliveryEmbedded, EmbeddedDTBCount: 2,
+			DTBSelectionProvenance: fedoraDetailedSelectionProvenance(),
 			Packages: []kernel.Package{
 				{Role: kernel.RoleImage, Name: "linux-image-" + abi + "_" + version + "_arm64.deb", Path: "sp11/kernel/linux-image-" + abi + "_" + version + "_arm64.deb", SHA256: strings.Repeat("b", 64), Size: 11, Verified: true},
 				{Role: kernel.RoleModules, Name: "linux-modules-" + abi + "_" + version + "_arm64.deb", Path: "sp11/kernel/linux-modules-" + abi + "_" + version + "_arm64.deb", SHA256: strings.Repeat("c", 64), Size: 12, Verified: true},
 			},
 			DeviceTrees: []kernel.DeviceTree{
-				{Device: "surface-pro-11-x1e-oled", Path: "qcom/x1e80100-microsoft-denali-oled.dtb"},
-				{Device: "surface-pro-11-x1p-lcd", Path: "qcom/x1p64100-microsoft-denali.dtb"},
+				{
+					Device: "surface-pro-11-x1e-oled", Basename: "x1e80100-microsoft-denali-oled.dtb",
+					Path:              "usr/lib/firmware/" + abi + "/device-tree/qcom/x1e80100-microsoft-denali-oled.dtb",
+					CompatibleStrings: []string{"microsoft,denali", "qcom,x1e80100"}, SHA256: strings.Repeat("e", 64), EmbeddedMatches: 1,
+					Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "11111111-1111-5111-8111-111111111111"}}, Required: true,
+				},
+				{
+					Device: "surface-pro-11-x1p-lcd", Basename: "x1p64100-microsoft-denali.dtb",
+					Path:              "usr/lib/firmware/" + abi + "/device-tree/qcom/x1p64100-microsoft-denali.dtb",
+					CompatibleStrings: []string{"microsoft,denali-x1p", "qcom,x1p64100"}, SHA256: strings.Repeat("f", 64), EmbeddedMatches: 1,
+					Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali-x1p"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "22222222-2222-5222-8222-222222222222"}}, Required: true,
+				},
 			},
 		},
 		BootArtifacts: imagecontract.BootArtifactRecord{
@@ -402,6 +411,18 @@ func completeFedoraManifestFixture() imagecontract.Manifest {
 		CompanionBundle: companion.Absent(companion.OmissionReasonNotRequested),
 		BootArguments:   arguments,
 		SecureBoot:      secureBootPolicy,
+	}
+}
+
+// fedoraDetailedSelectionProvenance returns complete embedded fixture evidence.
+func fedoraDetailedSelectionProvenance() *kernel.DTBSelectionProvenance {
+	return &kernel.DTBSelectionProvenance{
+		Tool: "stubble", Version: "fixture-1", DatabaseSHA256: strings.Repeat("d", 64), StubSHA256: strings.Repeat("1", 64), HelperSHA256: strings.Repeat("2", 64), SBATSHA256: strings.Repeat("3", 64),
+		UKifyTool: "ukify", UKifyPackage: "systemd-ukify", UKifyVersion: "258.1-1", UKifySHA256: strings.Repeat("4", 64),
+		Selections: []kernel.DeviceTreeSelectionEvidence{
+			{Device: "surface-pro-11-x1e-oled", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "microsoft,denali", HWIDs: []string{"11111111-1111-5111-8111-111111111111"}}}},
+			{Device: "surface-pro-11-x1p-lcd", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "microsoft,denali-x1p", HWIDs: []string{"22222222-2222-5222-8222-222222222222"}}}},
+		},
 	}
 }
 
@@ -434,24 +455,30 @@ func TestPortableKernelBundleRewritesPathsWithoutAliasing(t *testing.T) {
 	t.Parallel()
 
 	bundle := kernel.Bundle{
+		RequestedBootImageMode: kernel.RequestedBootImageModeSource,
+		EffectiveDTBDelivery:   kernel.DTBDeliveryExternalRequired,
 		Packages: []kernel.Package{
 			{Role: kernel.RoleImage, Name: "linux-image.deb", Path: "/host/linux-image.deb"},
 			{Role: kernel.RoleModules, Name: "linux-modules.deb", Path: "/host/linux-modules.deb"},
+			{Role: kernel.RoleBootSupport, Name: "lexr-kernel-boot-support.deb", Path: "/host/lexr-kernel-boot-support.deb"},
 			{Role: kernel.RoleHeaders, Name: "linux-headers.deb", Path: "/host/linux-headers.deb"},
 		},
 		DeviceTrees: []kernel.DeviceTree{
-			{Device: "x1p", Path: "qcom/x1p.dtb"},
+			{Device: "x1p", Path: "qcom/x1p.dtb", CompatibleStrings: []string{"qcom,x1p"}},
 			{Device: "x1e", Path: "qcom/x1e.dtb"},
 		},
 	}
 	portable := portableKernelBundle(bundle)
-	if len(portable.Packages) != 2 || portable.Packages[0].Path != "sp11/kernel/linux-image.deb" ||
-		portable.Packages[1].Path != "sp11/kernel/linux-modules.deb" {
+	if len(portable.Packages) != 3 || portable.Packages[0].Path != "sp11/kernel/linux-image.deb" ||
+		portable.Packages[1].Path != "sp11/kernel/linux-modules.deb" ||
+		portable.Packages[2].Path != "sp11/kernel/lexr-kernel-boot-support.deb" ||
+		portable.RequestedBootImageMode != bundle.RequestedBootImageMode || portable.EffectiveDTBDelivery != bundle.EffectiveDTBDelivery {
 		t.Fatalf("portable package paths = %#v", portable.Packages)
 	}
 	portable.Packages[0].Path = "mutated"
 	portable.DeviceTrees[0].Path = "mutated"
-	if bundle.Packages[0].Path != "/host/linux-image.deb" || bundle.DeviceTrees[0].Path != "qcom/x1p.dtb" {
+	portable.DeviceTrees[0].CompatibleStrings[0] = "mutated"
+	if bundle.Packages[0].Path != "/host/linux-image.deb" || bundle.DeviceTrees[0].Path != "qcom/x1p.dtb" || bundle.DeviceTrees[0].CompatibleStrings[0] != "qcom,x1p" {
 		t.Fatal("portableKernelBundle() aliases mutable input slices")
 	}
 	if got, want := sortedDTBPaths(bundle), []string{"qcom/x1e.dtb", "qcom/x1p.dtb"}; !slices.Equal(got, want) {

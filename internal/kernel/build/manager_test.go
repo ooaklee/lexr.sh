@@ -188,6 +188,11 @@ func TestNativeBuildPublishesVerifiedBundle(t *testing.T) {
 		receipt.Provenance.Revision != strings.Repeat("a", 40) || receipt.Provenance.ToolchainSHA256 != strings.Repeat("c", 64) || len(receipt.Artifacts) != 4 {
 		t.Fatalf("build receipt = %#v", receipt)
 	}
+	selection := receipt.Provenance.DTBSelectionProvenance
+	if selection == nil || selection.Tool != "stubble" || selection.UKifyPackage != "systemd-ukify" ||
+		selection.StubSHA256 != strings.Repeat("1", 64) || selection.HelperSHA256 != strings.Repeat("2", 64) || len(selection.Selections) != 2 {
+		t.Fatalf("detailed build selection provenance = %#v", selection)
+	}
 	roles := make(map[kernel.PackageRole]bool, len(receipt.Artifacts))
 	for _, item := range receipt.Artifacts {
 		roles[item.Role] = true
@@ -213,7 +218,8 @@ func TestNativeBuildPublishesVerifiedBundle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("published bundle cannot be rediscovered: %v", err)
 	}
-	if bundle.ABI != testKernelABI || len(bundle.Packages) != 2 || !bundle.Packages[0].Verified || !bundle.Packages[1].Verified {
+	if bundle.ABI != testKernelABI || len(bundle.Packages) != 2 || !bundle.Packages[0].Verified || !bundle.Packages[1].Verified ||
+		bundle.DTBSelectionProvenance == nil || len(bundle.DTBSelectionProvenance.Selections) != 2 {
 		t.Fatalf("published bundle = %#v", bundle)
 	}
 	for _, name := range []string{checksumManifestName, provenanceManifestName, bundleManifestName} {
@@ -245,6 +251,88 @@ func TestNativeBuildPublishesVerifiedBundle(t *testing.T) {
 	if _, err := os.Lstat(filepath.Join(root, "state", "kernel", buildLockDirectoryName)); !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("successful build retained its process lock: %v", err)
 	}
+}
+
+// TestExternalBuildAddsBootSupportPackage proves source-owned raw images gain
+// the complete direct-dpkg lifecycle package before publication.
+func TestExternalBuildAddsBootSupportPackage(t *testing.T) {
+	root := t.TempDir()
+	runner := &fakeBuildRunner{}
+	runner.container = func(_ context.Context, command platform.Command, transaction string) error {
+		if slicesContain(command.Args, "/exchange/build-policy.sh") {
+			if err := writeFakeContainerOutput(command, transaction); err != nil {
+				return err
+			}
+			provenance := filepath.Join(transaction, "provenance")
+			if err := os.WriteFile(filepath.Join(provenance, "effective-dtb-delivery"), []byte(kernel.DTBDeliveryExternalRequired), 0o644); err != nil {
+				return err
+			}
+			if err := os.WriteFile(filepath.Join(provenance, "embedded-dtb-count"), []byte("0"), 0o644); err != nil {
+				return err
+			}
+			for _, name := range fakeStubbleProvenanceFiles() {
+				if err := os.Remove(filepath.Join(provenance, name)); err != nil {
+					return err
+				}
+			}
+			inventory := fakeDeviceTreeInventory()
+			for index := range inventory {
+				inventory[index].EmbeddedMatches = 0
+			}
+			encoded, err := json.Marshal(inventory)
+			if err != nil {
+				return err
+			}
+			return os.WriteFile(filepath.Join(provenance, "device-tree-inventory.json"), encoded, 0o644)
+		}
+		if !slicesContain(command.Args, "/exchange/"+bootSupportBuildScriptName) {
+			return errors.New("unexpected external-build container command")
+		}
+		for _, required := range []string{
+			"DEBIAN/control", "DEBIAN/postinst", "DEBIAN/prerm", "DEBIAN/postrm", "DEBIAN/triggers",
+			"etc/kernel/postinst.d/05-lexr-kernel-boot", "etc/kernel/postrm.d/05-lexr-kernel-boot",
+			"usr/libexec/lexr/kernel-boot-refresh", "usr/lib/lexr/kernel-build/abi",
+		} {
+			if _, err := os.Lstat(filepath.Join(transaction, bootSupportStagingDirectory, filepath.FromSlash(required))); err != nil {
+				return err
+			}
+		}
+		name := "lexr-kernel-boot-support_" + testKernelVersion + "_all.deb"
+		return os.WriteFile(filepath.Join(transaction, "artifacts", name), bytes.Repeat([]byte("boot support"), 128), 0o644)
+	}
+	receipt, err := newTestBuildManager(runner).Run(context.Background(), Request{
+		RepositoryRoot: root, WorkDirectory: "work", OutputDirectory: "output", BootImageMode: BootImageModeSource,
+	})
+	if err != nil {
+		t.Fatalf("Run(external source build) error = %v", err)
+	}
+	if len(receipt.Artifacts) != 5 || len(receipt.Executed) != 4 {
+		t.Fatalf("external build receipt = %#v", receipt)
+	}
+	foundSupport := false
+	for _, artifact := range receipt.Artifacts {
+		foundSupport = foundSupport || artifact.Role == kernel.RoleBootSupport
+	}
+	if !foundSupport {
+		t.Fatalf("external build lacks boot-support artefact: %#v", receipt.Artifacts)
+	}
+	bundle, err := kernel.DiscoverLocalBundle(filepath.Join(root, "output"))
+	if err != nil {
+		t.Fatalf("rediscover external build: %v", err)
+	}
+	if bundle.EffectiveDTBDelivery != kernel.DTBDeliveryExternalRequired || len(bundle.Packages) != 3 {
+		t.Fatalf("external runtime bundle = %#v", bundle)
+	}
+}
+
+// slicesContain reports whether one exact argument occurs in a command.
+func slicesContain(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 // TestExistingBuildLockPreventsDocker verifies concurrent processes cannot
@@ -639,6 +727,7 @@ func TestCompiledRecipeContainsOnlyNativeBuildPolicy(t *testing.T) {
 	for _, forbidden := range []string{
 		"/repo/", "scripts/", "build-sp11-qcom-x1e-kernel", "install-sp11", "touchscreen", "sudo", "reboot", "chmod -R a+rwX /exchange",
 		`awk '{print $1}' > "$provenance_dir/toolchain-sha256"`,
+		"External DTB delivery unexpectedly contains an embedded copy",
 	} {
 		if strings.Contains(containerRecipe, forbidden) {
 			t.Errorf("compiled recipe contains forbidden helper or host action %q", forbidden)
@@ -654,10 +743,16 @@ func TestCompiledRecipeContainsOnlyNativeBuildPolicy(t *testing.T) {
 		`stubble) flavour_make_args=(do_stubble=true)`, `nostubble) flavour_make_args=(do_stubble=false)`,
 		`"$rules" "${flavour_make_args[@]}" ` + containerFlavourTarget,
 		`dpkg-deb --fsys-tarfile`, `objdump -h`, `".linux"`, `".hwids"`, `".dtbauto"`,
-		`[ "$linux_sections" -ne 1 ]`, `[ "$hwids_sections" -ne 1 ]`, `[ "$dtbauto_sections" -lt 1 ]`,
-		`x1e80100-microsoft-denali-oled\.dtb`, `iflag=skip_bytes,count_bytes`, `cmp -s "$inspection_dtb" "$section_candidate"`,
-		`[ "$denali_dtbauto_sections" -ne 1 ]`,
-		`[ "$dtbauto_sections" -ne 0 ]`,
+		`[ "$linux_sections" -ne 1 ]`, `[ "$hwids_sections" -ne 1 ]`, `[ "$dtbauto_sections" -gt 0 ]`,
+		`x1e80100-microsoft-denali-oled.dtb`, `x1p64100-microsoft-denali.dtb`,
+		`iflag=skip_bytes,count_bytes`, `cmp -s "${candidate_file[$candidate]}" "$section_candidate"`,
+		`section_matches" -ne 1`, `Required DTB $stable_id`,
+		`effective_delivery=external-required`, `device-tree-inventory.json`,
+		`/usr/libexec/stubble/finddtbs.py`, `/usr/share/stubble/hwids`,
+		`data.get("compatible")`, `data.get("hwids")`, `has no matching Stubble selector record`,
+		`device-tree-selection-records.json`, `MAX_PUBLIC_JSON_BYTES`,
+		`stubble-stub-sha256`, `stubble-helper-sha256`, `stubble-sbat-sha256`, `stubble-machdb-sha256`,
+		`ukify-package`, `ukify-version`, `ukify-sha256`,
 	} {
 		if !strings.Contains(containerRecipe, required) {
 			t.Errorf("compiled recipe is missing retained policy %q", required)
@@ -667,8 +762,8 @@ func TestCompiledRecipeContainsOnlyNativeBuildPolicy(t *testing.T) {
 		strings.Contains(containerRecipe, `"$rules" "${flavour_make_args[@]}" `+containerCommonHeadersTarget) {
 		t.Error("compiled recipe applies the Stubble override outside flavour packaging")
 	}
-	if !strings.Contains(containerRecipe, `[ "$boot_image_mode" != source ]`) {
-		t.Error("compiled recipe does not preserve source-owned boot-image behaviour")
+	if strings.Contains(containerRecipe, `[ "$boot_image_mode" != source ]`) {
+		t.Error("compiled recipe skips effective-delivery inspection for source mode")
 	}
 	if strings.Count(containerRecipe, "rm -rf") != 1 || !strings.Contains(containerRecipe, `rm -rf -- "$source_dir"`) {
 		t.Errorf("compiled recipe has an unexpected reset boundary")
@@ -778,20 +873,46 @@ func writeFakeContainerOutput(command platform.Command, transaction string) erro
 		return err
 	}
 	fields := map[string]string{
-		"git-url":          gitURL,
-		"git-ref":          gitRef,
-		"boot-image-mode":  bootImageMode,
-		"ref-kind":         "branch",
-		"revision":         strings.Repeat("a", 40),
-		"tree":             strings.Repeat("b", 40),
-		"commit-time":      "2026-08-30T10:00:00+00:00",
-		"recipe-sha256":    recipe,
-		"toolchain-sha256": strings.Repeat("c", 64),
+		"git-url":                gitURL,
+		"git-ref":                gitRef,
+		"boot-image-mode":        bootImageMode,
+		"effective-dtb-delivery": string(kernel.DTBDeliveryEmbedded),
+		"embedded-dtb-count":     "2",
+		"stubble-version":        "fixture-1",
+		"stubble-hwids-sha256":   strings.Repeat("d", 64),
+		"stubble-tool":           "stubble",
+		"stubble-stub-sha256":    strings.Repeat("1", 64),
+		"stubble-helper-sha256":  strings.Repeat("2", 64),
+		"stubble-sbat-sha256":    strings.Repeat("3", 64),
+		"ukify-tool":             "ukify",
+		"ukify-package":          "systemd-ukify",
+		"ukify-version":          "258.1-1",
+		"ukify-sha256":           strings.Repeat("4", 64),
+		"ref-kind":               "branch",
+		"revision":               strings.Repeat("a", 40),
+		"tree":                   strings.Repeat("b", 40),
+		"commit-time":            "2026-08-30T10:00:00+00:00",
+		"recipe-sha256":          recipe,
+		"toolchain-sha256":       strings.Repeat("c", 64),
 	}
 	for name, value := range fields {
 		if err := os.WriteFile(filepath.Join(provenance, name), []byte(value), 0o644); err != nil {
 			return err
 		}
+	}
+	inventory, err := json.Marshal(fakeDeviceTreeInventory())
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(provenance, "device-tree-inventory.json"), inventory, 0o644); err != nil {
+		return err
+	}
+	selections, err := json.Marshal(fakeDTBSelectionEvidence())
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(provenance, "device-tree-selection-records.json"), selections, 0o644); err != nil {
+		return err
 	}
 	packages := map[string][]byte{
 		"linux-image-" + testKernelABI + "_" + testKernelVersion + "_arm64.deb":                                           bytes.Repeat([]byte("image"), 128),
@@ -805,4 +926,49 @@ func writeFakeContainerOutput(command platform.Command, transaction string) erro
 		}
 	}
 	return nil
+}
+
+// fakeDeviceTreeInventory returns complete deterministic build evidence.
+func fakeDeviceTreeInventory() []kernel.DeviceTree {
+	return []kernel.DeviceTree{
+		{
+			Device: "surface-pro-11-x1e-oled", Basename: "x1e80100-microsoft-denali-oled.dtb",
+			Path:              "usr/lib/firmware/" + testKernelABI + "/device-tree/qcom/x1e80100-microsoft-denali-oled.dtb",
+			CompatibleStrings: []string{"microsoft,denali", "qcom,x1e80100"}, SHA256: strings.Repeat("e", 64),
+			EmbeddedMatches: 1, Selectors: []kernel.DeviceTreeSelector{
+				{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali"},
+				{Kind: kernel.DeviceTreeSelectorHWID, Value: "11111111-1111-5111-8111-111111111111"},
+			}, Required: true,
+		},
+		{
+			Device: "surface-pro-11-x1p-lcd", Basename: "x1p64100-microsoft-denali.dtb",
+			Path:              "usr/lib/firmware/" + testKernelABI + "/device-tree/qcom/x1p64100-microsoft-denali.dtb",
+			CompatibleStrings: []string{"microsoft,denali-x1p", "qcom,x1p64100"}, SHA256: strings.Repeat("f", 64),
+			EmbeddedMatches: 1, Selectors: []kernel.DeviceTreeSelector{
+				{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali-x1p"},
+				{Kind: kernel.DeviceTreeSelectorHWID, Value: "22222222-2222-5222-8222-222222222222"},
+			}, Required: true,
+		},
+	}
+}
+
+// fakeDTBSelectionEvidence returns deterministic Stubble input attribution.
+func fakeDTBSelectionEvidence() []kernel.DeviceTreeSelectionEvidence {
+	return []kernel.DeviceTreeSelectionEvidence{
+		{Device: "surface-pro-11-x1e-oled", Records: []kernel.DTBSelectionRecord{{
+			Source: "hwids", Compatible: "microsoft,denali", HWIDs: []string{"11111111-1111-5111-8111-111111111111"},
+		}}},
+		{Device: "surface-pro-11-x1p-lcd", Records: []kernel.DTBSelectionRecord{{
+			Source: "hwids", Compatible: "microsoft,denali-x1p", HWIDs: []string{"22222222-2222-5222-8222-222222222222"},
+		}}},
+	}
+}
+
+// fakeStubbleProvenanceFiles lists every embedded-only container output.
+func fakeStubbleProvenanceFiles() []string {
+	return []string{
+		"stubble-tool", "stubble-version", "stubble-stub-sha256", "stubble-helper-sha256",
+		"stubble-sbat-sha256", "stubble-hwids-sha256", "ukify-tool", "ukify-package",
+		"ukify-version", "ukify-sha256", "device-tree-selection-records.json",
+	}
 }

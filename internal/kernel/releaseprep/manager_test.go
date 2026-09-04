@@ -88,10 +88,65 @@ func TestPreparePublishesAndRevalidatesClosedRelease(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, expected := range []string{"Boot image mode: stubble", "licence evidence", "hardware-qualified", "does not make it"} {
+	for _, expected := range []string{"Requested boot image mode: stubble", "Effective DTB delivery: embedded", "Embedded DTBs: 2", "licence evidence", "hardware-qualified", "does not make it"} {
 		if !strings.Contains(string(notes), expected) {
 			t.Errorf("release notes do not contain %q:\n%s", expected, notes)
 		}
+	}
+}
+
+// TestPreparePreservesExternalDelivery publishes boot support and raw-image evidence.
+func TestPreparePreservesExternalDelivery(t *testing.T) {
+	fixture := newReleaseFixture(t, false)
+	recorded := readBundle(t, fixture.Build)
+	provenance := readProvenance(t, fixture.Build)
+	supportName := "lexr-kernel-boot-support_" + fixtureVersion + "_all.deb"
+	supportContents := []byte("generic boot support fixture")
+	mustWriteFile(t, filepath.Join(fixture.Build, supportName), supportContents)
+	trees := kernel.CloneDeviceTrees(recorded.DeviceTrees)
+	for index := range trees {
+		trees[index].EmbeddedMatches = 0
+	}
+	packages := append([]kernel.Package(nil), recorded.Packages...)
+	packages = append(packages, kernel.Package{
+		Role: kernel.RoleBootSupport, Name: supportName, Path: filepath.Join(fixture.Build, supportName),
+		SHA256: digestBytes(supportContents), Size: int64(len(supportContents)), Verified: true,
+	})
+	external, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: recorded.Release, Repository: recorded.Repository,
+		RequestedBootImageMode: kernel.RequestedBootImageModeSource,
+		EffectiveDTBDelivery:   kernel.DTBDeliveryExternalRequired,
+		Packages:               packages, DeviceTrees: trees,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	provenance.BootImageMode = build.BootImageModeSource
+	provenance.EffectiveDTBDelivery = kernel.DTBDeliveryExternalRequired
+	provenance.EmbeddedDTBCount = 0
+	provenance.DeviceTrees = trees
+	provenance.DTBSelectionProvenance = nil
+	mustWriteJSON(t, filepath.Join(fixture.Build, BundleFileName), external)
+	mustWriteJSON(t, filepath.Join(fixture.Build, BuildProvenanceFileName), provenance)
+	checksums := make(map[string]string, len(packages))
+	for _, item := range packages {
+		checksums[item.Name] = item.SHA256
+	}
+	writeChecksumMap(t, filepath.Join(fixture.Build, ChecksumFileName), checksums)
+
+	receipt, err := New().Prepare(context.Background(), fixture.Request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := New().Validate(context.Background(), fixture.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manifest.Source.BootImageMode != build.BootImageModeSource || manifest.Source.EffectiveDTBDelivery != kernel.DTBDeliveryExternalRequired || manifest.Source.EmbeddedDTBCount != 0 || manifest.Source.DTBSelectionProvenance != nil {
+		t.Fatalf("public delivery provenance = %#v", manifest.Source)
+	}
+	if _, ok := receipt.Plan.Bundle.Package(kernel.RoleBootSupport); !ok {
+		t.Fatal("public external-required bundle has no boot-support package")
 	}
 }
 
@@ -525,13 +580,30 @@ func newReleaseFixtureWithIdentity(t *testing.T, headers bool, abi, version, rel
 		checksums[name] = digest
 	}
 	revision := strings.Repeat("1", 40)
-	bundle, err := kernel.NewBundle("build:"+revision, fixtureGitURL, packages)
+	deviceTrees := releaseFixtureDeviceTrees(abi)
+	selection := &kernel.DTBSelectionProvenance{
+		Tool: "stubble", Version: "fixture-1", DatabaseSHA256: strings.Repeat("6", 64),
+		StubSHA256: strings.Repeat("1", 64), HelperSHA256: strings.Repeat("2", 64), SBATSHA256: strings.Repeat("3", 64),
+		UKifyTool: "ukify", UKifyPackage: "systemd-ukify", UKifyVersion: "258.1-1", UKifySHA256: strings.Repeat("4", 64),
+		Selections: []kernel.DeviceTreeSelectionEvidence{
+			{Device: "surface-pro-11-x1e-oled", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "microsoft,denali", HWIDs: []string{"11111111-1111-5111-8111-111111111111"}}}},
+			{Device: "surface-pro-11-x1p-lcd", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "microsoft,denali-x1p", HWIDs: []string{"22222222-2222-5222-8222-222222222222"}}}},
+		},
+	}
+	bundle, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: "build:" + revision, Repository: fixtureGitURL,
+		RequestedBootImageMode: kernel.RequestedBootImageModeStubble,
+		EffectiveDTBDelivery:   kernel.DTBDeliveryEmbedded, EmbeddedDTBCount: 2,
+		DTBSelectionProvenance: selection, Packages: packages, DeviceTrees: deviceTrees,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	mustWriteJSON(t, filepath.Join(buildDirectory, BundleFileName), bundle)
 	mustWriteJSON(t, filepath.Join(buildDirectory, BuildProvenanceFileName), build.Provenance{
 		GitURL: fixtureGitURL, GitRef: "sp11/integration-7.2.x", BootImageMode: build.BootImageModeStubble, RefKind: "branch",
+		EffectiveDTBDelivery: kernel.DTBDeliveryEmbedded, EmbeddedDTBCount: 2,
+		DeviceTrees: deviceTrees, DTBSelectionProvenance: selection,
 		Revision: revision, Tree: strings.Repeat("2", 40),
 		CommitTime:     time.Date(2026, time.August, 29, 10, 0, 0, 0, time.UTC),
 		RecipeSHA256:   strings.Repeat("3", 64),
@@ -549,6 +621,24 @@ func newReleaseFixtureWithIdentity(t *testing.T, headers bool, abi, version, rel
 		Request: Request{
 			BuildDirectory: buildDirectory, OutputDirectory: output, ReleaseName: release,
 			SourceAssets: []string{source}, LicenceAssets: []string{licence},
+		},
+	}
+}
+
+// releaseFixtureDeviceTrees returns complete embedded-delivery evidence.
+func releaseFixtureDeviceTrees(abi string) []kernel.DeviceTree {
+	return []kernel.DeviceTree{
+		{
+			Device: "surface-pro-11-x1e-oled", Basename: "x1e80100-microsoft-denali-oled.dtb",
+			Path:              "usr/lib/firmware/" + abi + "/device-tree/qcom/x1e80100-microsoft-denali-oled.dtb",
+			CompatibleStrings: []string{"microsoft,denali", "qcom,x1e80100"}, SHA256: strings.Repeat("7", 64),
+			EmbeddedMatches: 1, Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "11111111-1111-5111-8111-111111111111"}}, Required: true,
+		},
+		{
+			Device: "surface-pro-11-x1p-lcd", Basename: "x1p64100-microsoft-denali.dtb",
+			Path:              "usr/lib/firmware/" + abi + "/device-tree/qcom/x1p64100-microsoft-denali.dtb",
+			CompatibleStrings: []string{"microsoft,denali-x1p", "qcom,x1p64100"}, SHA256: strings.Repeat("8", 64),
+			EmbeddedMatches: 1, Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali-x1p"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "22222222-2222-5222-8222-222222222222"}}, Required: true,
 		},
 	}
 }

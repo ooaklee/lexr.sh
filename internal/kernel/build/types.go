@@ -12,7 +12,7 @@ import (
 
 const (
 	// SchemaVersion identifies the native kernel build plan and receipt contract.
-	SchemaVersion = 2
+	SchemaVersion = 3
 	// DefaultGitURL is the maintained Surface Pro 11 kernel source.
 	DefaultGitURL = "https://github.com/ooaklee/linux_ms_dev_kit-sp11"
 	// DefaultGitBranch is the maintained integration branch used by default.
@@ -25,15 +25,15 @@ const (
 	ContainerImage = "docker.io/library/ubuntu@sha256:61b65dc6bddff5e68c552f22126fe77496395f956ff2e983e05d8a52efd63e55"
 )
 
-// BootImageMode selects whether package rules retain their source policy or
-// receive one explicit Stubble command-line override.
-type BootImageMode string
+// BootImageMode is retained as the build-domain name for the shared requested
+// boot-image policy.
+type BootImageMode = kernel.RequestedBootImageMode
 
 // Supported boot-image modes keep source policy as the compatibility default.
 const (
-	BootImageModeSource    BootImageMode = "source"
-	BootImageModeStubble   BootImageMode = "stubble"
-	BootImageModeNoStubble BootImageMode = "nostubble"
+	BootImageModeSource    = kernel.RequestedBootImageModeSource
+	BootImageModeStubble   = kernel.RequestedBootImageModeStubble
+	BootImageModeNoStubble = kernel.RequestedBootImageModeNoStubble
 )
 
 // Request contains the complete caller-selected native kernel build inputs.
@@ -83,7 +83,7 @@ type Plan struct {
 	// GitRef is the validated requested branch or tag.
 	GitRef string `json:"git_ref"`
 	// BootImageMode records the reviewed source policy or explicit override.
-	BootImageMode BootImageMode `json:"boot_image_mode"`
+	BootImageMode BootImageMode `json:"requested_boot_image_mode"`
 	// Jobs is the requested parallelism, or zero for container auto-detection.
 	Jobs int `json:"jobs"`
 	// ResetSource permits cleanup only inside the labelled work volume.
@@ -107,6 +107,9 @@ type Plan struct {
 	// Commands previews volume ownership checks and the Docker run invocation;
 	// private runtime names are marked rather than guessed.
 	Commands []Command `json:"commands"`
+	// ConditionalCommands previews archive creation needed only when inspection
+	// classifies the generated image as external-required.
+	ConditionalCommands []Command `json:"conditional_commands,omitempty"`
 }
 
 // Provenance records the exact source object and compiled policy used by Docker.
@@ -116,7 +119,16 @@ type Provenance struct {
 	// GitRef is the caller-selected branch or tag.
 	GitRef string `json:"git_ref"`
 	// BootImageMode records the source policy or validated explicit override.
-	BootImageMode BootImageMode `json:"boot_image_mode"`
+	BootImageMode BootImageMode `json:"requested_boot_image_mode"`
+	// EffectiveDTBDelivery is the structurally verified generated-image result.
+	EffectiveDTBDelivery kernel.DTBDelivery `json:"effective_dtb_delivery"`
+	// EmbeddedDTBCount is the total number of .dtbauto sections in the image.
+	EmbeddedDTBCount int `json:"embedded_dtb_count"`
+	// DeviceTrees is the complete deterministic packaged/embedded inventory.
+	DeviceTrees []kernel.DeviceTree `json:"device_trees"`
+	// DTBSelectionProvenance identifies Stubble and its exact HWID database for
+	// embedded delivery; it is absent for external-required delivery.
+	DTBSelectionProvenance *kernel.DTBSelectionProvenance `json:"dtb_selection_provenance,omitempty"`
 	// RefKind distinguishes a fetched branch from a fetched tag.
 	RefKind string `json:"ref_kind"`
 	// Revision is the exact fetched commit object.

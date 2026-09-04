@@ -111,8 +111,20 @@ func newFixture(t *testing.T) fixture {
 		SourceImage: imagecontract.ArtifactRecord{Path: "source.iso", SHA256: strings.Repeat("1", 64), Size: 1},
 		KernelBundle: kernel.Bundle{
 			SchemaVersion: kernel.BundleSchemaVersion, Release: "test", ABI: "1.0-test-qcom-x1e",
-			Version: "1.0-test", Architecture: "arm64", Packages: []kernel.Package{},
-			DeviceTrees: []kernel.DeviceTree{{Device: "surface-pro-11-x1e-oled", Path: "qcom/test.dtb"}},
+			Version: "1.0-test", Architecture: "arm64",
+			RequestedBootImageMode: kernel.RequestedBootImageModeStubble,
+			EffectiveDTBDelivery:   kernel.DTBDeliveryEmbedded, EmbeddedDTBCount: 1,
+			DTBSelectionProvenance: &kernel.DTBSelectionProvenance{
+				Tool: "stubble", Version: "fixture-1", DatabaseSHA256: strings.Repeat("5", 64), StubSHA256: strings.Repeat("1", 64), HelperSHA256: strings.Repeat("2", 64), SBATSHA256: strings.Repeat("3", 64),
+				UKifyTool: "ukify", UKifyPackage: "systemd-ukify", UKifyVersion: "258.1-1", UKifySHA256: strings.Repeat("4", 64),
+				Selections: []kernel.DeviceTreeSelectionEvidence{{Device: "surface-pro-11-x1e-oled", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "microsoft,denali", HWIDs: []string{"11111111-1111-5111-8111-111111111111"}}}}},
+			},
+			Packages: []kernel.Package{},
+			DeviceTrees: []kernel.DeviceTree{{
+				Device: "surface-pro-11-x1e-oled", Basename: "test.dtb", Path: "usr/lib/firmware/1.0-test-qcom-x1e/device-tree/qcom/test.dtb",
+				CompatibleStrings: []string{"microsoft,denali"}, SHA256: strings.Repeat("6", 64), EmbeddedMatches: 1,
+				Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "11111111-1111-5111-8111-111111111111"}}, Required: true,
+			}},
 		},
 		BootArtifacts: imagecontract.BootArtifactRecord{
 			Kernel: imagecontract.ArtifactRecord{Path: "casper/vmlinuz", SHA256: strings.Repeat("2", 64), Size: 1},

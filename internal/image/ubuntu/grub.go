@@ -31,7 +31,7 @@ if [ $? = 0 ]; then
   if [ $lockdown != "y" ]; then
     cutmem 0x8800000000 0x8fffffffff
   fi
-  set cmdline="clk_ignore_unused pd_ignore_unused arm64.nopauth systemd.tpm2_wait=0 soundwire_qcom.sp11_feedback_active_offset2_zero=1"
+  set cmdline="clk_ignore_unused pd_ignore_unused arm64.nopauth systemd.tpm2_wait=0"
 fi
 
 menuentry "Ubuntu for Surface Pro 11 X1E/OLED (%s)" {

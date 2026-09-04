@@ -158,6 +158,7 @@ func TestImageManagerPlanUsesExplicitLocalInputs(t *testing.T) {
 		CatalogID:                DefaultCatalogID,
 		Source:                   "/inputs/source.iso",
 		KernelDirectory:          "/inputs/kernel",
+		KernelProfile:            "surface-pro-11-x1e-oled",
 		CompanionSourceDirectory: "/inputs/lexr",
 		CompanionUserspace:       []string{"iptsd"},
 		Output:                   "/output/result.iso",
@@ -167,10 +168,80 @@ func TestImageManagerPlanUsesExplicitLocalInputs(t *testing.T) {
 	}
 	if operationPlan.Steps[0].Inputs["path"] != "/inputs/source.iso" ||
 		operationPlan.Steps[1].Inputs["release"] != "/inputs/kernel" ||
+		operationPlan.Steps[1].Inputs["profile"] != "surface-pro-11-x1e-oled" ||
 		operationPlan.Steps[2].Inputs["source"] != "/inputs/lexr" ||
 		operationPlan.Steps[2].Inputs["userspace"] != companion.IPTSDOfflineComponentID ||
 		operationPlan.Steps[len(operationPlan.Steps)-1].Inputs["path"] != "/output/result.iso" {
 		t.Fatalf("Plan() explicit inputs = %#v", operationPlan.Steps)
+	}
+}
+
+// TestProjectKernelBundleForImageRequiresExplicitExternalProfile proves image
+// creation records one reviewed platform without mutating the source bundle.
+func TestProjectKernelBundleForImageRequiresExplicitExternalProfile(t *testing.T) {
+	const (
+		abi     = "7.2.2-jg-0sp11v10-qcom-x1e"
+		version = "7.2.2-jg-0sp11v10"
+	)
+	packages := []kernel.Package{
+		{Role: kernel.RoleImage, Name: "linux-image-" + abi + "_" + version + "_arm64.deb", SHA256: strings.Repeat("1", 64), Size: 1},
+		{Role: kernel.RoleModules, Name: "linux-modules-" + abi + "_" + version + "_arm64.deb", SHA256: strings.Repeat("2", 64), Size: 2},
+		{Role: kernel.RoleBootSupport, Name: "lexr-kernel-boot-support_" + version + "_all.deb", SHA256: strings.Repeat("3", 64), Size: 3},
+	}
+	trees := []kernel.DeviceTree{
+		{
+			Device: "surface-pro-11-x1e-oled", Basename: "x1e80100-microsoft-denali-oled.dtb",
+			Path:              "usr/lib/firmware/" + abi + "/device-tree/qcom/x1e80100-microsoft-denali-oled.dtb",
+			CompatibleStrings: []string{"microsoft,denali-oled", "microsoft,denali"}, SHA256: strings.Repeat("a", 64),
+			Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali-oled"}}, Required: true,
+		},
+		{
+			Device: "surface-pro-11-x1p-lcd", Basename: "x1p64100-microsoft-denali.dtb",
+			Path:              "usr/lib/firmware/" + abi + "/device-tree/qcom/x1p64100-microsoft-denali.dtb",
+			CompatibleStrings: []string{"microsoft,denali-lcd", "microsoft,denali"}, SHA256: strings.Repeat("b", 64),
+			Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali-lcd"}}, Required: true,
+		},
+	}
+	bundle, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: "fixture", RequestedBootImageMode: kernel.RequestedBootImageModeSource,
+		EffectiveDTBDelivery: kernel.DTBDeliveryExternalRequired, Packages: packages, DeviceTrees: trees,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := projectKernelBundleForImage(bundle, ""); err == nil || !strings.Contains(err.Error(), "requires --kernel-profile") {
+		t.Fatalf("missing external profile error = %v", err)
+	}
+	if _, err := projectKernelBundleForImage(bundle, "unknown"); err == nil || !strings.Contains(err.Error(), "not declared") {
+		t.Fatalf("unknown external profile error = %v", err)
+	}
+	if _, err := projectKernelBundleForImage(bundle, " surface-pro-11-x1e-oled"); err == nil || !strings.Contains(err.Error(), "without surrounding whitespace") {
+		t.Fatalf("padded external profile error = %v", err)
+	}
+	optional := bundle
+	optional.DeviceTrees = kernel.CloneDeviceTrees(bundle.DeviceTrees)
+	optional.DeviceTrees[0].Required = false
+	if _, err := projectKernelBundleForImage(optional, optional.DeviceTrees[0].Device); err == nil || !strings.Contains(err.Error(), "not declared as supported") {
+		t.Fatalf("optional external profile error = %v", err)
+	}
+	projected, err := projectKernelBundleForImage(bundle, "surface-pro-11-x1e-oled")
+	if err != nil {
+		t.Fatal(err)
+	}
+	required := make([]string, 0, 1)
+	for _, tree := range projected.DeviceTrees {
+		if tree.Required {
+			required = append(required, tree.Device)
+		}
+	}
+	if !slices.Equal(required, []string{"surface-pro-11-x1e-oled"}) {
+		t.Fatalf("projected required profiles = %v", required)
+	}
+	if !bundle.DeviceTrees[0].Required || !bundle.DeviceTrees[1].Required {
+		t.Fatal("profile projection mutated the authoritative source bundle")
+	}
+	if _, err := projectKernelBundleForImage(kernel.Bundle{EffectiveDTBDelivery: kernel.DTBDeliveryEmbedded}, "surface-pro-11-x1e-oled"); err == nil || !strings.Contains(err.Error(), "Stubble selects") {
+		t.Fatalf("embedded profile error = %v", err)
 	}
 }
 
@@ -368,13 +439,54 @@ func TestImageManagerResolveLocalKernelBundle(t *testing.T) {
 	directory := t.TempDir()
 	abi := "7.2.0-jg-0sp11v19-qcom-x1e"
 	version := "7.2.0-jg-0sp11v19"
-	for _, name := range []string{
+	packageNames := []string{
 		"linux-image-" + abi + "_" + version + "_arm64.deb",
 		"linux-modules-" + abi + "_" + version + "_arm64.deb",
-	} {
+	}
+	packages := make([]kernel.Package, 0, len(packageNames))
+	for _, name := range packageNames {
 		if err := os.WriteFile(filepath.Join(directory, name), []byte(name), 0o600); err != nil {
 			t.Fatalf("os.WriteFile(%s) error = %v", name, err)
 		}
+		digest := sha256.Sum256([]byte(name))
+		role, _, _, err := kernel.ParsePackageName(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		packages = append(packages, kernel.Package{
+			Role: role, Name: name, Path: filepath.Join(directory, name), SHA256: hex.EncodeToString(digest[:]), Size: int64(len(name)),
+		})
+	}
+	manifest, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: "fixture", RequestedBootImageMode: kernel.RequestedBootImageModeStubble,
+		EffectiveDTBDelivery: kernel.DTBDeliveryEmbedded, EmbeddedDTBCount: 2,
+		DTBSelectionProvenance: &kernel.DTBSelectionProvenance{
+			Tool: "stubble", Version: "fixture-1", DatabaseSHA256: strings.Repeat("d", 64), StubSHA256: strings.Repeat("1", 64), HelperSHA256: strings.Repeat("2", 64), SBATSHA256: strings.Repeat("3", 64),
+			UKifyTool: "ukify", UKifyPackage: "systemd-ukify", UKifyVersion: "258.1-1", UKifySHA256: strings.Repeat("4", 64),
+			Selections: []kernel.DeviceTreeSelectionEvidence{
+				{Device: "surface-pro-11-x1e-oled", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "microsoft,denali", HWIDs: []string{"11111111-1111-5111-8111-111111111111"}}}},
+				{Device: "surface-pro-11-x1p-lcd", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "microsoft,denali-x1p", HWIDs: []string{"22222222-2222-5222-8222-222222222222"}}}},
+			},
+		},
+		Packages: packages,
+		DeviceTrees: []kernel.DeviceTree{
+			{Device: "surface-pro-11-x1e-oled", Basename: "x1e80100-microsoft-denali-oled.dtb", Path: "usr/lib/firmware/" + abi + "/device-tree/qcom/x1e80100-microsoft-denali-oled.dtb", CompatibleStrings: []string{"microsoft,denali"}, SHA256: strings.Repeat("e", 64), EmbeddedMatches: 1, Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "11111111-1111-5111-8111-111111111111"}}, Required: true},
+			{Device: "surface-pro-11-x1p-lcd", Basename: "x1p64100-microsoft-denali.dtb", Path: "usr/lib/firmware/" + abi + "/device-tree/qcom/x1p64100-microsoft-denali.dtb", CompatibleStrings: []string{"microsoft,denali-x1p"}, SHA256: strings.Repeat("f", 64), EmbeddedMatches: 1, Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali-x1p"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "22222222-2222-5222-8222-222222222222"}}, Required: true},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifestFile, err := os.Create(filepath.Join(directory, "lexr-kernel-bundle.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manifest.WriteJSON(manifestFile); err != nil {
+		_ = manifestFile.Close()
+		t.Fatal(err)
+	}
+	if err := manifestFile.Close(); err != nil {
+		t.Fatal(err)
 	}
 
 	bundle, err := (&ImageManager{}).resolveBundle(context.Background(), CreateImageRequest{

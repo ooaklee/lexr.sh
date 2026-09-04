@@ -54,6 +54,9 @@ type CreateImageRequest struct {
 	KernelRepository string
 	// KernelRelease selects an exact tag or the repository's latest release.
 	KernelRelease string
+	// KernelProfile selects one declared external-DTB platform for offline media.
+	// Embedded bundles reject this option because Stubble owns boot-time selection.
+	KernelProfile string
 	// CacheDirectory optionally overrides the per-user artefact cache.
 	CacheDirectory string
 	// WorkspaceRoot optionally controls where temporary host workspaces are created.
@@ -129,6 +132,8 @@ type imageAdapterRequest struct {
 	Output string
 	// Bundle is the planned or fully resolved kernel payload.
 	Bundle kernel.Bundle
+	// KernelProfile is the explicit external-DTB platform selected for this image.
+	KernelProfile string
 	// ToolVersion is written into image provenance.
 	ToolVersion string
 	// Companion describes the optional on-media CLI and support payload.
@@ -189,6 +194,7 @@ func ubuntuAdapterRequest(request imageAdapterRequest) ubuntu.Request {
 		SourceSHA256:       request.SourceSHA256,
 		OutputISO:          request.Output,
 		Bundle:             request.Bundle,
+		KernelProfile:      request.KernelProfile,
 		ToolVersion:        request.ToolVersion,
 		Companion:          request.Companion,
 		CompanionUserspace: request.CompanionUserspace,
@@ -204,6 +210,7 @@ func fedoraAdapterRequest(request imageAdapterRequest) fedora.Request {
 		SourceSHA256:       request.SourceSHA256,
 		OutputISO:          request.Output,
 		Bundle:             request.Bundle,
+		KernelProfile:      request.KernelProfile,
 		ToolVersion:        request.ToolVersion,
 		Companion:          request.Companion,
 		CompanionUserspace: request.CompanionUserspace,
@@ -274,6 +281,10 @@ func (m *ImageManager) Create(ctx context.Context, request CreateImageRequest) (
 		return CreateImageResult{}, err
 	}
 	bundle, err := m.resolveBundle(ctx, request, cacheDirectory)
+	if err != nil {
+		return CreateImageResult{}, err
+	}
+	bundle, err = projectKernelBundleForImage(bundle, request.KernelProfile)
 	if err != nil {
 		return CreateImageResult{}, err
 	}
@@ -351,6 +362,7 @@ func (m *ImageManager) prepareImageOperation(request CreateImageRequest) (imageO
 			SourceSHA256:       effectiveSourceSHA256(request, entry),
 			Output:             request.Output,
 			Bundle:             kernel.Bundle{Release: kernelInput, ABI: "resolved-at-execution"},
+			KernelProfile:      strings.TrimSpace(request.KernelProfile),
 			ToolVersion:        request.ToolVersion,
 			Companion:          companion.BuildRequest{SourceDirectory: request.CompanionSourceDirectory},
 			CompanionUserspace: componentIDs,
@@ -358,6 +370,55 @@ func (m *ImageManager) prepareImageOperation(request CreateImageRequest) (imageO
 			KeepWorkspace:      request.KeepWorkspace,
 		},
 	}, nil
+}
+
+// projectKernelBundleForImage makes an explicit deployment choice from a
+// previously validated source contract. It retains every package and DTB
+// identity while deriving one offline image inventory with exactly one required
+// profile. A raw multi-platform source bundle remains suitable for physical-host
+// automatic detection.
+func projectKernelBundleForImage(bundle kernel.Bundle, profile string) (kernel.Bundle, error) {
+	trimmedProfile := strings.TrimSpace(profile)
+	if profile != trimmedProfile {
+		return kernel.Bundle{}, errors.New("--kernel-profile must be an exact declared platform ID without surrounding whitespace")
+	}
+	profile = trimmedProfile
+	switch bundle.EffectiveDTBDelivery {
+	case kernel.DTBDeliveryEmbedded:
+		if profile != "" {
+			return kernel.Bundle{}, errors.New("--kernel-profile is valid only for an external-required kernel bundle; Stubble selects embedded device trees at boot")
+		}
+		return bundle, nil
+	case kernel.DTBDeliveryExternalRequired:
+		if profile == "" {
+			return kernel.Bundle{}, errors.New("external-required image creation requires --kernel-profile with one declared platform ID")
+		}
+	default:
+		return kernel.Bundle{}, fmt.Errorf("kernel bundle has unsupported effective DTB delivery %q", bundle.EffectiveDTBDelivery)
+	}
+
+	trees := kernel.CloneDeviceTrees(bundle.DeviceTrees)
+	found := false
+	for index := range trees {
+		selected := trees[index].Device == profile
+		if selected && !trees[index].Required {
+			return kernel.Bundle{}, fmt.Errorf("kernel profile %q is present but not declared as supported by the external-required bundle", profile)
+		}
+		trees[index].Required = selected
+		found = found || selected
+	}
+	if !found {
+		return kernel.Bundle{}, fmt.Errorf("kernel profile %q is not declared by the external-required bundle", profile)
+	}
+	return kernel.NewBundle(kernel.BundleOptions{
+		Release: bundle.Release, Repository: bundle.Repository,
+		RequestedBootImageMode: bundle.RequestedBootImageMode,
+		EffectiveDTBDelivery:   bundle.EffectiveDTBDelivery,
+		EmbeddedDTBCount:       bundle.EmbeddedDTBCount,
+		DTBSelectionProvenance: bundle.DTBSelectionProvenance,
+		Packages:               bundle.Packages,
+		DeviceTrees:            trees,
+	})
 }
 
 // validPortableISOOutput reports whether an output path ends in one bounded,

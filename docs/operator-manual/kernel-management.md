@@ -24,6 +24,56 @@ been checked. In particular, package or release validation cannot prove a
 future host's GRUB configuration, and media validation does not describe an
 already installed host.
 
+## Understand the self-contained delivery contract
+
+The architecture accepted in
+[ADR029](../adr/adr-029-self-contained-kernel-dtb-delivery.md) separates the
+requested build policy from the delivery found in the generated image:
+
+```text
+requested_boot_image_mode: source | stubble | nostubble
+effective_dtb_delivery: embedded | external-required
+```
+
+`source` is a request to preserve the kernel tree's policy, not a third
+delivery method. It can produce either effective result. Every build inspects
+its output in all three requested modes, and downstream commands use the
+recorded effective delivery rather than inferring it from `source`.
+
+For `embedded`, the build receipt describes a closed Stubble inventory:
+at least one `.dtbauto`, exactly one packaged and byte-identical embedded copy
+of every device tree required by the selected profile, and no unattributed
+embedded payload. It also identifies the Stubble and ukify inputs and the
+selection metadata used for structural attribution. Those facts do not prove
+that a physical machine presents a matching identity or boots successfully.
+
+For `external-required`, a complete bundle includes a generic Debian
+boot-support package. That package materialises a selected package DTB at
+`/boot/dtbs/<abi>/<vendor>/<name>.dtb` and a digest-identical regular
+`/boot/dtb-<abi>` copy used by the supported distribution `10_linux`
+generator. It verifies every simple, normal and recovery entry for the exact
+image and owns symmetric removal. It does not select a global newest kernel,
+write a shared DTB, or install a competing GRUB generator.
+
+One target root may bind one external platform per ABI. Automatic selection on
+a physical host uses only exact registered identities. An offline installed
+image must declare exactly one required external profile; use an embedded
+Stubble bundle for media intended to select between multiple devices at boot.
+Select that profile explicitly during raw-bundle image creation:
+
+```sh
+lexr image create \
+  --kernel-dir <complete-kernel-bundle> \
+  --kernel-profile surface-pro-11-x1e-oled \
+  --output lexr-ubuntu-sp11.iso
+```
+
+The selected image manifest contains a derived deployment inventory. It retains
+every source DTB record, byte identity, digest and selector, and changes only
+the `required` flag so the selected platform is the sole boot claim for that
+image. Omitting the option for an `external-required` bundle, naming an
+undeclared platform, or supplying it for an embedded bundle fails closed.
+
 ## Start from a complete bundle
 
 At minimum, a usable bundle contains:
@@ -32,6 +82,12 @@ At minimum, a usable bundle contains:
 - one matching `linux-modules-..._arm64.deb` package;
 - SHA-256 coverage for every selected package; and
 - the X1E OLED and X1P LCD device trees supplied by that modules package.
+
+An `external-required` bundle additionally requires its
+manifest-declared generic boot-support package. Removing that package from the
+directory makes the bundle incomplete even when the image and modules remain.
+An `embedded` bundle needs no external helper for its boot binding, but its
+closed embedded inventory remains part of the bundle evidence.
 
 The bundle records its release, repository, ABI, version, package digests, and expected device-tree paths. Lexr derives the ABI and version from package filenames and rejects absent required packages, mixed versions or ABIs, and package bytes which no longer match their recorded digest.
 
@@ -77,7 +133,7 @@ The build never installs a package, elevates privilege, reboots the host, or pub
 
 The default `--boot-image-mode source` preserves the selected source's Stubble policy. Use an explicit override only when the intended package policy differs:
 
-- `stubble` passes a GNU Make command-line override to flavour packaging without editing the managed checkout. It validates the resulting packaged boot image across both runtime packages and requires exactly one `.linux` section, one `.hwids` section, at least one embedded `.dtbauto` section, and an embedded Surface Pro 11 Denali device tree.
+- `stubble` passes a GNU Make command-line override to flavour packaging without editing the managed checkout. It validates the resulting packaged boot image across both runtime packages and requires exactly one `.linux` section, one `.hwids` section, at least one embedded `.dtbauto` section, and exactly one attributable copy of each device tree required by the selected build profile. Additional embedded device trees must also be attributable to packaged outputs and explicit selection metadata.
 - `nostubble` applies the corresponding packaging override, validates the packaged boot image across both runtime packages, and rejects embedded device trees.
 
 The selected mode is retained in build and release provenance. For an SP11 source which would otherwise emit a raw boot image, an explicit Stubble build looks like this:
@@ -92,6 +148,42 @@ lexr kernel build \
 ```
 
 Omit the override when another branch or device should retain its source policy.
+
+The selected mode is requested policy. Lexr also records
+`effective_dtb_delivery` after inspecting every generated image, including
+`source`. An explicit request and incompatible result fails rather than being
+normalised silently.
+
+Several embedded device trees let one Stubble image support several declared
+machines. They are not interchangeable fallbacks: Stubble uses a matching HWID,
+an exact primary firmware compatible or a declared machine-database route. If
+none matches, it retains the firmware-provided device tree instead of selecting
+an arbitrary embedded payload. Lexr therefore still rejects a build which omits
+a device tree required by its selected profile.
+
+## Choose guarded installation or direct dpkg deliberately
+
+ADR029 defines direct package installation only for a complete
+manifest-declared bundle on a prepared supported Debian or Ubuntu host:
+
+```sh
+cd <complete-kernel-bundle>
+sudo dpkg -i ./*.deb
+```
+
+`dpkg -i` does not fetch missing dependencies. The host must already provide
+the bundle dependencies and a Debian or Ubuntu `10_linux` generator which
+looks for `/boot/dtb-<abi>`. Exact `linux-update-<abi>` trigger handling makes
+the final boot refresh independent of wildcard order. Do not use this command
+with a partial directory; an `external-required` manifest must include its
+boot-support package.
+
+Direct `dpkg` provides package lifecycle convergence, not the safety
+envelope of `lexr kernel install`. It does not perform Lexr's separate
+read-only preflight, independently prove the selected fallback, require Lexr's
+confirmation, create its installation receipt or provide its
+transaction-level rollback. Prefer the guarded command whenever fallback and
+recovery evidence matter.
 
 ## Prove the fallback before installation
 
@@ -167,9 +259,40 @@ returns to the default exact-match guard.
 
 Immediately before mutation, `kernel install` repeats preflight. It stages immutable package copies, retains the fallback kernel, backs up GRUB, and verifies the installed kernel image, initramfs, module tree, boot entry, both packaged Surface Pro 11 device trees, and both development-header trees when headers were selected. It separately proves the boot-time device-tree path with the same embedded-or-external rule used for the fallback. Packaged firmware-tree DTBs without either an exact embedded payload or a matching GRUB binding are not boot evidence and cannot produce a successful receipt or reboot hand-off. If the package maintainer scripts skipped the target ABI's initramfs image, Lexr regenerates it explicitly with the trusted `update-initramfs` generator before verification, and a repair that still fails triggers the same bounded rollback as any other verification failure.
 
+External device-tree materialisation and bootloader lifecycle changes belong
+to the generic boot-support package. `kernel install` and Ubuntu image creation
+invoke and verify that same exact-ABI implementation rather than maintaining
+their own DTB copier or GRUB editor. The migration positively identifies and
+retires the predecessor Ubuntu refresh hook before enabling the package-owned
+path; competing hooks are not left active.
+
+An operator may rerun the exact package-owned operation without supplying a
+second image path:
+
+```sh
+sudo lexr kernel boot refresh \
+  --root / \
+  --abi <exact-abi> \
+  --profile auto
+```
+
+Use an explicit registered profile only for an offline or otherwise
+deliberately narrowed target. Selecting a different profile after an ABI has
+already been bound fails closed.
+
 Human output labels these facts separately as `packaged device trees verified` and `boot device-tree mode`. JSON receipts carry the digest, delivery mode, and number of matching normal and recovery GRUB entries under `installed.device_tree_boot`; preflight records the same evidence under `fallback.device_tree_boot`.
 
 Lexr does not change the default kernel, remove the fallback, reboot, or install historical out-of-tree workarounds. If mutation or final verification fails, it attempts a bounded rollback and reports the recovery evidence in its receipt. Keep that receipt and the fallback available until the new kernel has passed the required device boot and hardware checks.
+
+Package removal and rollback are different operations. Exact-ABI kernel
+removal deletes only digest-authenticated files and state owned for that ABI;
+removing the shared support package is refused while an owned kernel remains.
+A failed guarded installation purges the target-ABI packages, preserves the
+shared support package and fallback, and restores its bounded byte-exact GRUB
+backup. It cannot restore a previous overwritten target package whose archive
+was not retained, which is why `--overwrite` requires separate care. Neither
+structural path is evidence that the kernel has passed physical boot,
+touchscreen, pen, audio or other hardware qualification.
 
 ## Prepare a kernel release locally
 

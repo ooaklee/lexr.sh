@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
 
 const (
@@ -65,9 +67,15 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 		RecipeSHA256:      compiledRecipeSHA256(),
 	}
 	plan.Commands = []Command{volumeCreateCommand(plan), volumeInspectCommand(plan), previewContainerCommand(plan)}
+	plan.ConditionalCommands = []Command{previewBootSupportContainerCommand()}
 	for _, command := range plan.Commands {
 		if err := validateCommand(command); err != nil {
 			return Plan{}, fmt.Errorf("prepare kernel build command preview: %w", err)
+		}
+	}
+	for _, command := range plan.ConditionalCommands {
+		if err := validateCommand(command); err != nil {
+			return Plan{}, fmt.Errorf("prepare conditional kernel build command preview: %w", err)
 		}
 	}
 	return plan, nil
@@ -160,6 +168,25 @@ func (manager *Manager) Run(ctx context.Context, request Request) (receipt Recei
 		return receipt, errors.Join(err, cleanupTransaction())
 	}
 	receipt.Provenance = &provenance
+	if provenance.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		bootSupportToken, tokenErr := manager.token()
+		if tokenErr != nil {
+			return receipt, errors.Join(tokenErr, cleanupTransaction())
+		}
+		if !containerTokenExpression.MatchString(bootSupportToken) {
+			return receipt, errors.Join(errors.New("generated boot-support container identifier is malformed"), cleanupTransaction())
+		}
+		bootSupportContainer := dockerContainerPrefix + "support-" + bootSupportToken
+		bootSupportCommand, prepareErr := prepareBootSupportPackage(transaction, provenance, bootSupportContainer)
+		if prepareErr != nil {
+			return receipt, errors.Join(prepareErr, cleanupTransaction())
+		}
+		if runErr := manager.runCommand(ctx, &receipt, bootSupportCommand); runErr != nil {
+			receipt.Interrupted = ctx.Err() != nil
+			cleanupErr := manager.forceRemoveContainer(&receipt, bootSupportContainer)
+			return receipt, errors.Join(fmt.Errorf("Docker boot-support package build failed: %w", runErr), cleanupErr, cleanupTransaction())
+		}
+	}
 	bundle, artifacts, err := inspectArtifacts(ctx, transaction, plan, provenance)
 	if err != nil {
 		return receipt, errors.Join(err, cleanupTransaction())

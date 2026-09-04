@@ -3,12 +3,9 @@ package ubuntu
 import (
 	"context"
 	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/ooaklee/lexr.sh/internal/artifact"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
 
@@ -21,29 +18,7 @@ func TestRemasterIntegration(t *testing.T) {
 	if source == "" || kernelDirectory == "" || output == "" {
 		t.Skip("set LEXR_TEST_SOURCE_ISO, LEXR_TEST_KERNEL_DIRECTORY, and LEXR_TEST_OUTPUT_ISO")
 	}
-	entries, err := os.ReadDir(kernelDirectory)
-	if err != nil {
-		t.Fatal(err)
-	}
-	packages := make([]kernel.Package, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".deb") {
-			continue
-		}
-		path := filepath.Join(kernelDirectory, entry.Name())
-		digest, hashErr := artifact.HashFile(path)
-		if hashErr != nil {
-			t.Fatal(hashErr)
-		}
-		info, statErr := entry.Info()
-		if statErr != nil {
-			t.Fatal(statErr)
-		}
-		packages = append(packages, kernel.Package{
-			Name: entry.Name(), Path: path, SHA256: digest, Size: info.Size(), Verified: true,
-		})
-	}
-	bundle, err := kernel.NewBundle("integration", "", packages)
+	bundle, err := kernel.DiscoverLocalBundle(kernelDirectory)
 	if err != nil {
 		t.Fatal(err)
 	}

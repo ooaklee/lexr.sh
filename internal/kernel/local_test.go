@@ -42,8 +42,8 @@ func TestDiscoverLocalBundleWithoutChecksumManifest(t *testing.T) {
 	if bundle.Release != localReleasePrefix+testLocalABI {
 		t.Fatalf("Release = %q, want %q", bundle.Release, localReleasePrefix+testLocalABI)
 	}
-	if bundle.Repository != "" {
-		t.Fatalf("Repository = %q, want empty for local bundle", bundle.Repository)
+	if bundle.Repository != "https://example.invalid/kernel.git" {
+		t.Fatalf("Repository = %q, want the recorded source repository", bundle.Repository)
 	}
 	if bundle.ABI != testLocalABI || bundle.Version != testLocalVersion || bundle.Architecture != "arm64" {
 		t.Fatalf("derived ABI/version/architecture = %q/%q/%q", bundle.ABI, bundle.Version, bundle.Architecture)
@@ -94,6 +94,7 @@ func TestDiscoverLocalBundleWithOptionsIncludesMatchingHeaders(t *testing.T) {
 	directory := t.TempDir()
 	imageName, modulesName := writeLocalPair(t, directory, testLocalABI, testLocalVersion)
 	headersName, commonName := writeLocalHeaderPair(t, directory, testLocalABI, testLocalVersion)
+	writeLocalBundleManifest(t, directory, testLocalABI, testLocalVersion, true)
 	contents := map[string]string{
 		imageName:   "image package",
 		modulesName: "modules package",
@@ -137,8 +138,10 @@ func TestDiscoverLocalBundleWithOptionsRequiresCoherentHeaders(t *testing.T) {
 		headersName, _ := localHeaderPackageNames(testLocalABI, testLocalVersion)
 		writeLocalFile(t, filepath.Join(directory, headersName), "headers")
 
-		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
-		assertLocalErrorContains(t, err, "complete pair", "linux-qcom-x1e-headers")
+		bundle, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		if err != nil || len(bundle.Packages) != 2 {
+			t.Fatalf("manifest-bounded runtime bundle = %#v, error = %v", bundle, err)
+		}
 	})
 
 	t.Run("matching common headers only", func(t *testing.T) {
@@ -148,8 +151,10 @@ func TestDiscoverLocalBundleWithOptionsRequiresCoherentHeaders(t *testing.T) {
 		_, commonName := localHeaderPackageNames(testLocalABI, testLocalVersion)
 		writeLocalFile(t, filepath.Join(directory, commonName), "common headers")
 
-		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
-		assertLocalErrorContains(t, err, "complete pair", "linux-headers")
+		bundle, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		if err != nil || len(bundle.Packages) != 2 {
+			t.Fatalf("manifest-bounded runtime bundle = %#v, error = %v", bundle, err)
+		}
 	})
 
 	t.Run("both matching headers absent but declared", func(t *testing.T) {
@@ -165,6 +170,7 @@ func TestDiscoverLocalBundleWithOptionsRequiresCoherentHeaders(t *testing.T) {
 			localDigest("common headers package"), commonName,
 		)
 		writeLocalFile(t, filepath.Join(directory, localChecksumManifest), manifest)
+		writeLocalBundleManifest(t, directory, testLocalABI, testLocalVersion, true)
 
 		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
 		assertLocalErrorContains(t, err, "complete pair", headersName, commonName)
@@ -174,7 +180,7 @@ func TestDiscoverLocalBundleWithOptionsRequiresCoherentHeaders(t *testing.T) {
 		t.Parallel()
 		directory := t.TempDir()
 		imageName, modulesName := writeLocalPair(t, directory, testLocalABI, testLocalVersion)
-		headersName, commonName := localHeaderPackageNames(testLocalABI, testLocalVersion)
+		headersName, _ := localHeaderPackageNames(testLocalABI, testLocalVersion)
 		manifest := fmt.Sprintf(
 			"%s  %s\n%s  %s\n%s  %s\n",
 			localDigest("image package"), imageName,
@@ -183,8 +189,10 @@ func TestDiscoverLocalBundleWithOptionsRequiresCoherentHeaders(t *testing.T) {
 		)
 		writeLocalFile(t, filepath.Join(directory, localChecksumManifest), manifest)
 
-		_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
-		assertLocalErrorContains(t, err, "complete pair", headersName, commonName)
+		bundle, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+		if err != nil || len(bundle.Packages) != 2 {
+			t.Fatalf("manifest-bounded runtime bundle = %#v, error = %v", bundle, err)
+		}
 	})
 
 	t.Run("runtime selection ignores declared headers deliberately", func(t *testing.T) {
@@ -299,6 +307,33 @@ func TestDiscoverLocalBundleManifestPackageSet(t *testing.T) {
 	})
 }
 
+// TestDiscoverLocalBundlePreservesExternalDelivery proves local acquisition
+// retains the requested/effective split and selects generic boot support.
+func TestDiscoverLocalBundlePreservesExternalDelivery(t *testing.T) {
+	t.Parallel()
+	directory := t.TempDir()
+	imageName, modulesName := writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+	supportName := "lexr-kernel-boot-support_" + testLocalVersion + "_all.deb"
+	writeLocalFile(t, filepath.Join(directory, supportName), "boot support package")
+	checksums := fmt.Sprintf("%s  %s\n%s  %s\n%s  %s\n",
+		localDigest("image package"), imageName,
+		localDigest("modules package"), modulesName,
+		localDigest("boot support package"), supportName)
+	writeLocalFile(t, filepath.Join(directory, localChecksumManifest), checksums)
+	writeLocalExternalBundleManifest(t, directory, testLocalABI, testLocalVersion, supportName)
+
+	bundle, err := DiscoverLocalBundle(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bundle.RequestedBootImageMode != RequestedBootImageModeSource || bundle.EffectiveDTBDelivery != DTBDeliveryExternalRequired || bundle.EmbeddedDTBCount != 0 {
+		t.Fatalf("delivery contract = %#v", bundle)
+	}
+	if support, ok := bundle.Package(RoleBootSupport); !ok || support.Name != supportName || !support.Verified {
+		t.Fatalf("boot-support package = %#v, present=%t", support, ok)
+	}
+}
+
 // TestDiscoverLocalBundleRejectsUnsafeBundleManifest keeps the optional local
 // package-set authority bounded, strict, regular, and semantically coherent.
 func TestDiscoverLocalBundleRejectsUnsafeBundleManifest(t *testing.T) {
@@ -359,6 +394,9 @@ func TestDiscoverLocalBundleRejectsUnsafeBundleManifest(t *testing.T) {
 		t.Parallel()
 		directory := t.TempDir()
 		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		if err := os.Remove(filepath.Join(directory, localBundleManifest)); err != nil {
+			t.Fatal(err)
+		}
 		if err := os.Mkdir(filepath.Join(directory, localBundleManifest), 0o700); err != nil {
 			t.Fatal(err)
 		}
@@ -374,6 +412,9 @@ func TestDiscoverLocalBundleRejectsUnsafeBundleManifest(t *testing.T) {
 		}
 		directory := t.TempDir()
 		writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+		if err := os.Remove(filepath.Join(directory, localBundleManifest)); err != nil {
+			t.Fatal(err)
+		}
 		target := filepath.Join(directory, "bundle-target.json")
 		writeLocalFile(t, target, "{}")
 		if err := os.Symlink(target, filepath.Join(directory, localBundleManifest)); err != nil {
@@ -622,7 +663,7 @@ func TestDiscoverLocalBundleChecksumManifestValidation(t *testing.T) {
 			manifest: func(modulesName, _ string) string {
 				return localDigest("modules package") + "  " + modulesName + "\n"
 			},
-			want: []string{localChecksumManifest, "does not cover", "linux-image"},
+			want: []string{localBundleManifest, "linux-image", "disagrees", localChecksumManifest},
 		},
 		{
 			name: "image checksum mismatch",
@@ -630,7 +671,7 @@ func TestDiscoverLocalBundleChecksumManifestValidation(t *testing.T) {
 				return strings.Repeat("0", 64) + "  " + imageName + "\n" +
 					localDigest("modules package") + "  " + modulesName + "\n"
 			},
-			want: []string{"SHA-256 mismatch", "linux-image", "expected", "got"},
+			want: []string{localBundleManifest, "linux-image", "disagrees", localChecksumManifest},
 		},
 	}
 
@@ -717,6 +758,7 @@ func writeLocalPair(t *testing.T, directory, abi, version string) (string, strin
 
 	imageName := writeLocalRuntimePackage(t, directory, RoleImage, abi, version, "image package")
 	modulesName := writeLocalRuntimePackage(t, directory, RoleModules, abi, version, "modules package")
+	writeLocalBundleManifest(t, directory, abi, version, false)
 	return imageName, modulesName
 }
 
@@ -763,7 +805,71 @@ func writeLocalBundleManifest(t *testing.T, directory, abi, version string, incl
 			Package{Role: RoleCommonHeaders, Name: commonName, SHA256: localDigest("common headers package"), Size: int64(len("common headers package")), Verified: true},
 		)
 	}
-	bundle, err := NewBundle("fixture", "https://example.invalid/kernel.git", packages)
+	bundle, err := NewBundle(BundleOptions{
+		Release: "fixture", Repository: "https://example.invalid/kernel.git",
+		RequestedBootImageMode: RequestedBootImageModeStubble,
+		EffectiveDTBDelivery:   DTBDeliveryEmbedded, EmbeddedDTBCount: 2,
+		DTBSelectionProvenance: detailedBundleSelectionProvenance(),
+		Packages:               packages,
+		DeviceTrees: []DeviceTree{
+			{
+				Device: "surface-pro-11-x1e-oled", Basename: "x1e80100-microsoft-denali-oled.dtb",
+				Path:              "usr/lib/firmware/" + abi + "/device-tree/qcom/x1e80100-microsoft-denali-oled.dtb",
+				CompatibleStrings: []string{"microsoft,denali", "qcom,x1e80100"}, SHA256: strings.Repeat("d", 64), EmbeddedMatches: 1,
+				Selectors: []DeviceTreeSelector{
+					{Kind: DeviceTreeSelectorCompatible, Value: "microsoft,denali"},
+					{Kind: DeviceTreeSelectorHWID, Value: "11111111-1111-5111-8111-111111111111"},
+				}, Required: true,
+			},
+			{
+				Device: "surface-pro-11-x1p-lcd", Basename: "x1p64100-microsoft-denali.dtb",
+				Path:              "usr/lib/firmware/" + abi + "/device-tree/qcom/x1p64100-microsoft-denali.dtb",
+				CompatibleStrings: []string{"microsoft,denali-x1p", "qcom,x1p64100"}, SHA256: strings.Repeat("e", 64), EmbeddedMatches: 1,
+				Selectors: []DeviceTreeSelector{
+					{Kind: DeviceTreeSelectorCompatible, Value: "microsoft,denali-x1p"},
+					{Kind: DeviceTreeSelectorHWID, Value: "22222222-2222-5222-8222-222222222222"},
+				}, Required: true,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output strings.Builder
+	if err := bundle.WriteJSON(&output); err != nil {
+		t.Fatal(err)
+	}
+	writeLocalFile(t, filepath.Join(directory, localBundleManifest), output.String())
+}
+
+// writeLocalExternalBundleManifest emits a source-policy raw-image contract.
+func writeLocalExternalBundleManifest(t *testing.T, directory, abi, version, supportName string) {
+	t.Helper()
+	imageName, modulesName := localPackageNames(abi, version)
+	trees := []DeviceTree{
+		{
+			Device: "surface-pro-11-x1e-oled", Basename: "x1e80100-microsoft-denali-oled.dtb",
+			Path:              "usr/lib/firmware/" + abi + "/device-tree/qcom/x1e80100-microsoft-denali-oled.dtb",
+			CompatibleStrings: []string{"microsoft,denali", "qcom,x1e80100"}, SHA256: strings.Repeat("d", 64),
+			Selectors: []DeviceTreeSelector{{Kind: DeviceTreeSelectorCompatible, Value: "microsoft,denali"}}, Required: true,
+		},
+		{
+			Device: "surface-pro-11-x1p-lcd", Basename: "x1p64100-microsoft-denali.dtb",
+			Path:              "usr/lib/firmware/" + abi + "/device-tree/qcom/x1p64100-microsoft-denali.dtb",
+			CompatibleStrings: []string{"microsoft,denali-x1p", "qcom,x1p64100"}, SHA256: strings.Repeat("e", 64),
+			Selectors: []DeviceTreeSelector{{Kind: DeviceTreeSelectorHWID, Value: "Surface_Pro_11_X1P"}}, Required: true,
+		},
+	}
+	bundle, err := NewBundle(BundleOptions{
+		Release: "fixture", Repository: "https://example.invalid/kernel.git",
+		RequestedBootImageMode: RequestedBootImageModeSource, EffectiveDTBDelivery: DTBDeliveryExternalRequired,
+		Packages: []Package{
+			{Role: RoleImage, Name: imageName, SHA256: localDigest("image package"), Size: int64(len("image package")), Verified: true},
+			{Role: RoleModules, Name: modulesName, SHA256: localDigest("modules package"), Size: int64(len("modules package")), Verified: true},
+			{Role: RoleBootSupport, Name: supportName, SHA256: localDigest("boot support package"), Size: int64(len("boot support package")), Verified: true},
+		},
+		DeviceTrees: trees,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
