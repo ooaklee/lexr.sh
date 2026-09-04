@@ -342,6 +342,28 @@ func TestReadBoundedExtractedFileReturnsRegularContents(t *testing.T) {
 	}
 }
 
+// TestLifecycleAvoidsDevicePolicyAllowsOnlyTheExactABI verifies a scoped ABI
+// does not masquerade as hard-coded platform policy in generic lifecycle code.
+func TestLifecycleAvoidsDevicePolicyAllowsOnlyTheExactABI(t *testing.T) {
+	abi := "7.2.0-jg-0sp11v23-qcom-x1e"
+	if !lifecycleAvoidsDevicePolicy("refresh --abi \"$abi\"\n", abi,
+		"expected='"+abi+"'\npostinst\n", "expected='"+abi+"'\npostrm\n") {
+		t.Fatal("package-bound SP11 ABI was rejected as device policy")
+	}
+	for _, test := range []struct {
+		refresh string
+		hook    string
+	}{
+		{refresh: "hard-coded " + abi, hook: "expected='" + abi + "'"},
+		{refresh: "generic refresh", hook: "expected='" + abi + "'\nselect sp11 profile"},
+		{refresh: "generic refresh", hook: "expected='" + abi + "'\ncopy denali device tree"},
+	} {
+		if lifecycleAvoidsDevicePolicy(test.refresh, abi, test.hook) {
+			t.Fatalf("independent device policy was accepted: refresh=%q hook=%q", test.refresh, test.hook)
+		}
+	}
+}
+
 // TestSnapshotValidationImagePinsOneSourceIdentity proves a pathname exchange
 // between inspection and opening cannot pair one ISO digest with another ISO's
 // embedded manifest.

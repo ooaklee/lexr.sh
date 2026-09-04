@@ -1031,7 +1031,6 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 		refresh, refreshErr := readBoundedExtractedFile(root, refreshPath, maximumGRUBConfigurationBytes)
 		postInstall, postInstallErr := readBoundedExtractedFile(root, postInstallPath, maximumValidationTextBytes)
 		postRemove, postRemoveErr := readBoundedExtractedFile(root, postRemovePath, maximumValidationTextBytes)
-		lifecycle := string(refresh) + string(postInstall) + string(postRemove)
 		refreshPassed = refreshPassed && refreshErr == nil && postInstallErr == nil && postRemoveErr == nil &&
 			strings.Contains(string(refresh), `--defer-grub`) &&
 			strings.Contains(string(refresh), `"$target_root/boot/dtbs/$abi/$dtb_path"`) &&
@@ -1039,7 +1038,7 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 			strings.Contains(string(refresh), `ensure_single_profile`) &&
 			strings.Contains(string(postInstall), "/usr/libexec/lexr/kernel-boot-refresh refresh") &&
 			strings.Contains(string(postRemove), "/usr/libexec/lexr/kernel-boot-refresh remove") &&
-			!strings.Contains(strings.ToLower(lifecycle), "sp11") && !strings.Contains(strings.ToLower(lifecycle), "denali")
+			lifecycleAvoidsDevicePolicy(string(refresh), abi, string(postInstall), string(postRemove))
 		refreshDetails = "the installed generic package owns exact-ABI selection, refresh, removal, and stock-GRUB compatibility state"
 		for _, candidate := range []struct {
 			path string
@@ -1070,6 +1069,30 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 	}
 	addCheck("installed-system-kernel-refresh", refreshPassed, refreshDetails)
 	return checks
+}
+
+// lifecycleAvoidsDevicePolicy permits only ABI-bound hooks to name their exact
+// device-scoped ABI. The generic refresh helper and every other hook token must
+// remain free of independent SP11 or Denali policy.
+func lifecycleAvoidsDevicePolicy(refresh, abi string, abiBoundHooks ...string) bool {
+	if abi == "" {
+		return false
+	}
+	containsDevicePolicy := func(value string) bool {
+		lower := strings.ToLower(value)
+		return strings.Contains(lower, "sp11") || strings.Contains(lower, "denali")
+	}
+	if containsDevicePolicy(refresh) {
+		return false
+	}
+	lowerABI := strings.ToLower(abi)
+	for _, hook := range abiBoundHooks {
+		normalized := strings.ReplaceAll(strings.ToLower(hook), lowerABI, "<exact-abi>")
+		if containsDevicePolicy(normalized) {
+			return false
+		}
+	}
+	return true
 }
 
 // appendedESPOffset parses xorriso's GPT report and returns the byte offset of
