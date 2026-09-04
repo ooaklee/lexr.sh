@@ -235,6 +235,16 @@ func TestApplyBacksUpOnlyRecognisedLegacyFiles(t *testing.T) {
 	if _, err := os.Stat(unrecognised); err != nil {
 		t.Fatalf("unrecognised path was removed: %v", err)
 	}
+	for path, want := range map[string]os.FileMode{
+		filepath.Join(root, "var/lib/lexr"):         0o755,
+		filepath.Join(root, "var/lib/lexr/backups"): 0o700,
+		receipt.Backup: 0o700,
+	} {
+		info, statErr := os.Stat(path)
+		if statErr != nil || info.Mode().Perm() != want {
+			t.Fatalf("created recovery directory %s mode = %v, %v, want %#o", path, info, statErr, want)
+		}
+	}
 	backupInfo, err := os.Stat(receipt.Changes[0].BackupPath)
 	if err != nil {
 		t.Fatalf("backup missing: %v", err)
@@ -754,7 +764,7 @@ func TestBluetoothCleanupIsPrivateReversibleAndNativeSafe(t *testing.T) {
 }
 
 // TestApplyRejectsAnUnsafePrivateBackupHierarchy verifies clean-up never places
-// recovery data beneath an existing application directory readable by others.
+// recovery data in an existing backups directory readable by others.
 func TestApplyRejectsAnUnsafePrivateBackupHierarchy(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
@@ -773,7 +783,7 @@ func TestApplyRejectsAnUnsafePrivateBackupHierarchy(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(applicationDirectory, "backups"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(applicationDirectory, 0o755); err != nil {
+	if err := os.Chmod(filepath.Join(applicationDirectory, "backups"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Apply(report, true); err == nil || !strings.Contains(err.Error(), "mode 0700") {
@@ -781,6 +791,92 @@ func TestApplyRejectsAnUnsafePrivateBackupHierarchy(t *testing.T) {
 	}
 	if _, err := os.Stat(target); err != nil {
 		t.Fatalf("unsafe backup hierarchy changed the clean-up target: %v", err)
+	}
+}
+
+// TestApplyRejectsWritableSharedLexrParent verifies the application directory
+// remains a trusted ancestor even though it is not part of the private subtree.
+func TestApplyRejectsWritableSharedLexrParent(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	target := filepath.Join(root, "etc/modprobe.d/sp11-touchscreen.conf")
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target, []byte("mshw0485_touch\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	report, err := Scan(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	applicationDirectory := filepath.Join(root, "var/lib/lexr")
+	if err := os.MkdirAll(filepath.Join(applicationDirectory, "backups"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(applicationDirectory, 0o775); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Apply(report, true); err == nil || !strings.Contains(err.Error(), "writable by group or others") {
+		t.Fatalf("Apply() error = %v, want unsafe trusted-ancestor rejection", err)
+	}
+	if _, err := os.Stat(target); err != nil {
+		t.Fatalf("unsafe shared parent changed the clean-up target: %v", err)
+	}
+}
+
+// TestApplyAndRestoreAcceptTrustedSharedLexrParent verifies both supported
+// application-directory modes while the recovery subtree stays private.
+func TestApplyAndRestoreAcceptTrustedSharedLexrParent(t *testing.T) {
+	t.Parallel()
+	for _, applicationMode := range []os.FileMode{0o700, 0o755} {
+		t.Run(fmt.Sprintf("mode-%#o", applicationMode), func(t *testing.T) {
+			root := t.TempDir()
+			target := filepath.Join(root, "etc/modprobe.d/sp11-touchscreen.conf")
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			content := []byte("mshw0485_touch\n")
+			if err := os.WriteFile(target, content, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			applicationDirectory := filepath.Join(root, "var/lib/lexr")
+			backupDirectory := filepath.Join(applicationDirectory, "backups")
+			if err := os.MkdirAll(backupDirectory, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chmod(applicationDirectory, applicationMode); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chmod(backupDirectory, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			report, err := Scan(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			receipt, err := Apply(report, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for path, want := range map[string]os.FileMode{
+				applicationDirectory: applicationMode,
+				backupDirectory:      0o700,
+				receipt.Backup:       0o700,
+			} {
+				info, statErr := os.Stat(path)
+				if statErr != nil || info.Mode().Perm() != want {
+					t.Fatalf("recovery directory %s mode = %v, %v, want %#o", path, info, statErr, want)
+				}
+			}
+			if _, err := Restore(receipt, filepath.Join(receipt.Backup, "receipt.json"), true); err != nil {
+				t.Fatal(err)
+			}
+			restored, err := os.ReadFile(target)
+			if err != nil || !bytes.Equal(restored, content) {
+				t.Fatalf("restored target = %q, %v", restored, err)
+			}
+		})
 	}
 }
 

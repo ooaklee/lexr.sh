@@ -50,7 +50,7 @@ digests; a different file at either path remains a manual-review finding.
 
 ## 2. Apply the reviewed transaction
 
-Applying a plan requires `--yes`. Before the first original path changes, the CLI writes and flushes a prepared recovery receipt below `/var/lib/lexr/backups`. Each reviewed entry is then atomically moved into a private same-filesystem quarantine, verified again, copied into its durable backup, and removed from quarantine. A completed receipt is published only after every entry succeeds. If the operation is interrupted, `receipt.pending.json` maps any original, quarantine, and backup locations.
+Applying a plan requires `--yes`. Before the first original path changes, the CLI writes and flushes a prepared recovery receipt below `/var/lib/lexr/backups`. The shared `/var/lib/lexr` application directory is a trusted root-owned ancestor; `backups` and every transaction directory beneath it remain private mode `0700`. Each reviewed entry is then atomically moved into a private same-filesystem quarantine, verified again, copied into its durable backup, and removed from quarantine. A completed receipt is published only after every entry succeeds. If the operation is interrupted, `receipt.pending.json` maps any original, quarantine, and backup locations.
 
 ## 3. Restore when needed
 
