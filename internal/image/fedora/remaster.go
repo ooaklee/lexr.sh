@@ -85,6 +85,21 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 		defer os.RemoveAll(workspace)
 	}
 
+	// Container steps run as root and write into this workspace (for example
+	// install -d /work/sp11/dtb in copyBootArtifacts). Pre-create the sp11
+	// tree with host ownership before any container step so the later
+	// host-side os.MkdirAll calls in writeSupportFiles cannot race with, or
+	// lose to, a root-owned sp11 directory created inside a container.
+	for _, workspaceDirectory := range []string{
+		filepath.Join(workspace, "sp11"),
+		filepath.Join(workspace, "sp11", "kernel"),
+		filepath.Join(workspace, "sp11", "fedora"),
+	} {
+		if err := os.MkdirAll(workspaceDirectory, 0o755); err != nil {
+			return Result{}, fmt.Errorf("prepare remaster workspace sp11 tree: %w", err)
+		}
+	}
+
 	journal := plan.NewJournal(operationPlan.Operation)
 	workingJournalPath := filepath.Join(workspace, "image-create.journal.json")
 	checkpoint := func(step string, digests map[string]string) error {
