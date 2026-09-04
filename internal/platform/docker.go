@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -115,6 +116,42 @@ func (d *Docker) RunInWorkspace(ctx context.Context, image, workspace string, ar
 	}
 	dockerArgs = append(dockerArgs, args...)
 	return d.Runner.Run(ctx, Command{Name: "docker", Args: dockerArgs})
+}
+
+// RunInWorkspaceAsHostUser executes one disposable ARM64 container as the
+// numeric owner of the private host workspace. It is reserved for extracting
+// untrusted filesystem evidence whose original modes must remain intact while
+// still being readable and removable by the calling process.
+func (d *Docker) RunInWorkspaceAsHostUser(ctx context.Context, image, workspace string, args ...string) error {
+	if len(args) == 0 {
+		return errors.New("host-user workspace command is empty")
+	}
+	absolute, err := filepath.Abs(workspace)
+	if err != nil {
+		return fmt.Errorf("resolve workspace: %w", err)
+	}
+	owner, err := numericWorkspaceOwner(absolute)
+	if err != nil {
+		return fmt.Errorf("resolve numeric workspace owner: %w", err)
+	}
+	var probeToken [12]byte
+	if _, err := rand.Read(probeToken[:]); err != nil {
+		return fmt.Errorf("generate workspace ownership probe: %w", err)
+	}
+	probeName := fmt.Sprintf(".lexr-workspace-owner-%x", probeToken)
+	dockerArgs := []string{
+		"run", "--rm", "--platform", "linux/arm64",
+	}
+	dockerArgs = append(dockerArgs, workspaceOwnerDockerArgs(owner)...)
+	dockerArgs = append(dockerArgs,
+		"--volume", absolute+":/work",
+		"--workdir", "/work",
+		image,
+	)
+	dockerArgs = append(dockerArgs, workspaceOwnerCommand(owner, probeName, args)...)
+	runErr := d.Runner.Run(ctx, Command{Name: "docker", Args: dockerArgs})
+	probeErr := verifyWorkspaceOwnerExecution(absolute, probeName)
+	return errors.Join(runErr, probeErr)
 }
 
 // CaptureInWorkspace executes a disposable ARM64 container and returns its

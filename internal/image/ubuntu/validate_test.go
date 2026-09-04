@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -31,6 +32,21 @@ type companionISOValidationRunner struct {
 // result without changing the pre-staged validation fixture.
 func (runner *companionISOValidationRunner) Run(_ context.Context, command platform.Command) error {
 	runner.commands = append(runner.commands, command)
+	if runner.runErr == nil && runtime.GOOS == "darwin" {
+		workspace := ""
+		probe := ""
+		for _, argument := range command.Args {
+			if strings.HasSuffix(argument, ":/work") {
+				workspace = strings.TrimSuffix(argument, ":/work")
+			}
+			if strings.HasPrefix(argument, ".lexr-workspace-owner-") {
+				probe = argument
+			}
+		}
+		if workspace != "" && probe != "" {
+			return os.WriteFile(filepath.Join(workspace, probe), []byte("lexr-workspace-owner"), 0o600)
+		}
+	}
 	return runner.runErr
 }
 
@@ -166,6 +182,163 @@ func TestValidateInstalledGRUBGeneratorSyntaxRejectsMalformedShell(t *testing.T)
 		runner.commands[0].Args, "sh", "-n", "/work/installed-root/etc/grub.d/10_linux",
 	) {
 		t.Fatalf("syntax validation commands = %#v", runner.commands)
+	}
+}
+
+// TestValidateExtractedRegularFilesAcceptsRegularMembers verifies the
+// validator accepts only canonical regular files beneath ordinary directories.
+func TestValidateExtractedRegularFilesAcceptsRegularMembers(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "private", "state")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("state"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateExtractedRegularFiles(root, []string{"private/state"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestValidateExtractedRegularFilesRejectsUnsafeMembers verifies
+// symbolic-link traversal, non-regular leaves, and non-canonical paths fail.
+func TestValidateExtractedRegularFilesRejectsUnsafeMembers(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		prepare  func(*testing.T, string)
+		relative string
+		want     string
+	}{
+		{
+			name: "symlink component",
+			prepare: func(t *testing.T, root string) {
+				t.Helper()
+				outside := t.TempDir()
+				if err := os.WriteFile(filepath.Join(outside, "state"), []byte("state"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(outside, filepath.Join(root, "private")); err != nil {
+					t.Fatal(err)
+				}
+			},
+			relative: "private/state",
+			want:     "traverses a symbolic link",
+		},
+		{
+			name: "symlink leaf",
+			prepare: func(t *testing.T, root string) {
+				t.Helper()
+				if err := os.Symlink("target", filepath.Join(root, "state")); err != nil {
+					t.Fatal(err)
+				}
+			},
+			relative: "state",
+			want:     "traverses a symbolic link",
+		},
+		{
+			name: "directory leaf",
+			prepare: func(t *testing.T, root string) {
+				t.Helper()
+				if err := os.Mkdir(filepath.Join(root, "state"), 0o700); err != nil {
+					t.Fatal(err)
+				}
+			},
+			relative: "state",
+			want:     "is not a regular file",
+		},
+		{
+			name:     "parent traversal",
+			prepare:  func(*testing.T, string) {},
+			relative: "../state",
+			want:     "is not canonical and relative",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			test.prepare(t, root)
+			err := validateExtractedRegularFiles(root, []string{test.relative})
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("validation error = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
+// TestReadBoundedExtractedFileRejectsUnsafeMembers verifies host-side text
+// reads cannot follow an extracted symbolic-link component or leaf.
+func TestReadBoundedExtractedFileRejectsUnsafeMembers(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		prepare func(*testing.T, string)
+		path    string
+		want    string
+	}{
+		{
+			name: "symlink component",
+			prepare: func(t *testing.T, root string) {
+				t.Helper()
+				outside := t.TempDir()
+				if err := os.WriteFile(filepath.Join(outside, "identity"), []byte("host contents"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(outside, filepath.Join(root, "main")); err != nil {
+					t.Fatal(err)
+				}
+			},
+			path: "main/identity",
+			want: "traverses a symbolic link",
+		},
+		{
+			name: "symlink leaf",
+			prepare: func(t *testing.T, root string) {
+				t.Helper()
+				if err := os.Symlink("/etc/passwd", filepath.Join(root, "identity")); err != nil {
+					t.Fatal(err)
+				}
+			},
+			path: "identity",
+			want: "traverses a symbolic link",
+		},
+		{
+			name: "oversized regular file",
+			prepare: func(t *testing.T, root string) {
+				t.Helper()
+				if err := os.WriteFile(filepath.Join(root, "identity"), []byte("too large"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			},
+			path: "identity",
+			want: "not a bounded regular file",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			test.prepare(t, root)
+			_, err := readBoundedExtractedFile(root, test.path, 4)
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("bounded read error = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
+// TestReadBoundedExtractedFileReturnsRegularContents verifies a contained
+// text record is read exactly when it remains within its explicit size bound.
+func TestReadBoundedExtractedFileReturnsRegularContents(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "main", "conf"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "main", "conf", "identity"), []byte("uuid\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	data, err := readBoundedExtractedFile(root, "main/conf/identity", 16)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "uuid\n" {
+		t.Fatalf("bounded contents = %q", data)
 	}
 }
 

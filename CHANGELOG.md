@@ -88,6 +88,12 @@ that do not apply.
 
 ### Fixed
 
+- Fixed Ubuntu ISO validation failing after successful offline-root assembly
+  when root-owned `0600` kernel files and `0700` boot-support state were
+  extracted through a host bind mount. Extraction now preserves package modes
+  while producing host-readable private evidence on Linux and macOS, rejects
+  symbolic-link or special-file substitution, bounds extracted text records,
+  reports the actual failed path and surfaces workspace-cleanup failures.
 - Fixed Ubuntu ISO customization trying to generate installed-system GRUB and
   initramfs state inside an offline chroot with no destination device or
   mounted pseudo-filesystems. Installed initramfs creation now uses the

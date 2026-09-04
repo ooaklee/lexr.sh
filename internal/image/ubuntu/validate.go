@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -28,6 +29,17 @@ import (
 // maximumValidationImageBytes bounds one private ISO validation snapshot.
 const maximumValidationImageBytes int64 = 64 << 30
 
+// maximumValidationTextBytes bounds small, extracted configuration records
+// before any of their untrusted contents are retained in validation evidence.
+const maximumValidationTextBytes int64 = 64 << 10
+
+// maximumGRUBConfigurationBytes bounds the extracted live-media menu.
+const maximumGRUBConfigurationBytes int64 = 1 << 20
+
+// maximumPackageStatusBytes accommodates a normal Debian installed-package
+// database while preventing an extracted record from consuming unbounded RAM.
+const maximumPackageStatusBytes int64 = 32 << 20
+
 // Validator inspects a completed Ubuntu image with isolated tooling and produces
 // a digest-bound report covering its boot layout and embedded kernel payload.
 type Validator struct {
@@ -47,7 +59,7 @@ func NewValidator(docker *platform.Docker) *Validator {
 // Validate checks that isoPath is a regular hybrid ARM64 image whose manifest,
 // live and installed kernels, initramfs images, device trees, and GRUB paths
 // agree. It returns accumulated evidence alongside an error on any failure.
-func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract.ValidationReport, error) {
+func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagecontract.ValidationReport, resultErr error) {
 	absolute, err := filepath.Abs(isoPath)
 	if err != nil {
 		return imagecontract.ValidationReport{}, err
@@ -63,12 +75,16 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	if err != nil {
 		return imagecontract.ValidationReport{Path: absolute, Layout: "hybrid-iso", Adapter: AdapterID}, err
 	}
-	defer os.RemoveAll(workspace)
+	defer func() {
+		if err := os.RemoveAll(workspace); err != nil {
+			resultErr = errors.Join(resultErr, fmt.Errorf("remove private validation workspace: %w", err))
+		}
+	}()
 	digest, size, err := snapshotValidationImage(ctx, absolute, filepath.Join(workspace, "image.iso"))
 	if err != nil {
 		return imagecontract.ValidationReport{Path: absolute, Layout: "hybrid-iso", Adapter: AdapterID}, err
 	}
-	report := imagecontract.ValidationReport{
+	report = imagecontract.ValidationReport{
 		Path: absolute, SHA256: digest, Size: size, Layout: "hybrid-iso", Adapter: AdapterID,
 	}
 	addCheck := func(name string, passed bool, details string) {
@@ -99,7 +115,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 		addCheck("arm64-efi-boot-catalog", passed, strings.TrimSpace(details))
 	}
 
-	extractErr := v.Docker.RunInWorkspace(ctx, toolsImage, workspace,
+	extractErr := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
 		"xorriso", "-osirrox", "on", "-indev", "/work/image.iso",
 		"-extract", "/sp11/lexr-manifest.json", "/work/manifest.json",
 		"-extract", "/casper/vmlinuz", "/work/vmlinuz",
@@ -115,6 +131,15 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 		addCheck("required-iso-members", false, extractErr.Error())
 		report.Valid = false
 		return report, fmt.Errorf("ISO validation failed: required members cannot be extracted")
+	}
+	initialMembers := []string{
+		"manifest.json", "vmlinuz", "initrd", "casper-uuid-generic", "minimal.squashfs",
+		"x1e.dtb", "x1p.dtb", "iso-bootaa64.efi", "iso-grubaa64.efi", "grub.cfg",
+	}
+	if err := validateExtractedRegularFiles(workspace, initialMembers); err != nil {
+		addCheck("required-iso-members", false, err.Error())
+		report.Valid = false
+		return report, fmt.Errorf("ISO validation failed: required members are unsafe: %w", err)
 	}
 	addCheck("required-iso-members", true, "kernel, initramfs, Casper identity, live root, paired DTBs, manifest, and GRUB files are present")
 
@@ -201,7 +226,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	}
 
 	markerPath := filepath.Join(workspace, "casper-uuid-generic")
-	markerBytes, markerErr := os.ReadFile(markerPath)
+	markerBytes, markerErr := readBoundedExtractedFile(workspace, "casper-uuid-generic", maximumValidationTextBytes)
 	markerDigest, markerHashErr := artifact.HashFile(markerPath)
 	markerInfo, markerStatErr := os.Stat(markerPath)
 	markerPassed := markerErr == nil && markerHashErr == nil && markerStatErr == nil && markerRecord.SHA256 != "" &&
@@ -217,10 +242,10 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	addCheck("casper-media-identity-digest", markerPassed, markerDetails)
 
 	unpackedInitrd := filepath.Join(workspace, "initrd-unpacked")
-	unpackErr := v.Docker.RunInWorkspace(ctx, toolsImage, workspace,
+	unpackErr := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
 		"unmkinitramfs", "/work/initrd", "/work/initrd-unpacked")
-	initrdIdentityPath := filepath.Join(unpackedInitrd, "main", filepath.FromSlash(caspermedia.InitramfsIdentityPath))
-	initrdIdentity, identityReadErr := os.ReadFile(initrdIdentityPath)
+	initrdIdentityRelative := path.Join("main", caspermedia.InitramfsIdentityPath)
+	initrdIdentity, identityReadErr := readBoundedExtractedFile(unpackedInitrd, initrdIdentityRelative, maximumValidationTextBytes)
 	mediaContract, identityErr := caspermedia.Matches(markerBytes, initrdIdentity)
 	identityPassed := unpackErr == nil && markerErr == nil && identityReadErr == nil && identityErr == nil &&
 		mediaContract.UUID == manifestMediaContract.UUID
@@ -235,8 +260,8 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	}
 	addCheck("casper-media-uuid", identityPassed, identityDetails)
 
-	defaultBoot, defaultBootErr := os.ReadFile(filepath.Join(unpackedInitrd, "main", "conf", "conf.d", "default-boot-to-casper.conf"))
-	defaultLayer, defaultLayerErr := os.ReadFile(filepath.Join(unpackedInitrd, "main", "conf", "conf.d", "default-layer.conf"))
+	defaultBoot, defaultBootErr := readBoundedExtractedFile(unpackedInitrd, "main/conf/conf.d/default-boot-to-casper.conf", maximumValidationTextBytes)
+	defaultLayer, defaultLayerErr := readBoundedExtractedFile(unpackedInitrd, "main/conf/conf.d/default-layer.conf", maximumValidationTextBytes)
 	bootDefaultPassed := unpackErr == nil && defaultBootErr == nil && strings.Contains(string(defaultBoot), "export BOOT=casper")
 	addCheck("casper-default-boot", bootDefaultPassed, "initramfs defaults an otherwise unset BOOT value to casper")
 	layerName := strings.TrimPrefix(strings.TrimSpace(string(defaultLayer)), "LAYERFS_PATH=")
@@ -253,10 +278,17 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	addCheck("casper-default-layer", layerPassed, layerDetails)
 
 	moduleProbe := "usr/lib/modules/" + manifest.KernelBundle.ABI + "/modules.dep"
-	moduleErr := v.Docker.RunInWorkspace(ctx, toolsImage, workspace,
+	moduleErr := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
 		"unsquashfs", "-no-xattrs", "-no-progress", "-d", "/work/module-probe", "/work/minimal.squashfs", moduleProbe)
-	_, statErr := os.Stat(filepath.Join(workspace, "module-probe", filepath.FromSlash(moduleProbe)))
-	addCheck("live-root-kernel-modules", moduleErr == nil && statErr == nil, moduleProbe)
+	moduleValidationErr := validateExtractedRegularFiles(filepath.Join(workspace, "module-probe"), []string{moduleProbe})
+	modulePassed := moduleErr == nil && moduleValidationErr == nil
+	moduleDetails := moduleProbe
+	if moduleErr != nil {
+		moduleDetails = moduleErr.Error()
+	} else if moduleValidationErr != nil {
+		moduleDetails = moduleValidationErr.Error()
+	}
+	addCheck("live-root-kernel-modules", modulePassed, moduleDetails)
 	report.Checks = append(report.Checks, v.validateInstalledSystemSupport(ctx, toolsImage, workspace, manifest)...)
 
 	for _, dtb := range []string{"x1e.dtb", "x1p.dtb"} {
@@ -269,7 +301,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 		addCheck("device-tree-format-"+strings.TrimSuffix(dtb, ".dtb"), passed, details)
 	}
 
-	grubBytes, err := os.ReadFile(filepath.Join(workspace, "grub.cfg"))
+	grubBytes, err := readBoundedExtractedFile(workspace, "grub.cfg", maximumGRUBConfigurationBytes)
 	if err != nil {
 		return report, err
 	}
@@ -304,8 +336,11 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 			addCheck("direct-grub-appended-esp", false, offsetErr.Error())
 		} else {
 			spec := fmt.Sprintf("/work/image.iso@@%d", offset)
-			copyErr := v.Docker.RunInWorkspace(ctx, toolsImage, workspace,
+			copyErr := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
 				"mcopy", "-o", "-i", spec, "::/EFI/BOOT/BOOTAA64.EFI", "/work/esp-bootaa64.efi")
+			if copyErr == nil {
+				copyErr = validateExtractedRegularFiles(workspace, []string{"esp-bootaa64.efi"})
+			}
 			same, compareErr := sameDigest(filepath.Join(workspace, "esp-bootaa64.efi"), filepath.Join(workspace, "iso-grubaa64.efi"))
 			passed := copyErr == nil && compareErr == nil && same
 			details := "appended ESP BOOTAA64.EFI matches direct GRUB"
@@ -665,7 +700,7 @@ func (v *Validator) validateCompanionBundle(
 		return checks
 	}
 
-	extractErr := v.Docker.RunInWorkspace(ctx, toolsImage, workspace,
+	extractErr := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
 		"xorriso", "-osirrox", "on", "-indev", "/work/image.iso",
 		"-extract", "/"+companion.ISOFilesystemRoot, "/work/companion")
 	if extractErr != nil {
@@ -704,6 +739,92 @@ func validateInstalledGRUBGeneratorSyntax(ctx context.Context, docker *platform.
 	return nil
 }
 
+// validateExtractedRegularFiles rejects any extracted member whose path is
+// non-canonical, escapes the private root, traverses a symbolic link, or ends
+// in anything other than a regular file.
+func validateExtractedRegularFiles(root string, paths []string) error {
+	rootInfo, err := os.Lstat(root)
+	if err != nil {
+		return fmt.Errorf("inspect extracted root: %w", err)
+	}
+	if rootInfo.Mode()&os.ModeSymlink != 0 || !rootInfo.IsDir() {
+		return errors.New("extracted root is not a non-symbolic-link directory")
+	}
+	for _, relative := range paths {
+		if relative == "" || path.IsAbs(relative) || path.Clean(relative) != relative || relative == "." || strings.HasPrefix(relative, "../") {
+			return fmt.Errorf("extracted path %q is not canonical and relative", relative)
+		}
+		current := root
+		components := strings.Split(relative, "/")
+		for index, component := range components {
+			if component == "" || component == "." || component == ".." {
+				return fmt.Errorf("extracted path %q contains an invalid component", relative)
+			}
+			current = filepath.Join(current, filepath.FromSlash(component))
+			info, err := os.Lstat(current)
+			if err != nil {
+				return fmt.Errorf("inspect extracted path %q: %w", relative, err)
+			}
+			if info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("extracted path %q traverses a symbolic link", relative)
+			}
+			if index < len(components)-1 {
+				if !info.IsDir() {
+					return fmt.Errorf("extracted path %q traverses a non-directory", relative)
+				}
+				continue
+			}
+			if !info.Mode().IsRegular() {
+				return fmt.Errorf("extracted path %q is not a regular file", relative)
+			}
+		}
+	}
+	return nil
+}
+
+// readBoundedExtractedFile reads one regular extracted file through an
+// os.Root descriptor after rejecting symbolic-link traversal. The descriptor
+// identity and size are rechecked so untrusted contents cannot escape their
+// private extraction root or produce unbounded validation evidence.
+func readBoundedExtractedFile(rootPath, relative string, maximumBytes int64) (data []byte, resultErr error) {
+	if maximumBytes < 0 {
+		return nil, errors.New("extracted file size bound must not be negative")
+	}
+	if err := validateExtractedRegularFiles(rootPath, []string{relative}); err != nil {
+		return nil, err
+	}
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, fmt.Errorf("open extracted root: %w", err)
+	}
+	defer func() { resultErr = errors.Join(resultErr, root.Close()) }()
+	listed, err := root.Lstat(relative)
+	if err != nil || listed.Mode()&os.ModeSymlink != 0 || !listed.Mode().IsRegular() || listed.Size() < 0 || listed.Size() > maximumBytes {
+		return nil, errors.Join(fmt.Errorf("extracted path %q is not a bounded regular file", relative), err)
+	}
+	file, err := root.Open(relative)
+	if err != nil {
+		return nil, fmt.Errorf("open extracted path %q: %w", relative, err)
+	}
+	defer func() { resultErr = errors.Join(resultErr, file.Close()) }()
+	opened, err := file.Stat()
+	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(listed, opened) || opened.Size() != listed.Size() {
+		return nil, errors.Join(fmt.Errorf("extracted path %q changed while opening", relative), err)
+	}
+	data, err = io.ReadAll(io.LimitReader(file, maximumBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read extracted path %q: %w", relative, err)
+	}
+	afterRead, statErr := file.Stat()
+	current, lstatErr := root.Lstat(relative)
+	if statErr != nil || lstatErr != nil || int64(len(data)) != opened.Size() || int64(len(data)) > maximumBytes ||
+		!afterRead.Mode().IsRegular() || !os.SameFile(opened, afterRead) || afterRead.Size() != opened.Size() ||
+		current.Mode()&os.ModeSymlink != 0 || !current.Mode().IsRegular() || !os.SameFile(opened, current) || current.Size() != opened.Size() {
+		return nil, errors.Join(fmt.Errorf("extracted path %q changed while reading", relative), statErr, lstatErr)
+	}
+	return data, nil
+}
+
 // validateInstalledSystemSupport extracts and checks the minimal root assets
 // that Ubuntu's installer is expected to copy into the target filesystem.
 func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsImage, workspace string, manifest imagecontract.Manifest) []imagecontract.ValidationCheck {
@@ -722,7 +843,12 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 		"unsquashfs", "-no-xattrs", "-no-progress", "-d", "/work/installed-root", "/work/minimal.squashfs",
 	}
 	arguments = append(arguments, paths...)
-	if err := v.Docker.RunInWorkspace(ctx, toolsImage, workspace, arguments...); err != nil {
+	if err := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace, arguments...); err != nil {
+		addCheck("installed-system-support-members", false, err.Error())
+		return checks
+	}
+	root := filepath.Join(workspace, "installed-root")
+	if err := validateExtractedRegularFiles(root, paths); err != nil {
 		addCheck("installed-system-support-members", false, err.Error())
 		return checks
 	}
@@ -747,8 +873,7 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 	}
 	addCheck("installed-system-transient-state-absent", transientAbsent, transientDetails)
 
-	root := filepath.Join(workspace, "installed-root")
-	statusBytes, statusErr := os.ReadFile(filepath.Join(root, "var/lib/dpkg/status"))
+	statusBytes, statusErr := readBoundedExtractedFile(root, "var/lib/dpkg/status", maximumPackageStatusBytes)
 	packagesInstalled := statusErr == nil
 	for _, expected := range installedPackageExpectations(bundle) {
 		packagesInstalled = packagesInstalled && installedPackageStatus(
@@ -801,27 +926,52 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 
 	dtbPassed := listingErr == nil
 	dtbDetails := "the installed kernel retains its manifest-bound embedded DTB inventory without external support"
+	var dtbValidationErr error
+	if listingErr != nil {
+		dtbValidationErr = fmt.Errorf("inspect installed filesystem inventory: %w", listingErr)
+	}
 	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
 		profile, tree, profileErr := requiredExternalProfile(bundle)
 		dtbPassed = dtbPassed && profileErr == nil
+		if profileErr != nil && dtbValidationErr == nil {
+			dtbValidationErr = profileErr
+		}
 		relative, ok := tree.FirmwareRelativePath(abi)
 		dtbPassed = dtbPassed && ok
+		if !ok && dtbValidationErr == nil {
+			dtbValidationErr = fmt.Errorf("device tree %s is outside the exact-ABI firmware directory", tree.Device)
+		}
 		if ok {
-			for _, path := range []string{
+			for _, candidatePath := range []string{
 				filepath.Join(root, "boot", "dtbs", abi, filepath.FromSlash(relative)),
 				filepath.Join(root, "boot", "dtb-"+abi),
 			} {
-				actual, hashErr := artifact.HashFile(path)
+				actual, hashErr := artifact.HashFile(candidatePath)
 				dtbPassed = dtbPassed && hashErr == nil && actual == tree.SHA256
+				if hashErr != nil && dtbValidationErr == nil {
+					dtbValidationErr = fmt.Errorf("hash installed device tree %s: %w", candidatePath, hashErr)
+				} else if hashErr == nil && actual != tree.SHA256 && dtbValidationErr == nil {
+					dtbValidationErr = fmt.Errorf("installed device-tree %s digest %s does not match %s", candidatePath, actual, tree.SHA256)
+				}
 			}
 			for _, stateRoot := range []string{
-				filepath.Join(root, "usr", "lib", "lexr", "kernel-platforms", profile),
-				filepath.Join(root, "var", "lib", "lexr", "kernel-boot", abi, profile),
+				path.Join("usr/lib/lexr/kernel-platforms", profile),
+				path.Join("var/lib/lexr/kernel-boot", abi, profile),
 			} {
-				pathBytes, pathErr := os.ReadFile(filepath.Join(stateRoot, "dtb-path"))
-				digestBytes, digestErr := os.ReadFile(filepath.Join(stateRoot, "dtb-sha256"))
+				pathState := path.Join(stateRoot, "dtb-path")
+				digestState := path.Join(stateRoot, "dtb-sha256")
+				pathBytes, pathErr := readBoundedExtractedFile(root, pathState, maximumValidationTextBytes)
+				digestBytes, digestErr := readBoundedExtractedFile(root, digestState, maximumValidationTextBytes)
 				dtbPassed = dtbPassed && pathErr == nil && digestErr == nil &&
 					strings.TrimSpace(string(pathBytes)) == relative && strings.TrimSpace(string(digestBytes)) == tree.SHA256
+				if pathErr != nil && dtbValidationErr == nil {
+					dtbValidationErr = fmt.Errorf("read installed device-tree path state %s: %w", pathState, pathErr)
+				} else if digestErr != nil && dtbValidationErr == nil {
+					dtbValidationErr = fmt.Errorf("read installed device-tree digest state %s: %w", digestState, digestErr)
+				} else if pathErr == nil && digestErr == nil &&
+					(strings.TrimSpace(string(pathBytes)) != relative || strings.TrimSpace(string(digestBytes)) != tree.SHA256) && dtbValidationErr == nil {
+					dtbValidationErr = errors.New("installed device-tree package state does not match the selected manifest profile")
+				}
 			}
 		}
 		dtbDetails = "the selected profile has digest-bound canonical and stock-GRUB exact-ABI DTBs with package-owned state"
@@ -835,9 +985,12 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 			}
 		}
 	}
+	if dtbValidationErr != nil {
+		dtbDetails = dtbValidationErr.Error()
+	}
 	addCheck("installed-system-device-trees", dtbPassed, dtbDetails)
 
-	grubDefaults, defaultsErr := os.ReadFile(filepath.Join(root, "etc/default/grub.d/99-surface-pro-11.cfg"))
+	grubDefaults, defaultsErr := readBoundedExtractedFile(root, "etc/default/grub.d/99-surface-pro-11.cfg", maximumValidationTextBytes)
 	generatorErr := validateInstalledGRUBGenerator(filepath.Join(root, "etc/grub.d/10_linux"))
 	if generatorErr == nil {
 		generatorErr = validateInstalledGRUBGeneratorSyntax(ctx, v.Docker, toolsImage, workspace)
@@ -867,10 +1020,17 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 
 	refreshPassed := listingErr == nil
 	refreshDetails := "embedded delivery has no external boot-support package or lifecycle files"
+	var refreshValidationErr error
+	if listingErr != nil {
+		refreshValidationErr = fmt.Errorf("inspect installed filesystem inventory: %w", listingErr)
+	}
 	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
-		refresh, refreshErr := os.ReadFile(filepath.Join(root, "usr/libexec/lexr/kernel-boot-refresh"))
-		postInstall, postInstallErr := os.ReadFile(filepath.Join(root, "etc/kernel/postinst.d/05-lexr-kernel-boot"))
-		postRemove, postRemoveErr := os.ReadFile(filepath.Join(root, "etc/kernel/postrm.d/05-lexr-kernel-boot"))
+		refreshPath := "usr/libexec/lexr/kernel-boot-refresh"
+		postInstallPath := "etc/kernel/postinst.d/05-lexr-kernel-boot"
+		postRemovePath := "etc/kernel/postrm.d/05-lexr-kernel-boot"
+		refresh, refreshErr := readBoundedExtractedFile(root, refreshPath, maximumGRUBConfigurationBytes)
+		postInstall, postInstallErr := readBoundedExtractedFile(root, postInstallPath, maximumValidationTextBytes)
+		postRemove, postRemoveErr := readBoundedExtractedFile(root, postRemovePath, maximumValidationTextBytes)
 		lifecycle := string(refresh) + string(postInstall) + string(postRemove)
 		refreshPassed = refreshPassed && refreshErr == nil && postInstallErr == nil && postRemoveErr == nil &&
 			strings.Contains(string(refresh), `--defer-grub`) &&
@@ -881,11 +1041,32 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 			strings.Contains(string(postRemove), "/usr/libexec/lexr/kernel-boot-refresh remove") &&
 			!strings.Contains(strings.ToLower(lifecycle), "sp11") && !strings.Contains(strings.ToLower(lifecycle), "denali")
 		refreshDetails = "the installed generic package owns exact-ABI selection, refresh, removal, and stock-GRUB compatibility state"
+		for _, candidate := range []struct {
+			path string
+			err  error
+		}{
+			{path: refreshPath, err: refreshErr},
+			{path: postInstallPath, err: postInstallErr},
+			{path: postRemovePath, err: postRemoveErr},
+		} {
+			if candidate.err != nil && refreshValidationErr == nil {
+				refreshValidationErr = fmt.Errorf("read installed lifecycle file %s: %w", candidate.path, candidate.err)
+			}
+		}
+		if !refreshPassed && refreshValidationErr == nil {
+			refreshValidationErr = errors.New("installed kernel boot-support lifecycle does not match the generic package contract")
+		}
 	} else {
 		refreshPassed = refreshPassed && !installedPackagePresent(string(statusBytes), "lexr-kernel-boot-support")
 		for _, path := range genericInstalledSupportPaths {
 			refreshPassed = refreshPassed && !squashFSListingContainsPath(listing, path)
 		}
+		if !refreshPassed && refreshValidationErr == nil {
+			refreshValidationErr = errors.New("embedded delivery retains external boot-support package state")
+		}
+	}
+	if refreshValidationErr != nil {
+		refreshDetails = refreshValidationErr.Error()
 	}
 	addCheck("installed-system-kernel-refresh", refreshPassed, refreshDetails)
 	return checks
