@@ -3,18 +3,22 @@ package ubuntu
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/ooaklee/lexr.sh/internal/kernel"
-	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // installedGrubDefaultsName is the sole device-specific support file staged by
 // the Ubuntu adapter rather than supplied by the generic Debian package.
 const installedGrubDefaultsName = "99-surface-pro-11.cfg"
+
+// maximumInstalledGRUBGeneratorBytes bounds the stock generator inspected from
+// an untrusted source image before the installer has a real target disk.
+const maximumInstalledGRUBGeneratorBytes int64 = 256 << 10
 
 // retiredInstalledSupportPaths lists the adapter-generated lifecycle files
 // which must not survive migration to package-owned boot support.
@@ -213,8 +217,9 @@ func errorsForMissingKernelRole(role kernel.PackageRole) error {
 }
 
 // installInstalledSystemSupport retains Surface command-line defaults, invokes
-// the package-owned helper for every external profile, creates the non-Casper
-// initramfs, and regenerates and verifies GRUB exactly once afterwards.
+// the package-owned helper for the selected external profile, and creates the
+// non-Casper initramfs from the extracted root. Concrete GRUB generation is
+// deferred until Ubuntu's installer has mounted a real destination filesystem.
 func installInstalledSystemSupport(ctx context.Context, docker *platform.Docker, image, workspace, volume string, bundle kernel.Bundle) error {
 	profile, _, err := requiredExternalProfile(bundle)
 	if err != nil {
@@ -273,14 +278,54 @@ case "$delivery" in
 		;;
 esac
 
-test -x "$root/usr/sbin/update-initramfs"
-rm -f -- "$root/boot/initrd.img-$abi"
-chroot "$root" update-initramfs -c -k "$abi"
-test -s "$root/boot/initrd.img-$abi"
-test -x "$root/usr/sbin/update-grub"
-chroot "$root" update-grub
-test -s "$root/boot/grub/grub.cfg"
-chroot "$root" grub-script-check /boot/grub/grub.cfg
+test -x /usr/bin/dracut
+test -x /usr/lib/dracut/dracut-install
+test -d "$root/boot"
+test ! -L "$root/boot"
+test -x "$root/etc/grub.d/10_linux"
+test ! -L "$root/etc/grub.d/10_linux"
+test -f "$root/etc/grub.d/10_linux"
+generator_size=$(stat -c %s "$root/etc/grub.d/10_linux")
+test "$generator_size" -gt 0
+test "$generator_size" -le 262144
+generator_mode=$(stat -c %a "$root/etc/grub.d/10_linux")
+(( (8#$generator_mode & 8#022) == 0 ))
+sh -n "$root/etc/grub.d/10_linux"
+
+# The tools image owns the trusted Dracut engine, modules and configuration.
+# Sysroot is data-only and avoids a chroot with mounted proc, sys or dev.
+temporary=$(mktemp "$root/boot/.initrd.img-$abi.lexr.XXXXXX")
+contents=$(mktemp "$root/boot/.initrd.img-$abi.contents.lexr.XXXXXX")
+configuration=$(mktemp -d /tmp/lexr-dracut-conf.XXXXXX)
+cleanup() {
+	rm -f -- "$temporary" "$contents"
+	rmdir -- "$configuration" 2>/dev/null || true
+}
+trap cleanup EXIT HUP INT TERM
+DRACUT_INSTALL=/usr/lib/dracut/dracut-install \
+	dracutbasedir=/usr/lib/dracut \
+	/usr/bin/dracut \
+		--sysroot "$root" \
+		--conf /dev/null \
+		--confdir "$configuration" \
+		--no-hostonly \
+		--no-hostonly-cmdline \
+		--no-hostonly-default-device \
+		--reproducible \
+		--force \
+		"$temporary" "$abi"
+test -s "$temporary"
+lsinitramfs "$temporary" > "$contents"
+grep -qF "usr/lib/modules/$abi/" "$contents"
+if grep -qF "scripts/casper" "$contents"; then
+	echo "installed initramfs unexpectedly contains Casper support" >&2
+	exit 65
+fi
+chmod 0644 "$temporary"
+mv -f -- "$temporary" "$root/boot/initrd.img-$abi"
+rm -f -- "$contents"
+rmdir -- "$configuration"
+trap - EXIT HUP INT TERM
 `
 	arguments := []string{
 		"bash", "-ceu", script, "lexr-installed-support", bundle.ABI, string(bundle.EffectiveDTBDelivery),
@@ -356,7 +401,7 @@ func installedSupportPaths(bundle kernel.Bundle) ([]string, error) {
 	paths := []string{
 		"boot/vmlinuz-" + bundle.ABI,
 		"boot/initrd.img-" + bundle.ABI,
-		"boot/grub/grub.cfg",
+		"etc/grub.d/10_linux",
 		"etc/default/grub.d/" + installedGrubDefaultsName,
 		"var/lib/dpkg/status",
 	}
@@ -383,6 +428,184 @@ func installedSupportPaths(bundle kernel.Bundle) ([]string, error) {
 		)
 	}
 	return paths, nil
+}
+
+// validateInstalledGRUBGenerator proves a bounded stock 10_linux generator
+// prefers the ABI-specific DTB and emits that selected path. A concrete
+// grub.cfg cannot be generated safely until Ubuntu's installer has mounted the
+// destination disk and grub-probe can identify it.
+func validateInstalledGRUBGenerator(path string) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return fmt.Errorf("inspect installed GRUB generator: %w", err)
+	}
+	if !info.Mode().IsRegular() || info.Mode()&0o111 == 0 {
+		return fmt.Errorf("installed GRUB generator must be an executable non-symlink regular file")
+	}
+	if info.Mode().Perm()&0o022 != 0 {
+		return fmt.Errorf("installed GRUB generator must not be group- or world-writable")
+	}
+	if info.Size() == 0 || info.Size() > maximumInstalledGRUBGeneratorBytes {
+		return fmt.Errorf("installed GRUB generator size %d is outside 1..%d bytes", info.Size(), maximumInstalledGRUBGeneratorBytes)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open installed GRUB generator: %w", err)
+	}
+	defer file.Close()
+	openedInfo, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("inspect opened GRUB generator: %w", err)
+	}
+	if !openedInfo.Mode().IsRegular() || openedInfo.Mode().Perm()&0o022 != 0 || !os.SameFile(info, openedInfo) {
+		return fmt.Errorf("installed GRUB generator changed during inspection")
+	}
+	contents, err := io.ReadAll(io.LimitReader(file, maximumInstalledGRUBGeneratorBytes+1))
+	if err != nil {
+		return fmt.Errorf("read installed GRUB generator: %w", err)
+	}
+	if int64(len(contents)) > maximumInstalledGRUBGeneratorBytes {
+		return fmt.Errorf("installed GRUB generator exceeds %d bytes", maximumInstalledGRUBGeneratorBytes)
+	}
+
+	lines := make([]string, 0)
+	for _, line := range strings.Split(strings.ReplaceAll(string(contents), "\r\n", "\n"), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		lines = append(lines, strings.Join(strings.Fields(trimmed), " "))
+	}
+	emission := `devicetree ${rel_dirname}/${dtb}`
+	emissionIndex := -1
+	for index, line := range lines {
+		if line == emission {
+			if emissionIndex != -1 {
+				return fmt.Errorf("installed GRUB generator repeats its exact device-tree emission")
+			}
+			emissionIndex = index
+		} else if fields := strings.Fields(line); len(fields) > 0 && fields[0] == "devicetree" {
+			return fmt.Errorf("installed GRUB generator has a conflicting device-tree emission")
+		}
+	}
+	if emissionIndex == -1 {
+		return fmt.Errorf("installed GRUB generator lacks its exact device-tree emission")
+	}
+	uniqueLine := func(wanted string) (int, error) {
+		position := -1
+		for index, line := range lines {
+			if line != wanted {
+				continue
+			}
+			if position != -1 {
+				return -1, fmt.Errorf("installed GRUB generator repeats %q", wanted)
+			}
+			position = index
+		}
+		if position == -1 {
+			return -1, fmt.Errorf("installed GRUB generator lacks %q", wanted)
+		}
+		return position, nil
+	}
+	functionIndex, err := uniqueLine("linux_entry ()")
+	if err != nil {
+		return err
+	}
+	parameterIndex, err := uniqueLine(`version="$2"`)
+	if err != nil {
+		return err
+	}
+	guardIndex, err := uniqueLine(`if test -n "${dtb}" ; then`)
+	if err != nil {
+		return err
+	}
+	if !(functionIndex < parameterIndex && parameterIndex < guardIndex && guardIndex < emissionIndex) {
+		return fmt.Errorf("installed GRUB generator does not keep its guarded device-tree emission inside linux_entry")
+	}
+
+	derivation := []string{
+		`for linux in ${reverse_sorted_list}; do`,
+		"basename=`basename $linux`",
+		"dirname=`dirname $linux`",
+		"rel_dirname=`make_system_path_relative_to_its_root $dirname`",
+		`version=` + "`" + `echo $basename | sed -e "s,^[^0-9]*-,,g"` + "`",
+		`alt_version=` + "`" + `echo $version | sed -e "s,\.old$,,g"` + "`",
+	}
+	derivationPositions := make([]int, len(derivation))
+	for wantedIndex, value := range derivation {
+		derivationPositions[wantedIndex] = -1
+		for lineIndex, line := range lines {
+			if line == value {
+				if derivationPositions[wantedIndex] != -1 {
+					return fmt.Errorf("installed GRUB generator repeats kernel version derivation %q", value)
+				}
+				derivationPositions[wantedIndex] = lineIndex
+			}
+		}
+		if derivationPositions[wantedIndex] == -1 {
+			return fmt.Errorf("installed GRUB generator lacks kernel version derivation %q", value)
+		}
+		if wantedIndex > 0 && derivationPositions[wantedIndex] <= derivationPositions[wantedIndex-1] {
+			return fmt.Errorf("installed GRUB generator orders %q before its required predecessor", value)
+		}
+	}
+
+	header := `for i in "dtb-${version}" "dtb-${alt_version}" "dtb"; do`
+	body := []string{
+		`if test -e "${dirname}/${i}" ; then`, `dtb="$i"`, `break`, `fi`, `done`,
+	}
+	headerIndex := -1
+	for index, line := range lines {
+		if line == header {
+			if headerIndex != -1 {
+				return fmt.Errorf("installed GRUB generator repeats the exact-ABI device-tree lookup")
+			}
+			headerIndex = index
+		}
+	}
+	if headerIndex < 1 || lines[headerIndex-1] != "dtb=" {
+		return fmt.Errorf("installed GRUB generator lacks canonical device-tree initialisation and exact-ABI lookup")
+	}
+	if headerIndex <= derivationPositions[len(derivationPositions)-1] {
+		return fmt.Errorf("installed GRUB generator selects a device tree before deriving the kernel version")
+	}
+	for offset, expected := range body {
+		index := headerIndex + offset + 1
+		if index >= len(lines) || lines[index] != expected {
+			return fmt.Errorf("installed GRUB generator lacks canonical lookup step %q", expected)
+		}
+	}
+	for index, line := range lines {
+		if index != headerIndex-1 && index != headerIndex+2 &&
+			(strings.HasPrefix(line, "dtb=") || line == "unset dtb") {
+			return fmt.Errorf("installed GRUB generator changes the selected device tree outside the canonical lookup")
+		}
+		if strings.HasPrefix(line, "basename=") && index != derivationPositions[1] {
+			return fmt.Errorf("installed GRUB generator changes the kernel basename outside the canonical derivation")
+		}
+		if strings.HasPrefix(line, "version=") && line != `version="$2"` && index != derivationPositions[4] {
+			return fmt.Errorf("installed GRUB generator changes the kernel version outside the canonical derivation")
+		}
+	}
+	if emissionIndex >= derivationPositions[0] {
+		return fmt.Errorf("installed GRUB generator's device-tree template is outside linux_entry")
+	}
+	for _, line := range lines[derivationPositions[len(derivationPositions)-1]+1 : headerIndex] {
+		if line == "exit" || strings.HasPrefix(line, "exit ") {
+			return fmt.Errorf("installed GRUB generator exits before selecting the per-kernel device tree")
+		}
+	}
+	called := false
+	for _, line := range lines[headerIndex+len(body)+1:] {
+		if strings.HasPrefix(line, `linux_entry "${OS}" "${version}" `) {
+			called = true
+			break
+		}
+	}
+	if !called {
+		return fmt.Errorf("installed GRUB generator never calls linux_entry after selecting the per-kernel device tree")
+	}
+	return nil
 }
 
 // installedPackageStatus reports whether one exact package stanza is marked as
@@ -428,108 +651,6 @@ func squashFSListingContainsPath(listing, wanted string) bool {
 		}
 		candidate := strings.TrimPrefix(filepath.ToSlash(fields[len(fields)-1]), "squashfs-root/")
 		if candidate == wanted {
-			return true
-		}
-	}
-	return false
-}
-
-// validateInstalledGRUBEntries proves every entry which boots the exact target
-// image also carries the delivery mode's initramfs and DTB contract. This
-// rejects any stock 10_linux entry which omits the selected /dtb-<abi> copy.
-func validateInstalledGRUBEntries(ctx context.Context, root string, bundle kernel.Bundle, entries []kernelinstall.GRUBEntry) error {
-	externalNormal := 0
-	externalRecovery := 0
-	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
-		if _, _, err := requiredExternalProfile(bundle); err != nil {
-			return err
-		}
-	}
-
-	matching := 0
-	abiLabelledNormal := 0
-	embeddedNormal := 0
-	embeddedRecovery := 0
-	for _, entry := range entries {
-		if kernelinstall.GRUBEntryHasUnsafeBootArtifacts(entry) {
-			return fmt.Errorf("target GRUB entry %q contains an unsafe kernel or initramfs path", entry.Title)
-		}
-	}
-	for _, entry := range entries {
-		if !grubTokensName(entry.Linux, "vmlinuz-"+bundle.ABI) {
-			continue
-		}
-		matching++
-		if err := kernelinstall.VerifyGRUBEntryABIArtifacts(ctx, root, entry, bundle.ABI); err != nil {
-			return fmt.Errorf("target GRUB entry %q: %w", entry.Title, err)
-		}
-		if !entry.Recovery && strings.Contains(entry.Title, bundle.ABI) {
-			abiLabelledNormal++
-		}
-		if len(entry.UnsafeCommands) != 0 {
-			return fmt.Errorf("target GRUB entry %q contains unsafe boot paths", entry.Title)
-		}
-		switch bundle.EffectiveDTBDelivery {
-		case kernel.DTBDeliveryExternalRequired:
-			if len(entry.DeviceTrees) != 1 {
-				return fmt.Errorf("external-required target GRUB entry %q has %d device-tree directives; expected one", entry.Title, len(entry.DeviceTrees))
-			}
-			if !grubTokensExactPath(entry.DeviceTrees, "/dtb-"+bundle.ABI) {
-				return fmt.Errorf("target GRUB entry %q does not bind the selected /dtb-%s", entry.Title, bundle.ABI)
-			}
-			if entry.Recovery {
-				externalRecovery++
-			} else {
-				externalNormal++
-			}
-		case kernel.DTBDeliveryEmbedded:
-			if len(entry.DeviceTrees) != 0 {
-				return fmt.Errorf("embedded target GRUB entry %q has an external device-tree directive", entry.Title)
-			}
-			if entry.Recovery {
-				embeddedRecovery++
-			} else {
-				embeddedNormal++
-			}
-		default:
-			return fmt.Errorf("unsupported effective DTB delivery %q", bundle.EffectiveDTBDelivery)
-		}
-	}
-	if matching == 0 {
-		return fmt.Errorf("installed GRUB has no entry for target ABI %s", bundle.ABI)
-	}
-	if abiLabelledNormal != 1 {
-		return fmt.Errorf("target ABI requires exactly one ABI-labelled non-recovery GRUB entry; found %d", abiLabelledNormal)
-	}
-	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryEmbedded {
-		if embeddedNormal == 0 || embeddedRecovery == 0 {
-			return fmt.Errorf("embedded target ABI requires normal and recovery GRUB entries")
-		}
-		return nil
-	}
-	if externalNormal == 0 || externalRecovery == 0 {
-		return fmt.Errorf("external-required target ABI lacks a selected-DTB normal or recovery GRUB entry")
-	}
-	return nil
-}
-
-// grubTokensName reports whether one parsed command list names the exact
-// basename without trusting the containing path.
-func grubTokensName(tokens []kernelinstall.GRUBPathToken, basename string) bool {
-	for _, token := range tokens {
-		if filepath.Base(filepath.ToSlash(token.Path)) == basename {
-			return true
-		}
-	}
-	return false
-}
-
-// grubTokensExactPath reports whether one parsed command names the expected
-// absolute GRUB path rather than a same-basename file in another directory.
-func grubTokensExactPath(tokens []kernelinstall.GRUBPathToken, expected string) bool {
-	expected = filepath.ToSlash(filepath.Clean(expected))
-	for _, token := range tokens {
-		if filepath.ToSlash(filepath.Clean(token.Path)) == expected {
 			return true
 		}
 	}

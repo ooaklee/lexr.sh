@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/ooaklee/lexr.sh/internal/kernel"
-	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
@@ -183,9 +182,9 @@ func TestInstallKernelPackagesSelectsSupportByEffectiveDelivery(t *testing.T) {
 	}
 }
 
-// TestInstallInstalledSystemSupportUsesPackageHelperAndFinalGRUB proves all
-// profiles are materialised before one final initramfs and GRUB generation.
-func TestInstallInstalledSystemSupportUsesPackageHelperAndFinalGRUB(t *testing.T) {
+// TestInstallInstalledSystemSupportUsesOfflineRootContracts proves the selected
+// profile and initramfs are materialised without probing an unmounted target.
+func TestInstallInstalledSystemSupportUsesOfflineRootContracts(t *testing.T) {
 	runner := &installedCommandRunner{}
 	bundle := installedTestBundle(kernel.DTBDeliveryExternalRequired)
 	if err := installInstalledSystemSupport(context.Background(), platform.NewDocker(runner), "tools:test", t.TempDir(), "lexr-work-aaaaaaaaaaaaaaaaaaaaaaaa", bundle); err != nil {
@@ -198,10 +197,20 @@ func TestInstallInstalledSystemSupportUsesPackageHelperAndFinalGRUB(t *testing.T
 	for _, required := range []string{
 		"/usr/libexec/lexr/kernel-boot-refresh refresh", "--defer-grub",
 		"surface-pro-11-x1e-oled",
-		"update-initramfs -c -k", "update-grub", "grub-script-check",
+		"/usr/bin/dracut", "dracutbasedir=/usr/lib/dracut", `--sysroot "$root"`,
+		"--conf /dev/null", `--confdir "$configuration"`,
+		"--no-hostonly", "--no-hostonly-cmdline", "--reproducible",
+		`sh -n "$root/etc/grub.d/10_linux"`,
+		`mv -f -- "$temporary" "$root/boot/initrd.img-$abi"`,
+		`rm -f -- "$contents"`, `rmdir -- "$configuration"`,
 	} {
 		if !strings.Contains(joined, required) {
 			t.Errorf("installed-system command lacks %q", required)
+		}
+	}
+	for _, forbidden := range []string{`chroot "$root" update-initramfs`, `chroot "$root" update-grub`, "grub-probe", "mount ", "--privileged", "SYS_ADMIN"} {
+		if strings.Contains(joined, forbidden) {
+			t.Errorf("installed-system command contains offline-root operation %q", forbidden)
 		}
 	}
 	if strings.Contains(joined, "surface-pro-11-x1p-lcd") {
@@ -211,6 +220,102 @@ func TestInstallInstalledSystemSupportUsesPackageHelperAndFinalGRUB(t *testing.T
 		if !strings.Contains(joined, `rm -f --`) || !strings.Contains(joined, retired) {
 			t.Errorf("installed-system command does not retire %q", retired)
 		}
+	}
+}
+
+// TestValidateInstalledGRUBGenerator accepts only the stock exact-version DTB
+// lookup and its one corresponding device-tree emission.
+func TestValidateInstalledGRUBGenerator(t *testing.T) {
+	valid := `#!/bin/sh
+linux_entry ()
+{
+  version="$2"
+  if test -n "${dtb}" ; then
+    cat << EOF
+	devicetree	${rel_dirname}/${dtb}
+EOF
+  fi
+}
+for linux in ${reverse_sorted_list}; do
+  basename=` + "`" + `basename $linux` + "`" + `
+  dirname=` + "`" + `dirname $linux` + "`" + `
+  rel_dirname=` + "`" + `make_system_path_relative_to_its_root $dirname` + "`" + `
+  version=` + "`" + `echo $basename | sed -e "s,^[^0-9]*-,,g"` + "`" + `
+  alt_version=` + "`" + `echo $version | sed -e "s,\.old$,,g"` + "`" + `
+  dtb=
+  for i in "dtb-${version}" "dtb-${alt_version}" "dtb"; do
+    if test -e "${dirname}/${i}" ; then
+      dtb="$i"
+      break
+    fi
+  done
+  linux_entry "${OS}" "${version}" simple
+done
+`
+	for _, test := range []struct {
+		name    string
+		content string
+		mode    os.FileMode
+		wantErr bool
+	}{
+		{name: "stock exact ABI", content: valid, mode: 0o755},
+		{name: "shared only", content: strings.Replace(valid, `"dtb-${version}" "dtb-${alt_version}" `, "", 1), mode: 0o755, wantErr: true},
+		{name: "missing emission", content: strings.Replace(valid, "\tdevicetree\t${rel_dirname}/${dtb}\n", "", 1), mode: 0o755, wantErr: true},
+		{name: "conflicting emission", content: strings.Replace(valid, "${rel_dirname}/${dtb}", "/shared.dtb", 1), mode: 0o755, wantErr: true},
+		{name: "missing function", content: strings.Replace(valid, "linux_entry ()\n", "", 1), mode: 0o755, wantErr: true},
+		{name: "missing guard", content: strings.Replace(valid, `  if test -n "${dtb}" ; then`+"\n", "", 1), mode: 0o755, wantErr: true},
+		{name: "missing call", content: strings.Replace(valid, `  linux_entry "${OS}" "${version}" simple`+"\n", "", 1), mode: 0o755, wantErr: true},
+		{name: "missing existence test", content: strings.Replace(valid, `if test -e "${dirname}/${i}" ; then`, "if true; then", 1), mode: 0o755, wantErr: true},
+		{name: "missing assignment", content: strings.Replace(valid, "      dtb=\"$i\"\n", "", 1), mode: 0o755, wantErr: true},
+		{name: "missing break", content: strings.Replace(valid, "      break\n", "", 1), mode: 0o755, wantErr: true},
+		{name: "late overwrite", content: valid + "dtb=shared.dtb\n", mode: 0o755, wantErr: true},
+		{name: "missing version derivation", content: strings.Replace(valid, `  version=`+"`"+`echo $basename | sed -e "s,^[^0-9]*-,,g"`+"`"+"\n", "", 1), mode: 0o755, wantErr: true},
+		{name: "wrong version derivation", content: strings.Replace(valid, `echo $basename | sed -e "s,^[^0-9]*-,,g"`, "printf foreign", 1), mode: 0o755, wantErr: true},
+		{name: "late version overwrite", content: strings.Replace(valid, "  dtb=\n", "  version=foreign\n  dtb=\n", 1), mode: 0o755, wantErr: true},
+		{name: "emission after lookup", content: strings.Replace(valid, "\tdevicetree\t${rel_dirname}/${dtb}\n", "", 1) + "devicetree ${rel_dirname}/${dtb}\n", mode: 0o755, wantErr: true},
+		{name: "not executable", content: valid, mode: 0o644, wantErr: true},
+		{name: "group writable", content: valid, mode: 0o775, wantErr: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "10_linux")
+			if err := os.WriteFile(path, []byte(test.content), test.mode); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chmod(path, test.mode); err != nil {
+				t.Fatal(err)
+			}
+			err := validateInstalledGRUBGenerator(path)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("validateInstalledGRUBGenerator() error = %v, wantErr %t", err, test.wantErr)
+			}
+		})
+	}
+
+	t.Run("symlink", func(t *testing.T) {
+		directory := t.TempDir()
+		target := filepath.Join(directory, "target")
+		if err := os.WriteFile(target, []byte(valid), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		link := filepath.Join(directory, "10_linux")
+		if err := os.Symlink(target, link); err != nil {
+			t.Fatal(err)
+		}
+		if err := validateInstalledGRUBGenerator(link); err == nil || !strings.Contains(err.Error(), "non-symlink") {
+			t.Fatalf("symlink error = %v", err)
+		}
+	})
+}
+
+// TestValidateInstalledGRUBGeneratorIntegration optionally checks the exact
+// stock generator supplied by an Ubuntu image or installed target.
+func TestValidateInstalledGRUBGeneratorIntegration(t *testing.T) {
+	path := os.Getenv("LEXR_TEST_GRUB_GENERATOR")
+	if path == "" {
+		t.Skip("set LEXR_TEST_GRUB_GENERATOR to an extracted Ubuntu 10_linux")
+	}
+	if err := validateInstalledGRUBGenerator(path); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -297,176 +402,5 @@ func TestSquashFSListingContainsExactPath(t *testing.T) {
 	}
 	if squashFSListingContainsPath(listing, "usr/libexec/lexr/kernel-boot") {
 		t.Fatal("partial SquashFS path was accepted")
-	}
-}
-
-// TestValidateInstalledGRUBEntriesRejectsUnboundStockEntry proves valid generic
-// entries cannot mask a second 10_linux entry without a device-tree directive.
-func TestValidateInstalledGRUBEntriesRejectsUnboundStockEntry(t *testing.T) {
-	bundle := installedTestBundle(kernel.DTBDeliveryExternalRequired)
-	entries := externalInstalledTestEntries(bundle)
-	if err := validateInstalledGRUBEntriesForTest(t, bundle, entries); err != nil {
-		t.Fatalf("complete external GRUB entries: %v", err)
-	}
-	entries = append(entries, kernelinstall.GRUBEntry{
-		Title:  "Ubuntu " + bundle.ABI,
-		Linux:  []kernelinstall.GRUBPathToken{{Command: "linux", Path: "/boot/vmlinuz-" + bundle.ABI}},
-		Initrd: []kernelinstall.GRUBPathToken{{Command: "initrd", Path: "/boot/initrd.img-" + bundle.ABI}},
-	})
-	if err := validateInstalledGRUBEntriesForTest(t, bundle, entries); err == nil || !strings.Contains(err.Error(), "0 device-tree directives") {
-		t.Fatalf("unbound stock entry error = %v", err)
-	}
-}
-
-// TestValidateInstalledGRUBEntriesAcceptsStockSimpleEntry proves the generic
-// stock-GRUB title remains valid alongside its one ABI-labelled advanced entry.
-func TestValidateInstalledGRUBEntriesAcceptsStockSimpleEntry(t *testing.T) {
-	bundle := installedTestBundle(kernel.DTBDeliveryExternalRequired)
-	entries := externalInstalledTestEntries(bundle)
-	simple := entries[0]
-	simple.Title = "Ubuntu"
-	entries = append(entries, simple)
-	if err := validateInstalledGRUBEntriesForTest(t, bundle, entries); err != nil {
-		t.Fatalf("stock simple, advanced, and recovery entries: %v", err)
-	}
-}
-
-// TestValidateInstalledGRUBEntriesRejectsAdditionalBootArtefacts keeps image
-// validation from accepting a target token alongside a foreign kernel or
-// concatenated foreign initramfs.
-func TestValidateInstalledGRUBEntriesRejectsAdditionalBootArtefacts(t *testing.T) {
-	bundle := installedTestBundle(kernel.DTBDeliveryExternalRequired)
-	for _, test := range []struct {
-		name   string
-		mutate func(*kernelinstall.GRUBEntry)
-	}{
-		{
-			name: "foreign kernel",
-			mutate: func(entry *kernelinstall.GRUBEntry) {
-				entry.Linux = append(entry.Linux, kernelinstall.GRUBPathToken{Command: "linux", Path: "/boot/vmlinuz-foreign"})
-			},
-		},
-		{
-			name: "foreign initramfs",
-			mutate: func(entry *kernelinstall.GRUBEntry) {
-				entry.Initrd = append(entry.Initrd, kernelinstall.GRUBPathToken{Command: "initrd", Path: "/boot/initrd.img-foreign"})
-			},
-		},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			entries := externalInstalledTestEntries(bundle)
-			test.mutate(&entries[0])
-			if err := validateInstalledGRUBEntriesForTest(t, bundle, entries); err == nil || !strings.Contains(err.Error(), "exactly one exact-ABI") {
-				t.Fatalf("additional boot artefact error = %v", err)
-			}
-		})
-	}
-}
-
-// TestValidateInstalledGRUBEntriesBindsActualArtefactBytes rejects a
-// same-basename path whose contents differ from the installed /boot artefact.
-func TestValidateInstalledGRUBEntriesBindsActualArtefactBytes(t *testing.T) {
-	bundle := installedTestBundle(kernel.DTBDeliveryExternalRequired)
-	root := installedGRUBTestRoot(t, bundle)
-	entries := externalInstalledTestEntries(bundle)
-	foreign := "/attacker/vmlinuz-" + bundle.ABI
-	writeInstalledGRUBTestFile(t, filepath.Join(root, strings.TrimPrefix(foreign, "/")), "foreign kernel bytes")
-	entries[0].Linux[0].Path = foreign
-	if err := validateInstalledGRUBEntries(context.Background(), root, bundle, entries); err == nil || !strings.Contains(err.Error(), "GRUB kernel token differs") {
-		t.Fatalf("redirected installed kernel error = %v", err)
-	}
-}
-
-// TestValidateInstalledGRUBEntriesRejectsDiscardedUnsafeBootToken ensures an
-// unsafe parsed command fails even when it retained no candidate path token.
-func TestValidateInstalledGRUBEntriesRejectsDiscardedUnsafeBootToken(t *testing.T) {
-	bundle := installedTestBundle(kernel.DTBDeliveryExternalRequired)
-	root := installedGRUBTestRoot(t, bundle)
-	entries := externalInstalledTestEntries(bundle)
-	entries = append(entries, kernelinstall.GRUBEntry{Title: "unsafe", UnsafeCommands: []string{"linux"}})
-	if err := validateInstalledGRUBEntries(context.Background(), root, bundle, entries); err == nil || !strings.Contains(err.Error(), "unsafe kernel or initramfs path") {
-		t.Fatalf("discarded unsafe boot token error = %v", err)
-	}
-}
-
-// TestValidateInstalledGRUBEntriesKeepsEmbeddedAuthority proves embedded
-// images accept normal and recovery entries only while both omit external DTBs.
-func TestValidateInstalledGRUBEntriesKeepsEmbeddedAuthority(t *testing.T) {
-	bundle := installedTestBundle(kernel.DTBDeliveryEmbedded)
-	entries := []kernelinstall.GRUBEntry{
-		{
-			Title:  "Ubuntu " + bundle.ABI,
-			Linux:  []kernelinstall.GRUBPathToken{{Command: "linux", Path: "/boot/vmlinuz-" + bundle.ABI}},
-			Initrd: []kernelinstall.GRUBPathToken{{Command: "initrd", Path: "/boot/initrd.img-" + bundle.ABI}},
-		},
-		{
-			Title: "Ubuntu " + bundle.ABI + " (recovery mode)", Recovery: true,
-			Linux:  []kernelinstall.GRUBPathToken{{Command: "linux", Path: "/boot/vmlinuz-" + bundle.ABI}},
-			Initrd: []kernelinstall.GRUBPathToken{{Command: "initrd", Path: "/boot/initrd.img-" + bundle.ABI}},
-		},
-	}
-	if err := validateInstalledGRUBEntriesForTest(t, bundle, entries); err != nil {
-		t.Fatalf("complete embedded GRUB entries: %v", err)
-	}
-	entries[0].DeviceTrees = []kernelinstall.GRUBPathToken{{Command: "devicetree", Path: "/boot/dtb-foreign"}}
-	if err := validateInstalledGRUBEntriesForTest(t, bundle, entries); err == nil || !strings.Contains(err.Error(), "external device-tree") {
-		t.Fatalf("embedded external-authority error = %v", err)
-	}
-}
-
-// TestValidateInstalledGRUBEntriesRejectsSameBasenameElsewhere ensures a stock
-// entry cannot redirect the selected DTB through a different GRUB directory.
-func TestValidateInstalledGRUBEntriesRejectsSameBasenameElsewhere(t *testing.T) {
-	bundle := installedTestBundle(kernel.DTBDeliveryExternalRequired)
-	entries := externalInstalledTestEntries(bundle)
-	entries[0].DeviceTrees[0].Path = "/foreign/dtb-" + bundle.ABI
-	if err := validateInstalledGRUBEntriesForTest(t, bundle, entries); err == nil || !strings.Contains(err.Error(), "does not bind") {
-		t.Fatalf("redirected selected-DTB error = %v", err)
-	}
-}
-
-// externalInstalledTestEntries returns stock normal and recovery entries bound
-// to the one selected ABI-stamped DTB.
-func externalInstalledTestEntries(bundle kernel.Bundle) []kernelinstall.GRUBEntry {
-	entries := make([]kernelinstall.GRUBEntry, 0, 2)
-	for _, recovery := range []bool{false, true} {
-		title := "Ubuntu " + bundle.ABI
-		if recovery {
-			title += " (recovery mode)"
-		}
-		entries = append(entries, kernelinstall.GRUBEntry{
-			Title: title, Recovery: recovery,
-			Linux:       []kernelinstall.GRUBPathToken{{Command: "linux", Path: "/boot/vmlinuz-" + bundle.ABI}},
-			Initrd:      []kernelinstall.GRUBPathToken{{Command: "initrd", Path: "/boot/initrd.img-" + bundle.ABI}},
-			DeviceTrees: []kernelinstall.GRUBPathToken{{Command: "devicetree", Path: "/dtb-" + bundle.ABI}},
-		})
-	}
-	return entries
-}
-
-// validateInstalledGRUBEntriesForTest supplies the canonical files whose
-// identities every synthetic GRUB token must prove.
-func validateInstalledGRUBEntriesForTest(t *testing.T, bundle kernel.Bundle, entries []kernelinstall.GRUBEntry) error {
-	t.Helper()
-	return validateInstalledGRUBEntries(context.Background(), installedGRUBTestRoot(t, bundle), bundle, entries)
-}
-
-// installedGRUBTestRoot creates one canonical exact-ABI kernel/initramfs pair.
-func installedGRUBTestRoot(t *testing.T, bundle kernel.Bundle) string {
-	t.Helper()
-	root := t.TempDir()
-	writeInstalledGRUBTestFile(t, filepath.Join(root, "boot/vmlinuz-"+bundle.ABI), "canonical kernel bytes")
-	writeInstalledGRUBTestFile(t, filepath.Join(root, "boot/initrd.img-"+bundle.ABI), "canonical initramfs bytes")
-	return root
-}
-
-// writeInstalledGRUBTestFile creates one regular fixture artefact.
-func writeInstalledGRUBTestFile(t *testing.T, path, content string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		t.Fatal(err)
 	}
 }

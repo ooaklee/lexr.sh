@@ -20,7 +20,6 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/image/companion"
 	"github.com/ooaklee/lexr.sh/internal/image/ubuntu/caspermedia"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
-	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
@@ -566,6 +565,16 @@ func isoDirectoryListingContains(listing []byte, name string) bool {
 	return false
 }
 
+// validateInstalledGRUBGeneratorSyntax asks the trusted tools image to parse
+// the already bounded extracted generator without executing it.
+func validateInstalledGRUBGeneratorSyntax(ctx context.Context, docker *platform.Docker, toolsImage, workspace string) error {
+	if err := docker.RunInWorkspace(ctx, toolsImage, workspace,
+		"sh", "-n", "/work/installed-root/etc/grub.d/10_linux"); err != nil {
+		return fmt.Errorf("parse installed GRUB generator with trusted shell: %w", err)
+	}
+	return nil
+}
+
 // validateInstalledSystemSupport extracts and checks the minimal root assets
 // that Ubuntu's installer is expected to copy into the target filesystem.
 func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsImage, workspace string, manifest imagecontract.Manifest) []imagecontract.ValidationCheck {
@@ -588,7 +597,7 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 		addCheck("installed-system-support-members", false, err.Error())
 		return checks
 	}
-	addCheck("installed-system-support-members", true, "delivery-specific dpkg records, initramfs, GRUB configuration, and boot support are present")
+	addCheck("installed-system-support-members", true, "delivery-specific dpkg records, initramfs, GRUB generation support, and boot support are present")
 
 	listingBytes, listingErr := v.Docker.CaptureInWorkspace(ctx, toolsImage, workspace,
 		"unsquashfs", "-ll", "/work/minimal.squashfs")
@@ -602,6 +611,12 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 		retiredDetails = listingErr.Error()
 	}
 	addCheck("installed-system-retired-support-absent", retiredAbsent, retiredDetails)
+	transientAbsent := listingErr == nil && !strings.Contains(listing, "/boot/.initrd.img-")
+	transientDetails := "no Lexr initramfs staging or inspection files remain in the deployable root"
+	if listingErr != nil {
+		transientDetails = listingErr.Error()
+	}
+	addCheck("installed-system-transient-state-absent", transientAbsent, transientDetails)
 
 	root := filepath.Join(workspace, "installed-root")
 	statusBytes, statusErr := os.ReadFile(filepath.Join(root, "var/lib/dpkg/status"))
@@ -689,15 +704,12 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 	addCheck("installed-system-device-trees", dtbPassed, dtbDetails)
 
 	grubDefaults, defaultsErr := os.ReadFile(filepath.Join(root, "etc/default/grub.d/99-surface-pro-11.cfg"))
-	grubConfig, configErr := os.ReadFile(filepath.Join(root, "boot/grub/grub.cfg"))
-	grubEntries, entriesErr := kernelinstall.InspectGRUB(ctx, root)
-	installedGrubText := string(grubDefaults) + string(grubConfig)
-	grubSupportPassed := defaultsErr == nil && configErr == nil && entriesErr == nil &&
-		strings.Contains(string(grubConfig), "vmlinuz-"+abi) && strings.Contains(string(grubConfig), "initrd.img-"+abi)
-	if entriesErr == nil {
-		entriesErr = validateInstalledGRUBEntries(ctx, root, bundle, grubEntries)
-		grubSupportPassed = grubSupportPassed && entriesErr == nil
+	generatorErr := validateInstalledGRUBGenerator(filepath.Join(root, "etc/grub.d/10_linux"))
+	if generatorErr == nil {
+		generatorErr = validateInstalledGRUBGeneratorSyntax(ctx, v.Docker, toolsImage, workspace)
 	}
+	installedGrubText := string(grubDefaults)
+	grubSupportPassed := defaultsErr == nil && generatorErr == nil
 	for _, required := range []string{
 		"clk_ignore_unused",
 		"pd_ignore_unused",
@@ -708,16 +720,14 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 	}
 	grubSupportPassed = grubSupportPassed && !strings.Contains(installedGrubText, "qcom_q6v5_pas")
 	grubSupportPassed = grubSupportPassed && !strings.Contains(installedGrubText, "sp11_feedback_active_offset2_zero")
-	grubDetails := "embedded delivery has exact-ABI kernel and initramfs entries without an external DTB binding"
+	grubDetails := "the installed root is ready for target-side GRUB generation after Ubuntu mounts the destination disk"
 	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
-		grubSupportPassed = grubSupportPassed && strings.Contains(string(grubConfig), "dtb-"+abi)
-		grubDetails = "every stock exact-ABI entry binds the selected /dtb-<abi> copy without the live USB blacklist"
-	} else {
-		grubSupportPassed = grubSupportPassed && !strings.Contains(string(grubConfig), "dtbs/"+abi+"/") &&
-			!strings.Contains(string(grubConfig), "dtb-"+abi)
+		grubDetails = "stock 10_linux prefers /dtb-<abi>; the installer must generate and verify concrete entries on the mounted target"
 	}
-	if entriesErr != nil {
-		grubDetails = entriesErr.Error()
+	if defaultsErr != nil {
+		grubDetails = defaultsErr.Error()
+	} else if generatorErr != nil {
+		grubDetails = generatorErr.Error()
 	}
 	addCheck("installed-system-grub-support", grubSupportPassed, grubDetails)
 

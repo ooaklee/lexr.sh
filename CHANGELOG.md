@@ -88,6 +88,13 @@ that do not apply.
 
 ### Fixed
 
+- Fixed Ubuntu ISO customization trying to generate installed-system GRUB and
+  initramfs state inside an offline chroot with no destination device or
+  mounted pseudo-filesystems. Installed initramfs creation now uses the
+  isolated ARM64 tools image's trusted Dracut implementation in non-hostonly
+  sysroot mode with atomic publication, while image validation proves
+  exact-ABI stock-GRUB generation readiness and leaves concrete `grub.cfg`
+  generation to Ubuntu's mounted installation target.
 - Fixed live hardware diagnostics and boot-support platform auto-selection
   relying on the absolute `/proc/device-tree` alias. Canonical sysfs identity
   is now preferred, with a contained proc fallback that cannot escape an

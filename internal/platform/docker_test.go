@@ -141,6 +141,44 @@ func TestWorkspaceVolumeArgsMountsLinuxWorkVolume(t *testing.T) {
 	}
 }
 
+// TestUbuntuToolsDefinitionOwnsOfflineInitramfsTooling prevents remastering
+// from executing a source image's Dracut engine or modules as container root.
+func TestUbuntuToolsDefinitionOwnsOfflineInitramfsTooling(t *testing.T) {
+	t.Parallel()
+
+	for _, required := range []string{"FROM ubuntu:24.04", "dracut-core", "initramfs-tools"} {
+		if !strings.Contains(toolsDockerfile, required) {
+			t.Errorf("Ubuntu tools definition does not contain %q", required)
+		}
+	}
+}
+
+// TestUbuntuToolsImageIntegration optionally proves the production ARM64 image
+// supplies the trusted Dracut engine, modules and helper used for sysroot mode.
+func TestUbuntuToolsImageIntegration(t *testing.T) {
+	if os.Getenv("LEXR_DOCKER_INTEGRATION") != "1" {
+		t.Skip("set LEXR_DOCKER_INTEGRATION=1 to exercise the Docker daemon")
+	}
+	docker := NewDocker(nil)
+	ctx := context.Background()
+	if err := docker.Check(ctx); err != nil {
+		t.Fatal(err)
+	}
+	image, err := docker.EnsureToolsImage(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := docker.Runner.Run(ctx, Command{
+		Name: "docker",
+		Args: []string{
+			"run", "--rm", "--platform", "linux/arm64", image,
+			"bash", "-ceu", "test -x /usr/bin/dracut; test -x /usr/lib/dracut/dracut-install; test -d /usr/lib/dracut/modules.d; /usr/bin/dracut --help | grep -qF -- --sysroot",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // TestSecurityXattrWorkspaceAddsOnlyTheDeclaredCapabilities locks the elevated
 // Fedora EROFS boundary to its explicit MAC and mount capability set.
 func TestSecurityXattrWorkspaceAddsOnlyTheDeclaredCapabilities(t *testing.T) {

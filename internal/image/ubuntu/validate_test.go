@@ -150,6 +150,23 @@ func TestISODirectoryListingContainsRequiresExactName(t *testing.T) {
 	}
 }
 
+// TestValidateInstalledGRUBGeneratorSyntaxRejectsMalformedShell proves a
+// trusted-shell parse failure reaches the standalone image validation gate.
+func TestValidateInstalledGRUBGeneratorSyntaxRejectsMalformedShell(t *testing.T) {
+	runner := &companionISOValidationRunner{runErr: errors.New("malformed shell")}
+	err := validateInstalledGRUBGeneratorSyntax(
+		context.Background(), platform.NewDocker(runner), "tools:test", t.TempDir(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "malformed shell") {
+		t.Fatalf("syntax validation error = %v", err)
+	}
+	if len(runner.commands) != 1 || !containsArgumentSequence(
+		runner.commands[0].Args, "sh", "-n", "/work/installed-root/etc/grub.d/10_linux",
+	) {
+		t.Fatalf("syntax validation commands = %#v", runner.commands)
+	}
+}
+
 // TestSnapshotValidationImagePinsOneSourceIdentity proves a pathname exchange
 // between inspection and opening cannot pair one ISO digest with another ISO's
 // embedded manifest.
