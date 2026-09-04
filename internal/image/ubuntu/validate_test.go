@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
 	"github.com/ooaklee/lexr.sh/internal/image/companion"
@@ -410,4 +412,93 @@ func containsArgumentSequence(arguments []string, values ...string) bool {
 		}
 	}
 	return false
+}
+
+// TestValidateInstalledInitramfsListing rejects every incomplete core archive
+// shape observed during offline-root generation while allowing usrmerge paths.
+func TestValidateInstalledInitramfsListing(t *testing.T) {
+	const abi = "7.2.0-test-qcom-x1e"
+	valid := []string{
+		"init",
+		"usr/bin/sh",
+		"usr/bin/mount",
+		"usr/sbin/modprobe",
+		"usr/lib/dracut-lib.sh",
+		"usr/lib/dracut/hooks/cmdline/00-parse-root.sh",
+		"usr/lib/modules/" + abi + "/modules.dep",
+		"usr/lib/modules/" + abi + "/kernel/drivers/test.ko.zst",
+	}
+	modulePath := "usr/lib/modules/" + abi + "/kernel/drivers/test.ko.zst"
+	longListing := "-rw-r--r-- 1 root root 42 Jan 1 00:00 " + modulePath
+	if err := validateInstalledInitramfsListing(strings.Join(valid, "\n"), longListing, abi); err != nil {
+		t.Fatalf("valid listing error = %v", err)
+	}
+	for _, test := range []struct {
+		name        string
+		remove      string
+		replacement string
+		longListing string
+	}{
+		{name: "init", remove: "init"},
+		{name: "whitespace spoof", remove: "init", replacement: " init "},
+		{name: "shell", remove: "usr/bin/sh"},
+		{name: "mount", remove: "usr/bin/mount"},
+		{name: "modprobe", remove: "usr/sbin/modprobe"},
+		{name: "library", remove: "usr/lib/dracut-lib.sh"},
+		{name: "root parser", remove: "usr/lib/dracut/hooks/cmdline/00-parse-root.sh"},
+		{name: "exact modules dep", remove: "usr/lib/modules/" + abi + "/modules.dep", replacement: "usr/lib/modules/" + abi + "/modules.dep.extra"},
+		{name: "real module", remove: modulePath, replacement: modulePath + ".extra", longListing: "drwxr-xr-x 1 root root 0 Jan 1 00:00 " + modulePath},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			listing := slices.Clone(valid)
+			for index, member := range listing {
+				if member == test.remove {
+					listing[index] = test.replacement
+				}
+			}
+			testLongListing := longListing
+			if test.longListing != "" {
+				testLongListing = test.longListing
+			}
+			if err := validateInstalledInitramfsListing(strings.Join(listing, "\n"), testLongListing, abi); err == nil {
+				t.Fatal("incomplete installed initramfs listing passed")
+			}
+		})
+	}
+	withCasper := append(slices.Clone(valid), "scripts/casper-bottom/01-integrity-check")
+	if err := validateInstalledInitramfsListing(strings.Join(withCasper, "\n"), longListing, abi); err == nil || !strings.Contains(err.Error(), "Casper") {
+		t.Fatalf("Casper listing error = %v", err)
+	}
+}
+
+// TestFailedValidationSummaryPreservesBoundedEvidence keeps image-create
+// failures actionable without allowing unbounded tool output into one error.
+func TestFailedValidationSummaryPreservesBoundedEvidence(t *testing.T) {
+	checks := []imagecontract.ValidationCheck{
+		{Name: "passing", Passed: true, Details: "ignored"},
+		{Name: "installed-system-initramfs\x1b[31m", Details: " missing\n  init\x00 "},
+		{Name: "second", Details: strings.Repeat("x", 4096)},
+	}
+	for range 32 {
+		checks = append(checks, imagecontract.ValidationCheck{
+			Name: strings.Repeat("n", 128), Details: strings.Repeat("d", 512),
+		})
+	}
+	summary := failedValidationSummary(checks)
+	if strings.Contains(summary, "passing") || !strings.Contains(summary, "installed-system-initramfs?[31m: missing init?") ||
+		!strings.Contains(summary, "second:") {
+		t.Fatalf("failed validation summary = %q", summary)
+	}
+	if strings.ContainsAny(summary, "\x00\x1b") {
+		t.Fatalf("failed validation summary retains terminal controls: %q", summary)
+	}
+	if len(summary) > 2048 {
+		t.Fatalf("failed validation summary length = %d, want at most 2048", len(summary))
+	}
+	if !strings.Contains(summary, "additional failures omitted") {
+		t.Fatalf("failed validation summary does not record bounded omission: %q", summary)
+	}
+	if got := sanitizedValidationText(strings.Repeat("é", 80), 96); len(got) != 95 || !strings.HasSuffix(got, "...") || !utf8.ValidString(got) {
+		t.Fatalf("rune-safe capped validation text has length %d and value %q", len(got), got)
+	}
 }

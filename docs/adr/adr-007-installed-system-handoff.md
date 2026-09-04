@@ -24,11 +24,15 @@ be fabricated build-host state rather than an installed-system boot contract.
 The Ubuntu adapter will register the exact ARM64 image and modules packages in
 the deployable Casper root's dpkg database. It will create a separate
 non-Casper initramfs for that ABI using the isolated ARM64 tools image's trusted
-Dracut engine, modules and configuration, its supported `--sysroot` mode,
-non-hostonly settings and a same-directory atomic replacement. This avoids a
-chroot which lacks mounted `/proc`, `/sys` and `/dev`, prevents source-image
-Dracut scripts from executing as container root, and collects the exact module
-tree and required runtime data from the deployable root.
+Dracut engine, modules, userspace and configuration with non-hostonly settings
+and a same-directory atomic replacement. The deployable root contributes only
+its validated exact-ABI module tree through `--kmoddir`. Redistributed firmware
+is copied as data into the disposable tools container's canonical firmware
+directory and selected through `--fwdir`, so archive paths remain canonical.
+This avoids a chroot which lacks mounted `/proc`, `/sys` and `/dev`, prevents
+source-image Dracut scripts from executing as container root, and avoids
+`--sysroot` redirecting trusted Dracut module sources through the extracted
+root.
 
 Installed GRUB defaults will contain the common Surface platform arguments. It
 will not contain the live-media-only `qcom_q6v5_pas` blacklist or the retired
@@ -52,6 +56,11 @@ the selected device-tree path. Ubuntu's installer owns concrete GRUB generation
 after it has mounted the real destination filesystem; post-install
 `lexr doctor boot` is the first authoritative entry and default-selection
 proof.
+
+The initramfs publication gate requires an entry point, shell, mount and module
+loading tools, Dracut's core library and root parser, the exact ABI's
+`modules.dep`, at least one real kernel module, and no Casper scripts. Dracut
+installation errors are fatal even if Dracut itself returns success.
 
 The optional full-desktop upper layer carries its own dpkg status database and
 is outside this first proven hand-off. The project still requires a real

@@ -242,12 +242,18 @@ resulting exact-ABI entries and selected default.
 
 The installed initramfs remains a build-time artefact, but it is generated
 without a pseudo-mounted chroot. The adapter invokes the isolated ARM64 tools
-image's Dracut engine, modules, empty explicit configuration and helper through
-its supported `--sysroot` collection boundary. The extracted root is data, not
-executable Dracut policy. The adapter disables host-only state and command-line
-capture, requests reproducible output, validates the exact ABI module tree and
-absence of Casper support, and atomically publishes a same-directory temporary
-file. Failure leaves no partially published initramfs or inspection file.
+image's Dracut engine, modules, userspace, empty explicit configuration and
+helper. The extracted root is data, not executable Dracut policy: its validated
+exact-ABI module directory is provided through `--kmoddir`, while redistributed
+firmware is staged as data at the disposable tools container's canonical
+firmware path and selected through `--fwdir`. The adapter does not use
+`--sysroot`, because that would also redirect tooling-owned module sources
+through the extracted root. It disables host-only state and command-line
+capture, requests reproducible output, rejects Dracut installation errors, and
+requires the core init, shell, mount, module-loading, root-parser and exact-ABI
+module capabilities with no Casper support before atomically publishing a
+same-directory temporary file. Failure leaves no partially published
+initramfs or inspection file.
 
 ### Preserve guarded installation and recovery
 

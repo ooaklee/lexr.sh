@@ -225,7 +225,8 @@ func installInstalledSystemSupport(ctx context.Context, docker *platform.Docker,
 	if err != nil {
 		return err
 	}
-	const script = `root=/linux-work/rootfs
+	const script = `set -o pipefail
+root=/linux-work/rootfs
 abi=$1
 delivery=$2
 shift 2
@@ -292,20 +293,41 @@ generator_mode=$(stat -c %a "$root/etc/grub.d/10_linux")
 (( (8#$generator_mode & 8#022) == 0 ))
 sh -n "$root/etc/grub.d/10_linux"
 
-# The tools image owns the trusted Dracut engine, modules and configuration.
-# Sysroot is data-only and avoids a chroot with mounted proc, sys or dev.
+# The tools image owns the trusted Dracut engine, modules, userspace and
+# configuration.  Only the exact package-owned kernel modules and firmware are
+# collected from the extracted root.  Dracut's --sysroot cannot express this
+# split: it also redirects tooling-owned module scripts through that root.
+module_directory="$root/usr/lib/modules/$abi"
+firmware_directory="$root/usr/lib/firmware"
+tool_firmware_directory=/usr/lib/firmware
+test -d "$module_directory"
+test ! -L "$module_directory"
+test -f "$module_directory/modules.dep"
+test ! -L "$module_directory/modules.dep"
+test -s "$module_directory/modules.dep"
+test -d "$firmware_directory"
+test ! -L "$firmware_directory"
+test -d "$tool_firmware_directory"
+test ! -L "$tool_firmware_directory"
+# Preserve canonical /usr/lib/firmware archive paths while keeping the source
+# firmware data-only. The disposable tools container is destroyed afterwards.
+cp -a -- "$firmware_directory/." "$tool_firmware_directory/"
 temporary=$(mktemp "$root/boot/.initrd.img-$abi.lexr.XXXXXX")
 contents=$(mktemp "$root/boot/.initrd.img-$abi.contents.lexr.XXXXXX")
+long_contents=$(mktemp "$root/boot/.initrd.img-$abi.long-contents.lexr.XXXXXX")
 configuration=$(mktemp -d /tmp/lexr-dracut-conf.XXXXXX)
+dracut_log=$(mktemp /tmp/lexr-dracut.XXXXXX.log)
 cleanup() {
-	rm -f -- "$temporary" "$contents"
+	rm -f -- "$temporary" "$contents" "$long_contents" "$dracut_log"
 	rmdir -- "$configuration" 2>/dev/null || true
 }
 trap cleanup EXIT HUP INT TERM
-DRACUT_INSTALL=/usr/lib/dracut/dracut-install \
+
+if ! DRACUT_INSTALL=/usr/lib/dracut/dracut-install \
 	dracutbasedir=/usr/lib/dracut \
 	/usr/bin/dracut \
-		--sysroot "$root" \
+		--kmoddir "$module_directory" \
+		--fwdir "$tool_firmware_directory" \
 		--conf /dev/null \
 		--confdir "$configuration" \
 		--no-hostonly \
@@ -313,17 +335,57 @@ DRACUT_INSTALL=/usr/lib/dracut/dracut-install \
 		--no-hostonly-default-device \
 		--reproducible \
 		--force \
-		"$temporary" "$abi"
+		"$temporary" "$abi" 2>&1 | tee "$dracut_log" >&2
+then
+	echo "Dracut failed to generate the installed initramfs" >&2
+	exit 65
+fi
+if grep -qF "dracut[E]:" "$dracut_log" || grep -qF "dracut-install: ERROR:" "$dracut_log"; then
+	echo "Dracut reported an incomplete installed initramfs" >&2
+	exit 65
+fi
 test -s "$temporary"
 lsinitramfs "$temporary" > "$contents"
-grep -qF "usr/lib/modules/$abi/" "$contents"
+lsinitramfs -l "$temporary" > "$long_contents"
+require_member() {
+	member=$1
+	grep -qxF "$member" "$contents" || {
+		echo "installed initramfs is missing required member $member" >&2
+		exit 65
+	}
+}
+require_any_member() {
+	label=$1
+	shift
+	for member in "$@"; do
+		if grep -qxF "$member" "$contents"; then
+			return 0
+		fi
+	done
+	echo "installed initramfs is missing required capability $label" >&2
+	exit 65
+}
+require_member init
+require_member "usr/lib/modules/$abi/modules.dep"
+require_any_member shell usr/bin/sh bin/sh usr/bin/bash bin/bash
+require_any_member mount usr/bin/mount bin/mount
+require_any_member modprobe usr/sbin/modprobe sbin/modprobe
+require_any_member dracut-library usr/lib/dracut-lib.sh lib/dracut-lib.sh
+require_any_member root-parser usr/lib/dracut/hooks/cmdline/00-parse-root.sh lib/dracut/hooks/cmdline/00-parse-root.sh
+if ! awk -v prefix="usr/lib/modules/$abi/kernel/" '
+	$1 ~ /^-/ && index($NF, prefix) == 1 && $NF ~ /\.ko(\.(gz|xz|zst))?$/ { found=1 }
+	END { exit(found ? 0 : 1) }
+' "$long_contents"; then
+	echo "installed initramfs contains no kernel modules for $abi" >&2
+	exit 65
+fi
 if grep -qF "scripts/casper" "$contents"; then
 	echo "installed initramfs unexpectedly contains Casper support" >&2
 	exit 65
 fi
 chmod 0644 "$temporary"
 mv -f -- "$temporary" "$root/boot/initrd.img-$abi"
-rm -f -- "$contents"
+rm -f -- "$contents" "$long_contents" "$dracut_log"
 rmdir -- "$configuration"
 trap - EXIT HUP INT TERM
 `

@@ -197,10 +197,16 @@ func TestInstallInstalledSystemSupportUsesOfflineRootContracts(t *testing.T) {
 	for _, required := range []string{
 		"/usr/libexec/lexr/kernel-boot-refresh refresh", "--defer-grub",
 		"surface-pro-11-x1e-oled",
-		"/usr/bin/dracut", "dracutbasedir=/usr/lib/dracut", `--sysroot "$root"`,
+		"/usr/bin/dracut", "dracutbasedir=/usr/lib/dracut",
+		`module_directory="$root/usr/lib/modules/$abi"`, `--kmoddir "$module_directory"`,
+		`firmware_directory="$root/usr/lib/firmware"`, `tool_firmware_directory=/usr/lib/firmware`,
+		`cp -a -- "$firmware_directory/." "$tool_firmware_directory/"`, `--fwdir "$tool_firmware_directory"`,
 		"--conf /dev/null", `--confdir "$configuration"`,
 		"--no-hostonly", "--no-hostonly-cmdline", "--reproducible",
 		`sh -n "$root/etc/grub.d/10_linux"`,
+		`test ! -L "$module_directory/modules.dep"`,
+		"lib/dracut/hooks/cmdline/00-parse-root.sh", `usr/lib/modules/$abi/modules.dep`,
+		`lsinitramfs -l "$temporary"`, `$1 ~ /^-/`, `usr/lib/modules/$abi/kernel/`,
 		`mv -f -- "$temporary" "$root/boot/initrd.img-$abi"`,
 		`rm -f -- "$contents"`, `rmdir -- "$configuration"`,
 	} {
@@ -208,7 +214,7 @@ func TestInstallInstalledSystemSupportUsesOfflineRootContracts(t *testing.T) {
 			t.Errorf("installed-system command lacks %q", required)
 		}
 	}
-	for _, forbidden := range []string{`chroot "$root" update-initramfs`, `chroot "$root" update-grub`, "grub-probe", "mount ", "--privileged", "SYS_ADMIN"} {
+	for _, forbidden := range []string{`chroot "$root" update-initramfs`, `chroot "$root" update-grub`, `--sysroot "$root"`, "grub-probe", "\nmount ", "\n\tmount ", "--privileged", "SYS_ADMIN"} {
 		if strings.Contains(joined, forbidden) {
 			t.Errorf("installed-system command contains offline-root operation %q", forbidden)
 		}

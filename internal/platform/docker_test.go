@@ -146,7 +146,7 @@ func TestWorkspaceVolumeArgsMountsLinuxWorkVolume(t *testing.T) {
 func TestUbuntuToolsDefinitionOwnsOfflineInitramfsTooling(t *testing.T) {
 	t.Parallel()
 
-	for _, required := range []string{"FROM ubuntu:24.04", "dracut-core", "initramfs-tools"} {
+	for _, required := range []string{"FROM ubuntu:24.04", "dracut-core", "initramfs-tools", "systemd-sysv"} {
 		if !strings.Contains(toolsDockerfile, required) {
 			t.Errorf("Ubuntu tools definition does not contain %q", required)
 		}
@@ -154,7 +154,7 @@ func TestUbuntuToolsDefinitionOwnsOfflineInitramfsTooling(t *testing.T) {
 }
 
 // TestUbuntuToolsImageIntegration optionally proves the production ARM64 image
-// supplies the trusted Dracut engine, modules and helper used for sysroot mode.
+// supplies trusted Dracut tooling and its required systemd compatibility paths.
 func TestUbuntuToolsImageIntegration(t *testing.T) {
 	if os.Getenv("LEXR_DOCKER_INTEGRATION") != "1" {
 		t.Skip("set LEXR_DOCKER_INTEGRATION=1 to exercise the Docker daemon")
@@ -172,7 +172,7 @@ func TestUbuntuToolsImageIntegration(t *testing.T) {
 		Name: "docker",
 		Args: []string{
 			"run", "--rm", "--platform", "linux/arm64", image,
-			"bash", "-ceu", "test -x /usr/bin/dracut; test -x /usr/lib/dracut/dracut-install; test -d /usr/lib/dracut/modules.d; /usr/bin/dracut --help | grep -qF -- --sysroot",
+			"bash", "-ceu", "test -x /usr/bin/dracut; test -x /usr/lib/dracut/dracut-install; test -d /usr/lib/dracut/modules.d; command -v poweroff; command -v reboot; command -v halt; /usr/bin/dracut --help | grep -qF -- --kmoddir; /usr/bin/dracut --help | grep -qF -- --fwdir",
 		},
 	}); err != nil {
 		t.Fatal(err)

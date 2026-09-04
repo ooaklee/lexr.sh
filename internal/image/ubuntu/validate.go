@@ -14,6 +14,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/ooaklee/lexr.sh/internal/artifact"
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
@@ -326,9 +328,136 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 
 	report.Valid = !slices.ContainsFunc(report.Checks, func(check imagecontract.ValidationCheck) bool { return !check.Passed })
 	if !report.Valid {
-		return report, errors.New("ISO validation failed")
+		return report, fmt.Errorf("ISO validation failed: %s", failedValidationSummary(report.Checks))
 	}
 	return report, nil
+}
+
+// validateInstalledInitramfsListing proves that Dracut emitted the minimum
+// exact boot capabilities rather than merely copying a module-directory name.
+func validateInstalledInitramfsListing(listing, longListing, abi string) error {
+	members := make(map[string]struct{})
+	for _, line := range strings.Split(listing, "\n") {
+		member := strings.TrimSuffix(line, "\r")
+		if member != "" {
+			members[member] = struct{}{}
+		}
+	}
+	require := func(label string, alternatives ...string) error {
+		for _, member := range alternatives {
+			if _, ok := members[member]; ok {
+				return nil
+			}
+		}
+		return fmt.Errorf("installed initramfs is missing required capability %s", label)
+	}
+	for _, requirement := range []struct {
+		label        string
+		alternatives []string
+	}{
+		{label: "init", alternatives: []string{"init"}},
+		{label: "shell", alternatives: []string{"usr/bin/sh", "bin/sh", "usr/bin/bash", "bin/bash"}},
+		{label: "mount", alternatives: []string{"usr/bin/mount", "bin/mount"}},
+		{label: "modprobe", alternatives: []string{"usr/sbin/modprobe", "sbin/modprobe"}},
+		{label: "Dracut library", alternatives: []string{"usr/lib/dracut-lib.sh", "lib/dracut-lib.sh"}},
+		{label: "Dracut root parser", alternatives: []string{"usr/lib/dracut/hooks/cmdline/00-parse-root.sh", "lib/dracut/hooks/cmdline/00-parse-root.sh"}},
+		{label: "exact modules.dep", alternatives: []string{"usr/lib/modules/" + abi + "/modules.dep"}},
+	} {
+		if err := require(requirement.label, requirement.alternatives...); err != nil {
+			return err
+		}
+	}
+	modulePrefix := "usr/lib/modules/" + abi + "/kernel/"
+	hasModule := false
+	for _, line := range strings.Split(longListing, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 || !strings.HasPrefix(fields[0], "-") {
+			continue
+		}
+		member := fields[len(fields)-1]
+		if strings.HasPrefix(member, modulePrefix) && (strings.HasSuffix(member, ".ko") ||
+			strings.HasSuffix(member, ".ko.gz") || strings.HasSuffix(member, ".ko.xz") ||
+			strings.HasSuffix(member, ".ko.zst")) {
+			hasModule = true
+			break
+		}
+	}
+	for member := range members {
+		if strings.Contains(member, "scripts/casper") {
+			return errors.New("installed initramfs unexpectedly contains Casper support")
+		}
+	}
+	if !hasModule {
+		return fmt.Errorf("installed initramfs contains no kernel modules for %s", abi)
+	}
+	return nil
+}
+
+// failedValidationSummary retains bounded actionable evidence when image
+// creation validates a private partial ISO which cannot be published for a
+// later standalone validation pass.
+func failedValidationSummary(checks []imagecontract.ValidationCheck) string {
+	const maximumSummaryBytes = 2048
+	var summary strings.Builder
+	for _, check := range checks {
+		if check.Passed {
+			continue
+		}
+		name := sanitizedValidationText(check.Name, 96)
+		detail := sanitizedValidationText(check.Details, 256)
+		item := name
+		if detail != "" {
+			item += ": " + detail
+		}
+		separator := ""
+		if summary.Len() > 0 {
+			separator = "; "
+		}
+		if summary.Len()+len(separator)+len(item) > maximumSummaryBytes {
+			marker := separator + "additional failures omitted"
+			if summary.Len()+len(marker) <= maximumSummaryBytes {
+				summary.WriteString(marker)
+			}
+			break
+		}
+		summary.WriteString(separator)
+		summary.WriteString(item)
+	}
+	if summary.Len() == 0 {
+		return "validator returned no failed check details"
+	}
+	return summary.String()
+}
+
+// sanitizedValidationText collapses whitespace, replaces terminal control
+// characters and truncates on rune boundaries within one byte budget.
+func sanitizedValidationText(value string, maximumBytes int) string {
+	compact := strings.Join(strings.Fields(value), " ")
+	if maximumBytes <= 0 {
+		return ""
+	}
+	var cleaned strings.Builder
+	truncated := false
+	contentLimit := maximumBytes
+	if len(compact) > maximumBytes && maximumBytes > len("...") {
+		contentLimit -= len("...")
+		truncated = true
+	}
+	for _, valueRune := range compact {
+		if !unicode.IsPrint(valueRune) {
+			valueRune = '?'
+		}
+		runeBytes := utf8.RuneLen(valueRune)
+		if runeBytes < 0 || cleaned.Len()+runeBytes > contentLimit {
+			truncated = true
+			break
+		}
+		cleaned.WriteRune(valueRune)
+	}
+	if truncated && cleaned.Len()+len("...") <= maximumBytes {
+		cleaned.WriteString("...")
+	}
+	return cleaned.String()
 }
 
 // validateManifestKernelBundle proves that on-media delivery provenance is
@@ -648,13 +777,18 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 	installedInitrd := filepath.Join(root, "boot", "initrd.img-"+abi)
 	initrdListing, initrdErr := v.Docker.CaptureInWorkspace(ctx, toolsImage, workspace,
 		"lsinitramfs", "/work/installed-root/boot/initrd.img-"+abi)
+	initrdLongListing, initrdLongErr := v.Docker.CaptureInWorkspace(ctx, toolsImage, workspace,
+		"lsinitramfs", "-l", "/work/installed-root/boot/initrd.img-"+abi)
 	initrdText := string(initrdListing)
-	installedInitrdPassed := initrdErr == nil &&
-		strings.Contains(initrdText, "usr/lib/modules/"+abi+"/") &&
-		!strings.Contains(initrdText, "scripts/casper")
-	initrdDetails := "non-Casper initramfs contains modules for " + abi
+	initrdContractErr := validateInstalledInitramfsListing(initrdText, string(initrdLongListing), abi)
+	installedInitrdPassed := initrdErr == nil && initrdLongErr == nil && initrdContractErr == nil
+	initrdDetails := "complete non-Casper Dracut initramfs contains modules for " + abi
 	if initrdErr != nil {
 		initrdDetails = initrdErr.Error()
+	} else if initrdLongErr != nil {
+		initrdDetails = initrdLongErr.Error()
+	} else if initrdContractErr != nil {
+		initrdDetails = initrdContractErr.Error()
 	} else if info, err := os.Stat(installedInitrd); err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
 		installedInitrdPassed = false
 		if err != nil {
