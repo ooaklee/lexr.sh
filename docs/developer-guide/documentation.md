@@ -17,6 +17,12 @@ must not become a separately edited authority.
 - Use reference pages for stable command, requirement and compatibility facts.
 - Use ADRs for accepted, lasting decisions and their consequences.
 
+Treat an accepted ADR as a historical record. When a later major decision
+changes it, add a new ADR which explains the new context and explicitly
+supersedes all or a named part of the earlier decision. Update the earlier
+ADR's status only with a short dated link to its successor; do not rewrite its
+original context, decision or consequences to match the current design.
+
 Link to the canonical detail instead of copying it into several pages. In
 particular, [`CONTRIBUTING.md`](https://github.com/ooaklee/lexr.sh/blob/main/CONTRIBUTING.md) owns the contribution,
 privacy, commit, pull request and licence rules.

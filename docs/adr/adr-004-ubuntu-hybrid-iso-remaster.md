@@ -8,6 +8,11 @@ description: Architecture decision for replacing the live kernel while preservin
 
 Accepted on 2026-08-30.
 
+Partially superseded on 2026-09-04 by
+[ADR029](adr-029-self-contained-kernel-dtb-delivery.md) and
+[ADR030](adr-030-structural-offline-root-boot-preparation.md). This record
+retains the original remaster decision and its contemporary assumptions.
+
 ## Context
 
 Placing kernel packages beside an unchanged installer does not change the kernel used by its live environment. The Ubuntu Concept image uses Casper and layered live filesystems. It is also hybrid media with ISO boot records, a protective partition layout, and an appended EFI System Partition.
@@ -20,14 +25,7 @@ The required image tools are Linux-oriented and their behaviour should not depen
 
 The `ubuntu-casper` adapter will perform a true live-image remaster. It will extract the Casper root filesystem, register the selected kernel image and modules in dpkg, run dependency indexing, generate exact-ABI live and installed initramfs images, and stage the paired X1E and X1P device trees. It will replace the live kernel and initramfs, update package, size, integrity, and support manifests, and repack the root filesystem using a compatible compression method.
 
-The deployable root will contain the required Surface boot arguments and one
-complete device-tree delivery path. A Stubble image retains its closed embedded
-inventory. A raw image carries the generic boot-support package, an explicitly
-selected platform, exact-ABI DTB state and the stock GRUB generator contract.
-Every live-USB entry will temporarily blacklist `qcom_q6v5_pas` to keep USB
-installation media available; that blacklist must not be carried into the
-installed-system configuration. Retired SoundWire compatibility parameters
-must not be added to either path.
+The deployable root will contain explicit installed-system X1E and X1P GRUB entries, the required Surface boot arguments, versioned device trees under `/boot`, and a bounded kernel lifecycle hook that refreshes only paired Surface device trees. Every live-USB entry will temporarily blacklist `qcom_q6v5_pas` to keep USB installation media available; that blacklist must not be carried into the installed-system configuration. Both live and installed paths will carry `soundwire_qcom.sp11_feedback_active_offset2_zero=1` for the validated FullIO audio behaviour.
 
 The adapter will use `xorriso` boot replay to preserve the source hybrid layout. It will install direct GRUB in the ISO filesystem and update the corresponding file inside the appended EFI System Partition. The generated GRUB menu will keep device-specific entries and temporary live-media kernel parameters scoped to those entries. After generating the live initramfs, the adapter will synchronise its Casper UUID with `.disk/casper-uuid-generic` on the direct ISO; nested-ISO discovery remains a separate strategy.
 
@@ -35,15 +33,7 @@ All Linux image tooling will run in a dedicated ARM64 Docker image whose definit
 
 The host CLI will run as a regular user. Only input and output artefacts will cross the host boundary; the mutable live filesystem will not be exposed through a host bind mount. The CLI will revalidate the volume identity before lifecycle operations, remove it after a normal build, and publish the completed ISO atomically only after structural validation.
 
-The validator will check the ISO and GPT boot structures, both EFI paths,
-embedded build manifest, kernel and initramfs digests, exact Casper
-initramfs-to-medium UUID agreement, the declared live layer, module tree for
-the selected ABI, device-tree files and live GRUB configuration. It will also
-extract the deployable root and verify exact dpkg records, an atomically
-generated non-Casper installed initramfs, delivery-specific device-tree state,
-the bounded package-owned lifecycle and a stock `10_linux` generator capable
-of creating exact-ABI DTB bindings. It will not run `grub-probe` or generate an
-installed `grub.cfg` against the anonymous build volume.
+The validator will check the ISO and GPT boot structures, both EFI paths, embedded build manifest, kernel and initramfs digests, exact Casper initramfs-to-medium UUID agreement, the declared live layer, module tree for the selected ABI, device-tree files, and GRUB configuration. It will also extract the deployable root and verify exact dpkg records, a non-Casper installed initramfs, paired installed device trees, installed GRUB configuration, and bounded kernel refresh hooks.
 
 Raw disk artefacts will use separate adapters because their partition and boot semantics differ from hybrid ISO media.
 
@@ -55,10 +45,4 @@ Raw disk artefacts will use separate adapters because their partition and boot s
 - Builds work from macOS or Linux hosts with a suitable Docker daemon and ARM64 container support without inheriting case-sensitivity, device-node, or extended-attribute limitations from the host filesystem.
 - Docker, substantial free space, and additional build time are required.
 - The adapter is intentionally coupled to the validated Ubuntu Casper layout and must reject incompatible source images.
-- Structural validation cannot prove that Ubuntu completes an installation,
-  runs `update-grub` against the mounted destination, or that firmware and
-  peripherals behave correctly. The optional full-desktop upper layer has a
-  separate package database and remains outside the currently proven hand-off.
-  Secure Boot must remain disabled for the unsigned custom kernel, and live
-  plus default-minimal installed boots on the target Surface Pro 11 remain
-  final device gates.
+- Structural validation cannot prove that Ubuntu completes an installation, runs its target `update-grub` step, or that firmware and peripherals behave correctly. The optional full-desktop upper layer has a separate package database and remains outside the currently proven hand-off. Secure Boot must remain disabled for the unsigned custom kernel, and live plus default-minimal installed boots on the target Surface Pro 11 remain final device gates.

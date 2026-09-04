@@ -8,6 +8,12 @@ description: Architecture decision for proving embedded device trees or provisio
 
 Accepted on 2026-09-04.
 
+This decision partially supersedes the device-tree lifecycle and boot-binding
+parts of [ADR004](adr-004-ubuntu-hybrid-iso-remaster.md) and
+[ADR007](adr-007-installed-system-handoff.md).
+[ADR030](adr-030-structural-offline-root-boot-preparation.md) subsequently
+supersedes their offline-root preparation assumptions.
+
 Implementation is tracked in
 [#39](https://github.com/ooaklee/lexr.sh/issues/39). Structural implementation
 does not constitute physical qualification of a generated kernel.
@@ -222,39 +228,6 @@ Kernel inspection, build and release validation, preflight, installation,
 inventory model. Their text and JSON may describe different evidence
 boundaries, but must not derive conflicting answers from the same artefacts.
 
-### Keep the offline-root boundary structural
-
-Ubuntu ISO remastering prepares a deployable root in an anonymous Docker
-volume. That root has no destination disk, partition identity or mounted boot
-filesystem, so `grub-probe` cannot derive truthful target state. The image
-builder will not mount host pseudo-filesystems into the root, grant elevated
-container capabilities, fabricate a device identity or run `update-grub`
-there.
-
-Instead, image creation proves GRUB generation readiness. The deployable root
-must contain the exact kernel and initramfs, delivery-specific DTB state,
-package-owned lifecycle files, safe installed defaults, and a bounded,
-executable, non-symlink `10_linux` generator which prefers
-`dtb-${version}` before fallback names and emits the selected DTB path. The
-Ubuntu installer owns concrete `grub.cfg` generation after mounting the real
-destination; installed-target verification and `doctor boot` then prove the
-resulting exact-ABI entries and selected default.
-
-The installed initramfs remains a build-time artefact, but it is generated
-without a pseudo-mounted chroot. The adapter invokes the isolated ARM64 tools
-image's Dracut engine, modules, userspace, empty explicit configuration and
-helper. The extracted root is data, not executable Dracut policy: its validated
-exact-ABI module directory is provided through `--kmoddir`, while redistributed
-firmware is staged as data at the disposable tools container's canonical
-firmware path and selected through `--fwdir`. The adapter does not use
-`--sysroot`, because that would also redirect tooling-owned module sources
-through the extracted root. It disables host-only state and command-line
-capture, requests reproducible output, rejects Dracut installation errors, and
-requires the core init, shell, mount, module-loading, root-parser and exact-ABI
-module capabilities with no Casper support before atomically publishing a
-same-directory temporary file. Failure leaves no partially published
-initramfs or inspection file.
-
 ### Preserve guarded installation and recovery
 
 Preflight remains read-only. A real Lexr installation still requires effective
@@ -299,8 +272,6 @@ migration.
   accepting an open-ended or partially attributable set.
 - Raw bundles gain one package-owned route shared by direct `dpkg`, guarded
   native installation and Ubuntu image creation.
-- Offline ISO construction proves target-generation inputs without pretending
-  that an anonymous build volume is a mounted installed system.
 - Every external file and lifecycle action is scoped to one exact ABI, so one
   kernel generation cannot silently replace another generation's device tree.
 - Manifests and receipts become more detailed and require a schema migration;
