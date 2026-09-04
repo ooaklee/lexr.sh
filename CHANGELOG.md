@@ -68,6 +68,14 @@ that do not apply.
 
 ### Fixed
 
+- Fixed `doctor boot` rejecting a valid Stubble kernel solely because its GRUB
+  entry had no external `devicetree` directive. Static diagnosis now reuses
+  the installer's embedded-or-external verifier while narrowing accepted DTB
+  evidence to the requested or detected device. It reports the boot mode and
+  digest in text and JSON and checks consistent delivery across normal and
+  recovery entries. Kernel bundle, release, preflight, and install output now
+  distinguish package or build evidence from an installed boot binding
+  consistently.
 - Fixed kernel installation reporting success when package contents included
   the required device trees but the installed kernel had no boot-time device
   tree. Final target and fallback verification now require either an exact

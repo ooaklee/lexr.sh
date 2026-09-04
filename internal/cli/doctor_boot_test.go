@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ooaklee/lexr.sh/internal/bootdoctor"
+	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
 )
 
 // bootDoctorStub returns a deterministic report and records command options.
@@ -104,6 +105,47 @@ func TestBootDoctorHumanReportStatesStaticLimit(t *testing.T) {
 	for _, expected := range []string{"STATE", "grub-entry-dtb", "observed readiness", "ready", "static evidence cannot prove physical bootability"} {
 		if !strings.Contains(output, expected) {
 			t.Errorf("human report does not contain %q:\n%s", expected, output)
+		}
+	}
+}
+
+// TestBootDoctorHumanReportShowsEmbeddedBinding verifies text output exposes
+// the same delivery vocabulary and evidence as the JSON report.
+func TestBootDoctorHumanReportShowsEmbeddedBinding(t *testing.T) {
+	digest := strings.Repeat("a", 64)
+	binding := &kernelinstall.DeviceTreeBootEvidence{
+		Mode: kernelinstall.DeviceTreeBootEmbedded, SHA256: digest, GRUBEntryCount: 2,
+	}
+	report := bootdoctor.Report{
+		Ready: true, Device: "x1e-oled", PhysicalBootability: "static evidence cannot prove physical bootability",
+		Entries: []bootdoctor.Entry{{
+			Index: 0, ABI: "7.2.2-jg-0sp11v2-qcom-x1e", DeviceTreeBoot: binding,
+		}},
+		Attribution: bootdoctor.DTBAttribution{BootSHA256: digest, DeviceTreeBoot: binding},
+	}
+	stub := &bootDoctorStub{report: report}
+	output, errorOutput, err := executeBootDoctorCommand(t, stub, "--device", "x1e-oled")
+	if err != nil || errorOutput != "" {
+		t.Fatalf("human boot doctor error=%v stderr=%q", err, errorOutput)
+	}
+	for _, expected := range []string{"dtb-binding", "embedded", digest, "boot DTB GRUB entries verified", "2"} {
+		if !strings.Contains(output, expected) {
+			t.Errorf("human report does not contain %q:\n%s", expected, output)
+		}
+	}
+}
+
+// TestBootDoctorHelpNamesBothBindingModes keeps the command contract explicit
+// before an operator relies on its readiness result.
+func TestBootDoctorHelpNamesBothBindingModes(t *testing.T) {
+	stub := &bootDoctorStub{}
+	output, errorOutput, err := executeBootDoctorCommand(t, stub, "--help")
+	if err != nil || errorOutput != "" {
+		t.Fatalf("boot doctor help error=%v stderr=%q", err, errorOutput)
+	}
+	for _, expected := range []string{"embedded", "external", "boot DTB"} {
+		if !strings.Contains(output, expected) {
+			t.Errorf("boot doctor help does not contain %q:\n%s", expected, output)
 		}
 	}
 }

@@ -134,8 +134,11 @@ TARGET_ABI="<exact-target-abi>"
 
 Add `--json` for one stable machine-readable report. The command resolves the
 effective GRUB default and `saved_entry`, reports only recognised kernel,
-initramfs, and device-tree path tokens, identifies stale entries, and compares
-the exact boot-side and same-ABI firmware DTB SHA-256 digests. It also reports
+initramfs, and device-tree path tokens, identifies stale entries, and applies
+the same embedded-or-external boot requirements as installation while
+narrowing accepted DTB evidence to the requested or detected device: either
+an exact same-ABI `.dtbauto` payload embedded in the AArch64 PE image or one
+matching external GRUB `devicetree` binding. It also reports
 the presence of the retired `sp11-grub-inject-dtb` helper and matching kernel
 hooks as attribution evidence, but never executes them. A missing or mismatched
 DTB on the effective default or an explicitly selected target or fallback ABI
@@ -147,18 +150,23 @@ be omitted only when the hardware variant can be established from bounded
 device-tree evidence. This static command never runs `update-grub`, changes a
 default, rewrites a DTB, elevates privileges, or proves physical bootability.
 
-### Audit shared boot-DTB usage per GRUB entry
+### Audit embedded and external boot-DTB usage per GRUB entry
 
 The JSON report audits DTB bindings one GRUB entry at a time. Each element of
 `entries` carries the entry's canonical `abi` (when the `vmlinuz-*` basename is
-unambiguous), the recognised `devicetree` path tokens, and the exact
-`boot_dtb_sha256` and `installed_dtb_sha256` digests plus the `dtb_matches`
-comparison result for that entry. Entries whose `devicetree` token is the legacy shared
+unambiguous), any recognised `devicetree` path tokens, the exact
+`boot_dtb_sha256` and `installed_dtb_sha256` digests, the `dtb_matches`
+comparison, and additive `device_tree_boot` mode, digest, and entry-count
+evidence when verification succeeds. An embedded binding has no external path
+token; Lexr does not invent one. An ABI-level consistency check rejects normal
+and recovery entries which mix delivery modes or digests. Entries whose
+`devicetree` token is the legacy shared
 `/boot/sp11-denali.dtb` path are the ones the retired OpenEmbedded helper
 bound; compare each such entry's `boot_dtb_sha256` against the
 `installed_dtb_sha256` values of other entries to see which installed ABI the
 shared bytes actually belong to. The top-level `dtb_attribution` object
-attributes only the effective default entry's boot DTB, so use `entries` for a
+attributes only the effective default entry's boot DTB and includes its
+verified delivery mode, so use `entries` for a
 host-wide audit. Kernels without a GRUB stanza, and entries whose kernel
 identity is not one canonical qcom ABI, have no digest comparison; the
 `legacy_hooks.retired_helper` field reports whether the retired helper is still

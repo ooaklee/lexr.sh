@@ -115,7 +115,7 @@ func TestKernelReleasePrepareHumanOutputIsPathFree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("kernel release prepare error = %v", err)
 	}
-	for _, expected := range []string{"kernel release prepared", manifest.ReleaseName, "published atomically: true", "durable: true", "hardware-qualified: false"} {
+	for _, expected := range []string{"kernel release prepared", manifest.ReleaseName, "build boot-image mode: stubble", "installed boot binding: not inspected", "published atomically: true", "durable: true", "hardware-qualified: false"} {
 		if !strings.Contains(output.String(), expected) {
 			t.Errorf("human output does not contain %q:\n%s", expected, output.String())
 		}
@@ -191,7 +191,8 @@ func TestKernelReleaseValidateSupportsHumanAndJSONOutput(t *testing.T) {
 				if err := json.Unmarshal(output.Bytes(), &decoded); err != nil || decoded.ReleaseName != manifest.ReleaseName {
 					t.Fatalf("validation JSON = %#v / %v", decoded, err)
 				}
-			} else if !strings.Contains(output.String(), "kernel release valid") || !strings.Contains(output.String(), manifest.ABI) {
+			} else if !strings.Contains(output.String(), "kernel release valid") || !strings.Contains(output.String(), manifest.ABI) ||
+				!strings.Contains(output.String(), "build boot-image mode: stubble") || !strings.Contains(output.String(), "installed boot binding: not inspected") {
 				t.Fatalf("validation human output:\n%s", output.String())
 			}
 		})
@@ -205,6 +206,7 @@ func kernelReleaseCLIManifest() releaseprep.Manifest {
 		ReleaseName:   "sp11-qcom-x1e-7.2.0-jg-0sp11v19",
 		Experimental:  true, HardwareQualified: false,
 		ABI: "7.2.0-jg-0sp11v19-qcom-x1e", Version: "7.2.0-jg-0sp11v19", Architecture: "arm64",
+		Source: releaseprep.SourceProvenance{BootImageMode: build.BootImageModeStubble},
 		Assets: []releaseprep.Asset{
 			{Name: "LICENSE.txt", Kind: releaseprep.AssetLicence, SHA256: strings.Repeat("1", 64), Size: 10},
 			{Name: "linux-image.deb", Kind: releaseprep.AssetPackage, Role: kernel.RoleImage, SHA256: strings.Repeat("2", 64), Size: 20},

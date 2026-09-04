@@ -3,6 +3,7 @@ package bootdoctor
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"os"
@@ -30,6 +31,55 @@ func writeBootDoctorFile(t *testing.T, root, relative, content string) {
 	if err := os.WriteFile(target, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// writeBootDoctorEmbeddedImage writes a bounded AArch64 COFF fixture with one
+// .dtbauto section for every supplied payload.
+func writeBootDoctorEmbeddedImage(t *testing.T, path string, payloads ...[]byte) {
+	t.Helper()
+	const (
+		coffHeaderSize    = 20
+		sectionHeaderSize = 40
+		rawSectionSize    = 512
+	)
+	image := make([]byte, coffHeaderSize+len(payloads)*sectionHeaderSize+len(payloads)*rawSectionSize)
+	binary.LittleEndian.PutUint16(image[0:2], 0xaa64)
+	binary.LittleEndian.PutUint16(image[2:4], uint16(len(payloads)))
+	for index, payload := range payloads {
+		if len(payload) == 0 || len(payload) > rawSectionSize {
+			t.Fatalf("embedded DTB fixture payload %d has invalid size %d", index, len(payload))
+		}
+		headerOffset := coffHeaderSize + index*sectionHeaderSize
+		rawOffset := coffHeaderSize + len(payloads)*sectionHeaderSize + index*rawSectionSize
+		section := image[headerOffset : headerOffset+sectionHeaderSize]
+		copy(section[:8], ".dtbauto")
+		binary.LittleEndian.PutUint32(section[8:12], uint32(len(payload)))
+		binary.LittleEndian.PutUint32(section[16:20], rawSectionSize)
+		binary.LittleEndian.PutUint32(section[20:24], uint32(rawOffset))
+		copy(image[rawOffset:rawOffset+rawSectionSize], payload)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, image, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// embeddedBootDoctorFixture creates one target entry with no external
+// devicetree directive and both supported same-ABI firmware DTBs.
+func embeddedBootDoctorFixture(t *testing.T, payloads ...[]byte) string {
+	t.Helper()
+	root := t.TempDir()
+	writeBootDoctorEmbeddedImage(t, filepath.Join(root, "boot/vmlinuz-"+doctorTargetABI), payloads...)
+	writeBootDoctorFile(t, root, "boot/initrd.img-"+doctorTargetABI, "target initramfs")
+	writeBootDoctorFile(t, root, "usr/lib/firmware/"+doctorTargetABI+"/device-tree/qcom/x1e80100-microsoft-denali-oled.dtb", "target OLED device tree")
+	writeBootDoctorFile(t, root, "usr/lib/firmware/"+doctorTargetABI+"/device-tree/qcom/x1p64100-microsoft-denali.dtb", "target LCD device tree")
+	grub := "menuentry 'Ubuntu " + doctorTargetABI + "' {\n" +
+		" linux /boot/vmlinuz-" + doctorTargetABI + "\n" +
+		" initrd /boot/initrd.img-" + doctorTargetABI + "\n}\n"
+	writeBootDoctorFile(t, root, "boot/grub/grub.cfg", grub)
+	return root
 }
 
 // bootDoctorFixture creates patch-line, default-selection, recovery, stale,
@@ -60,6 +110,7 @@ func bootDoctorFixture(t *testing.T, bootDTB string) string {
 		" initrdefi /boot/initrd.img-" + doctorTargetABI + "\n}\n" +
 		"menuentry 'Newer recovery " + doctorTargetABI + "' --id recovery-entry {\n" +
 		" linux /boot/vmlinuz-" + doctorTargetABI + " recovery\n" +
+		" devicetree /boot/sp11-denali.dtb\n" +
 		" initrd /boot/initrd.img-" + doctorTargetABI + "\n}\n" +
 		"menuentry 'Stale at " + root + " 7.1.9-jg-0sp11v99-qcom-x1e' --id stale-entry {\n" +
 		" linux /boot/vmlinuz-7.1.9-jg-0sp11v99-qcom-x1e\n" +
@@ -141,6 +192,139 @@ func TestInspectAttributesSharedDTBPatchLineFirst(t *testing.T) {
 	}
 	if report.PhysicalBootability != physicalBootabilityLimitation {
 		t.Fatalf("physical limitation = %q", report.PhysicalBootability)
+	}
+}
+
+// TestInspectAcceptsDeviceScopedEmbeddedDTB verifies doctor and install share
+// the same successful Stubble binding contract and serialised evidence.
+func TestInspectAcceptsDeviceScopedEmbeddedDTB(t *testing.T) {
+	payload := []byte("target OLED device tree")
+	root := embeddedBootDoctorFixture(t, payload)
+	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := digestText(string(payload))
+	entry := report.Entries[0]
+	if !report.Ready || entry.DeviceTreeBoot == nil || entry.DeviceTreeBoot.Mode != install.DeviceTreeBootEmbedded ||
+		entry.DeviceTreeBoot.SHA256 != digest || entry.DeviceTreeBoot.GRUBEntryCount != 1 ||
+		entry.BootDTBSHA256 != digest || entry.InstalledDTBSHA256 != digest || entry.DTBMatches == nil || !*entry.DTBMatches {
+		t.Fatalf("embedded entry evidence = %#v, ready=%t", entry, report.Ready)
+	}
+	if report.Attribution.DeviceTreeBoot == nil || report.Attribution.DeviceTreeBoot.Mode != install.DeviceTreeBootEmbedded ||
+		report.Attribution.DeviceTreeBoot.SHA256 != digest || report.Attribution.AttributedABI != doctorTargetABI {
+		t.Fatalf("embedded attribution = %#v", report.Attribution)
+	}
+	check := findDoctorCheck(t, report, "grub-abi-dtb-consistency", doctorTargetABI)
+	if check.State != StatePass || !check.Required || !strings.Contains(check.Detail, "embedded") {
+		t.Fatalf("embedded consistency check = %#v", check)
+	}
+}
+
+// TestInspectAcceptsX1PEmbeddedDTB mirrors the embedded success path for the
+// LCD model instead of relying only on negative cross-device coverage.
+func TestInspectAcceptsX1PEmbeddedDTB(t *testing.T) {
+	payload := []byte("target LCD device tree")
+	root := embeddedBootDoctorFixture(t, payload)
+	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1p-lcd", TargetABI: doctorTargetABI})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry := report.Entries[0]
+	if !report.Ready || entry.DeviceTreeBoot == nil || entry.DeviceTreeBoot.Mode != install.DeviceTreeBootEmbedded ||
+		entry.DeviceTreeBoot.SHA256 != digestText(string(payload)) || entry.DTBMatches == nil || !*entry.DTBMatches {
+		t.Fatalf("X1P embedded entry evidence = %#v, ready=%t", entry, report.Ready)
+	}
+}
+
+// TestInspectRejectsAnotherDeviceEmbeddedDTB proves explicit OLED diagnosis
+// cannot be satisfied by an exact same-ABI LCD payload.
+func TestInspectRejectsAnotherDeviceEmbeddedDTB(t *testing.T) {
+	root := embeddedBootDoctorFixture(t, []byte("target LCD device tree"))
+	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry := report.Entries[0]
+	if report.Ready || entry.DeviceTreeBoot != nil || entry.BootDTBSHA256 != "" {
+		t.Fatalf("wrong-device embedded evidence = %#v, ready=%t", entry, report.Ready)
+	}
+	check := findDoctorCheck(t, report, "grub-abi-dtb-consistency", doctorTargetABI)
+	if check.State != StateFail || !check.Required {
+		t.Fatalf("wrong-device consistency check = %#v", check)
+	}
+}
+
+// TestInspectRejectsAnotherDeviceExternalDTB applies the same explicit model
+// boundary to canonical external GRUB paths.
+func TestInspectRejectsAnotherDeviceExternalDTB(t *testing.T) {
+	root := singleEntryBootDoctorFixture(t, "/boot/x1p64100-microsoft-denali.dtb", "target LCD device tree")
+	writeBootDoctorFile(t, root, "usr/lib/firmware/"+doctorTargetABI+"/device-tree/qcom/x1p64100-microsoft-denali.dtb", "target LCD device tree")
+	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Ready || report.Entries[0].DeviceTreeBoot != nil {
+		t.Fatalf("wrong-device external evidence unexpectedly passed: %#v", report.Entries[0])
+	}
+	check := findDoctorCheck(t, report, "grub-abi-dtb-consistency", doctorTargetABI)
+	if check.State != StateFail || !check.Required {
+		t.Fatalf("wrong-device external consistency check = %#v", check)
+	}
+}
+
+// TestInspectRejectsDuplicateEmbeddedDTBMatches keeps the installer's exactly
+// one matching .dtbauto payload invariant in read-only diagnosis.
+func TestInspectRejectsDuplicateEmbeddedDTBMatches(t *testing.T) {
+	payload := []byte("target OLED device tree")
+	root := embeddedBootDoctorFixture(t, payload, payload)
+	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Ready || report.Entries[0].DeviceTreeBoot != nil {
+		t.Fatalf("duplicate embedded evidence unexpectedly passed: %#v", report.Entries[0])
+	}
+}
+
+// TestInspectRejectsMissingEmbeddedDTB keeps packaged firmware files from
+// becoming boot evidence when no external directive or embedded section exists.
+func TestInspectRejectsMissingEmbeddedDTB(t *testing.T) {
+	root := embeddedBootDoctorFixture(t, []byte("target OLED device tree"))
+	writeBootDoctorFile(t, root, "boot/vmlinuz-"+doctorTargetABI, "raw kernel without embedded device tree")
+	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Ready || report.Entries[0].DeviceTreeBoot != nil {
+		t.Fatalf("missing embedded evidence unexpectedly passed: %#v", report.Entries[0])
+	}
+}
+
+// TestInspectRejectsMixedABIBindingModes verifies individually valid normal
+// and recovery entries cannot disagree on embedded versus external delivery.
+func TestInspectRejectsMixedABIBindingModes(t *testing.T) {
+	payload := []byte("target OLED device tree")
+	root := embeddedBootDoctorFixture(t, payload)
+	writeBootDoctorFile(t, root, "boot/x1e80100-microsoft-denali-oled.dtb", string(payload))
+	grub := "menuentry 'Ubuntu " + doctorTargetABI + "' {\n" +
+		" linux /boot/vmlinuz-" + doctorTargetABI + "\n" +
+		" devicetree /boot/x1e80100-microsoft-denali-oled.dtb\n" +
+		" initrd /boot/initrd.img-" + doctorTargetABI + "\n}\n" +
+		"menuentry 'Ubuntu " + doctorTargetABI + " recovery' {\n" +
+		" linux /boot/vmlinuz-" + doctorTargetABI + " recovery\n" +
+		" initrd /boot/initrd.img-" + doctorTargetABI + "\n}\n"
+	writeBootDoctorFile(t, root, "boot/grub/grub.cfg", grub)
+	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Ready || report.Entries[0].DeviceTreeBoot == nil || report.Entries[1].DeviceTreeBoot == nil {
+		t.Fatalf("mixed binding evidence = %#v, ready=%t", report.Entries, report.Ready)
+	}
+	check := findDoctorCheck(t, report, "grub-abi-dtb-consistency", doctorTargetABI)
+	if check.State != StateFail || !check.Required {
+		t.Fatalf("mixed binding consistency check = %#v", check)
 	}
 }
 

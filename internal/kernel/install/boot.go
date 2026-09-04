@@ -732,7 +732,7 @@ func verifyGRUBDeviceTreeBindings(ctx context.Context, root, abi string, entries
 		var current DeviceTreeBootEvidence
 		if len(entry.DeviceTrees) == 0 {
 			if embedded == nil {
-				verified, err := verifyEmbeddedDeviceTreeBinding(ctx, root, abi)
+				verified, err := verifyEmbeddedDeviceTreeBinding(ctx, root, abi, trees)
 				if err != nil {
 					return DeviceTreeBootEvidence{}, err
 				}
@@ -762,6 +762,37 @@ func verifyGRUBDeviceTreeBindings(ctx context.Context, root, abi string, entries
 	return evidence, nil
 }
 
+// InspectDeviceTreeBootBinding applies the native installer's complete
+// embedded-or-external boot-DTB rule to bounded, already parsed GRUB entries.
+// Device limits digest authority to one supported hardware variant so a
+// diagnostic for one Surface model cannot accept another model's payload.
+func InspectDeviceTreeBootBinding(ctx context.Context, root, abi, device string, entries []GRUBEntry) (DeviceTreeBootEvidence, error) {
+	if err := validateABI("inspected", abi); err != nil {
+		return DeviceTreeBootEvidence{}, err
+	}
+	relative, valid := DeviceTreeRelativePath(device)
+	if !valid {
+		return DeviceTreeBootEvidence{}, errors.New("device must be x1e-oled or x1p-lcd")
+	}
+	var selected kernel.DeviceTree
+	for _, required := range requiredDeviceTrees {
+		if required.Path == relative {
+			selected = required
+			break
+		}
+	}
+	if selected.Device == "" {
+		return DeviceTreeBootEvidence{}, errors.New("device has no required device-tree contract")
+	}
+	target, err := rootPath(root, "usr/lib/firmware/"+abi+"/device-tree/"+selected.Path)
+	if err != nil {
+		return DeviceTreeBootEvidence{}, err
+	}
+	return verifyGRUBDeviceTreeBindings(ctx, root, abi, entries, []DeviceTree{{
+		Device: selected.Device, RelativePath: selected.Path, TargetPath: target,
+	}})
+}
+
 // verifyExternalDeviceTreeBinding checks one recognised GRUB DTB token and
 // returns its boot-side digest after same-ABI comparison.
 func verifyExternalDeviceTreeBinding(ctx context.Context, root, abi string, entry GRUBEntry, trees []DeviceTree) (string, error) {
@@ -770,7 +801,7 @@ func verifyExternalDeviceTreeBinding(ctx context.Context, root, abi string, entr
 		return "", errors.New("matching GRUB entry has an unrecognised Surface device-tree path")
 	}
 	if device == abiStampedDeviceTreeMarker {
-		digest, err := verifyABIStampedDeviceTreeBinding(ctx, root, abi, entry.DeviceTrees[0].Path)
+		digest, err := verifyABIStampedDeviceTreeBinding(ctx, root, abi, entry.DeviceTrees[0].Path, trees)
 		if err != nil {
 			return "", err
 		}
@@ -784,6 +815,9 @@ func verifyExternalDeviceTreeBinding(ctx context.Context, root, abi string, entr
 		}
 	}
 	if installedPath == "" {
+		if len(trees) > 0 {
+			return "", errors.New("matching GRUB entry names a different Surface device-tree variant")
+		}
 		var err error
 		installedPath, err = rootPath(root, "usr/lib/firmware/"+abi+"/device-tree/"+relative)
 		if err != nil {
@@ -810,7 +844,7 @@ func verifyExternalDeviceTreeBinding(ctx context.Context, root, abi string, entr
 // verifyEmbeddedDeviceTreeBinding accepts a missing external GRUB directive
 // only when the bounded AArch64 PE image carries exactly one .dtbauto payload
 // matching a required same-ABI firmware DTB.
-func verifyEmbeddedDeviceTreeBinding(ctx context.Context, root, abi string) (DeviceTreeBootEvidence, error) {
+func verifyEmbeddedDeviceTreeBinding(ctx context.Context, root, abi string, trees []DeviceTree) (DeviceTreeBootEvidence, error) {
 	image, err := ReadRootFile(ctx, root, "boot/vmlinuz-"+abi, "kernel image", maximumBootImageInspectionBytes)
 	if err != nil {
 		return DeviceTreeBootEvidence{}, fmt.Errorf("inspect kernel image for embedded device tree: %w", err)
@@ -823,16 +857,9 @@ func verifyEmbeddedDeviceTreeBinding(ctx context.Context, root, abi string) (Dev
 	if file.FileHeader.Machine != pe.IMAGE_FILE_MACHINE_ARM64 {
 		return DeviceTreeBootEvidence{}, errors.New("matching GRUB entry has no devicetree directive and kernel image is not AArch64 PE")
 	}
-	installed := make([]FileEvidence, 0, len(requiredDeviceTrees))
-	for _, tree := range requiredDeviceTrees {
-		evidence, err := HashRootFile(ctx, root, "usr/lib/firmware/"+abi+"/device-tree/"+tree.Path, "installed device-tree")
-		if errors.Is(err, os.ErrNotExist) {
-			continue
-		}
-		if err != nil {
-			return DeviceTreeBootEvidence{}, err
-		}
-		installed = append(installed, evidence)
+	installed, err := installedDeviceTreeCandidates(ctx, root, abi, trees)
+	if err != nil {
+		return DeviceTreeBootEvidence{}, err
 	}
 	if len(installed) == 0 {
 		return DeviceTreeBootEvidence{}, fmt.Errorf("embedded device-tree verification found no installed same-ABI variant for ABI %s", abi)
@@ -878,42 +905,85 @@ func verifyEmbeddedDeviceTreeBinding(ctx context.Context, root, abi string) (Dev
 	return DeviceTreeBootEvidence{Mode: DeviceTreeBootEmbedded, SHA256: matchedDigest}, nil
 }
 
+// installedDeviceTreeCandidates returns only required, same-ABI DTBs selected
+// by the caller. An empty selection retains the installer's all-device policy.
+func installedDeviceTreeCandidates(ctx context.Context, root, abi string, trees []DeviceTree) ([]FileEvidence, error) {
+	selected := trees
+	if len(selected) == 0 {
+		selected = make([]DeviceTree, 0, len(requiredDeviceTrees))
+		for _, tree := range requiredDeviceTrees {
+			target, err := rootPath(root, "usr/lib/firmware/"+abi+"/device-tree/"+tree.Path)
+			if err != nil {
+				return nil, err
+			}
+			selected = append(selected, DeviceTree{Device: tree.Device, RelativePath: tree.Path, TargetPath: target})
+		}
+	}
+	installed := make([]FileEvidence, 0, len(selected))
+	for _, tree := range selected {
+		if err := validateSelectedDeviceTree(tree); err != nil {
+			return nil, err
+		}
+		expected, err := rootPath(root, "usr/lib/firmware/"+abi+"/device-tree/"+tree.RelativePath)
+		if err != nil {
+			return nil, err
+		}
+		if filepath.Clean(tree.TargetPath) != expected {
+			return nil, errors.New("selected device-tree target differs from its same-ABI firmware path")
+		}
+		if _, err := os.Lstat(tree.TargetPath); errors.Is(err, os.ErrNotExist) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+		if err := validateTargetRoute(root, tree.TargetPath, false); err != nil {
+			return nil, err
+		}
+		evidence, err := requireRegularEvidence(ctx, "installed device-tree", tree.TargetPath)
+		if err != nil {
+			return nil, err
+		}
+		installed = append(installed, evidence)
+	}
+	return installed, nil
+}
+
+// validateSelectedDeviceTree prevents an internal caller from widening the
+// compiled device-tree allow-list through a caller-constructed path.
+func validateSelectedDeviceTree(tree DeviceTree) error {
+	for _, required := range requiredDeviceTrees {
+		if tree.Device == required.Device && tree.RelativePath == required.Path {
+			return nil
+		}
+	}
+	return errors.New("selected device tree is outside the required Surface contract")
+}
+
 // verifyABIStampedDeviceTreeBinding attributes the physical hardware variant
 // before digest comparison, mirroring the bootdoctor digest-filtering used by
 // SelectDTBCandidate: installed same-ABI variant candidates are filtered by
 // the boot-side digest so coexisting OLED and LCD variants remain the normal
 // healthy state. The binding fails closed when the boot bytes match no
 // installed variant; byte-identical variant matches are interchangeable.
-func verifyABIStampedDeviceTreeBinding(ctx context.Context, root, abi, token string) (string, error) {
+func verifyABIStampedDeviceTreeBinding(ctx context.Context, root, abi, token string, trees []DeviceTree) (string, error) {
 	bootSide, err := hashGRUBPath(ctx, root, token)
 	if err != nil {
 		return "", fmt.Errorf("inspect ABI-stamped GRUB device-tree: %w", err)
 	}
-	type candidate struct {
-		device   string
-		evidence FileEvidence
+	installed, err := installedDeviceTreeCandidates(ctx, root, abi, trees)
+	if err != nil {
+		return "", err
 	}
-	candidates := make([]candidate, 0, len(requiredDeviceTrees))
-	for _, tree := range requiredDeviceTrees {
-		installed, err := HashRootFile(ctx, root, "usr/lib/firmware/"+abi+"/device-tree/"+tree.Path, "installed device-tree")
-		if errors.Is(err, os.ErrNotExist) {
-			continue
-		}
-		if err != nil {
-			return "", err
-		}
-		candidates = append(candidates, candidate{device: tree.Device, evidence: installed})
-	}
-	if len(candidates) == 0 {
+	if len(installed) == 0 {
 		return "", fmt.Errorf("ABI-stamped GRUB device-tree has no installed variant for ABI %s", abi)
 	}
-	attributed := make([]candidate, 0, len(candidates))
-	for _, candidate := range candidates {
-		if candidate.evidence.SHA256 == bootSide.SHA256 {
-			attributed = append(attributed, candidate)
+	attributed := 0
+	for _, candidate := range installed {
+		if candidate.SHA256 == bootSide.SHA256 {
+			attributed++
 		}
 	}
-	if len(attributed) == 0 {
+	if attributed == 0 {
 		return "", fmt.Errorf("ABI-stamped GRUB device-tree for ABI %s does not match any installed variant", abi)
 	}
 	return bootSide.SHA256, nil

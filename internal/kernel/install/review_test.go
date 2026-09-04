@@ -276,7 +276,7 @@ func TestVerifyABIStampedDeviceTreeBindingSingleVariantMatching(t *testing.T) {
 	root := t.TempDir()
 	writeFixtureFile(t, filepath.Join(root, "usr/lib/firmware", fixtureFallbackABI, "device-tree/qcom/x1e80100-microsoft-denali-oled.dtb"), "oled dtb")
 	writeFixtureFile(t, filepath.Join(root, "boot/dtb-7.2.0"), "oled dtb")
-	if _, err := verifyABIStampedDeviceTreeBinding(context.Background(), root, fixtureFallbackABI, "/boot/dtb-7.2.0"); err != nil {
+	if _, err := verifyABIStampedDeviceTreeBinding(context.Background(), root, fixtureFallbackABI, "/boot/dtb-7.2.0", nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -323,6 +323,30 @@ func TestVerifyFallbackAcceptsEmbeddedDeviceTree(t *testing.T) {
 		evidence.DeviceTreeBoot.SHA256 != hex.EncodeToString(digest[:]) ||
 		evidence.DeviceTreeBoot.GRUBEntryCount != 1 {
 		t.Fatalf("embedded DTB evidence = %+v", evidence.DeviceTreeBoot)
+	}
+}
+
+// TestInspectDeviceTreeBootBindingRejectsUnboundedIdentity verifies the
+// read-only API preserves the install domain's ABI and device allow-lists.
+func TestInspectDeviceTreeBootBindingRejectsUnboundedIdentity(t *testing.T) {
+	root, _ := fixtureEnvironment(t)
+	entries, err := InspectGRUB(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name   string
+		abi    string
+		device string
+	}{
+		{name: "unsafe ABI", abi: "../outside-qcom-x1e", device: "x1e-oled"},
+		{name: "unknown device", abi: fixtureFallbackABI, device: "generic"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := InspectDeviceTreeBootBinding(context.Background(), root, test.abi, test.device, entries); err == nil {
+				t.Fatal("unbounded boot device-tree identity unexpectedly passed")
+			}
+		})
 	}
 }
 
