@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -557,6 +558,11 @@ func TestInspectResolvesNestedGRUBDefaults(t *testing.T) {
 		{name: "top-level numeric", configured: "0", wantIndex: intPointer(0)},
 		{name: "submenu is not a flat numeric entry", configured: "1", wantStale: true},
 		{name: "hierarchical child", configured: "1>0", wantIndex: intPointer(1)},
+		{name: "hierarchical titles", configured: "Advanced options>Newer " + doctorTargetABI, wantIndex: intPointer(1)},
+		{name: "numeric submenu and titled child", configured: "1>Newer " + doctorTargetABI, wantIndex: intPointer(1)},
+		{name: "titled submenu and numeric child", configured: "Advanced options>0", wantIndex: intPointer(1)},
+		{name: "wrong submenu title", configured: "Other options>Newer " + doctorTargetABI, wantStale: true},
+		{name: "empty submenu title", configured: ">Newer " + doctorTargetABI, wantStale: true},
 		{name: "unresolvable hierarchy", configured: "1>1", wantStale: true},
 	}
 	for _, test := range tests {
@@ -568,7 +574,8 @@ func TestInspectResolvesNestedGRUBDefaults(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(report.Entries) != 2 || report.Entries[0].Depth != 0 || report.Entries[1].Depth != 1 {
+			if len(report.Entries) != 2 || report.Entries[0].Depth != 0 || report.Entries[1].Depth != 1 ||
+				!slices.Equal(report.Entries[1].MenuTitlePath, []string{"Advanced options", "Newer " + doctorTargetABI}) {
 				t.Fatalf("nested GRUB entries = %#v", report.Entries)
 			}
 			if report.Default.Stale != test.wantStale || !equalOptionalInt(report.Default.EntryIndex, test.wantIndex) {

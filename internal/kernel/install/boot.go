@@ -429,6 +429,7 @@ func parseGRUBEntries(ctx context.Context, path string) ([]GRUBEntry, error) {
 	entries := make([]GRUBEntry, 0)
 	var active *GRUBEntry
 	menuPaths := [][]int{nil}
+	menuTitlePaths := [][]string{nil}
 	menuPositions := []int{0}
 	menuBlocks := make([]bool, 0)
 	scanner := bufio.NewScanner(io.LimitReader(file, maximumGRUBBytes+1))
@@ -444,6 +445,7 @@ func parseGRUBEntries(ctx context.Context, path string) ([]GRUBEntry, error) {
 				last := len(menuBlocks) - 1
 				if menuBlocks[last] && len(menuPaths) > 1 {
 					menuPaths = menuPaths[:len(menuPaths)-1]
+					menuTitlePaths = menuTitlePaths[:len(menuTitlePaths)-1]
 					menuPositions = menuPositions[:len(menuPositions)-1]
 				}
 				menuBlocks = menuBlocks[:last]
@@ -459,7 +461,13 @@ func parseGRUBEntries(ctx context.Context, path string) ([]GRUBEntry, error) {
 			position := menuPositions[level]
 			menuPositions[level]++
 			submenuPath := append(append([]int(nil), menuPaths[level]...), position)
+			submenuTitle, valid := grubSubmenuTitle(line)
+			if !valid || len(submenuTitle) > 512 || strings.ContainsAny(submenuTitle, "\x00\r\n") {
+				submenuTitle = ""
+			}
+			submenuTitlePath := append(append([]string(nil), menuTitlePaths[level]...), submenuTitle)
 			menuPaths = append(menuPaths, submenuPath)
+			menuTitlePaths = append(menuTitlePaths, submenuTitlePath)
 			menuPositions = append(menuPositions, 0)
 			menuBlocks = append(menuBlocks, true)
 			continue
@@ -476,12 +484,13 @@ func parseGRUBEntries(ctx context.Context, path string) ([]GRUBEntry, error) {
 				continue
 			}
 			entries = append(entries, GRUBEntry{
-				Index:    len(entries),
-				Depth:    level,
-				MenuPath: menuPath,
-				Title:    title,
-				ID:       grubMenuID(line),
-				Recovery: strings.Contains(strings.ToLower(title), "recovery"),
+				Index:         len(entries),
+				Depth:         level,
+				MenuPath:      menuPath,
+				MenuTitlePath: append(append([]string(nil), menuTitlePaths[level]...), title),
+				Title:         title,
+				ID:            grubMenuID(line),
+				Recovery:      strings.Contains(strings.ToLower(title), "recovery"),
 			})
 			active = &entries[len(entries)-1]
 			continue
@@ -552,9 +561,23 @@ func countMatchingGRUBEntries(entries []GRUBEntry, abi string, requireTitle, inc
 	return count
 }
 
-// grubMenuTitle extracts the first quoted or unquoted GRUB menu title.
+// grubMenuTitle extracts the first quoted or unquoted GRUB menu-entry title.
 func grubMenuTitle(line string) (string, bool) {
-	remainder := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "menuentry"))
+	return grubCommandTitle(line, "menuentry")
+}
+
+// grubSubmenuTitle extracts the first quoted or unquoted GRUB submenu title.
+func grubSubmenuTitle(line string) (string, bool) {
+	return grubCommandTitle(line, "submenu")
+}
+
+// grubCommandTitle extracts one bounded literal title without shell evaluation.
+func grubCommandTitle(line, command string) (string, bool) {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, command+" ") {
+		return "", false
+	}
+	remainder := strings.TrimSpace(strings.TrimPrefix(trimmed, command))
 	if remainder == "" {
 		return "", false
 	}
