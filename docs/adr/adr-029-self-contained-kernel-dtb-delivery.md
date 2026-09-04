@@ -146,6 +146,40 @@ The post-removal hook consumes the package manager's lifecycle action and
 retains state during same-ABI upgrade, failed-upgrade and abort processing.
 Only `remove` or `purge` invokes exact-ABI cleanup.
 
+### Require an exact-ABI trigger handshake
+
+External delivery depends on a mechanically verified handshake between the
+generated kernel image package and Lexr's boot-support package. For the exact
+generated ABI:
+
+- `lexr-kernel-boot-support` declares
+  `interest-noawait linux-update-<abi>` and treats its `triggered` post-install
+  action as mandatory final reconciliation;
+- the generated `linux-image` control archive declares
+  `interest linux-update-<abi>`;
+- the image post-install script writes the exact ABI's
+  `/etc/kernel/postinst.d` invocation beneath `/usr/lib/linux/triggers/<abi>`,
+  activates `linux-update-<abi>`, and executes and removes that deferred command
+  when called for the trigger; and
+- the image post-removal script passes `DEB_MAINT_PARAMS` into
+  `/etc/kernel/postrm.d`, allowing Lexr's hook to distinguish removal from an
+  upgrade or abort path.
+
+The build derives `<abi>` from the one packaged kernel image, opens the finished
+Debian control archive and verifies this structure before publishing any
+bundle. Inspecting the kernel tree's packaging templates is insufficient: a
+downstream packaging change, substitution failure or generated-package defect
+could otherwise leave the source contract looking correct while the shipped
+package no longer activates Lexr's consumer. A missing or mismatched producer,
+consumer, trigger name, deferred execution path or lifecycle propagation fails
+the build.
+
+The refresh operation remains idempotent because package order can cause both
+the kernel hook and the boot-support package's triggered post-install action to
+reconcile the same ABI. Success means the final trigger transaction converges
+on one digest-verified binding; it does not depend on which package happened to
+be unpacked first.
+
 ### Define the direct dpkg boundary
 
 A complete bundle is directly installable on a prepared supported Debian
