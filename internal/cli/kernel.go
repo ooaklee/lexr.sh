@@ -362,6 +362,9 @@ func (a *application) kernelInstallerForCommand() kernelInstallationManager {
 	if a != nil && a.kernelInstaller != nil {
 		return a.kernelInstaller
 	}
+	if a != nil {
+		return kernelinstall.NewWithDiagnostics(nil, a.errOut)
+	}
 	return kernelinstall.New(nil)
 }
 

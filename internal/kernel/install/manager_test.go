@@ -1,6 +1,7 @@
 package install
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -487,6 +488,12 @@ func TestInstallStagesPackagesAndVerifiesBootEvidence(t *testing.T) {
 	root, bundle := fixtureEnvironment(t)
 	runner := &fakeRunner{root: root}
 	runner.runHook = func(_ context.Context, command platform.Command) error {
+		if command.Stdout == nil {
+			return errors.New("mutating child stdout was not redirected")
+		}
+		if _, err := fmt.Fprintln(command.Stdout, "fixture mutation progress"); err != nil {
+			return err
+		}
 		switch {
 		case slicesContain(command.Args, "--install"):
 			for _, argument := range command.Args {
@@ -504,6 +511,8 @@ func TestInstallStagesPackagesAndVerifiesBootEvidence(t *testing.T) {
 		return nil
 	}
 	manager := fixtureManager(runner)
+	var diagnostics bytes.Buffer
+	manager.diagnostics = &diagnostics
 	manager.effectiveUID = func() int { return 0 }
 	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
 	if err != nil {
@@ -521,6 +530,31 @@ func TestInstallStagesPackagesAndVerifiesBootEvidence(t *testing.T) {
 	}
 	if len(receipt.Executed) != 2 || receipt.Rollback != nil {
 		t.Fatalf("unexpected command receipt: %+v", receipt)
+	}
+	if got := strings.Count(diagnostics.String(), "fixture mutation progress"); got != len(receipt.Executed) {
+		t.Fatalf("mutation diagnostics count = %d, want %d: %q", got, len(receipt.Executed), diagnostics.String())
+	}
+}
+
+// TestNewRoutesMutationDiagnosticsToStderr protects machine-readable stdout
+// for callers which construct the production manager without test overrides.
+func TestNewRoutesMutationDiagnosticsToStderr(t *testing.T) {
+	manager := New(&fakeRunner{})
+	if manager.diagnostics != os.Stderr {
+		t.Fatalf("default mutation diagnostics = %v, want os.Stderr", manager.diagnostics)
+	}
+}
+
+// TestNewWithDiagnosticsHonoursCallerStream keeps embedded CLI construction
+// isolated from process-global stderr while preserving the nil fallback.
+func TestNewWithDiagnosticsHonoursCallerStream(t *testing.T) {
+	var diagnostics bytes.Buffer
+	manager := NewWithDiagnostics(&fakeRunner{}, &diagnostics)
+	if manager.diagnostics != &diagnostics {
+		t.Fatalf("custom mutation diagnostics = %v, want caller stream", manager.diagnostics)
+	}
+	if fallback := NewWithDiagnostics(&fakeRunner{}, nil); fallback.diagnostics != os.Stderr {
+		t.Fatalf("nil mutation diagnostics = %v, want os.Stderr", fallback.diagnostics)
 	}
 }
 
@@ -998,6 +1032,12 @@ func TestFailurePurgesOnlyTargetAndRestoresGRUB(t *testing.T) {
 	}
 	runner := &fakeRunner{root: root}
 	runner.runHook = func(ctx context.Context, command platform.Command) error {
+		if command.Stdout == nil {
+			return errors.New("mutating child stdout was not redirected")
+		}
+		if _, err := fmt.Fprintln(command.Stdout, strings.Join(command.Args, " ")); err != nil {
+			return err
+		}
 		switch {
 		case slicesContain(command.Args, "--install"):
 			if err := installFixtureTarget(root); err != nil {
@@ -1015,6 +1055,8 @@ func TestFailurePurgesOnlyTargetAndRestoresGRUB(t *testing.T) {
 		return nil
 	}
 	manager := fixtureManager(runner)
+	var diagnostics bytes.Buffer
+	manager.diagnostics = &diagnostics
 	manager.effectiveUID = func() int { return 0 }
 	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
 	if err == nil || !strings.Contains(err.Error(), "fixture initramfs failure") {
@@ -1032,6 +1074,11 @@ func TestFailurePurgesOnlyTargetAndRestoresGRUB(t *testing.T) {
 	}
 	if _, statErr := os.Lstat(filepath.Join(root, "boot/vmlinuz-"+fixtureTargetABI)); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("target kernel remained after rollback: %v", statErr)
+	}
+	for _, marker := range []string{"--install", "--purge"} {
+		if !strings.Contains(diagnostics.String(), marker) {
+			t.Errorf("mutation diagnostics omitted %q: %q", marker, diagnostics.String())
+		}
 	}
 }
 

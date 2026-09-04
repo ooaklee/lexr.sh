@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -239,7 +240,7 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 		}
 		receipt.Executed = append(receipt.Executed, cloneCommand(command))
 		mutationStarted = true
-		return manager.runner.Run(ctx, platform.Command{Name: command.Name, Args: append([]string(nil), command.Args...)})
+		return manager.runMutationCommand(ctx, command)
 	}
 	for _, command := range commands {
 		if err := ctx.Err(); err != nil {
@@ -343,4 +344,22 @@ func managerTimestamp(manager *Manager) time.Time {
 func cloneCommand(command Command) Command {
 	command.Args = append([]string(nil), command.Args...)
 	return command
+}
+
+// runMutationCommand preserves Lexr's stdout for its human or JSON result.
+// Child stderr remains inherited, while operational stdout is routed to the
+// manager's diagnostic sink, which defaults to the parent process's stderr.
+func (manager *Manager) runMutationCommand(ctx context.Context, command Command) error {
+	if err := validateCommand(command); err != nil {
+		return err
+	}
+	diagnostics := manager.diagnostics
+	if diagnostics == nil {
+		diagnostics = os.Stderr
+	}
+	return manager.runner.Run(ctx, platform.Command{
+		Name:   command.Name,
+		Args:   append([]string(nil), command.Args...),
+		Stdout: diagnostics,
+	})
 }

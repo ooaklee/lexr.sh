@@ -60,7 +60,7 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 	app := &application{
 		in: input, out: output, errOut: errorOutput, loader: loader,
 		releases:          release.NewClient(nil),
-		kernelInstaller:   kernelinstall.New(nil),
+		kernelInstaller:   kernelinstall.NewWithDiagnostics(nil, errorOutput),
 		kernelReleasePrep: releaseprep.New(),
 		kernelBootRunner:  platform.ExecRunner{},
 	}

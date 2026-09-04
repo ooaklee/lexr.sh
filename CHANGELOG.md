@@ -88,6 +88,9 @@ that do not apply.
 
 ### Fixed
 
+- Fixed `kernel install --json` output during real installs and
+  rollback by routing package-manager, maintainer-hook and initramfs progress
+  to the diagnostic stream instead of prefixing the JSON receipt on stdout.
 - Fixed kernel delivery inspection rejecting normal generic ARM64 packages
   whose packaged device-tree inventory exceeds 1,024 files. Lexr now streams
   that inventory under independent member, path, per-file and aggregate byte

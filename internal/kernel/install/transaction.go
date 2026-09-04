@@ -11,7 +11,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/ooaklee/lexr.sh/internal/kernel"
-	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 const (
@@ -330,7 +329,7 @@ func (manager *Manager) failAndRollback(plan Plan, backup grubBackup, receipt Re
 	} else {
 		for _, command := range commands {
 			recovery.Commands = append(recovery.Commands, cloneCommand(command))
-			if err := manager.runner.Run(rollbackContext, platform.Command{Name: command.Name, Args: append([]string(nil), command.Args...)}); err != nil {
+			if err := manager.runMutationCommand(rollbackContext, command); err != nil {
 				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("%s: %w", command.Operation, err))
 			}
 		}

@@ -7,6 +7,8 @@ package install
 
 import (
 	"context"
+	"io"
+	"os"
 	"time"
 
 	"github.com/ooaklee/lexr.sh/internal/kernel"
@@ -327,6 +329,9 @@ type Receipt struct {
 type Manager struct {
 	// runner is the injectable direct-process boundary.
 	runner platform.Runner
+	// diagnostics receives standard output from mutating child processes so
+	// package-manager progress cannot contaminate Lexr's result stream.
+	diagnostics io.Writer
 	// effectiveUID returns the process privilege identity.
 	effectiveUID func() int
 	// now supplies receipt timestamps.
@@ -335,11 +340,21 @@ type Manager struct {
 
 // New constructs a native kernel installation manager.
 func New(runner platform.Runner) *Manager {
+	return NewWithDiagnostics(runner, os.Stderr)
+}
+
+// NewWithDiagnostics constructs a native kernel installation manager whose
+// mutating child-process progress is isolated from the caller's result stream.
+func NewWithDiagnostics(runner platform.Runner, diagnostics io.Writer) *Manager {
 	if runner == nil {
 		runner = platform.ExecRunner{}
 	}
+	if diagnostics == nil {
+		diagnostics = os.Stderr
+	}
 	return &Manager{
 		runner:       runner,
+		diagnostics:  diagnostics,
 		effectiveUID: effectiveUserID,
 		now:          time.Now,
 	}
