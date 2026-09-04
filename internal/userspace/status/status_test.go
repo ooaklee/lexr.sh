@@ -7,7 +7,26 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ooaklee/lexr.sh/internal/cleanup"
 )
+
+// TestLegacyAudioRemediationHasCleanupRules verifies every system conflict
+// reported with clean-up remediation is represented by that exact allow-list.
+func TestLegacyAudioRemediationHasCleanupRules(t *testing.T) {
+	t.Parallel()
+	cleanupPaths := make(map[string]bool)
+	for _, rule := range cleanup.LegacyRules {
+		if rule.Feature == "audio" {
+			cleanupPaths[rule.Path] = true
+		}
+	}
+	for _, path := range legacyAudioPaths {
+		if !cleanupPaths[path] {
+			t.Errorf("legacy audio conflict %q has no audio cleanup rule", path)
+		}
+	}
+}
 
 // TestInspectReadyRequiredSupport verifies that a complete pinned kernel,
 // firmware, audio, and IPTSD fixture produces an entirely passing report.

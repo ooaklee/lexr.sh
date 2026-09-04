@@ -29,6 +29,25 @@ sudo lexr clean apply \
 
 The scanner considers only a fixed set of known legacy paths. Required content markers must match before a regular file is considered recognised. A known service-enablement link must resolve to the exact retired unit. Other links, unusual files, changed content, and entries created after planning are left for manual review.
 
+Limit both inspection and the recorded plan when you intend to clean only one
+feature. The selection is retained in the plan and revalidated during apply;
+apply has no separate feature override:
+
+```sh
+lexr clean scan --feature audio
+lexr clean plan --feature audio --output lexr-audio-cleanup-plan.json
+sudo lexr clean apply \
+  --root / \
+  --plan lexr-audio-cleanup-plan.json \
+  --yes
+```
+
+Repeat `--feature` or pass a comma-separated list to select more than one
+compiled feature. Unknown features, edited non-canonical selections, and plan
+findings outside the recorded scope fail closed. The two retired system UCM
+filenames are recognised only at their exact reviewed sizes and SHA-256
+digests; a different file at either path remains a manual-review finding.
+
 ## 2. Apply the reviewed transaction
 
 Applying a plan requires `--yes`. Before the first original path changes, the CLI writes and flushes a prepared recovery receipt below `/var/lib/lexr/backups`. Each reviewed entry is then atomically moved into a private same-filesystem quarantine, verified again, copied into its durable backup, and removed from quarantine. A completed receipt is published only after every entry succeeds. If the operation is interrupted, `receipt.pending.json` maps any original, quarantine, and backup locations.
@@ -50,7 +69,13 @@ Current `clean restore` accepts only receipts and quarantine names created in Le
 
 ## What clean-up will not remove
 
-The allow-list currently covers selected system-wide audio routing helpers, in-tree touchscreen configuration hooks, and G6 service enablement. It does not automatically remove arbitrary out-of-tree modules, rebuild contaminated historical initramfs images, delete per-user configuration, or remove unfamiliar UCM data. Those findings require explicit manual diagnosis. A future kernel change can also make a workaround relevant again, so removal remains an operator decision.
+The allow-list currently covers selected system-wide audio routing helpers and
+exact legacy UCM identities, in-tree touchscreen configuration hooks, and G6
+service enablement. It does not automatically remove arbitrary out-of-tree
+modules, rebuild contaminated historical initramfs images, delete unselected
+per-user configuration, or remove unfamiliar UCM data. Those findings require
+explicit manual diagnosis. A future kernel change can also make a workaround
+relevant again, so removal remains an operator decision.
 
 ## Success and next steps
 

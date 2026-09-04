@@ -45,6 +45,10 @@ type Rule struct {
 	prefix []byte
 	// maximumSize narrows the bounded content-read limit for this rule.
 	maximumSize int64
+	// expectedSize requires one exact regular-file length when non-zero.
+	expectedSize int64
+	// expectedSHA256 requires one exact regular-file digest when non-empty.
+	expectedSHA256 string
 	// privateContent prevents a low-entropy private value from being exposed as
 	// a brute-forceable digest in a public plan or receipt.
 	privateContent bool
@@ -68,6 +72,14 @@ const (
 	// privateIntegrityKeyName is the fixed private backup entry used for HMAC
 	// verification of low-entropy private content.
 	privateIntegrityKeyName = ".private-integrity-key"
+	// legacyCardUCMSize is the exact reviewed legacy card configuration length.
+	legacyCardUCMSize int64 = 2923
+	// legacyCardUCMSHA256 is the exact reviewed legacy card configuration digest.
+	legacyCardUCMSHA256 = "225976f925624f156d9fab84e15a5126a60a236783cfcb82d43d2a2aec028d7b"
+	// legacyHiFiUCMSize is the exact reviewed legacy HiFi configuration length.
+	legacyHiFiUCMSize int64 = 7536
+	// legacyHiFiUCMSHA256 is the exact reviewed legacy HiFi configuration digest.
+	legacyHiFiUCMSHA256 = "d9cc675fd4d432f62fd3e01fba32a8afe22a64e988fac476120161e67c63fb54"
 )
 
 // LegacyRules is the allow-list of obsolete workarounds that clean-up may
@@ -83,6 +95,8 @@ var LegacyRules = []Rule{
 	{ID: "audio-pipewire-restart-enablement", Feature: "audio", Path: "etc/systemd/user/default.target.wants/sp11-pipewire-restart.service", Reason: "a manually relocated user-session restart enablement is obsolete", SymlinkTarget: "etc/systemd/user/sp11-pipewire-restart.service"},
 	{ID: "audio-alsa-restore-mask", Feature: "audio", Path: "etc/systemd/system/alsa-restore.service", Reason: "the retired boot-race workaround masked a distribution ALSA service", SymlinkTarget: "dev/null"},
 	{ID: "audio-alsa-state-mask", Feature: "audio", Path: "etc/systemd/system/alsa-state.service", Reason: "the retired boot-race workaround masked a distribution ALSA service", SymlinkTarget: "dev/null"},
+	{ID: "audio-legacy-card-ucm", Feature: "audio", Path: "usr/share/alsa/ucm2/Qualcomm/x1e80100/MICROSOFT-Surface-Pro-11.conf", Reason: "the legacy card UCM conflicts with the current FullIO card profile", maximumSize: legacyCardUCMSize, expectedSize: legacyCardUCMSize, expectedSHA256: legacyCardUCMSHA256},
+	{ID: "audio-legacy-hifi-ucm", Feature: "audio", Path: "usr/share/alsa/ucm2/Qualcomm/x1e80100/Surface11-HiFi.conf", Reason: "the legacy HiFi UCM conflicts with the current FullIO profile", maximumSize: legacyHiFiUCMSize, expectedSize: legacyHiFiUCMSize, expectedSHA256: legacyHiFiUCMSHA256},
 	{ID: "audio-user-manual-sink", Feature: "audio", Path: ".config/pipewire/pipewire.conf.d/50-sp11-speakers.conf", Reason: "the per-user manual PipeWire sink conflicts with current native audio routing", Markers: []string{"# Surface Pro 11 manual speaker sink.", "factory.name", "api.alsa.pcm.sink", "node.name", "alsa_output.sp11_speakers", "channelmix.mix-matrix"}, scope: ruleScopeUser},
 	{ID: "audio-user-wireplumber-duplicate-output", Feature: "audio", Path: ".config/wireplumber/wireplumber.conf.d/51-sp11-no-duplicate-output.conf", Reason: "the retired per-user WirePlumber suppression can hide native audio outputs", Markers: []string{"# The manual Surface sink owns", "alsa_output.platform-sound.pro-output-1.*", "node.disabled", "true"}, scope: ruleScopeUser},
 	{ID: "audio-user-pipewire-restart-unit", Feature: "audio", Path: ".config/systemd/user/sp11-pipewire-restart.service", Reason: "legacy user-session restarts are superseded by native FullIO discovery", Markers: []string{"sp11-wsa-routing-done", "wireplumber", "pipewire"}, scope: ruleScopeUser},
@@ -108,6 +122,9 @@ type ScanOptions struct {
 	// UserHome is an absolute canonical Linux path inside Root. It is never
 	// inferred from the process environment or account database.
 	UserHome string
+	// Features limits inspection to exact compiled feature identifiers. Empty
+	// selects every feature.
+	Features []string
 }
 
 // Finding records the current state of one path matching a clean-up rule.
@@ -151,6 +168,8 @@ type ScanReport struct {
 	UserHome string `json:"user_home,omitempty"`
 	// UserHomeIdentity binds UserHome to the exact opened directory when selected.
 	UserHomeIdentity *DirectoryIdentity `json:"user_home_identity,omitempty"`
+	// Features records the canonical feature selection. Empty means every feature.
+	Features []string `json:"features,omitempty"`
 	// Findings contains allow-listed paths that currently exist.
 	Findings []Finding `json:"findings"`
 }
@@ -268,22 +287,30 @@ func Scan(root string) (ScanReport, error) {
 // ScanWithOptions inspects fixed system paths and, when explicitly selected,
 // fixed paths beneath one canonical target-visible user home.
 func ScanWithOptions(options ScanOptions) (ScanReport, error) {
+	features, err := normalizeFeatures(options.Features)
+	if err != nil {
+		return ScanReport{}, err
+	}
 	roots, err := openAnchoredRoots(options.Root, options.UserHome)
 	if err != nil {
 		return ScanReport{}, err
 	}
 	defer roots.close()
-	return scanAnchored(roots)
+	return scanAnchored(roots, features)
 }
 
 // scanAnchored reads every rule through stable target-root or user-home
 // descriptors so a pathname swap cannot redirect inspection.
-func scanAnchored(roots *anchoredRoots) (ScanReport, error) {
+func scanAnchored(roots *anchoredRoots, features []string) (ScanReport, error) {
 	report := ScanReport{
 		Root: roots.rootPath, RootIdentity: roots.rootIdentity,
 		UserHome: roots.userHome, UserHomeIdentity: roots.userIdentity,
+		Features: append([]string(nil), features...),
 	}
 	for _, rule := range LegacyRules {
+		if !featureSelected(rule.Feature, features) {
+			continue
+		}
 		location, selected, err := roots.locationForRule(rule)
 		if err != nil {
 			return ScanReport{}, err
@@ -344,7 +371,12 @@ func scanAnchored(roots *anchoredRoots) (ScanReport, error) {
 			if !rule.privateContent {
 				finding.SHA256 = hex.EncodeToString(digest[:])
 			}
-			if len(rule.Markers) == 0 {
+			if rule.expectedSize != 0 || rule.expectedSHA256 != "" {
+				finding.Recognized = exactFileIdentityMatches(data, rule.expectedSize, rule.expectedSHA256)
+				if !finding.Recognized {
+					finding.Details = "path matches a legacy workaround, but its exact size or SHA-256 differs; manual review required"
+				}
+			} else if len(rule.Markers) == 0 {
 				finding.Details = "path is a regular file, but this rule permits only a symbolic link; manual review required"
 			} else {
 				finding.Recognized = true
@@ -377,6 +409,71 @@ func scanAnchored(roots *anchoredRoots) (ScanReport, error) {
 	}
 	sort.Slice(report.Findings, func(i, j int) bool { return report.Findings[i].Rule.ID < report.Findings[j].Rule.ID })
 	return report, nil
+}
+
+// exactFileIdentityMatches recognises only one reviewed regular-file identity.
+func exactFileIdentityMatches(data []byte, expectedSize int64, expectedSHA256 string) bool {
+	if expectedSize <= 0 || int64(len(data)) != expectedSize {
+		return false
+	}
+	digest := sha256.Sum256(data)
+	return expectedSHA256 != "" && hex.EncodeToString(digest[:]) == expectedSHA256
+}
+
+// normalizeFeatures validates, deduplicates, and sorts one optional feature selection.
+func normalizeFeatures(features []string) ([]string, error) {
+	if len(features) == 0 {
+		return nil, nil
+	}
+	supported := make(map[string]bool)
+	for _, rule := range LegacyRules {
+		supported[rule.Feature] = true
+	}
+	selected := make(map[string]bool, len(features))
+	for _, feature := range features {
+		if feature == "" || strings.TrimSpace(feature) != feature || !supported[feature] {
+			return nil, fmt.Errorf("unknown cleanup feature %q", feature)
+		}
+		selected[feature] = true
+	}
+	result := make([]string, 0, len(selected))
+	for feature := range selected {
+		result = append(result, feature)
+	}
+	sort.Strings(result)
+	return result, nil
+}
+
+// featureSelected reports whether a compiled rule is inside the selected scope.
+func featureSelected(feature string, selected []string) bool {
+	if len(selected) == 0 {
+		return true
+	}
+	index := sort.SearchStrings(selected, feature)
+	return index < len(selected) && selected[index] == feature
+}
+
+// validateReportFeatures rejects edited plans whose recorded scope is unknown,
+// non-canonical, or inconsistent with a retained finding.
+func validateReportFeatures(report ScanReport) error {
+	normalized, err := normalizeFeatures(report.Features)
+	if err != nil {
+		return err
+	}
+	if len(normalized) != len(report.Features) {
+		return errors.New("cleanup plan features are duplicated or non-canonical")
+	}
+	for index := range normalized {
+		if normalized[index] != report.Features[index] {
+			return errors.New("cleanup plan features are not in canonical order")
+		}
+	}
+	for _, finding := range report.Findings {
+		if len(report.Features) != 0 && !featureSelected(finding.Rule.Feature, report.Features) {
+			return fmt.Errorf("cleanup plan finding %q is outside the selected feature scope", finding.Rule.ID)
+		}
+	}
+	return nil
 }
 
 // anchoredSymlinkMatches compares link text using target-root semantics without
@@ -637,6 +734,9 @@ func ReadScanReport(reader io.Reader) (ScanReport, error) {
 	}
 	if strings.TrimSpace(report.Root) == "" {
 		return ScanReport{}, errors.New("decode cleanup plan: root is required")
+	}
+	if err := validateReportFeatures(report); err != nil {
+		return ScanReport{}, fmt.Errorf("decode cleanup plan: %w", err)
 	}
 	return report, nil
 }
@@ -931,6 +1031,9 @@ func Apply(report ScanReport, yes bool) (Receipt, error) {
 func apply(report ScanReport, yes bool, operations applyOperations) (Receipt, error) {
 	if !yes {
 		return Receipt{}, errors.New("cleanup apply requires --yes after reviewing clean plan")
+	}
+	if err := validateReportFeatures(report); err != nil {
+		return Receipt{}, err
 	}
 	if operations.rename == nil || operations.remove == nil {
 		return Receipt{}, errors.New("cleanup filesystem operations are unavailable")
@@ -1321,7 +1424,10 @@ func withinRoot(root, path string) bool {
 // revalidateFindings rescans every planned target immediately before mutation
 // and rejects unknown, duplicate, moved, or changed entries.
 func revalidateFindings(report ScanReport, roots *anchoredRoots) ([]Finding, error) {
-	current, err := scanAnchored(roots)
+	if err := validateReportFeatures(report); err != nil {
+		return nil, err
+	}
+	current, err := scanAnchored(roots, report.Features)
 	if err != nil {
 		return nil, fmt.Errorf("revalidate cleanup plan: %w", err)
 	}
