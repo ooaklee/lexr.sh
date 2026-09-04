@@ -88,6 +88,11 @@ that do not apply.
 
 ### Fixed
 
+- Fixed kernel delivery inspection rejecting normal generic ARM64 packages
+  whose packaged device-tree inventory exceeds 1,024 files. Lexr now streams
+  that inventory under independent member, path, per-file and aggregate byte
+  bounds, retaining only declared external device trees or exact embedded
+  matches instead of materialising every unrelated board file.
 - Fixed raw kernel bundles being buildable but not independently consumable by
   Lexr or direct `sudo dpkg -i ./*.deb` because no package owned external-DTB
   provisioning. Failed provisioning and guarded installation now use bounded

@@ -207,20 +207,20 @@ inspection_image="$inspection_root/vmlinuz"
 section_candidate="$inspection_root/dtbauto-candidate"
 section_list="$inspection_root/sections"
 inventory_input="$inspection_root/device-tree-inventory.tsv"
+embedded_sections="$inspection_root/embedded-sections.tsv"
+dtb_scan_output="$inspection_root/selected-dtbs.tsv"
+dtb_scan_root="$inspection_root/selected-dtbs"
+dtb_scanner="$inspection_root/scan-package-dtbs.py"
 selected_package=""
 selected_member=""
 vmlinuz_count=0
-declare -A dtb_package=()
-declare -A dtb_member=()
-declare -A dtb_count=([x1e-oled]=0 [x1p-lcd]=0)
-declare -a candidate_package=()
-declare -a candidate_member=()
-candidate_count=0
+declare -a runtime_packages=()
 
 for package in \
   "$artifact_dir"/linux-image-*-qcom-x1e_*_arm64.deb \
   "$artifact_dir"/linux-modules-*-qcom-x1e_*_arm64.deb; do
   [ -f "$package" ] || continue
+  runtime_packages+=("$package")
   if ! dpkg-deb --fsys-tarfile "$package" | tar -tf - > "$member_list"; then
     echo "Could not inspect a generated runtime package." >&2
     exit 1
@@ -230,31 +230,9 @@ for package in \
     selected_member="$member"
     vmlinuz_count=$((vmlinuz_count + 1))
   done < <(awk '/^\.\/boot\/vmlinuz-[^/]+$/ { print }' "$member_list")
-  while IFS= read -r member; do
-    case "$member" in
-      ./usr/lib/firmware/*/device-tree/*.dtb)
-        candidate_count=$((candidate_count + 1))
-        if [ "$candidate_count" -gt 1024 ]; then
-          echo "Generated runtime packages contain more than 1024 DTB candidates." >&2
-          exit 1
-        fi
-        candidate_package[$candidate_count]="$package"
-        candidate_member[$candidate_count]="$member"
-        ;;
-      *) continue ;;
-    esac
-    case "$member" in
-      */qcom/x1e80100-microsoft-denali-oled.dtb) device=x1e-oled ;;
-      */qcom/x1p64100-microsoft-denali.dtb) device=x1p-lcd ;;
-      *) continue ;;
-    esac
-    dtb_package[$device]="$package"
-    dtb_member[$device]="$member"
-    dtb_count[$device]=$((dtb_count[$device] + 1))
-  done < "$member_list"
 done
 
-if [ "$vmlinuz_count" -ne 1 ] || [ "$candidate_count" -eq 0 ]; then
+if [ "$vmlinuz_count" -ne 1 ] || [ "${#runtime_packages[@]}" -ne 2 ]; then
   echo "Kernel delivery validation requires exactly one packaged /boot/vmlinuz ABI across the runtime packages." >&2
   exit 1
 fi
@@ -325,54 +303,6 @@ if [ ! -s "$inspection_image" ] || ! objdump -h "$inspection_image" > "$section_
   exit 1
 fi
 
-declare -a candidate_file=()
-declare -a candidate_compatibles=()
-declare -a candidate_digest=()
-declare -a candidate_matches=()
-declare -A extracted_package_root=()
-package_number=0
-for package in \
-  "$artifact_dir"/linux-image-*-qcom-x1e_*_arm64.deb \
-  "$artifact_dir"/linux-modules-*-qcom-x1e_*_arm64.deb; do
-  [ -f "$package" ] || continue
-  package_number=$((package_number + 1))
-  candidate_list="$inspection_root/package-$package_number-dtbs"
-  : > "$candidate_list"
-  for ((candidate=1; candidate<=candidate_count; candidate++)); do
-    if [ "${candidate_package[$candidate]}" = "$package" ]; then
-      expected_prefix="./usr/lib/firmware/$abi/device-tree/"
-      case "${candidate_member[$candidate]}" in "$expected_prefix"*) ;; *) echo "Packaged DTB is not scoped to the generated ABI." >&2; exit 1 ;; esac
-      printf '%s\n' "${candidate_member[$candidate]}" >> "$candidate_list"
-    fi
-  done
-  if [ -s "$candidate_list" ]; then
-    extracted="$inspection_root/package-$package_number"
-    mkdir -p "$extracted"
-    if ! dpkg-deb --fsys-tarfile "$package" | tar -xf - -C "$extracted" -T "$candidate_list"; then
-      echo "Could not extract the packaged DTB candidate set." >&2
-      exit 1
-    fi
-    extracted_package_root[$package]="$extracted"
-  fi
-done
-for ((candidate=1; candidate<=candidate_count; candidate++)); do
-  candidate_package_path="${candidate_package[$candidate]}"
-  dtb="${extracted_package_root[$candidate_package_path]}/${candidate_member[$candidate]#./}"
-  if [ ! -f "$dtb" ] || [ ! -s "$dtb" ]; then
-    echo "Could not extract packaged DTB candidate $candidate." >&2
-    exit 1
-  fi
-  compatibles="$inspection_root/candidate-$candidate.compatibles"
-  if ! fdtget -t s "$dtb" / compatible | tr ' ' '\n' | awk 'NF && !seen[$0]++' > "$compatibles" || [ ! -s "$compatibles" ]; then
-    echo "Packaged DTB candidate $candidate has no inspectable compatible selector." >&2
-    exit 1
-  fi
-  candidate_file[$candidate]="$dtb"
-  candidate_compatibles[$candidate]="$compatibles"
-  candidate_digest[$candidate]="$(sha256sum "$dtb" | awk '{print $1}')"
-  candidate_matches[$candidate]=0
-done
-
 linux_sections="$(awk '$2 == ".linux" { count++ } END { print count + 0 }' "$section_list")"
 hwids_sections="$(awk '$2 == ".hwids" { count++ } END { print count + 0 }' "$section_list")"
 machdb_sections="$(awk '$2 == ".machdb" { count++ } END { print count + 0 }' "$section_list")"
@@ -408,26 +338,273 @@ if [ "$boot_image_mode" = nostubble ] && [ "$effective_delivery" != external-req
   exit 1
 fi
 
+section_root="$inspection_root/embedded-sections"
+mkdir -p "$section_root" "$dtb_scan_root"
+: > "$embedded_sections"
+image_size="$(stat -c %s "$inspection_image")"
 section_number=0
 while read -r section_size section_offset; do
   section_number=$((section_number + 1))
-  if ! dd if="$inspection_image" of="$section_candidate" iflag=skip_bytes,count_bytes \
-      skip="$((16#$section_offset))" count="$((16#$section_size))" status=none; then
+  case "$section_size:$section_offset" in *[!0-9A-Fa-f:]*) echo "Generated .dtbauto section has malformed bounds." >&2; exit 1 ;; esac
+  if [ -z "$section_size" ] || [ -z "$section_offset" ] ||
+     [ "${#section_size}" -gt 8 ] || [ "${#section_offset}" -gt 8 ]; then
+    echo "Generated .dtbauto section has unsupported bounds." >&2
+    exit 1
+  fi
+  section_size_decimal=$((16#$section_size))
+  section_offset_decimal=$((16#$section_offset))
+  if [ "$section_size_decimal" -lt 1 ] || [ "$section_size_decimal" -gt 4194304 ] ||
+     [ "$section_offset_decimal" -gt "$image_size" ] ||
+     [ "$section_size_decimal" -gt $((image_size - section_offset_decimal)) ]; then
+    echo "Generated .dtbauto section exceeds its bounded image range." >&2
+    exit 1
+  fi
+  section_file="$section_root/section-$section_number.dtb"
+  if ! dd if="$inspection_image" of="$section_file" iflag=skip_bytes,count_bytes \
+      skip="$section_offset_decimal" count="$section_size_decimal" status=none; then
     echo "Could not extract generated .dtbauto section $section_number." >&2
     exit 1
   fi
-  section_matches=0
-  for ((candidate=1; candidate<=candidate_count; candidate++)); do
-    if cmp -s "${candidate_file[$candidate]}" "$section_candidate"; then
-      candidate_matches[$candidate]=$((candidate_matches[$candidate] + 1))
-      section_matches=$((section_matches + 1))
-    fi
-  done
-  if [ "$section_matches" -ne 1 ]; then
-    echo "Embedded DTB section $section_number is missing, stale, ambiguous, or undeclared." >&2
+  section_digest="$(sha256sum "$section_file" | awk '{print $1}')"
+  printf '%s\t%s\t%s\t%s\n' "$section_number" "$section_size_decimal" "$section_digest" "$section_file" >> "$embedded_sections"
+done < <(awk '$2 == ".dtbauto" { print $3, $6 }' "$section_list")
+
+cat > "$dtb_scanner" <<'PY_DTB_ARCHIVE_SCAN'
+import hashlib
+import os
+import pathlib
+import posixpath
+import re
+import subprocess
+import sys
+import tarfile
+
+MAX_DTB_MEMBERS = 4096
+MAX_DTB_BYTES = 512 * 1024 * 1024
+MAX_DTB_FILE_BYTES = 4 * 1024 * 1024
+MAX_DTB_PATH_BYTES = 1024
+MAX_EMBEDDED_SECTIONS = 64
+MAX_EMBEDDED_BYTES = MAX_EMBEDDED_SECTIONS * MAX_DTB_FILE_BYTES
+SAFE_COMPONENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+~,-]*$")
+SAFE_ABI = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+~-]*-qcom-x1e$")
+SAFE_DIGEST = re.compile(r"^[0-9a-f]{64}$")
+EXTERNAL_PATHS = {
+    "qcom/x1e80100-microsoft-denali-oled.dtb",
+    "qcom/x1p64100-microsoft-denali.dtb",
+}
+
+
+def fail(message):
+    raise ValueError(message)
+
+
+def safe_text(value, label, maximum):
+    try:
+        encoded = value.encode("utf-8", "strict")
+    except UnicodeError as error:
+        raise ValueError(f"{label} is not valid UTF-8") from error
+    if not encoded or len(encoded) > maximum or any(byte < 0x20 or byte == 0x7F for byte in encoded):
+        fail(f"{label} is empty, oversized, or contains control bytes")
+    return encoded
+
+
+def canonical_member_path(raw_name):
+    safe_text(raw_name, "DTB archive member path", MAX_DTB_PATH_BYTES + 2)
+    if raw_name.startswith("/"):
+        fail("DTB archive member path is absolute")
+    name = raw_name[2:] if raw_name.startswith("./") else raw_name
+    if not name or name != posixpath.normpath(name):
+        fail("DTB archive member path is not canonical")
+    safe_text(name, "DTB archive member path", MAX_DTB_PATH_BYTES)
+    components = name.split("/")
+    if any(component in {"", ".", ".."} or not SAFE_COMPONENT.fullmatch(component) for component in components):
+        fail("DTB archive member path contains an unsafe component")
+    return name, components
+
+
+def load_sections(path, delivery):
+    sections = {}
+    total = 0
+    if delivery == "external-required":
+        if os.path.getsize(path) != 0:
+            fail("external delivery unexpectedly supplied embedded sections")
+        return sections
+    with open(path, "r", encoding="utf-8") as source:
+        for expected_number, line in enumerate(source, 1):
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) != 4:
+                fail("embedded section record is malformed")
+            number_text, size_text, digest, section_path = fields
+            if number_text != str(expected_number) or not size_text.isdigit() or not SAFE_DIGEST.fullmatch(digest):
+                fail("embedded section identity is malformed")
+            size = int(size_text)
+            if size < 1 or size > MAX_DTB_FILE_BYTES:
+                fail("embedded section exceeds the per-DTB size limit")
+            total += size
+            if total > MAX_EMBEDDED_BYTES or expected_number > MAX_EMBEDDED_SECTIONS:
+                fail("embedded section inventory exceeds its aggregate limit")
+            info = os.stat(section_path, follow_symlinks=False)
+            if not pathlib.Path(section_path).is_file() or os.path.islink(section_path) or info.st_size != size:
+                fail("embedded section file is redirected or changed")
+            sections[expected_number] = (size, digest, section_path)
+    if not sections:
+        fail("embedded delivery has no section records")
+    return sections
+
+
+def read_member(archive, member):
+    if member.size < 1 or member.size > MAX_DTB_FILE_BYTES:
+        fail("packaged DTB exceeds the per-file size limit")
+    source = archive.extractfile(member)
+    if source is None:
+        fail("packaged DTB could not be read")
+    data = source.read(MAX_DTB_FILE_BYTES + 1)
+    if len(data) != member.size or len(data) > MAX_DTB_FILE_BYTES or source.read(1):
+        fail("packaged DTB length differs from its archive record")
+    return data
+
+
+def write_selected(output_root, index, data):
+    destination = os.path.join(output_root, f"candidate-{index}.dtb")
+    with open(destination, "xb") as target:
+        target.write(data)
+    os.chmod(destination, 0o600)
+    return destination
+
+
+def scan_package(package, abi, delivery, sections, state, output_root):
+    process = subprocess.Popen(
+        ["dpkg-deb", "--fsys-tarfile", package],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+    )
+    try:
+        with tarfile.open(fileobj=process.stdout, mode="r|") as archive:
+            for member in archive:
+                raw_name = member.name
+                comparable = raw_name[2:] if raw_name.startswith("./") else raw_name.lstrip("/")
+                if not comparable.startswith("usr/lib/firmware/") or "/device-tree/" not in comparable or not comparable.endswith(".dtb"):
+                    continue
+                name, components = canonical_member_path(raw_name)
+                prefix = "usr/lib/firmware/"
+                remainder = name[len(prefix):]
+                packaged_abi, separator, relative = remainder.partition("/device-tree/")
+                if not separator or "/" in packaged_abi or packaged_abi != abi:
+                    fail("packaged DTB is not scoped to the generated ABI")
+                if not relative or len(components) < 7:
+                    fail("packaged DTB path has no vendor and file components")
+                if not member.isfile():
+                    fail("packaged DTB archive member is not a regular file")
+                if name in state["seen"]:
+                    fail("packaged DTB archive contains a duplicate path")
+                state["seen"].add(name)
+                state["count"] += 1
+                if state["count"] > MAX_DTB_MEMBERS:
+                    fail("generated runtime packages exceed the bounded DTB member count")
+                state["bytes"] += member.size
+                if state["bytes"] > MAX_DTB_BYTES:
+                    fail("generated runtime packages exceed the bounded aggregate DTB size")
+                data = read_member(archive, member)
+                digest = hashlib.sha256(data).hexdigest()
+                matches = []
+                if delivery == "external-required":
+                    selected = relative in EXTERNAL_PATHS
+                else:
+                    selected = False
+                    for number, (size, section_digest, section_path) in sections.items():
+                        if len(data) != size or digest != section_digest:
+                            continue
+                        with open(section_path, "rb") as section_source:
+                            if data == section_source.read(MAX_DTB_FILE_BYTES + 1):
+                                matches.append(number)
+                    selected = bool(matches)
+                if not selected:
+                    continue
+                for number in matches:
+                    if state["section_matches"].get(number):
+                        fail(f"embedded DTB section {number} matches more than one packaged path")
+                    state["section_matches"][number] = name
+                state["selected"] += 1
+                if state["selected"] > MAX_EMBEDDED_SECTIONS:
+                    fail("selected packaged DTB inventory exceeds its bound")
+                destination = write_selected(output_root, state["selected"], data)
+                state["rows"].append((name, digest, len(matches), destination))
+    except Exception:
+        process.kill()
+        process.wait()
+        raise
+    finally:
+        if process.stdout is not None:
+            process.stdout.close()
+    status = process.wait()
+    if status != 0:
+        fail(f"dpkg-deb failed while streaming {os.path.basename(package)}")
+
+
+if len(sys.argv) < 6:
+    fail("usage: scan-package-dtbs ABI DELIVERY SECTIONS OUTPUT_TSV OUTPUT_ROOT PACKAGE...")
+abi, delivery, section_path, output_tsv, output_root, *packages = sys.argv[1:]
+if not SAFE_ABI.fullmatch(abi):
+    fail("generated ABI is unsafe")
+if delivery not in {"embedded", "external-required"}:
+    fail("effective DTB delivery is unsupported")
+if len(packages) != 2:
+    fail("DTB archive scan requires the image and modules packages")
+sections = load_sections(section_path, delivery)
+state = {"seen": set(), "count": 0, "bytes": 0, "selected": 0, "rows": [], "section_matches": {}}
+for package in packages:
+    scan_package(package, abi, delivery, sections, state, output_root)
+if state["count"] == 0:
+    fail("generated runtime packages contain no DTB candidates")
+if delivery == "external-required":
+    selected_paths = {row[0].split("/device-tree/", 1)[1] for row in state["rows"]}
+    if selected_paths != EXTERNAL_PATHS or len(state["rows"]) != len(EXTERNAL_PATHS):
+        fail("external delivery does not contain exactly one declared DTB per platform")
+else:
+    for number in sections:
+        if number not in state["section_matches"]:
+            fail(f"embedded DTB section {number} is missing from the packaged inventory")
+with open(output_tsv, "x", encoding="utf-8") as output:
+    for row in state["rows"]:
+        output.write("\t".join((row[0], row[1], str(row[2]), row[3])) + "\n")
+PY_DTB_ARCHIVE_SCAN
+chmod 0700 "$dtb_scanner"
+if ! python3 "$dtb_scanner" "$abi" "$effective_delivery" "$embedded_sections" \
+    "$dtb_scan_output" "$dtb_scan_root" "${runtime_packages[@]}"; then
+  echo "Could not inspect the bounded packaged DTB inventory." >&2
+  exit 1
+fi
+
+declare -a candidate_member=()
+declare -a candidate_compatibles=()
+declare -a candidate_digest=()
+declare -a candidate_matches=()
+declare -A dtb_count=([x1e-oled]=0 [x1p-lcd]=0)
+candidate_count=0
+while IFS=$'\t' read -r package_path digest matches dtb; do
+  candidate_count=$((candidate_count + 1))
+  if [ ! -f "$dtb" ] || [ ! -s "$dtb" ]; then
+    echo "Could not read selected packaged DTB candidate $candidate_count." >&2
     exit 1
   fi
-done < <(awk '$2 == ".dtbauto" { print $3, $6 }' "$section_list")
+  compatibles="$inspection_root/candidate-$candidate_count.compatibles"
+  compatible_raw="$inspection_root/candidate-$candidate_count.compatibles.raw"
+  if ! fdtget -t s "$dtb" / compatible > "$compatible_raw" ||
+     [ ! -s "$compatible_raw" ] || [ "$(wc -c < "$compatible_raw")" -gt 65536 ] ||
+     ! tr ' ' '\n' < "$compatible_raw" | awk 'NF && !seen[$0]++' > "$compatibles" ||
+     [ ! -s "$compatibles" ]; then
+    echo "Packaged DTB candidate $candidate_count has no bounded compatible selector." >&2
+    exit 1
+  fi
+  candidate_member[$candidate_count]="$package_path"
+  candidate_compatibles[$candidate_count]="$compatibles"
+  candidate_digest[$candidate_count]="$digest"
+  candidate_matches[$candidate_count]="$matches"
+  case "$package_path" in
+    */qcom/x1e80100-microsoft-denali-oled.dtb) dtb_count[x1e-oled]=$((dtb_count[x1e-oled] + 1)) ;;
+    */qcom/x1p64100-microsoft-denali.dtb) dtb_count[x1p-lcd]=$((dtb_count[x1p-lcd] + 1)) ;;
+  esac
+done < "$dtb_scan_output"
 
 for ((candidate=1; candidate<=candidate_count; candidate++)); do
   package_path=${candidate_member[$candidate]#./}
@@ -438,12 +615,8 @@ for ((candidate=1; candidate<=candidate_count; candidate++)); do
     x1p64100-microsoft-denali.dtb) stable_id=surface-pro-11-x1p-lcd ;;
     *) stable_id="dtb-$(printf '%s' "$package_path" | sha256sum | awk '{print substr($1, 1, 24)}')" ;;
   esac
-  include=false
-  if [ "$effective_delivery" = embedded ] && [ "${candidate_matches[$candidate]}" -gt 0 ]; then
-    include=true
-  fi
+  include=true
   if [ "$effective_delivery" = external-required ] && { [ "$stable_id" = surface-pro-11-x1e-oled ] || [ "$stable_id" = surface-pro-11-x1p-lcd ]; }; then
-    include=true
     required=true
   fi
   if [ "$required" = true ] && [ "${candidate_matches[$candidate]}" -ne 1 ] && [ "$effective_delivery" = embedded ]; then
