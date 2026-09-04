@@ -80,6 +80,37 @@ func TestRunInWorkspaceAsHostUserScopesTheIdentityOverride(t *testing.T) {
 	}
 }
 
+// TestRunWithReadOnlyInputInWorkspaceAsHostUserRetainsIsolation verifies the
+// ownership-safe path also preserves the router's narrow container sandbox.
+func TestRunWithReadOnlyInputInWorkspaceAsHostUserRetainsIsolation(t *testing.T) {
+	workspace := t.TempDir()
+	input := filepath.Join(t.TempDir(), "image.iso")
+	if err := os.WriteFile(input, []byte("image"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runner := &workspaceOwnerRunner{workspace: workspace}
+	docker := NewDocker(runner)
+	if err := docker.RunWithReadOnlyInputInWorkspaceAsHostUser(
+		context.Background(), "tools:test", workspace, input, "/input.iso",
+		"xorriso", "-indev", "/input.iso",
+	); err != nil {
+		t.Fatal(err)
+	}
+	if len(runner.commands) != 1 {
+		t.Fatalf("runner commands = %#v", runner.commands)
+	}
+	joined := strings.Join(runner.commands[0].Args, "\n")
+	for _, required := range []string{
+		"--network", "none", "--read-only", "--cap-drop", "ALL",
+		"no-new-privileges", "/tmp:rw,noexec,nosuid,nodev,size=16m",
+		input + ":/input.iso:ro", workspace + ":/work", "xorriso",
+	} {
+		if !strings.Contains(joined, required) {
+			t.Errorf("Docker arguments do not contain %q: %q", required, runner.commands[0].Args)
+		}
+	}
+}
+
 // TestRunInWorkspaceAsHostUserIntegration proves the real daemon's bind-mount
 // mapping leaves a private extracted file readable and removable by the host.
 func TestRunInWorkspaceAsHostUserIntegration(t *testing.T) {
@@ -126,5 +157,23 @@ func TestRunInWorkspaceAsHostUserIntegration(t *testing.T) {
 	}
 	if err := os.RemoveAll(private); err != nil {
 		t.Fatal(err)
+	}
+	input := filepath.Join(workspace, "input")
+	if err := os.WriteFile(input, []byte("read-only input"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	input, err = filepath.Abs(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := docker.RunWithReadOnlyInputInWorkspaceAsHostUser(
+		ctx, image, workspace, input, "/input.bin",
+		"sh", "-ceu", "umask 077; cp /input.bin /work/copied",
+	); err != nil {
+		t.Fatal(err)
+	}
+	copied, err := os.ReadFile(filepath.Join(workspace, "copied"))
+	if err != nil || string(copied) != "read-only input" {
+		t.Fatalf("read-only input copy = %q, %v", copied, err)
 	}
 }

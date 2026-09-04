@@ -123,6 +123,40 @@ func (d *Docker) RunInWorkspace(ctx context.Context, image, workspace string, ar
 // untrusted filesystem evidence whose original modes must remain intact while
 // still being readable and removable by the calling process.
 func (d *Docker) RunInWorkspaceAsHostUser(ctx context.Context, image, workspace string, args ...string) error {
+	return d.runInWorkspaceAsHostUser(ctx, image, workspace, nil, args...)
+}
+
+// RunWithReadOnlyInputInWorkspaceAsHostUser adds one read-only host input and
+// a networkless, capability-free container boundary to host-readable private
+// extraction. inputTarget must be one absolute container path.
+func (d *Docker) RunWithReadOnlyInputInWorkspaceAsHostUser(
+	ctx context.Context,
+	image string,
+	workspace string,
+	inputPath string,
+	inputTarget string,
+	args ...string,
+) error {
+	if !filepath.IsAbs(inputPath) || filepath.Clean(inputPath) != inputPath ||
+		!filepath.IsAbs(inputTarget) || filepath.Clean(inputTarget) != inputTarget {
+		return errors.New("read-only extraction input and target must be absolute canonical paths")
+	}
+	if inputTarget == "/" || inputTarget == "/work" || strings.HasPrefix(inputTarget, "/work/") ||
+		inputTarget == "/tmp" || strings.HasPrefix(inputTarget, "/tmp/") {
+		return errors.New("read-only extraction target overlaps reserved container state")
+	}
+	options := []string{
+		"--network", "none", "--read-only", "--cap-drop", "ALL",
+		"--security-opt", "no-new-privileges",
+		"--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=16m",
+		"--volume", inputPath + ":" + inputTarget + ":ro",
+	}
+	return d.runInWorkspaceAsHostUser(ctx, image, workspace, options, args...)
+}
+
+// runInWorkspaceAsHostUser applies the platform-specific ownership boundary
+// after caller-supplied Docker options and before the private workspace mount.
+func (d *Docker) runInWorkspaceAsHostUser(ctx context.Context, image, workspace string, options []string, args ...string) error {
 	if len(args) == 0 {
 		return errors.New("host-user workspace command is empty")
 	}
@@ -143,6 +177,7 @@ func (d *Docker) RunInWorkspaceAsHostUser(ctx context.Context, image, workspace 
 		"run", "--rm", "--platform", "linux/arm64",
 	}
 	dockerArgs = append(dockerArgs, workspaceOwnerDockerArgs(owner)...)
+	dockerArgs = append(dockerArgs, options...)
 	dockerArgs = append(dockerArgs,
 		"--volume", absolute+":/work",
 		"--workdir", "/work",
