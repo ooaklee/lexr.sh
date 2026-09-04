@@ -215,7 +215,7 @@ func (d *Docker) RunInWorkspaceVolumePreservingXattrs(ctx context.Context, image
 	if err != nil {
 		return err
 	}
-	capabilities := []string{"--cap-add", "SYS_ADMIN", "--cap-add", "MAC_ADMIN", "--security-opt", "label=disable"}
+	capabilities := []string{"--cap-add", "SYS_ADMIN", "--cap-add", "MAC_ADMIN", "--security-opt", "label=disable", "--security-opt", "apparmor=unconfined"}
 	dockerArgs = append(dockerArgs[:4], append(capabilities, dockerArgs[4:]...)...)
 	dockerArgs = append(dockerArgs, args...)
 	return d.Runner.Run(ctx, Command{Name: "docker", Args: dockerArgs})

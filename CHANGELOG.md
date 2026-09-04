@@ -52,6 +52,20 @@ that do not apply.
 
 ## [0.2.0] - Unreleased
 
+### Fixed
+
+- Fixed Fedora live remastering on hosts whose container runtime confines
+  `mount(2)` behind AppArmor even for containers granted `SYS_ADMIN` (observed
+  on Ubuntu 26.04 with Docker 29). The dracut and EROFS repack steps now also
+  pass `--security-opt apparmor=unconfined`, matching the already required
+  capability set instead of relying on capabilities overriding the LSM.
+- Fixed a Fedora remaster workspace ownership race. Container steps running as
+  root created the workspace `sp11` tree before host-side code needed to
+  extend it, so `os.MkdirAll` under `sp11/kernel` failed with permission
+  denied on every fresh build. The `sp11/kernel` and `sp11/fedora` directories
+  are now prepared with host ownership before any container step writes into
+  the workspace.
+
 ### Added
 
 - Added partial-target detection for kernel delivery. `kernel preflight` and

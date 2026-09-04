@@ -163,6 +163,7 @@ func TestSecurityXattrWorkspaceAddsOnlyTheDeclaredCapabilities(t *testing.T) {
 		"SYS_ADMIN",
 		"MAC_ADMIN",
 		"label=disable",
+		"apparmor=unconfined",
 		"MKNOD",
 		name + ":/linux-work",
 		"fedora-builder:test",
