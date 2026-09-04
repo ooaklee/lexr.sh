@@ -88,6 +88,10 @@ that do not apply.
 
 ### Fixed
 
+- Fixed live hardware diagnostics and boot-support platform auto-selection
+  relying on the absolute `/proc/device-tree` alias. Canonical sysfs identity
+  is now preferred, with a contained proc fallback that cannot escape an
+  alternate target root.
 - Fixed `kernel install --json` output during real installs and
   rollback by routing package-manager, maintainer-hook and initramfs progress
   to the diagnostic stream instead of prefixing the JSON receipt on stdout.

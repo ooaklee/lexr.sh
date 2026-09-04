@@ -107,6 +107,40 @@ func TestOSFileSystemRejectsEscapingSymlink(t *testing.T) {
 	}
 }
 
+// TestPlatformInspectionAvoidsAbsoluteProcDeviceTreeLink models the live Linux
+// alias while proving canonical sysfs identity remains available in a root.
+func TestPlatformInspectionAvoidsAbsoluteProcDeviceTreeLink(t *testing.T) {
+	root := t.TempDir()
+	canonical := filepath.Join(root, "sys/firmware/devicetree/base")
+	if err := os.MkdirAll(canonical, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(canonical, "model"), []byte("Microsoft Surface Pro 11th Edition (OLED)\x00"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(canonical, "compatible"), []byte("microsoft,denali\x00qcom,x1e80100\x00"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "proc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("/sys/firmware/devicetree/base", filepath.Join(root, "proc/device-tree")); err != nil {
+		t.Fatal(err)
+	}
+	filesystem, err := NewOSFileSystem(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := filesystem.ReadFile(context.Background(), "/proc/device-tree/model", maximumIdentityBytes); err == nil {
+		t.Fatal("descriptor-rooted read followed an absolute proc device-tree link")
+	}
+	doctor := &Doctor{filesystem: filesystem}
+	check, matched := doctor.inspectPlatform(context.Background())
+	if !matched || check.State != StatePass {
+		t.Fatalf("canonical platform inspection = %#v, matched %t", check, matched)
+	}
+}
+
 // TestSafeLeafRejectsControlAndTraversalNames verifies generated sysfs paths stay bounded.
 func TestSafeLeafRejectsControlAndTraversalNames(t *testing.T) {
 	for _, name := range []string{"", ".", "..", "a/b", "a\\b", "private\nname"} {

@@ -163,8 +163,16 @@ func (doctor *Doctor) Inspect(ctx context.Context, options Options) (Report, err
 
 // inspectPlatform verifies the loaded device tree without returning its raw text.
 func (doctor *Doctor) inspectPlatform(ctx context.Context) (Check, bool) {
-	model, modelErr := doctor.filesystem.ReadFile(ctx, "/proc/device-tree/model", maximumIdentityBytes)
-	compatible, compatibleErr := doctor.filesystem.ReadFile(ctx, "/proc/device-tree/compatible", maximumIdentityBytes)
+	model, modelErr := doctor.filesystem.ReadFile(ctx, "/sys/firmware/devicetree/base/model", maximumIdentityBytes)
+	compatible, compatibleErr := doctor.filesystem.ReadFile(ctx, "/sys/firmware/devicetree/base/compatible", maximumIdentityBytes)
+	// /proc/device-tree is commonly an absolute symlink to the canonical sysfs
+	// view. Descriptor-rooted alternate filesystems correctly reject that link,
+	// so use a contained proc fixture only when both canonical properties are
+	// genuinely absent. Never combine evidence from the two views.
+	if errors.Is(modelErr, fs.ErrNotExist) && errors.Is(compatibleErr, fs.ErrNotExist) {
+		model, modelErr = doctor.filesystem.ReadFile(ctx, "/proc/device-tree/model", maximumIdentityBytes)
+		compatible, compatibleErr = doctor.filesystem.ReadFile(ctx, "/proc/device-tree/compatible", maximumIdentityBytes)
+	}
 	modelMatches := modelErr == nil && strings.Contains(strings.ToLower(string(model)), "surface pro 11")
 	compatibleText := strings.ToLower(strings.ReplaceAll(string(compatible), "\x00", " "))
 	compatibleMatches := compatibleErr == nil && strings.Contains(compatibleText, "microsoft,denali") && strings.Contains(compatibleText, "qcom,x1e80100")

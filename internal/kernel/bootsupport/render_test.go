@@ -397,6 +397,112 @@ func TestLinuxHelperRejectsUnsafeSourcesAndBootMount(t *testing.T) {
 	})
 }
 
+// TestLinuxHelperAutoSelectionUsesContainedCanonicalIdentity verifies sysfs
+// precedence, the bounded proc fallback, and alternate-root link isolation.
+func TestLinuxHelperAutoSelectionUsesContainedCanonicalIdentity(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("rendered helper executes against Linux boot tooling")
+	}
+	for _, executable := range []string{"findmnt", "flock", "install", "readlink", "sha256sum", "sync"} {
+		if _, err := exec.LookPath(executable); err != nil {
+			t.Skipf("%s is unavailable: %v", executable, err)
+		}
+	}
+	prepare := func(t *testing.T) (string, string, string) {
+		t.Helper()
+		root, helper, _, digest := stageLinuxFixture(t)
+		record := filepath.Join(root, filepath.FromSlash(platformRoot), "alpha-laptop", "compatibles")
+		if err := os.WriteFile(record, []byte("vendor,alpha-v1\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return root, helper, digest
+	}
+	writeCompatible := func(t *testing.T, root, relative, value string) {
+		t.Helper()
+		name := filepath.Join(root, filepath.FromSlash(relative))
+		if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(name, []byte(value), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runAuto := func(t *testing.T, root, helper string) ([]byte, error) {
+		t.Helper()
+		return exec.Command(helper, "refresh", "--root", root, "--abi", testABI, "--image", "/boot/vmlinuz-"+testABI, "--platform", "auto", "--defer-grub").CombinedOutput()
+	}
+
+	t.Run("canonical sysfs", func(t *testing.T) {
+		root, helper, digest := prepare(t)
+		writeCompatible(t, root, "sys/firmware/devicetree/base/compatible", "vendor,alpha-v1\x00")
+		if output, err := runAuto(t, root, helper); err != nil {
+			t.Fatalf("canonical auto selection: %v\n%s", err, output)
+		}
+		assertDigest(t, filepath.Join(root, "boot", "dtb-"+testABI), digest)
+	})
+
+	t.Run("contained proc fallback", func(t *testing.T) {
+		root, helper, digest := prepare(t)
+		writeCompatible(t, root, "proc/device-tree/compatible", "vendor,alpha-v1\x00")
+		if output, err := runAuto(t, root, helper); err != nil {
+			t.Fatalf("contained proc auto selection: %v\n%s", err, output)
+		}
+		assertDigest(t, filepath.Join(root, "boot", "dtb-"+testABI), digest)
+	})
+
+	t.Run("canonical mismatch does not fall back", func(t *testing.T) {
+		root, helper, _ := prepare(t)
+		writeCompatible(t, root, "sys/firmware/devicetree/base/compatible", "vendor,other\x00")
+		writeCompatible(t, root, "proc/device-tree/compatible", "vendor,alpha-v1\x00")
+		output, err := runAuto(t, root, helper)
+		if err == nil || !strings.Contains(string(output), "platform identity did not select exactly one declared record") {
+			t.Fatalf("canonical precedence error = %v, output %q", err, output)
+		}
+	})
+
+	t.Run("absolute proc link rejected", func(t *testing.T) {
+		root, helper, _ := prepare(t)
+		outside := t.TempDir()
+		if err := os.WriteFile(filepath.Join(outside, "compatible"), []byte("vendor,alpha-v1\x00"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(outside, filepath.Join(root, "proc/device-tree")); err != nil {
+			t.Fatal(err)
+		}
+		output, err := runAuto(t, root, helper)
+		if err == nil || !strings.Contains(string(output), "fallback device-tree identity route is redirected") {
+			t.Fatalf("absolute proc link error = %v, output %q", err, output)
+		}
+	})
+
+	t.Run("oversized canonical compatibility rejected", func(t *testing.T) {
+		root, helper, _ := prepare(t)
+		writeCompatible(t, root, "sys/firmware/devicetree/base/compatible", strings.Repeat("x", 4097))
+		output, err := runAuto(t, root, helper)
+		if err == nil || !strings.Contains(string(output), "canonical device-tree compatibility exceeds 4096-byte limit") {
+			t.Fatalf("oversized canonical compatibility error = %v, output %q", err, output)
+		}
+	})
+
+	t.Run("oversized proc compatibility rejected", func(t *testing.T) {
+		root, helper, _ := prepare(t)
+		writeCompatible(t, root, "proc/device-tree/compatible", strings.Repeat("x", 4097))
+		output, err := runAuto(t, root, helper)
+		if err == nil || !strings.Contains(string(output), "fallback device-tree compatibility exceeds 4096-byte limit") {
+			t.Fatalf("oversized proc compatibility error = %v, output %q", err, output)
+		}
+	})
+
+	t.Run("oversized machine identity rejected", func(t *testing.T) {
+		root, helper, _ := prepare(t)
+		writeCompatible(t, root, "sys/devices/virtual/dmi/id/product_name", strings.Repeat("x", 4097))
+		output, err := runAuto(t, root, helper)
+		if err == nil || !strings.Contains(string(output), "machine identity exceeds 4096-byte limit") {
+			t.Fatalf("oversized machine identity error = %v, output %q", err, output)
+		}
+	})
+}
+
 // TestLinuxRemoveAllPreservesInstalledKernelBindings proves package removal
 // fails before mutation while any owned exact-ABI kernel image still exists.
 func TestLinuxRemoveAllPreservesInstalledKernelBindings(t *testing.T) {

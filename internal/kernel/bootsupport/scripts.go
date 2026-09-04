@@ -175,6 +175,13 @@ canonical_directory() {
 	[ -d "$1" ] && [ ! -L "$1" ] || return 1
 	[ "$(readlink -f -- "$1")" = "$1" ] || return 1
 }
+copy_platform_identity() {
+	if ! dd if="$1" of="$2" bs=4097 count=1 2>/dev/null; then
+		fail "could not read $3"
+	fi
+	identity_size=$(wc -c < "$2" | tr -d ' ')
+	[ "$identity_size" -le 4096 ] || fail "$3 exceeds 4096-byte limit"
+}
 ensure_directory() {
 	remainder=$1
 	current=$target_root
@@ -217,9 +224,38 @@ select_platform() {
 		printf '%s' "$platform"
 		return 0
 	fi
+	identity_temporary=$(mktemp -d /tmp/lexr-kernel-identity.XXXXXX)
+	trap 'rm -f -- "$identity_temporary/machine" "$identity_temporary/compatible"; rmdir -- "$identity_temporary" 2>/dev/null || true' EXIT HUP INT TERM
 	machine=
-	[ ! -f "$target_root/sys/devices/virtual/dmi/id/product_name" ] || machine=$(sed -n '1p' "$target_root/sys/devices/virtual/dmi/id/product_name")
-	compatible_file="$target_root/proc/device-tree/compatible"
+	machine_file="$target_root/sys/devices/virtual/dmi/id/product_name"
+	if [ -e "$machine_file" ] || [ -L "$machine_file" ]; then
+		canonical_regular "$machine_file" || fail "machine identity route is redirected"
+		copy_platform_identity "$machine_file" "$identity_temporary/machine" "machine identity"
+		machine=$(sed -n '1p' "$identity_temporary/machine")
+	fi
+	compatible_file=
+	canonical_device_tree="$target_root/sys/firmware/devicetree/base"
+	if [ -e "$canonical_device_tree" ] || [ -L "$canonical_device_tree" ]; then
+		canonical_directory "$canonical_device_tree" || fail "canonical device-tree identity route is redirected"
+		canonical_compatible="$canonical_device_tree/compatible"
+		if [ -e "$canonical_compatible" ] || [ -L "$canonical_compatible" ]; then
+			canonical_regular "$canonical_compatible" || fail "canonical device-tree compatibility route is redirected"
+			copy_platform_identity "$canonical_compatible" "$identity_temporary/compatible" "canonical device-tree compatibility"
+			compatible_file="$identity_temporary/compatible"
+		fi
+	fi
+	if [ -z "$compatible_file" ]; then
+		fallback_device_tree="$target_root/proc/device-tree"
+		if [ -e "$fallback_device_tree" ] || [ -L "$fallback_device_tree" ]; then
+			canonical_directory "$fallback_device_tree" || fail "fallback device-tree identity route is redirected"
+			fallback_compatible="$fallback_device_tree/compatible"
+			if [ -e "$fallback_compatible" ] || [ -L "$fallback_compatible" ]; then
+				canonical_regular "$fallback_compatible" || fail "fallback device-tree compatibility route is redirected"
+				copy_platform_identity "$fallback_compatible" "$identity_temporary/compatible" "fallback device-tree compatibility"
+				compatible_file="$identity_temporary/compatible"
+			fi
+		fi
+	fi
 	[ -n "$machine" ] || [ -f "$compatible_file" ] || return 75
 	matches=
 	count=0
@@ -229,7 +265,7 @@ select_platform() {
 			[ -d "$record" ] && [ ! -L "$record" ] || continue
 			matched=false
 			if [ -n "$machine" ] && grep -Fqx -- "$machine" "$record/machine-identities" 2>/dev/null; then matched=true; fi
-			if [ -f "$compatible_file" ] && tr '\000' '\n' < "$compatible_file" | grep -Fqxf "$record/compatibles" 2>/dev/null; then matched=true; fi
+			if [ -n "$compatible_file" ] && tr '\000' '\n' < "$compatible_file" | grep -Fqxf "$record/compatibles" 2>/dev/null; then matched=true; fi
 			if [ "$matched" = true ]; then
 				candidate=${record##*/}
 				safe_platform "$candidate" || fail "registry returned unsafe platform identifier"
@@ -238,7 +274,11 @@ select_platform() {
 		done
 	done
 	[ "$count" -eq 1 ] || fail "platform identity did not select exactly one declared record"
-	printf '%s' "${matches# }"
+	selected_platform=${matches# }
+	rm -f -- "$identity_temporary/machine" "$identity_temporary/compatible"
+	rmdir -- "$identity_temporary"
+	trap - EXIT HUP INT TERM
+	printf '%s' "$selected_platform"
 }
 record_state() {
 	state="$state_root/$abi/$selected"
