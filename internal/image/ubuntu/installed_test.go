@@ -200,6 +200,7 @@ func TestInstallInstalledSystemSupportUsesOfflineRootContracts(t *testing.T) {
 		"/usr/bin/dracut", "dracutbasedir=/usr/lib/dracut",
 		`module_directory="$root/usr/lib/modules/$abi"`, `--kmoddir "$module_directory"`,
 		`firmware_directory="$root/usr/lib/firmware"`, `tool_firmware_directory=/usr/lib/firmware`,
+		`install -d -m 0755 "$tool_firmware_directory"`,
 		`cp -a -- "$firmware_directory/." "$tool_firmware_directory/"`, `--fwdir "$tool_firmware_directory"`,
 		"--conf /dev/null", `--confdir "$configuration"`,
 		"--no-hostonly", "--no-hostonly-cmdline", "--reproducible",

@@ -307,7 +307,7 @@ test ! -L "$module_directory/modules.dep"
 test -s "$module_directory/modules.dep"
 test -d "$firmware_directory"
 test ! -L "$firmware_directory"
-test -d "$tool_firmware_directory"
+install -d -m 0755 "$tool_firmware_directory"
 test ! -L "$tool_firmware_directory"
 # Preserve canonical /usr/lib/firmware archive paths while keeping the source
 # firmware data-only. The disposable tools container is destroyed afterwards.
