@@ -210,6 +210,8 @@ type GRUBEntry struct {
 	Depth int `json:"depth"`
 	// MenuPath is the numeric GRUB selection path from the top-level menu.
 	MenuPath []int `json:"menu_path"`
+	// MenuTitlePath is the title-based GRUB selection path through any submenus.
+	MenuTitlePath []string `json:"menu_title_path"`
 	// Title is the bounded GRUB menu title used for default selection.
 	Title string `json:"title"`
 	// ID is the optional bounded menu entry identifier.

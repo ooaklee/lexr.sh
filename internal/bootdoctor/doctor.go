@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -373,6 +372,7 @@ func inspectEntry(ctx context.Context, root string, parsed install.GRUBEntry, re
 		Index:          parsed.Index,
 		Depth:          parsed.Depth,
 		MenuPath:       append([]int(nil), parsed.MenuPath...),
+		MenuTitlePath:  redactAlternateRootValues(root, parsed.MenuTitlePath),
 		Title:          redactAlternateRootValue(root, parsed.Title),
 		ID:             redactAlternateRootValue(root, parsed.ID),
 		ABI:            entryABI(parsed),
@@ -596,19 +596,10 @@ func resolveDefault(entries []install.GRUBEntry, configured, saved string) Defau
 	}
 	if strings.Contains(value, ">") {
 		parts := strings.Split(value, ">")
-		menuPath := make([]int, 0, len(parts))
-		for _, part := range parts {
-			position, err := strconv.Atoi(part)
-			if err != nil || position < 0 {
-				selection.Stale = true
-				return selection
-			}
-			menuPath = append(menuPath, position)
-		}
 		for index := range entries {
-			if slices.Equal(entries[index].MenuPath, menuPath) {
+			if grubSelectionPathMatches(entries[index], parts) {
 				selection.EntryIndex = &entries[index].Index
-				selection.Effective = entries[index].Title
+				selection.Effective = value
 				return selection
 			}
 		}
@@ -635,6 +626,39 @@ func resolveDefault(entries []install.GRUBEntry, configured, saved string) Defau
 	}
 	selection.Stale = true
 	return selection
+}
+
+// grubSelectionPathMatches accepts the numeric or literal title selector GRUB
+// permits independently at each bounded submenu-path level.
+func grubSelectionPathMatches(entry install.GRUBEntry, parts []string) bool {
+	if len(parts) == 0 || len(parts) != len(entry.MenuPath) || len(parts) != len(entry.MenuTitlePath) {
+		return false
+	}
+	for index, part := range parts {
+		if part == "" {
+			return false
+		}
+		position, err := strconv.Atoi(part)
+		if err == nil {
+			if position < 0 || entry.MenuPath[index] != position {
+				return false
+			}
+			continue
+		}
+		if entry.MenuTitlePath[index] != part {
+			return false
+		}
+	}
+	return true
+}
+
+// redactAlternateRootValues prevents fixture roots from leaking through title paths.
+func redactAlternateRootValues(root string, values []string) []string {
+	redacted := make([]string, len(values))
+	for index, value := range values {
+		redacted[index] = redactAlternateRootValue(root, value)
+	}
+	return redacted
 }
 
 // inspectLegacyHooks reports exact retired paths as attribution evidence only.
