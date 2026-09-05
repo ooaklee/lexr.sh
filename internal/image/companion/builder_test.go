@@ -117,6 +117,49 @@ func TestBuilderBuildsCoreCompanion(t *testing.T) {
 	}
 }
 
+// TestBuilderIncludesTheEmbeddedGuideOnly verifies that the compiler snapshot
+// and source archive include the exact guide while excluding other text files.
+func TestBuilderIncludesTheEmbeddedGuideOnly(t *testing.T) {
+	source := makeTestSource(t, false)
+	guidePath := "internal/image/ubuntu/LEXR_GETTING_STARTED.txt"
+	guide := "Public live setup commands\n"
+	for _, name := range []string{guidePath, "internal/image/ubuntu/private.txt", "internal/other/LEXR_GETTING_STARTED.txt"} {
+		path := filepath.Join(source, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(guide), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runner := &fakeRunner{beforeBuild: func(command platform.Command) error {
+		data, err := os.ReadFile(filepath.Join(command.Dir, filepath.FromSlash(guidePath)))
+		if err != nil || string(data) != guide {
+			return errors.New("compiler snapshot is missing the embedded guide")
+		}
+		for _, name := range []string{"internal/image/ubuntu/private.txt", "internal/other/LEXR_GETTING_STARTED.txt"} {
+			if _, err := os.Lstat(filepath.Join(command.Dir, filepath.FromSlash(name))); !errors.Is(err, os.ErrNotExist) {
+				return errors.New("compiler snapshot includes unlisted text files")
+			}
+		}
+		return nil
+	}}
+	destination := t.TempDir()
+	record, err := NewBuilder(runner).Build(context.Background(), testBuildRequest(source, destination))
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := readSourceArchive(t, filepath.Join(destination, filepath.FromSlash(record.SourceArchive.Path)))
+	if string(files["lexr/"+guidePath]) != guide {
+		t.Fatal("source archive is missing the embedded guide")
+	}
+	for _, name := range []string{"internal/image/ubuntu/private.txt", "internal/other/LEXR_GETTING_STARTED.txt"} {
+		if _, ok := files["lexr/"+name]; ok {
+			t.Fatal("source archive includes unlisted text files")
+		}
+	}
+}
+
 // TestBuilderSnapshotsBeforeBuild proves both the compiler and source archive
 // consume the same private snapshot even when the original changes afterwards.
 func TestBuilderSnapshotsBeforeBuild(t *testing.T) {

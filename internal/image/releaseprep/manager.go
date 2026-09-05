@@ -20,12 +20,26 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/plan"
 )
 
-// expectedImageSteps is the exact successful native image-creation journal order.
+// expectedImageSteps retains the successful journal order before Wi-Fi preparation.
 var expectedImageSteps = []string{
 	"verify-source", "verify-kernel", "stage-companion", "prepare-tools",
 	"extract-live-root", "install-kernel", "assemble-initramfs-root", "build-initramfs",
 	"bind-live-media", "pair-device-trees", "repack-live-root", "replay-hybrid-boot",
 	"validate-output", "publish-output",
+}
+
+// imageStepsForCount selects one complete reviewed journal generation. The
+// newer workflow adds Wi-Fi preparation immediately after live-root extraction.
+func imageStepsForCount(count int) []string {
+	if count == len(expectedImageSteps) {
+		return expectedImageSteps
+	}
+	if count == len(expectedImageSteps)+1 {
+		steps := append([]string(nil), expectedImageSteps[:5]...)
+		steps = append(steps, "prepare-wifi")
+		return append(steps, expectedImageSteps[5:]...)
+	}
+	return nil
 }
 
 // sourceContracts contains strict sidecar values needed after public planning.
@@ -346,11 +360,12 @@ func validateImageJournal(journal plan.Journal, image FileRecord) error {
 	if filepath.Base(journal.Output.Path) != image.Name || journal.Output.SHA256 != image.SHA256 || journal.Output.Size != image.Size {
 		return errors.New("image creation journal output does not match the source ISO")
 	}
-	if len(journal.Records) != len(expectedImageSteps) {
+	expectedSteps := imageStepsForCount(len(journal.Records))
+	if expectedSteps == nil {
 		return errors.New("image creation journal does not contain the complete native workflow")
 	}
 	for index, record := range journal.Records {
-		if record.StepID != expectedImageSteps[index] || record.CompletedAt.IsZero() {
+		if record.StepID != expectedSteps[index] || record.CompletedAt.IsZero() {
 			return fmt.Errorf("image creation journal step %d is incomplete or out of order", index+1)
 		}
 		for name, digest := range record.Digests {
@@ -358,8 +373,11 @@ func validateImageJournal(journal plan.Journal, image FileRecord) error {
 				return fmt.Errorf("image creation journal contains unsafe digest evidence at step %s", record.StepID)
 			}
 		}
+		if record.StepID == "prepare-wifi" && !digestExpression.MatchString(record.Digests["ath12k/WCN7850/hw2.0/board.bin"]) {
+			return errors.New("image creation Wi-Fi preparation lacks its board-data digest")
+		}
 	}
-	for _, index := range []int{len(expectedImageSteps) - 2, len(expectedImageSteps) - 1} {
+	for _, index := range []int{len(expectedSteps) - 2, len(expectedSteps) - 1} {
 		if journal.Records[index].Digests["output.iso"] != image.SHA256 {
 			return fmt.Errorf("image creation journal step %s lacks the exact output digest", journal.Records[index].StepID)
 		}

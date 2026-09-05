@@ -82,7 +82,8 @@ COMPANION_ROOT="$MEDIA_ROOT/sp11/companion"
 Then copy the executable to a writable filesystem and run the common checks:
 
 ```sh
-TOOL=/tmp/lexr
+mkdir -p "$HOME/.local/bin"
+TOOL="$HOME/.local/bin/lexr"
 
 install -m 0755 \
   "$COMPANION_ROOT/bin/linux-arm64/lexr" \
@@ -99,6 +100,11 @@ install -m 0755 \
 The source path uses the schema-4 companion filename; the copy is invoked as `lexr` through the writable `$TOOL` path.
 
 A non-zero userspace doctor result means support is still missing; it does not by itself mean the companion is damaged.
+
+Ubuntu companion images place `LEXR_GETTING_STARTED.txt` on the live desktop.
+It includes these bootstrap commands, native Wi-Fi board setup, the optional
+IPTSD install, and steps to repeat after installation. Use the home-directory
+path above because writable temporary mounts can still have `noexec` set.
 
 ## 4. Use the included IPTSD support
 

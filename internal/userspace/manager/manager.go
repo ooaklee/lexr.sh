@@ -27,6 +27,8 @@ const (
 	IPTSDComponent = "iptsd-v1"
 	// CameraComponent is the exact IMX681-enabled libcamera package set.
 	CameraComponent = "imx681-libcamera-v1"
+	// WiFiComponent installs board data derived from distribution firmware.
+	WiFiComponent = "wifi"
 )
 
 // recommendedComponents is the deliberately small default pull set; optional
@@ -74,6 +76,8 @@ type Installer interface {
 	IPTSD(context.Context, userspaceinstall.Options) (userspaceinstall.Result, error)
 	// Camera installs or plans the exact experimental libcamera package set.
 	Camera(context.Context, userspaceinstall.Options) (userspaceinstall.Result, error)
+	// WiFi derives the bounded SP11 board fallback from distribution firmware.
+	WiFi(context.Context, userspaceinstall.Options) (userspaceinstall.Result, error)
 }
 
 // InstallRequest identifies a compiled userspace workflow, its verified input,
@@ -95,6 +99,8 @@ type InstallRequest struct {
 	Root string
 	// DryRun verifies inputs and returns a plan without changing the target.
 	DryRun bool
+	// Activate requests the optional Wi-Fi-only driver restart on the live root.
+	Activate bool
 }
 
 // installTarget binds one catalogue-backed component to its verified release
@@ -308,6 +314,23 @@ func (m *Manager) Install(ctx context.Context, request InstallRequest) ([]usersp
 	if request.RepositoryRoot != "" && (recommended || len(components) != 1 || components[0] != CameraComponent) {
 		return nil, errors.New("repository root applies only to an explicit native camera installation")
 	}
+	if len(components) == 1 && components[0] == WiFiComponent {
+		if request.From != "" {
+			return nil, errors.New("Wi-Fi uses the selected root's distribution firmware; omit --from")
+		}
+		component, ok := componentCatalog.Get(WiFiComponent)
+		if !ok || !component.SupportActions.Install || component.Capability != catalog.CapabilityNetworking {
+			return nil, errors.New("userspace catalogue does not permit Wi-Fi board installation")
+		}
+		result, err := m.Installer.WiFi(ctx, userspaceinstall.Options{Root: request.Root, DryRun: request.DryRun, Activate: request.Activate})
+		if result.Component == "" {
+			return nil, err
+		}
+		return []userspaceinstall.Result{result}, err
+	}
+	if request.Activate {
+		return nil, errors.New("--activate applies only to an explicit Wi-Fi installation")
+	}
 	targets, err := resolveInstallTargets(componentCatalog, components, request.From, recommended)
 	if err != nil {
 		return nil, err
@@ -375,7 +398,7 @@ func resolveInstallSelector(selector string) ([]string, bool, error) {
 		return nil, false, err
 	}
 	switch componentID {
-	case AudioComponent, IPTSDComponent, CameraComponent:
+	case AudioComponent, IPTSDComponent, CameraComponent, WiFiComponent:
 		return []string{componentID}, false, nil
 	default:
 		return nil, false, fmt.Errorf("userspace component %q has no compiled install workflow", componentID)
@@ -426,6 +449,8 @@ func ResolveComponentID(value string) (string, error) {
 		return IPTSDComponent, nil
 	case "camera", CameraComponent:
 		return CameraComponent, nil
+	case "wifi":
+		return WiFiComponent, nil
 	default:
 		if strings.TrimSpace(value) == "" {
 			return "", errors.New("userspace component is required")

@@ -268,20 +268,26 @@ func validateReleaseManifest(manifest Manifest) error {
 	if err := validateImageContract(manifest.ImageContract); err != nil {
 		return err
 	}
+	expectedSteps := imageStepsForCount(len(manifest.ImageCreation.Records))
 	if !reflect.DeepEqual(manifest.ImageCreation.Output, manifest.Image) || manifest.ImageCreation.Operation != "image.create" ||
-		manifest.ImageCreation.SchemaVersion != 1 || len(manifest.ImageCreation.Records) != len(expectedImageSteps) {
+		manifest.ImageCreation.SchemaVersion != 1 || expectedSteps == nil {
 		return errors.New("path-free image creation provenance is incomplete")
 	}
 	for index, record := range manifest.ImageCreation.Records {
-		if record.StepID != expectedImageSteps[index] || record.CompletedAt.IsZero() {
+		if record.StepID != expectedSteps[index] || record.CompletedAt.IsZero() {
 			return fmt.Errorf("path-free image creation step %d is invalid", index+1)
 		}
 		previous := ""
+		boardDigestPresent := false
 		for _, digest := range record.Digests {
 			if !safePortablePath(digest.Name) || !digestExpression.MatchString(digest.SHA256) || digest.Name <= previous {
 				return fmt.Errorf("path-free image creation step %s has invalid digest evidence", record.StepID)
 			}
 			previous = digest.Name
+			boardDigestPresent = boardDigestPresent || digest.Name == "ath12k/WCN7850/hw2.0/board.bin"
+		}
+		if record.StepID == "prepare-wifi" && !boardDigestPresent {
+			return errors.New("path-free Wi-Fi preparation lacks its board-data digest")
 		}
 	}
 	if !manifest.StructuralValidation.Valid || manifest.StructuralValidation.Layout != manifest.ImageContract.Layout ||

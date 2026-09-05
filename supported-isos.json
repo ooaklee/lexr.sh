@@ -139,6 +139,9 @@
       "mutable": false,
       "compatibility_notes": [
         "The experimental Ubuntu Casper adapter can create and structurally validate a remastered image; this does not establish hardware bootability.",
+        "On 2026-09-05, physical testing of the 2026-03-26 source remastered with Lexr 384f2c0 and kernel 7.2.0-jg-0sp11v23-qcom-x1e reached the live desktop on Surface Pro 11 X1E/OLED; the tester confirmed Wi-Fi connected without a live-session repair. Ubuntu live-boot evidence is tracked in https://github.com/ooaklee/lexr.sh/issues/41.",
+        "The tester also confirmed the installer welcome screen and working pen and touchscreen input after installing the included sp11-iptsd-v2 bundle with the on-USB Lexr. These input checks do not qualify pressure, palm rejection or suspend/resume.",
+        "Installation, installed-system boot and the full peripheral matrix remain unqualified under https://github.com/ooaklee/lexr.sh/issues/16; the X1E/OLED result does not qualify X1P/LCD or other kernel versions.",
         "Canonical does not publish a checksum alongside this snapshot; use --source-sha256 to pin independently verified bytes.",
         "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],

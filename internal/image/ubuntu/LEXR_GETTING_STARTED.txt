@@ -1,0 +1,146 @@
+LEXR GETTING STARTED — UBUNTU ON SURFACE PRO 11
+
+This image carries the custom Surface kernel. Start with the steps below in a
+Terminal. Commands in the live session change its temporary filesystem; repeat
+the relevant setup after installing Ubuntu. No command below installs Ubuntu or
+erases a disk.
+
+1. START THE LEXR INCLUDED ON THIS USB
+
+In the live session:
+
+  COMPANION_ROOT=/cdrom/sp11/companion
+
+After installation, insert the USB and open it in Files. Open its sp11/companion
+folder in a Terminal and set:
+
+  COMPANION_ROOT="$PWD"
+
+For either session, copy the tool into your home directory. /run and /tmp may
+prevent execution, even when a file has executable permissions.
+
+  mkdir -p "$HOME/.local/bin"
+  TOOL="$HOME/.local/bin/lexr"
+  install -m 0755 "$COMPANION_ROOT/bin/linux-arm64/lexr" "$TOOL"
+  "$TOOL" version
+  uname -r
+  "$TOOL" catalog validate "$COMPANION_ROOT/catalogues/supported-isos.json"
+  "$TOOL" userspace catalog validate "$COMPANION_ROOT/catalogues/supported-userspace.json"
+
+Keep using "$TOOL" in this Terminal. A new Terminal needs TOOL set again.
+
+2. CHECK OR REPAIR WI-FI
+
+If Wi-Fi already works, no workaround is needed. Otherwise inspect the radio:
+
+  "$TOOL" doctor hardware wifi
+  "$TOOL" userspace status --feature wifi
+
+This image prepares SP11 board data from Ubuntu's existing Linux firmware
+before the driver first starts. No Windows installation, previous Linux
+installation, firmware copy from another device, or downloaded helper is needed.
+Connect through Settings > Wi-Fi. If no radio appears, keep the doctor output
+and use phone USB tethering to collect diagnostics.
+
+To prepare missing board data on an installed system, review and apply:
+
+  "$TOOL" userspace install wifi --dry-run
+  sudo "$TOOL" userspace install wifi --yes
+
+Then reboot the installed system. In a non-persistent live session these file
+changes disappear at reboot: use an ISO rebuilt with the board data included.
+Do not try to repair a failed initial probe by repeatedly reloading the driver.
+Reloading the split ath12k Wi-Fi driver has caused a kernel crash on SP11;
+Lexr refuses that --activate path independently of the kernel version. The
+optional restart remains limited to an initialised radio using the legacy
+driver. It never restarts the audio DSP, USB or NetworkManager.
+
+If Lexr reports that linux-firmware or zstd is missing, connect a phone by USB
+and enable USB tethering, then install the distribution packages and retry:
+
+  sudo apt update
+  sudo apt install linux-firmware zstd
+
+Do not replace the distribution's board-2.bin. Lexr prefers an exact upstream
+Surface entry when available; otherwise it writes only the qualified board.bin
+fallback and records a receipt and any backup under /var/lib/lexr/backups.
+
+3. INSTALL THE INCLUDED PEN AND TOUCH USERSPACE
+
+If the optional IPTSD bundle was included on this USB:
+
+  IPTSD_ROOT="$COMPANION_ROOT/userspace/iptsd-v1/sp11-iptsd-v2"
+  "$TOOL" userspace install iptsd --from "$IPTSD_ROOT" --dry-run
+  sudo "$TOOL" userspace install iptsd --from "$IPTSD_ROOT" --yes
+  "$TOOL" doctor userspace --feature iptsd
+
+If that folder is absent, connect to the internet and pull the verified release:
+
+  "$TOOL" userspace pull iptsd --cache-dir "$HOME/.cache/lexr/userspace"
+
+Use the directory printed by that command as IPTSD_ROOT, then run the three
+installation and validation commands above.
+
+4. AFTER INSTALLING UBUNTU
+
+Boot the installed system with the custom Surface kernel. Reinsert this USB,
+copy Lexr using section 1, and repeat Wi-Fi and IPTSD setup if required.
+
+The custom kernel does not supply the private platform firmware or the complete
+audio topology and UCM configuration. Prepare the same-device platform-firmware
+hand-off and configure full audio from the installed system on internal storage.
+Restarting the audio DSP during a live USB session can disconnect its root disk.
+
+Inspect remaining support:
+
+  "$TOOL" doctor userspace
+  "$TOOL" userspace show audio
+  "$TOOL" userspace pull audio --cache-dir "$HOME/.cache/lexr/userspace"
+
+The pull command prints the exact verified release directory. On the installed
+system, set AUDIO_ROOT to that directory, review the plan, then install it:
+
+  AUDIO_ROOT="<directory printed by userspace pull audio>"
+  "$TOOL" userspace install audio --from "$AUDIO_ROOT" --dry-run
+  sudo "$TOOL" userspace install audio --from "$AUDIO_ROOT" --yes
+  "$TOOL" doctor userspace --feature audio
+
+Audio also needs its matching private platform firmware. Follow the hand-off
+guide below; do not add collected firmware or Bluetooth addresses to an ISO.
+Reboot the installed system after completing its firmware and audio setup.
+
+5. OPTIONAL: INSTALL THE LATEST STABLE LEXR
+
+Once Wi-Fi or phone tethering works, you can update Lexr independently of the
+ISO. On Linux or macOS, the install script downloads the latest stable
+release and verifies its SHA-256 checksum before installing it.
+
+For a test ISO containing unreleased fixes, complete USB validation with the
+bundled Lexr first: the latest stable release may not include those fixes.
+
+Install into the same user-local directory used in section 1, then make it
+available on this Terminal's PATH. The installer may also add this directory
+to your shell startup file for future sessions:
+
+  export LEXR_INSTALL_DIR="$HOME/.local/bin"
+  curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh
+  export PATH="$LEXR_INSTALL_DIR:$PATH"
+  TOOL="$LEXR_INSTALL_DIR/lexr"
+  "$TOOL" version
+
+This replaces the home-directory copy. To return to the version supplied with
+the USB, repeat section 1. Updates in the live session are temporary; install
+the latest release again from the installed system when needed.
+
+6. DIAGNOSTICS AND GUIDES
+
+  "$TOOL" version
+  "$TOOL" doctor hardware wifi audio touchscreen
+  "$TOOL" doctor userspace
+
+A failed doctor check reports a support gap; it does not mean the CLI is damaged.
+Keep device identifiers, credentials and private firmware out of public reports.
+
+Userspace: https://github.com/ooaklee/lexr.sh/blob/main/docs/user-guide/userspace-support.md
+Private firmware: https://github.com/ooaklee/lexr.sh/blob/main/docs/user-guide/windows-handoff.md
+Ubuntu live-boot tracking: https://github.com/ooaklee/lexr.sh/issues/41

@@ -40,6 +40,11 @@ func (f *cliFakeInstaller) IPTSD(_ context.Context, options userspaceinstall.Opt
 	return f.record(userspacemanager.IPTSDComponent, options, false), nil
 }
 
+// WiFi records a simulated native distribution board-data installation.
+func (f *cliFakeInstaller) WiFi(_ context.Context, options userspaceinstall.Options) (userspaceinstall.Result, error) {
+	return f.record("wifi", options, false), nil
+}
+
 // Camera records a simulated camera userspace installation.
 func (f *cliFakeInstaller) Camera(_ context.Context, options userspaceinstall.Options) (userspaceinstall.Result, error) {
 	return f.record(userspacemanager.CameraComponent, options, false), nil
@@ -70,6 +75,42 @@ func TestUserspaceInstallRequiresConfirmationBeforeMutation(t *testing.T) {
 	}
 	if len(installer.calls) != 0 {
 		t.Fatalf("installer was called before confirmation: %#v", installer.calls)
+	}
+}
+
+// TestWiFiInstallUsesDistributionInputAndExplicitActivation verifies dry runs,
+// source-free native setup, confirmation and rejection of mixed release inputs.
+func TestWiFiInstallUsesDistributionInputAndExplicitActivation(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		args      []string
+		wantError string
+		wantCalls int
+	}{
+		{"preview", []string{"wifi", "--activate", "--dry-run", "--json"}, "", 1},
+		{"uppercase", []string{"WIFI", "--activate", "--dry-run", "--json"}, "", 1},
+		{"confirmation", []string{"wifi", "--activate"}, "pass --yes", 0},
+		{"apply", []string{"wifi", "--activate", "--yes", "--json"}, "", 1},
+		{"mixed-source", []string{"wifi", "--from", "/unused", "--dry-run"}, "omit --from", 0},
+		{"other-activation", []string{"audio", "--from", "/unused", "--activate", "--dry-run"}, "only", 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			installer := &cliFakeInstaller{}
+			app, _ := newUserspaceInstallTestApplication(installer)
+			command := app.newUserspaceInstallCommand()
+			command.SetArgs(test.args)
+			command.SilenceUsage, command.SilenceErrors = true, true
+			err := command.ExecuteContext(context.Background())
+			if test.wantError == "" && err != nil || test.wantError != "" && (err == nil || !strings.Contains(err.Error(), test.wantError)) {
+				t.Fatalf("error=%v, want %q", err, test.wantError)
+			}
+			if len(installer.calls) != test.wantCalls {
+				t.Fatalf("calls=%v", installer.calls)
+			}
+			if test.wantCalls > 0 && (!installer.calls[0].Activate || installer.calls[0].BundleDir != "" || installer.calls[0].DryRun != (test.name == "preview" || test.name == "uppercase")) {
+				t.Fatalf("incorrect native options: %+v", installer.calls[0])
+			}
+		})
 	}
 }
 

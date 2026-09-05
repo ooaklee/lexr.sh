@@ -49,8 +49,11 @@ var wcn7850Firmware = [][]fileRequirement{
 	compressedAlternatives("lib/firmware/ath12k/WCN7850/hw2.0/amss.bin"),
 	compressedAlternatives("lib/firmware/ath12k/WCN7850/hw2.0/m3.bin"),
 	compressedAlternatives("lib/firmware/ath12k/WCN7850/hw2.0/board-2.bin"),
-	compressedAlternatives("lib/firmware/ath12k/WCN7850/hw2.0/regdb.bin"),
 }
+
+// wifiRegulatoryFallback is optional: ath12k first looks for regulatory records
+// in board-2.bin, then requests standalone regdb.bin only as a fallback.
+var wifiRegulatoryFallback = compressedAlternatives("lib/firmware/ath12k/WCN7850/hw2.0/regdb.bin")
 
 // wifiBoardData describes the conditional legacy board-data fallback, which is
 // reported separately from the preferred board-2 database.

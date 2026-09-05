@@ -902,7 +902,7 @@ func TestIPTSDActivationFailurePreservesInstalledState(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "files are installed") {
 		t.Fatalf("result=%+v error=%v", result, err)
 	}
-	if !result.FilesInstalled || result.ActivationComplete || result.ActivationError == "" || len(runner.commands) != len(iptsdActivationCommands) {
+	if !result.FilesInstalled || result.ActivationComplete || result.ActivationError == "" || len(runner.commands) != len(iptsdActivationCommands)+1 {
 		t.Fatalf("incomplete activation state = %+v, commands=%+v", result, runner.commands)
 	}
 	for _, command := range runner.commands {
@@ -922,7 +922,7 @@ func TestIPTSDActivationCommandsAreTimeoutBound(t *testing.T) {
 	runner := &blockingActivationRunner{}
 	installer := New(runner)
 	installer.activationTimeout = time.Millisecond
-	err := installer.activateIPTSD(context.Background(), []Command{{Name: "/usr/bin/systemctl", Args: []string{"daemon-reload"}}})
+	err := installer.runActivationCommands(context.Background(), []Command{{Name: "/usr/bin/systemctl", Args: []string{"daemon-reload"}}})
 	if err == nil || runner.runs != 1 || !strings.Contains(err.Error(), "deadline exceeded") {
 		t.Fatalf("runs=%d error=%v", runner.runs, err)
 	}

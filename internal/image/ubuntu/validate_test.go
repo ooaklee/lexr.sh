@@ -615,6 +615,7 @@ func TestValidateInstalledInitramfsListing(t *testing.T) {
 	const abi = "7.2.0-test-qcom-x1e"
 	valid := []string{
 		"init",
+		"usr/lib/firmware/" + liveWiFiBoard,
 		"usr/bin/sh",
 		"usr/bin/mount",
 		"usr/sbin/modprobe",
@@ -635,6 +636,7 @@ func TestValidateInstalledInitramfsListing(t *testing.T) {
 		longListing string
 	}{
 		{name: "init", remove: "init"},
+		{name: "Wi-Fi board", remove: "usr/lib/firmware/" + liveWiFiBoard},
 		{name: "whitespace spoof", remove: "init", replacement: " init "},
 		{name: "shell", remove: "usr/bin/sh"},
 		{name: "mount", remove: "usr/bin/mount"},

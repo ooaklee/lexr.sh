@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -218,7 +219,7 @@ func (installer *Installer) IPTSD(ctx context.Context, options Options) (Result,
 		return result, errors.Join(err, removeFailedIPTSDReceipt(result.Receipt), rollbackIPTSD(applied, mask, maskCreated))
 	}
 	if result.ActivationRequired {
-		activationErr := installer.activateIPTSD(ctx, result.Commands)
+		activationErr := installer.runActivationCommands(ctx, result.Commands)
 		if activationErr != nil {
 			result.ActivationError = activationErr.Error()
 		} else {
@@ -567,9 +568,9 @@ func removeFailedIPTSDReceipt(path string) error {
 	return syncDirectory(filepath.Dir(path))
 }
 
-// activateIPTSD executes every fixed live-root command with a per-command
+// runActivationCommands executes every fixed live-root command with a per-command
 // timeout and bounded combined output, collecting all failures.
-func (installer *Installer) activateIPTSD(ctx context.Context, commands []Command) error {
+func (installer *Installer) runActivationCommands(ctx context.Context, commands []Command) error {
 	timeout := installer.activationTimeout
 	if timeout <= 0 {
 		timeout = 15 * time.Second
@@ -581,17 +582,54 @@ func (installer *Installer) activateIPTSD(ctx context.Context, commands []Comman
 		err := installer.runner.Run(commandContext, platform.Command{
 			Name: command.Name, Args: append([]string(nil), command.Args...), Stdout: io.Writer(output), Stderr: io.Writer(output),
 		})
+		contextErr := commandContext.Err()
 		cancel()
 		if err == nil {
+			continue
+		}
+		if contextErr == nil && command.Name == "/usr/bin/systemctl" &&
+			slices.Equal(command.Args, []string{"disable", "--now", "g6-pen.service"}) &&
+			installer.legacyPenServiceAbsent(ctx, timeout) {
 			continue
 		}
 		detail := output.String()
 		if detail == "" {
 			detail = err.Error()
 		}
+		if contextErr != nil {
+			detail = fmt.Sprintf("%v: %s", contextErr, detail)
+		}
 		activationErr = errors.Join(activationErr, fmt.Errorf("%s %s: %s", command.Name, strings.Join(command.Args, " "), detail))
 	}
 	return activationErr
+}
+
+// legacyPenServiceAbsent accepts a failed legacy cleanup only when systemd
+// independently confirms that no installed or active unit remains. Inspection
+// failures preserve the original activation error, without parsing translated
+// error messages or suppressing failures from any other command.
+func (installer *Installer) legacyPenServiceAbsent(ctx context.Context, timeout time.Duration) bool {
+	commandContext, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	stdout, stderr := &boundedActivationOutput{}, &boundedActivationOutput{}
+	err := installer.runner.Run(commandContext, platform.Command{
+		Name:   "/usr/bin/systemctl",
+		Args:   []string{"show", "--all", "--property=LoadState", "--property=ActiveState", "--property=UnitFileState", "--", "g6-pen.service"},
+		Stdout: stdout, Stderr: stderr,
+	})
+	if err != nil || commandContext.Err() != nil || stdout.buffer.Len() >= maximumActivationOutput {
+		return false
+	}
+	want := map[string]string{"LoadState": "not-found", "ActiveState": "inactive", "UnitFileState": ""}
+	for _, line := range strings.Split(stdout.String(), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		expected, known := want[key]
+		if !ok || !known || value != expected {
+			return false
+		}
+		delete(want, key)
+	}
+	return len(want) == 0
 }
 
 // cloneInstallCommands prevents result consumers from mutating compiled policy.

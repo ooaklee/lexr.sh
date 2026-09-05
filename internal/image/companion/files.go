@@ -41,6 +41,11 @@ var (
 		"internal": ".go",
 		"tools":    ".ps1",
 	}
+	// maintainedEmbeddedSourceFiles admits exact non-Go compiler inputs without
+	// including neighbouring text files or private development artefacts.
+	maintainedEmbeddedSourceFiles = map[string]bool{
+		"internal/image/ubuntu/LEXR_GETTING_STARTED.txt": true,
+	}
 	// projectDocumentKinds is the closed set of conventional root legal
 	// documents that may be inventoried or used to declare redistribution terms.
 	projectDocumentKinds = map[string]string{
@@ -118,12 +123,12 @@ func collectSourceFiles(sourceRoot string) ([]sourceFile, error) {
 			if !info.Mode().IsRegular() {
 				return fmt.Errorf("maintained source path is not a regular file: %s", itemPath)
 			}
-			if filepath.Ext(entry.Name()) != maintainedSourceDirectories[directoryName] {
-				return nil
-			}
 			relative, err := filepath.Rel(sourceRoot, itemPath)
 			if err != nil {
 				return err
+			}
+			if filepath.Ext(entry.Name()) != maintainedSourceDirectories[directoryName] && !maintainedEmbeddedSourceFiles[filepath.ToSlash(relative)] {
+				return nil
 			}
 			add(itemPath, relative)
 			return nil

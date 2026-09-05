@@ -32,9 +32,10 @@ confirmation and a full read-back, and audits the support present after boot.
 Where Lexr can make a change, it favours dry runs, exact checksums and recovery
 receipts so you can see what will happen first.
 
-Lexr does **not** publish a ready-made Linux image or redistribute restricted
-firmware. It starts from a supported upstream image and either downloads a
-verified project kernel release or accepts a local bundle.
+Lexr creates images from a supported upstream image and either downloads a
+verified project kernel release or accepts a local bundle. It does not
+redistribute restricted firmware. You can also use
+[prebuilt Linux images](#create-your-first-image) prepared with Lexr.
 
 > [!WARNING]
 > The generated media and its custom kernel are experimental. Back up important
@@ -50,7 +51,11 @@ entry is a stock-kernel, explicit-DTB live troubleshooting path only. Debian,
 elementary OS, Pop!_OS, and Fedora's compressed raw disk image remain
 `catalog-only` until their layouts have dedicated adapters. Here, `implemented`
 means the adapter can create and structurally validate media; `experimental`
-means boot and installation remain unqualified. The current Fedora candidate
+means complete end-to-end qualification is still pending. Ubuntu Concept
+remastered with Lexr `384f2c0` and v23 reached the Surface Pro 11 X1E/OLED live
+desktop with Wi-Fi working without a live-session repair
+([issue #41](https://github.com/ooaklee/lexr.sh/issues/41)). Installation and
+remaining hardware checks still need qualification. The current Fedora candidate
 passed structural validation and USB read-back, but a physical Surface Pro 11
 test reached the emergency boot path and then a persistent black screen. That
 failure is tracked in [issue #17](https://github.com/ooaklee/lexr.sh/issues/17),
@@ -119,7 +124,15 @@ containing repository.
 
 ## Create your first image
 
-For the shortest experimental Ubuntu image workflow you need Docker with a running daemon
+You can start with a prebuilt Linux image from the OE repository:
+[Ubuntu Concept 26.04 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-ubuntu-concept-26.04-v23-20260905).
+This experimental ARM64 image includes Lexr, prepared Wi-Fi board data, the
+IPTSD bundle and a desktop getting-started guide. Follow the release notes for
+the tested hardware and remaining limitations, the required Lexr version,
+downloading and reconstructing the split ISO, checksum verification, and
+writing it to USB with Lexr.
+
+To create your own experimental Ubuntu image, you need Docker with a running daemon
 and Linux ARM64 container support, at least 24 GiB of free workspace storage,
 and network access for any downloads. Start with the non-destructive readiness
 check:

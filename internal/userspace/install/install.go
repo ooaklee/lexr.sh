@@ -28,6 +28,8 @@ const (
 	IPTSDComponent = "iptsd-v1"
 	// CameraComponent identifies the experimental IMX681 package release.
 	CameraComponent = "imx681-libcamera-v1"
+	// WiFiComponent derives the distribution's SP11 board data fallback.
+	WiFiComponent = "wifi"
 )
 
 // Options selects a downloaded release or supported native input and an
@@ -46,6 +48,8 @@ type Options struct {
 	Root string
 	// DryRun verifies immutable input and returns a plan without privilege.
 	DryRun bool
+	// Activate explicitly restarts only the running Surface's Wi-Fi driver.
+	Activate bool
 }
 
 // Command describes one bounded, argument-separated external command.
@@ -127,6 +131,8 @@ type Installer struct {
 	validateIPTSDRelease func(string) (userspaceiptsd.Release, error)
 	// isLiveRoot is injectable so service-state reporting can be tested safely.
 	isLiveRoot func(string) bool
+	// planWiFiActivation verifies the running SP11 radio before a requested restart.
+	planWiFiActivation func(string) ([]Command, error)
 	// detectNativeIPTSD recognises the exact Fedora /usr-owned package layout
 	// before the portable installer can create a parallel /usr/local topology.
 	detectNativeIPTSD func(string) (fedoraNativeIPTSDState, error)
@@ -150,6 +156,7 @@ func New(runner platform.Runner) *Installer {
 		extractor:            SecureXZTarExtractor{},
 		euid:                 os.Geteuid,
 		now:                  time.Now,
+		planWiFiActivation:   planSurfaceWiFiActivation,
 		activationTimeout:    15 * time.Second,
 		validateIPTSDRelease: userspaceiptsd.ValidateRelease,
 		detectNativeIPTSD:    fedoraNativeIPTSDInstalled,

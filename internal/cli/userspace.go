@@ -331,15 +331,18 @@ func (a *application) newUserspaceInstallCommand() *cobra.Command {
 	var root string
 	var dryRun bool
 	var confirmed bool
+	var activate bool
 	var asJSON bool
 	command := &cobra.Command{
-		Use:   "install <audio|iptsd|camera|recommended>",
+		Use:   "install <audio|iptsd|camera|wifi|recommended>",
 		Short: "Install an authenticated userspace input",
 		Long: "Install an authenticated userspace input through compiled policy. " +
-			"The recommended set contains audio and IPTSD; experimental camera support must be selected explicitly.",
+			"The recommended set contains audio and IPTSD; experimental camera support must be selected explicitly. " +
+			"Wi-Fi derives its board fallback from distribution firmware under --root and does not use --from. " +
+			"Its optional --activate restarts only the running Surface Pro 11 X1E/OLED Wi-Fi driver.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
-			if strings.TrimSpace(from) == "" {
+			if strings.TrimSpace(from) == "" && !strings.EqualFold(strings.TrimSpace(args[0]), "wifi") {
 				return fmt.Errorf("verified userspace release directory is required; pass --from")
 			}
 			if !dryRun && !confirmed {
@@ -353,6 +356,7 @@ func (a *application) newUserspaceInstallCommand() *cobra.Command {
 				CameraAuthoritySHA256: cameraAuthoritySHA256,
 				Root:                  root,
 				DryRun:                dryRun,
+				Activate:              activate,
 			})
 			report := makeUserspaceInstallReport(results, dryRun)
 			if err != nil {
@@ -376,6 +380,7 @@ func (a *application) newUserspaceInstallCommand() *cobra.Command {
 	command.Flags().StringVar(&root, "root", "/", "target filesystem root")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "verify immutable inputs and show the plan without changing the target")
 	command.Flags().BoolVar(&confirmed, "yes", false, "confirm target filesystem changes")
+	command.Flags().BoolVar(&activate, "activate", false, "Wi-Fi only: restart the running Surface radio after installing board data")
 	command.Flags().BoolVar(&asJSON, "json", false, "write machine-readable JSON")
 	return command
 }
@@ -386,10 +391,20 @@ func makeUserspaceInstallReport(results []userspaceinstall.Result, dryRun bool) 
 	report := userspaceInstallReport{Results: results}
 	if dryRun {
 		report.NextSteps = append(report.NextSteps,
-			"Review the verified plan, then rerun without --dry-run and pass --yes to install.")
+			"Review the verified plan, then rerun with sudo, without --dry-run, and pass --yes to install.")
 		return report
 	}
 	for _, result := range results {
+		if result.Component == userspacemanager.WiFiComponent {
+			if result.ActivationComplete {
+				report.NextSteps = append(report.NextSteps, "Wi-Fi driver restarted. Connect using Settings, then run lexr doctor hardware wifi.")
+			} else if result.ActivationError != "" {
+				report.NextSteps = append(report.NextSteps, "Board data is installed, but Wi-Fi activation failed. Do not repeat the restart; save diagnostics and reboot. A non-persistent live session needs a rebuilt ISO with board data prepared before boot.")
+			} else if result.FilesInstalled {
+				report.NextSteps = append(report.NextSteps, "Boot the installed system with the prepared board data. Non-persistent live-session changes disappear at reboot; use a rebuilt ISO with Wi-Fi board data included before boot.")
+			}
+			continue
+		}
 		if result.ActivationRequired && !result.ActivationComplete && result.FilesInstalled {
 			report.NextSteps = append(report.NextSteps,
 				"The IPTSD files are durable; resolve the reported service activation failure, then rerun userspace status.")
@@ -412,7 +427,7 @@ func (a *application) writeUserspaceInstallReport(report userspaceInstallReport)
 		operation := "installed"
 		if result.DryRun {
 			operation = "verified plan for"
-		} else if !result.FilesInstalled && result.Component == userspacemanager.IPTSDComponent {
+		} else if !result.FilesInstalled && (result.Component == userspacemanager.IPTSDComponent || result.Component == userspacemanager.WiFiComponent) {
 			operation = "incomplete install for"
 		}
 		if _, err := fmt.Fprintf(a.out, "%s %s\nroot: %s\n", operation, result.Component, result.Root); err != nil {
