@@ -304,8 +304,6 @@ func TestGrubConfigPairsDeviceTreesWithBootEntries(t *testing.T) {
 		"insmod part_gpt",
 		"insmod iso9660",
 		"insmod search_fs_file",
-		"insmod smbios",
-		"insmod regexp",
 		"insmod fdt",
 		"search --no-floppy --file --set=iso_root /casper/vmlinuz",
 		"set root=$iso_root",

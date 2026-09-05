@@ -54,6 +54,10 @@ that do not apply.
 
 ### Fixed
 
+- Pass Surface live-boot parameters directly on every Ubuntu kernel command
+  so missing firmware detection cannot disable required clock and power-domain
+  protection. Validate the arguments on each entry, including text diagnostics
+  ([#41](https://github.com/ooaklee/lexr.sh/issues/41)).
 - Include Ubuntu's existing X1E GPU GMU and SQE firmware in the live
   initramfs when custom-kernel metadata does not declare it, and reject
   images missing those early-boot files during validation. Physical Ubuntu

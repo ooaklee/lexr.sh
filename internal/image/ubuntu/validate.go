@@ -327,6 +327,12 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 	}
 	grubPassed = grubPassed && !strings.Contains(grubText, "allow aDSP")
 	addCheck("surface-grub-menu", grubPassed, "X1E/X1P DTBs and aDSP-safe live entries without the retired SoundWire parameter")
+	argumentsErr := validateLiveKernelArguments(grubText)
+	argumentsDetails := "every live kernel command explicitly selects Casper and preserves Surface clocks, power domains, and USB safety"
+	if argumentsErr != nil {
+		argumentsDetails = argumentsErr.Error()
+	}
+	addCheck("surface-live-kernel-arguments", argumentsErr == nil, argumentsDetails)
 	selfLocationPassed := strings.Contains(grubText, "insmod part_gpt") &&
 		strings.Contains(grubText, "insmod iso9660") &&
 		strings.Contains(grubText, "insmod search") &&

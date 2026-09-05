@@ -157,6 +157,11 @@ minimal installation path carries that same kernel contract. The optional
 full-desktop upper layer has its own package database and is not yet proven to
 preserve the hand-off.
 
+Every Surface live entry passes the Casper, clock, power-domain, and USB
+protection parameters directly to the kernel. These model-specific entries
+do not depend on a firmware processor-name match. Validation rejects a menu
+that places the required arguments only in a variable or a comment.
+
 The live initramfs also includes the distribution's X1E Adreno GMU and SQE
 firmware. The custom GPU driver can request these files before Casper mounts
 the live filesystem, even when its module metadata does not list them.
