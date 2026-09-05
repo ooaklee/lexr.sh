@@ -62,6 +62,48 @@ Both userspace source-build adapters use compiled Go policy and do not invoke re
 
 ## 4. Review and install
 
+### Wi-Fi from distribution firmware
+
+When `lexr doctor hardware wifi` reports a board-data failure, derive the
+qualified Surface Pro 11 fallback from the selected root's existing
+`linux-firmware` package:
+
+```sh
+lexr userspace install wifi --dry-run
+sudo lexr userspace install wifi --yes
+```
+
+This workflow needs no `--from` release, Windows files, previous installation,
+or network download. It parses a bounded `board-2.bin` or decompresses its
+`.zst` variant with the installed `zstd` tool. It prefers the exact Surface
+entry when present; otherwise it extracts the single entry qualified by the
+OE board fixup. It preserves `board-2.bin`, backs up an existing `board.bin`,
+and records source and derived digests in a private receipt. Repeating the
+command with matching data leaves the file in place.
+
+On the running Surface Pro 11 X1E/OLED, explicitly include a Wi-Fi-only restart
+when reviewing and applying the plan. Eligibility depends on the detected
+hardware and loaded driver, with no kernel-version restriction:
+
+```sh
+lexr userspace install wifi --activate --dry-run
+sudo lexr userspace install wifi --activate --yes
+lexr doctor hardware wifi
+```
+
+Lexr recognises the legacy `ath12k_pci` driver and the split `ath12k_wifi7_pci`
+driver, and selects the corresponding reload module. Unknown layouts and
+built-in drivers cannot use this restart; omit `--activate` and reboot after
+installing the board data. Driver recognition does not establish complete
+hardware support for every kernel version.
+
+The restart disconnects Wi-Fi but does not restart NetworkManager, the DSP or
+USB. Phone tethering can remain active. For a mounted installed root, use
+`--root /target` without `--activate`, then boot that system. Live-session
+changes are temporary and must be repeated after installation.
+
+### Released audio, IPTSD and camera support
+
 Review an install before granting elevated access. A real install requires both effective root privileges and `--yes`; the CLI does not elevate itself. `--root` may select an alternate target filesystem where the component supports it.
 
 ```sh

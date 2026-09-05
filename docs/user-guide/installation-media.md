@@ -219,8 +219,9 @@ to a labelled outer-disk loopback workflow.
 
 The custom kernel does not replace device firmware or audio userspace.
 The distributable ISO carries no private Denali firmware or restricted FullIO
-audio payload. Wi-Fi and full audio therefore need the
-[same-device Windows hand-off](windows-handoff.md) and
+audio payload. The native [Wi-Fi userspace command](userspace-support.md#wi-fi-from-distribution-firmware)
+derives its board fallback from the distribution's existing Linux firmware.
+Full audio needs the [same-device Windows hand-off](windows-handoff.md) and
 [userspace setup](userspace-support.md). Importing full ADSP firmware can
 restart the DSP and disconnect Type-C USB; perform that hand-off on the
 installed system rather than while its live root depends on USB.

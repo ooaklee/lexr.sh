@@ -215,14 +215,15 @@
         "status": true,
         "pull": false,
         "build": false,
-        "install": false
+        "install": true
       },
       "compatibility_evidence": "source_integrated_prior_validation",
       "notes": [
         "WCN7850 uses the in-kernel ath12k driver, validated firmware and board data, and Denali device-tree rfkill handling.",
-        "Scanning, association, traffic, and reconnect passed; repeated suspend and broader upgrade coverage remains."
+        "Scanning, association, traffic, and reconnect passed; repeated suspend and broader upgrade coverage remains.",
+        "The native installer derives the exact qualified SP11 fallback from the distribution's WCN7850 board database; it does not collect Windows Wi-Fi files or download helpers."
       ],
-      "remediation": "Install validated firmware and board data, boot an integrated kernel, and cold boot before reassessing radio state."
+      "remediation": "When the driver cannot find SP11 board data, review lexr userspace install wifi --dry-run, then apply with --yes; on the running Surface Pro 11 X1E/OLED with a recognised, loaded ath12k driver add --activate to restart only Wi-Fi, independently of the kernel version."
     }
   ]
 }

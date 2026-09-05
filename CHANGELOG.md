@@ -50,7 +50,17 @@ that do not apply.
 
 ---
 
-## [0.3.1] - Unreleased
+## [0.4.0] - Unreleased
+
+### Added
+
+- Add native `userspace install wifi` with `--dry-run`, an optional
+  `--activate` radio restart, and recoverable board-data installation from
+  the distribution's existing WCN7850 firmware. Radio restart recognises both
+  legacy and split ath12k driver layouts without a kernel-version restriction.
+  Ubuntu companion images
+  carry `LEXR_GETTING_STARTED.txt` on the desktop with live and post-install
+  setup commands ([#41](https://github.com/ooaklee/lexr.sh/issues/41)).
 
 ### Fixed
 

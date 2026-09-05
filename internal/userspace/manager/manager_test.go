@@ -53,6 +53,11 @@ func (f *fakeInstaller) IPTSD(_ context.Context, options userspaceinstall.Option
 	return f.record(IPTSDComponent, options), nil
 }
 
+// WiFi records a simulated native distribution board-data installation.
+func (f *fakeInstaller) WiFi(_ context.Context, options userspaceinstall.Options) (userspaceinstall.Result, error) {
+	return f.record(WiFiComponent, options), nil
+}
+
 // Camera records installation of the explicitly selected camera component.
 func (f *fakeInstaller) Camera(_ context.Context, options userspaceinstall.Options) (userspaceinstall.Result, error) {
 	return f.record(CameraComponent, options), nil

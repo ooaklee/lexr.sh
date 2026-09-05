@@ -309,6 +309,9 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err := installInstalledSystemSupport(ctx, r.Docker, toolsImage, workspace, workVolume, request.Bundle); err != nil {
 		return Result{}, err
 	}
+	if err := installGettingStarted(ctx, r.Docker, toolsImage, workspace, workVolume, companionRecord.Included); err != nil {
+		return Result{}, err
+	}
 	if err := checkpoint("install-kernel", nil); err != nil {
 		return Result{}, err
 	}
@@ -891,7 +894,7 @@ func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manife
 	if manifest.CompanionBundle.Included {
 		companionNote = "A Linux ARM64 Lexr companion, corresponding source, catalogues, and any declared offline userspace releases are under /sp11/companion. Copy the executable to a writable filesystem before running privileged install operations."
 	}
-	readme := fmt.Sprintf("Lexr Surface Pro 11 image\n\nCustom kernel ABI: %s\n\nSecure Boot must be disabled. The live entries allow DSP attachment for Type-C USB. Kernel packages are included under /sp11/kernel for installed-system setup. Proprietary device firmware is not redistributed; Wi-Fi and full audio require the same-device firmware and userspace setup.\n\n%s\n", abi, companionNote)
+	readme := fmt.Sprintf("Lexr Surface Pro 11 image\n\nCustom kernel ABI: %s\n\nSecure Boot must be disabled. The live entries allow DSP attachment for Type-C USB. Kernel packages are included under /sp11/kernel for installed-system setup. Wi-Fi board setup uses the distribution firmware through lexr userspace install wifi. Full audio requires the same-device platform firmware and userspace setup. Proprietary device firmware is not redistributed.\n\n%s\n", abi, companionNote)
 	if err := os.WriteFile(filepath.Join(sp11, "README.txt"), []byte(readme), 0o644); err != nil {
 		return err
 	}

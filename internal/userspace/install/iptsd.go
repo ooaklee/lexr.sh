@@ -218,7 +218,7 @@ func (installer *Installer) IPTSD(ctx context.Context, options Options) (Result,
 		return result, errors.Join(err, removeFailedIPTSDReceipt(result.Receipt), rollbackIPTSD(applied, mask, maskCreated))
 	}
 	if result.ActivationRequired {
-		activationErr := installer.activateIPTSD(ctx, result.Commands)
+		activationErr := installer.runActivationCommands(ctx, result.Commands)
 		if activationErr != nil {
 			result.ActivationError = activationErr.Error()
 		} else {
@@ -567,9 +567,9 @@ func removeFailedIPTSDReceipt(path string) error {
 	return syncDirectory(filepath.Dir(path))
 }
 
-// activateIPTSD executes every fixed live-root command with a per-command
+// runActivationCommands executes every fixed live-root command with a per-command
 // timeout and bounded combined output, collecting all failures.
-func (installer *Installer) activateIPTSD(ctx context.Context, commands []Command) error {
+func (installer *Installer) runActivationCommands(ctx context.Context, commands []Command) error {
 	timeout := installer.activationTimeout
 	if timeout <= 0 {
 		timeout = 15 * time.Second
