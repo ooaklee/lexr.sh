@@ -50,7 +50,7 @@ that do not apply.
 
 ---
 
-## [0.3.0] - Unreleased
+## [0.3.0] - 2026-09-05
 
 ### Added
 
@@ -88,6 +88,13 @@ that do not apply.
 
 ### Fixed
 
+- Fixed audio userspace diagnosis directing operators to clean-up while the
+  two recognised legacy UCM files were absent from its removal allow-list.
+  Clean-up now requires their exact reviewed size and SHA-256 identities, and
+  `clean scan` and `clean plan` can record an explicit feature scope that is
+  enforced unchanged during apply. Recovery now accepts the shared trusted
+  `/var/lib/lexr` application directory while keeping its `backups` subtree
+  and transaction directories private.
 - Fixed Ubuntu ISO validation failing after successful offline-root assembly
   when root-owned `0600` kernel files and `0700` boot-support state were
   extracted through a host bind mount. Extraction now preserves package modes

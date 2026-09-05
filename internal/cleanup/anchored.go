@@ -334,7 +334,7 @@ func ensureAnchoredBackupParent(root *os.Root, publicRoot string) error {
 	}{
 		{component: "var", mode: 0o755},
 		{component: "lib", mode: 0o755},
-		{component: "lexr", mode: 0o700},
+		{component: "lexr", mode: 0o755},
 		{component: "backups", mode: 0o700},
 	}
 	current := root
@@ -882,7 +882,7 @@ func openValidatedBackupComponents(target *os.Root, publicRoot string, parts []s
 		publicPath := filepath.Join(publicRoot, filepath.Join(parts[:index+1]...))
 		validationErr := error(nil)
 		if statErr == nil {
-			if index >= 2 {
+			if index >= 3 {
 				validationErr = validatePrivateDirectoryInfo(publicPath, info)
 			} else {
 				validationErr = validateTrustedDirectoryInfo(publicPath, info)

@@ -2,12 +2,21 @@
 
 Lexr (Linux Exchanger) makes it easy to run ARM64 Linux on Qualcomm Snapdragon X Devices (initially focusing on Microsoft Surface Pro 11). It is a centralised tool that lets you manage and create ready-to-use images, tailored kernels, and essential device libraries to maximise your device's functionality when using Linux. With auditability as a core principle, it helps you track and manage what's implemented out of the box. Fast, auditable, and Qualcomm Snapdragon X-focused.
 
-Build a repeatable ARM64 Linux kernel + installer for your Snapdragon Elite Device.
+Build a repeatable ARM64 Linux kernel + installer for your Snapdragon X Device.
+
+On Linux or macOS, the install script downloads the latest release, verifies its
+checksum, and puts `lexr` on your `PATH`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh
+```
+
 
 [Download Lexr](https://github.com/ooaklee/lexr.sh/releases) ·
 [Get started](docs/getting-started/index.md) ·
 [Read the docs](docs/index.md) ·
 [Contribute](CONTRIBUTING.md)
+
 
 ## Why Lexr exists
 

@@ -457,6 +457,64 @@ func TestImageCreateDryRunIsDeterministic(t *testing.T) {
 	}
 }
 
+// TestCleanFeatureScopeIsRecordedAndApplied verifies scan and plan accept the
+// same feature filter and a reviewed audio plan preserves non-audio state.
+func TestCleanFeatureScopeIsRecordedAndApplied(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	audioPath := filepath.Join(root, "etc/systemd/system/sp11-wsa-routing.service")
+	touchPath := filepath.Join(root, "etc/modprobe.d/sp11-touchscreen.conf")
+	for path, content := range map[string]string{
+		audioPath: "ExecStart=/usr/local/sbin/sp11-enable-wsa-routing\n",
+		touchPath: "mshw0485_touch\n",
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	scanOutput, _, err := executeCLI(t, "clean", "scan", "--root", root, "--feature", "audio", "--json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var scan cleanup.ScanReport
+	if err := json.Unmarshal([]byte(scanOutput), &scan); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(scan.Features, []string{"audio"}) || len(scan.Findings) != 1 || scan.Findings[0].Rule.Feature != "audio" {
+		t.Fatalf("feature-scoped scan = %#v", scan)
+	}
+	planPath := filepath.Join(t.TempDir(), "cleanup-plan.json")
+	if _, _, err := executeCLI(t, "clean", "plan", "--root", root, "--feature", "audio", "--output", planPath); err != nil {
+		t.Fatal(err)
+	}
+	planData, err := os.ReadFile(planPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var plan cleanup.ScanReport
+	if err := json.Unmarshal(planData, &plan); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(plan.Features, []string{"audio"}) {
+		t.Fatalf("recorded plan features = %#v", plan.Features)
+	}
+	if _, _, err := executeCLI(t, "clean", "apply", "--root", root, "--plan", planPath, "--yes"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(audioPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("audio target remains: %v", err)
+	}
+	if _, err := os.Stat(touchPath); err != nil {
+		t.Fatalf("non-audio target changed: %v", err)
+	}
+	if _, _, err := executeCLI(t, "clean", "scan", "--root", root, "--feature", "camera"); err == nil || !strings.Contains(err.Error(), "unknown cleanup feature") {
+		t.Fatalf("unknown feature error = %v", err)
+	}
+}
+
 // TestCleanApplyRequiresExplicitConfirmation verifies that clean-up cannot move
 // a recognised workaround or create backups without affirmative consent.
 func TestCleanApplyRequiresExplicitConfirmation(t *testing.T) {

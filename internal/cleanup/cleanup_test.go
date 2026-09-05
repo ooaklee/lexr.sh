@@ -3,6 +3,8 @@
 package cleanup
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +15,189 @@ import (
 
 	"golang.org/x/sys/unix"
 )
+
+// TestLegacyUCMRulesRequireExactReviewedIdentities verifies both retired UCM
+// names are removable only when their complete size and digest match.
+func TestLegacyUCMRulesRequireExactReviewedIdentities(t *testing.T) {
+	t.Parallel()
+	want := map[string]struct {
+		path   string
+		size   int64
+		digest string
+	}{
+		"audio-legacy-card-ucm": {
+			path: "usr/share/alsa/ucm2/Qualcomm/x1e80100/MICROSOFT-Surface-Pro-11.conf", size: 2923,
+			digest: "225976f925624f156d9fab84e15a5126a60a236783cfcb82d43d2a2aec028d7b",
+		},
+		"audio-legacy-hifi-ucm": {
+			path: "usr/share/alsa/ucm2/Qualcomm/x1e80100/Surface11-HiFi.conf", size: 7536,
+			digest: "d9cc675fd4d432f62fd3e01fba32a8afe22a64e988fac476120161e67c63fb54",
+		},
+	}
+	for _, rule := range LegacyRules {
+		expected, ok := want[rule.ID]
+		if !ok {
+			continue
+		}
+		if rule.Feature != "audio" || rule.Path != expected.path || rule.maximumSize != expected.size ||
+			rule.expectedSize != expected.size || rule.expectedSHA256 != expected.digest || len(rule.Markers) != 0 {
+			t.Fatalf("legacy UCM rule %s = %#v", rule.ID, rule)
+		}
+		delete(want, rule.ID)
+	}
+	if len(want) != 0 {
+		t.Fatalf("legacy UCM rules missing: %#v", want)
+	}
+
+	data := []byte("reviewed fixture")
+	digest := sha256.Sum256(data)
+	if !exactFileIdentityMatches(data, int64(len(data)), fmt.Sprintf("%x", digest)) {
+		t.Fatal("exact regular-file identity was not recognised")
+	}
+	altered := append([]byte(nil), data...)
+	altered[0] ^= 1
+	if exactFileIdentityMatches(altered, int64(len(data)), fmt.Sprintf("%x", digest)) ||
+		exactFileIdentityMatches(data, int64(len(data))+1, fmt.Sprintf("%x", digest)) {
+		t.Fatal("altered size or bytes passed exact identity recognition")
+	}
+}
+
+// TestLegacyUCMScanFailsClosedOnUnknownBytesAndTypes verifies altered,
+// oversized, and symbolic-link replacements remain manual-review findings.
+func TestLegacyUCMScanFailsClosedOnUnknownBytesAndTypes(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		logical string
+		create  func(*testing.T, string)
+		detail  string
+	}{
+		{
+			name: "altered", logical: "usr/share/alsa/ucm2/Qualcomm/x1e80100/MICROSOFT-Surface-Pro-11.conf",
+			create: func(t *testing.T, target string) {
+				writeCleanupFixture(t, target, ".", 0o644, strings.Repeat("x", 2923))
+			},
+			detail: "exact size or SHA-256 differs",
+		},
+		{
+			name: "oversized", logical: "usr/share/alsa/ucm2/Qualcomm/x1e80100/Surface11-HiFi.conf",
+			create: func(t *testing.T, target string) {
+				writeCleanupFixture(t, target, ".", 0o644, strings.Repeat("x", 7537))
+			},
+			detail: "exceeds the 7536-byte recognition limit",
+		},
+		{
+			name: "symlink", logical: "usr/share/alsa/ucm2/Qualcomm/x1e80100/Surface11-HiFi.conf",
+			create: func(t *testing.T, target string) {
+				if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink("other.conf", target); err != nil {
+					t.Fatal(err)
+				}
+			},
+			detail: "permits only a regular file",
+		},
+		{
+			name: "special file", logical: "usr/share/alsa/ucm2/Qualcomm/x1e80100/Surface11-HiFi.conf",
+			create: func(t *testing.T, target string) {
+				if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := unix.Mkfifo(target, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			},
+			detail: "not a regular file or symlink",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			root := t.TempDir()
+			target := filepath.Join(root, filepath.FromSlash(test.logical))
+			test.create(t, target)
+			report, err := ScanWithOptions(ScanOptions{Root: root, Features: []string{"audio"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(report.Findings) != 1 || report.Findings[0].Recognized || !strings.Contains(report.Findings[0].Details, test.detail) {
+				t.Fatalf("legacy UCM finding = %#v", report.Findings)
+			}
+		})
+	}
+}
+
+// TestFeatureScopedCleanupPreservesOtherFeatures verifies a reviewed audio
+// plan cannot discover or mutate an independently recognised touchscreen rule.
+func TestFeatureScopedCleanupPreservesOtherFeatures(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	audio := "etc/systemd/system/sp11-wsa-routing.service"
+	touch := "etc/modprobe.d/sp11-touchscreen.conf"
+	writeCleanupFixture(t, root, audio, 0o644, "ExecStart=/usr/local/sbin/sp11-enable-wsa-routing\n")
+	writeCleanupFixture(t, root, touch, 0o644, "mshw0485_touch\n")
+	report, err := ScanWithOptions(ScanOptions{Root: root, Features: []string{"audio", "audio"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Features) != 1 || report.Features[0] != "audio" || len(report.Findings) != 1 || report.Findings[0].Rule.Feature != "audio" {
+		t.Fatalf("audio-scoped report = %#v", report)
+	}
+	receipt, err := Apply(report, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(filepath.Join(root, filepath.FromSlash(audio))); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("audio target remains: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(touch))); err != nil {
+		t.Fatalf("non-audio target changed: %v", err)
+	}
+	if _, err := Restore(receipt, filepath.Join(receipt.Backup, "receipt.json"), true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(audio))); err != nil {
+		t.Fatalf("audio target was not restored: %v", err)
+	}
+}
+
+// TestCleanupFeatureSelectionRejectsUnknownAndEditedScopes verifies options
+// and decoded plans fail closed on unknown, non-canonical, or inconsistent scope.
+func TestCleanupFeatureSelectionRejectsUnknownAndEditedScopes(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	if _, err := ScanWithOptions(ScanOptions{Root: root, Features: []string{"camera"}}); err == nil || !strings.Contains(err.Error(), "unknown cleanup feature") {
+		t.Fatalf("unknown feature error = %v", err)
+	}
+	writeCleanupFixture(t, root, "etc/modprobe.d/sp11-touchscreen.conf", 0o644, "mshw0485_touch\n")
+	report, err := Scan(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name     string
+		features []string
+	}{
+		{name: "unknown", features: []string{"camera"}},
+		{name: "duplicate", features: []string{"audio", "audio"}},
+		{name: "noncanonical order", features: []string{"touchscreen", "audio"}},
+		{name: "finding outside scope", features: []string{"audio"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			candidate := report
+			candidate.Features = test.features
+			encoded, marshalErr := json.Marshal(candidate)
+			if marshalErr != nil {
+				t.Fatal(marshalErr)
+			}
+			if _, err := ReadScanReport(bytes.NewReader(encoded)); err == nil {
+				t.Fatalf("edited feature scope %#v was accepted", test.features)
+			}
+		})
+	}
+}
 
 // TestApplyBacksUpOnlyRecognisedLegacyFiles verifies clean-up moves a known
 // workaround to its backup while leaving unrelated user configuration intact.
@@ -49,6 +234,16 @@ func TestApplyBacksUpOnlyRecognisedLegacyFiles(t *testing.T) {
 	}
 	if _, err := os.Stat(unrecognised); err != nil {
 		t.Fatalf("unrecognised path was removed: %v", err)
+	}
+	for path, want := range map[string]os.FileMode{
+		filepath.Join(root, "var/lib/lexr"):         0o755,
+		filepath.Join(root, "var/lib/lexr/backups"): 0o700,
+		receipt.Backup: 0o700,
+	} {
+		info, statErr := os.Stat(path)
+		if statErr != nil || info.Mode().Perm() != want {
+			t.Fatalf("created recovery directory %s mode = %v, %v, want %#o", path, info, statErr, want)
+		}
 	}
 	backupInfo, err := os.Stat(receipt.Changes[0].BackupPath)
 	if err != nil {
@@ -569,7 +764,7 @@ func TestBluetoothCleanupIsPrivateReversibleAndNativeSafe(t *testing.T) {
 }
 
 // TestApplyRejectsAnUnsafePrivateBackupHierarchy verifies clean-up never places
-// recovery data beneath an existing application directory readable by others.
+// recovery data in an existing backups directory readable by others.
 func TestApplyRejectsAnUnsafePrivateBackupHierarchy(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
@@ -588,7 +783,7 @@ func TestApplyRejectsAnUnsafePrivateBackupHierarchy(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(applicationDirectory, "backups"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(applicationDirectory, 0o755); err != nil {
+	if err := os.Chmod(filepath.Join(applicationDirectory, "backups"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Apply(report, true); err == nil || !strings.Contains(err.Error(), "mode 0700") {
@@ -596,6 +791,92 @@ func TestApplyRejectsAnUnsafePrivateBackupHierarchy(t *testing.T) {
 	}
 	if _, err := os.Stat(target); err != nil {
 		t.Fatalf("unsafe backup hierarchy changed the clean-up target: %v", err)
+	}
+}
+
+// TestApplyRejectsWritableSharedLexrParent verifies the application directory
+// remains a trusted ancestor even though it is not part of the private subtree.
+func TestApplyRejectsWritableSharedLexrParent(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	target := filepath.Join(root, "etc/modprobe.d/sp11-touchscreen.conf")
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target, []byte("mshw0485_touch\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	report, err := Scan(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	applicationDirectory := filepath.Join(root, "var/lib/lexr")
+	if err := os.MkdirAll(filepath.Join(applicationDirectory, "backups"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(applicationDirectory, 0o775); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Apply(report, true); err == nil || !strings.Contains(err.Error(), "writable by group or others") {
+		t.Fatalf("Apply() error = %v, want unsafe trusted-ancestor rejection", err)
+	}
+	if _, err := os.Stat(target); err != nil {
+		t.Fatalf("unsafe shared parent changed the clean-up target: %v", err)
+	}
+}
+
+// TestApplyAndRestoreAcceptTrustedSharedLexrParent verifies both supported
+// application-directory modes while the recovery subtree stays private.
+func TestApplyAndRestoreAcceptTrustedSharedLexrParent(t *testing.T) {
+	t.Parallel()
+	for _, applicationMode := range []os.FileMode{0o700, 0o755} {
+		t.Run(fmt.Sprintf("mode-%#o", applicationMode), func(t *testing.T) {
+			root := t.TempDir()
+			target := filepath.Join(root, "etc/modprobe.d/sp11-touchscreen.conf")
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			content := []byte("mshw0485_touch\n")
+			if err := os.WriteFile(target, content, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			applicationDirectory := filepath.Join(root, "var/lib/lexr")
+			backupDirectory := filepath.Join(applicationDirectory, "backups")
+			if err := os.MkdirAll(backupDirectory, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chmod(applicationDirectory, applicationMode); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chmod(backupDirectory, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			report, err := Scan(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			receipt, err := Apply(report, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for path, want := range map[string]os.FileMode{
+				applicationDirectory: applicationMode,
+				backupDirectory:      0o700,
+				receipt.Backup:       0o700,
+			} {
+				info, statErr := os.Stat(path)
+				if statErr != nil || info.Mode().Perm() != want {
+					t.Fatalf("recovery directory %s mode = %v, %v, want %#o", path, info, statErr, want)
+				}
+			}
+			if _, err := Restore(receipt, filepath.Join(receipt.Backup, "receipt.json"), true); err != nil {
+				t.Fatal(err)
+			}
+			restored, err := os.ReadFile(target)
+			if err != nil || !bytes.Equal(restored, content) {
+				t.Fatalf("restored target = %q, %v", restored, err)
+			}
+		})
 	}
 }
 

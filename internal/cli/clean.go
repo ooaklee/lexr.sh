@@ -27,13 +27,14 @@ func (a *application) newCleanCommand() *cobra.Command {
 func (a *application) newCleanScanCommand() *cobra.Command {
 	var root string
 	var userHome string
+	var features []string
 	var asJSON bool
 	command := &cobra.Command{
 		Use:   "scan",
 		Short: "Detect obsolete workarounds without changing the target system",
 		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			report, err := cleanup.ScanWithOptions(cleanup.ScanOptions{Root: root, UserHome: userHome})
+			report, err := cleanup.ScanWithOptions(cleanup.ScanOptions{Root: root, UserHome: userHome, Features: features})
 			if err != nil {
 				return err
 			}
@@ -57,6 +58,7 @@ func (a *application) newCleanScanCommand() *cobra.Command {
 	}
 	command.Flags().StringVar(&root, "root", "/", "target Linux root filesystem")
 	command.Flags().StringVar(&userHome, "user-home", "", "explicit target-visible absolute Linux user home; never inferred")
+	command.Flags().StringSliceVar(&features, "feature", nil, "limit inspection to a feature (repeatable or comma-separated)")
 	command.Flags().BoolVar(&asJSON, "json", false, "write machine-readable JSON")
 	return command
 }
@@ -66,13 +68,14 @@ func (a *application) newCleanScanCommand() *cobra.Command {
 func (a *application) newCleanPlanCommand() *cobra.Command {
 	var root string
 	var userHome string
+	var features []string
 	var output string
 	command := &cobra.Command{
 		Use:   "plan",
 		Short: "Write a reviewed JSON plan without changing the target system",
 		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			report, err := cleanup.ScanWithOptions(cleanup.ScanOptions{Root: root, UserHome: userHome})
+			report, err := cleanup.ScanWithOptions(cleanup.ScanOptions{Root: root, UserHome: userHome, Features: features})
 			if err != nil {
 				return err
 			}
@@ -88,6 +91,7 @@ func (a *application) newCleanPlanCommand() *cobra.Command {
 	}
 	command.Flags().StringVar(&root, "root", "/", "target Linux root filesystem")
 	command.Flags().StringVar(&userHome, "user-home", "", "explicit target-visible absolute Linux user home; never inferred")
+	command.Flags().StringSliceVar(&features, "feature", nil, "limit the recorded plan to a feature (repeatable or comma-separated)")
 	command.Flags().StringVarP(&output, "output", "o", "lexr-cleanup-plan.json", "new plan path, or - for standard output")
 	return command
 }

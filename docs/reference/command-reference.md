@@ -105,8 +105,8 @@ complete task.
 ## Reversible clean-up
 
 ```text
-lexr clean scan
-lexr clean plan --output lexr-cleanup-plan.json
+lexr clean scan [--feature <feature>]
+lexr clean plan [--feature <feature>] --output lexr-cleanup-plan.json
 lexr clean apply --plan lexr-cleanup-plan.json --yes
 lexr clean restore /var/lib/lexr/backups/<transaction>/receipt.json --yes
 ```
