@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -59,6 +60,7 @@ func (installer *Installer) WiFi(ctx context.Context, options Options) (Result, 
 			return result, nil
 		}
 		result.FilesInstalled = true
+		result.RebootRequired = !options.Activate
 		return installer.finishWiFiActivation(ctx, result)
 	}
 	target, err := resolveTarget(root, wifiFirmwareDirectory+"board.bin")
@@ -87,6 +89,7 @@ func (installer *Installer) WiFi(ctx context.Context, options Options) (Result, 
 				return result, nil
 			}
 			result.FilesInstalled = true
+			result.RebootRequired = !options.Activate
 			return installer.finishWiFiActivation(ctx, result)
 		}
 	} else if !errors.Is(statErr, os.ErrNotExist) {
@@ -220,6 +223,7 @@ func planWiFiActivationFromSysfs(sysRoot string) ([]Command, error) {
 	}
 	matches := 0
 	driverName := ""
+	radioPath := ""
 	for _, device := range devices {
 		vendor, _ := os.ReadFile(filepath.Join(device, "vendor"))
 		product, _ := os.ReadFile(filepath.Join(device, "device"))
@@ -231,6 +235,7 @@ func planWiFiActivationFromSysfs(sysRoot string) ([]Command, error) {
 			return nil, errors.New("Wi-Fi activation requires a bound ath12k PCI driver")
 		}
 		driverName = filepath.Base(driver)
+		radioPath = device
 		matches++
 	}
 	if matches != 1 {
@@ -241,15 +246,25 @@ func planWiFiActivationFromSysfs(sysRoot string) ([]Command, error) {
 	case "ath12k_pci":
 		module = "ath12k"
 	case "ath12k_wifi7_pci":
-		// Split kernels register the PCI driver through the shared ath12k
-		// core, so driver/module can name that core rather than this family.
-		module = "ath12k_wifi7"
+		// Physical SP11 testing found an MHI/QMI kernel Oops on reload after
+		// missing board data. A loaded module does not prove safe teardown.
+		// Keep this driver-layout guard until reload is separately qualified.
+		return nil, errors.New("live Wi-Fi restart is not qualified for the split ath12k driver: reloading it has crashed the kernel; omit --activate, install the board data before boot, and reboot the installed system or use a rebuilt live ISO")
 	default:
 		return nil, errors.New("Wi-Fi activation requires a recognised ath12k PCI driver layout")
 	}
 	state, err := os.ReadFile(filepath.Join(sysRoot, "module", module, "initstate"))
 	if err != nil || strings.TrimSpace(string(state)) != "live" {
 		return nil, fmt.Errorf("Wi-Fi activation requires the loaded %s module; built-in or unavailable drivers cannot be reloaded, so omit --activate and reboot", module)
+	}
+	referenceData, err := os.ReadFile(filepath.Join(sysRoot, "module", module, "refcnt"))
+	references, parseErr := strconv.Atoi(strings.TrimSpace(string(referenceData)))
+	if err != nil || parseErr != nil || references < 0 {
+		return nil, errors.New("Wi-Fi module state is unavailable or teardown is incomplete; do not retry activation, reboot with the board data installed")
+	}
+	phys, err := os.ReadDir(filepath.Join(radioPath, "ieee80211"))
+	if err != nil || len(phys) == 0 {
+		return nil, errors.New("Wi-Fi initialisation has not produced a radio; do not reload a failed probe, install board data without --activate and boot with it already present")
 	}
 	for _, device := range devices {
 		driver, err := os.Readlink(filepath.Join(device, "driver"))
@@ -298,7 +313,13 @@ func (installer *Installer) finishWiFiActivation(ctx context.Context, result Res
 		err = errors.New("Wi-Fi activation plan changed after inspection; review a new dry run")
 	}
 	if err == nil {
-		err = installer.runActivationCommands(ctx, result.Commands)
+		// Unlike independent service operations, a reload must stop if its
+		// prerequisite fails. Never load after a failed or cancelled unload.
+		for _, command := range result.Commands {
+			if err = installer.runActivationCommands(ctx, []Command{command}); err != nil {
+				break
+			}
+		}
 	}
 	if err != nil {
 		result.ActivationError = err.Error()

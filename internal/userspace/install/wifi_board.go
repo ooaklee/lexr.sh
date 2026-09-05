@@ -32,6 +32,14 @@ type wifiBoardSelection struct {
 	data []byte
 }
 
+// SurfaceWiFiBoard derives the exact Surface selector and calibration bytes for
+// offline image preparation using the same bounded parser as userspace install.
+// The caller must preserve board-2.bin, which remains the kernel's first choice.
+func SurfaceWiFiBoard(database []byte) (selector string, payload []byte, err error) {
+	selection, err := selectWiFiBoard(database)
+	return selection.name, selection.data, err
+}
+
 // wifiTLV walks the little-endian type/length records and four-byte alignment
 // used by the ath12k API-2 board format. Lengths never escape their container.
 func wifiTLV(data []byte, visit func(uint32, []byte) error) error {

@@ -38,13 +38,17 @@ for firmware in ` + strings.Join(liveGPUFirmware, " ") + `; do
         exit 1
     fi
 done
+if ! add_firmware ` + liveWiFiBoard + `; then
+    echo 'lexr: prepared SP11 Wi-Fi board data is missing' >&2
+    exit 1
+fi
 `
 }
 
 // installLiveFirmwareHook adds firmware only to the assembled Casper root;
 // the deployable base and the package-owned installed boot policy are separate.
 func installLiveFirmwareHook(ctx context.Context, docker *platform.Docker, image, workspace, volume string) error {
-	const name = "lexr-sp11-gpu-firmware"
+	const name = "lexr-sp11-live-firmware"
 	directory := filepath.Join(workspace, "live-support")
 	if err := os.MkdirAll(directory, 0o755); err != nil {
 		return fmt.Errorf("stage live firmware hook: %w", err)

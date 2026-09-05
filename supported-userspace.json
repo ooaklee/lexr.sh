@@ -223,7 +223,7 @@
         "Scanning, association, traffic, and reconnect passed; repeated suspend and broader upgrade coverage remains.",
         "The native installer derives the exact qualified SP11 fallback from the distribution's WCN7850 board database; it does not collect Windows Wi-Fi files or download helpers."
       ],
-      "remediation": "When the driver cannot find SP11 board data, review lexr userspace install wifi --dry-run, then apply with --yes; on the running Surface Pro 11 X1E/OLED with a recognised, loaded ath12k driver add --activate to restart only Wi-Fi, independently of the kernel version."
+      "remediation": "Review lexr userspace install wifi --dry-run, then apply with root privileges and --yes before booting the installed system. Ubuntu live images prepare board data during creation. The optional --activate requires an initialised legacy ath12k radio on Surface Pro 11 X1E/OLED; split-driver reload is refused after an observed kernel crash. Do not retry failed activation; reboot with the data already present. Eligibility is independent of the kernel version."
     }
   ]
 }

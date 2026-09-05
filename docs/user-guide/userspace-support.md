@@ -81,26 +81,31 @@ OE board fixup. It preserves `board-2.bin`, backs up an existing `board.bin`,
 and records source and derived digests in a private receipt. Repeating the
 command with matching data leaves the file in place.
 
-On the running Surface Pro 11 X1E/OLED, explicitly include a Wi-Fi-only restart
-when reviewing and applying the plan. Eligibility depends on the detected
-hardware and loaded driver, with no kernel-version restriction:
+Prepare the board data before booting the installed system:
 
 ```sh
-lexr userspace install wifi --activate --dry-run
-sudo lexr userspace install wifi --activate --yes
-lexr doctor hardware wifi
+lexr userspace install wifi --dry-run
+sudo lexr userspace install wifi --yes
 ```
 
-Lexr recognises the legacy `ath12k_pci` driver and the split `ath12k_wifi7_pci`
-driver, and selects the corresponding reload module. Unknown layouts and
-built-in drivers cannot use this restart; omit `--activate` and reboot after
-installing the board data. Driver recognition does not establish complete
-hardware support for every kernel version.
+Reboot the installed system afterwards, then run `lexr doctor hardware wifi`.
+Ubuntu image creation now performs the same derivation before building the live
+and installed initramfs, so the radio can find its board data on its first probe.
+The distribution's `board-2.bin` retains priority, including any native SP11
+entry; the image also carries the selected calibration bytes as `board.bin`.
 
-The restart disconnects Wi-Fi but does not restart NetworkManager, the DSP or
-USB. Phone tethering can remain active. For a mounted installed root, use
-`--root /target` without `--activate`, then boot that system. Live-session
-changes are temporary and must be repeated after installation.
+The optional `--activate` restart is restricted to an initialised X1E/OLED radio
+using the legacy `ath12k_pci` driver. Reloading the split `ath12k_wifi7_pci`
+driver after missing board data caused an MHI/QMI kernel crash during SP11
+testing, so Lexr refuses that layout until reload is separately qualified.
+Eligibility depends on hardware and driver state, without a kernel-version
+allow-list. Unknown layouts, built-in modules and failed initial probes cannot
+be restarted. Do not retry a failed activation; save diagnostics and reboot.
+
+For a mounted installed root, use `--root /target` without `--activate`, then
+boot that system. A non-persistent live session loses its changes at reboot;
+use a rebuilt ISO with board data already included. No Wi-Fi setup command
+restarts NetworkManager, the DSP or USB.
 
 ### Released audio, IPTSD and camera support
 

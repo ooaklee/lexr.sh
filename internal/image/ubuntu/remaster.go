@@ -115,6 +115,7 @@ func BuildPlan(request Request) (plan.Plan, error) {
 		{ID: "stage-companion", Kind: "companion", Description: "Stage the optional Linux ARM64 CLI, corresponding source, catalogues, and eligible userspace releases", Inputs: map[string]string{"source": companionSource, "userspace": companionUserspace}},
 		{ID: "prepare-tools", Kind: "prepare", Description: "Prepare the isolated ARM64 image-tooling container", Inputs: map[string]string{"adapter": AdapterID}},
 		{ID: "extract-live-root", Kind: "extract", Description: "Validate and extract the Ubuntu Casper layered filesystems"},
+		{ID: "prepare-wifi", Kind: "firmware", Description: "Derive SP11 Wi-Fi board data from the source distribution before the first driver probe"},
 		{ID: "install-kernel", Kind: "kernel", Description: "Register the custom kernel and modules in the live and installed-system root", Inputs: map[string]string{"abi": request.Bundle.ABI}},
 		{ID: "assemble-initramfs-root", Kind: "filesystem", Description: "Apply the standard and live layers to a temporary initramfs build root"},
 		{ID: "build-initramfs", Kind: "initramfs", Description: "Generate an initramfs for the exact custom kernel ABI"},
@@ -297,6 +298,18 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 		return Result{}, err
 	}
 
+	logf(r.Out, "Preparing SP11 Wi-Fi board data before the first driver probe")
+	if err := rejectWiFiLayerOverrides(ctx, r.Docker, toolsImage, workspace); err != nil {
+		return Result{}, fmt.Errorf("validate layered Wi-Fi firmware: %w", err)
+	}
+	wifiDigest, err := prepareWiFiBoard(ctx, r.Docker, toolsImage, workspace, workVolume, "rootfs")
+	if err != nil {
+		return Result{}, err
+	}
+	if err := checkpoint("prepare-wifi", map[string]string{liveWiFiBoard: wifiDigest}); err != nil {
+		return Result{}, err
+	}
+
 	logf(r.Out, "Registering custom kernel %s in the live filesystem", request.Bundle.ABI)
 	if err := installKernelPackages(ctx, r.Docker, toolsImage, workspace, workVolume, request.Bundle); err != nil {
 		return Result{}, err
@@ -319,6 +332,13 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	logf(r.Out, "Assembling the layered Casper root used to generate the live initramfs")
 	if err := assembleInitramfsRoot(ctx, r.Docker, toolsImage, workspace, workVolume, request.Bundle.ABI); err != nil {
 		return Result{}, err
+	}
+	liveWiFiDigest, err := prepareWiFiBoard(ctx, r.Docker, toolsImage, workspace, workVolume, "initramfs-root")
+	if err != nil {
+		return Result{}, err
+	}
+	if liveWiFiDigest != wifiDigest {
+		return Result{}, errors.New("live and installed roots select different SP11 Wi-Fi board data")
 	}
 	if err := checkpoint("assemble-initramfs-root", nil); err != nil {
 		return Result{}, err
@@ -894,7 +914,7 @@ func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manife
 	if manifest.CompanionBundle.Included {
 		companionNote = "A Linux ARM64 Lexr companion, corresponding source, catalogues, and any declared offline userspace releases are under /sp11/companion. Copy the executable to a writable filesystem before running privileged install operations."
 	}
-	readme := fmt.Sprintf("Lexr Surface Pro 11 image\n\nCustom kernel ABI: %s\n\nSecure Boot must be disabled. The live entries allow DSP attachment for Type-C USB. Kernel packages are included under /sp11/kernel for installed-system setup. Wi-Fi board setup uses the distribution firmware through lexr userspace install wifi. Full audio requires the same-device platform firmware and userspace setup. Proprietary device firmware is not redistributed.\n\n%s\n", abi, companionNote)
+	readme := fmt.Sprintf("Lexr Surface Pro 11 image\n\nCustom kernel ABI: %s\n\nSecure Boot must be disabled. The live entries allow DSP attachment for Type-C USB. Kernel packages are included under /sp11/kernel for installed-system setup. Wi-Fi board data is derived from the source distribution before boot using the same native parser as lexr userspace install wifi. Full audio requires the same-device platform firmware and userspace setup. Proprietary device firmware is not redistributed.\n\n%s\n", abi, companionNote)
 	if err := os.WriteFile(filepath.Join(sp11, "README.txt"), []byte(readme), 0o644); err != nil {
 		return err
 	}

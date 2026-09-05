@@ -11,6 +11,36 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/cleanup"
 )
 
+// TestWiFiDoesNotRequireStandaloneRegdb models distribution firmware whose
+// regulatory records live inside board-2.bin, while retaining core file checks.
+func TestWiFiDoesNotRequireStandaloneRegdb(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "var/lib/dpkg/status", 0o644, "Package: linux-firmware\nStatus: install ok installed\nVersion: 1\nArchitecture: all\n\n")
+	for _, group := range wcn7850Firmware {
+		writeRequirement(t, root, group[0])
+	}
+	report, err := Inspect(Options{Root: root, Features: []Feature{FeatureWiFi}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if check := findCheck(t, report, "wifi-wcn7850-firmware"); check.State != StatePass {
+		t.Fatalf("core firmware incorrectly requires regdb.bin: %+v", check)
+	}
+	if check := findCheck(t, report, "wifi-regulatory-data"); check.State != StateSkip || !strings.Contains(check.Detail, "not proven") {
+		t.Fatalf("uninspected embedded regulatory data was misreported: %+v", check)
+	}
+	if err := os.Remove(filepath.Join(root, wcn7850Firmware[0][0].Path)); err != nil {
+		t.Fatal(err)
+	}
+	report, err = Inspect(Options{Root: root, Features: []Feature{FeatureWiFi}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if check := findCheck(t, report, "wifi-wcn7850-firmware"); check.State == StatePass {
+		t.Fatal("missing main firmware was accepted")
+	}
+}
+
 // TestLegacyAudioRemediationHasCleanupRules verifies every system conflict
 // reported with clean-up remediation is represented by that exact allow-list.
 func TestLegacyAudioRemediationHasCleanupRules(t *testing.T) {

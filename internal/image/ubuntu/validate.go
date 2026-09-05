@@ -294,7 +294,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 
 	moduleProbe := "usr/lib/modules/" + manifest.KernelBundle.ABI + "/modules.dep"
 	moduleErr := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
-		"unsquashfs", "-no-xattrs", "-no-progress", "-d", "/work/module-probe", "/work/minimal.squashfs", moduleProbe)
+		"unsquashfs", "-no-xattrs", "-no-progress", "-d", "/work/module-probe", "/work/minimal.squashfs", moduleProbe, "usr/lib/firmware/"+liveWiFiBoard)
 	moduleValidationErr := validateExtractedRegularFiles(filepath.Join(workspace, "module-probe"), []string{moduleProbe})
 	modulePassed := moduleErr == nil && moduleValidationErr == nil
 	moduleDetails := moduleProbe
@@ -304,6 +304,18 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		moduleDetails = moduleValidationErr.Error()
 	}
 	addCheck("live-root-kernel-modules", modulePassed, moduleDetails)
+	wifiErr := moduleErr
+	if wifiErr == nil {
+		wifiErr = unpackErr
+	}
+	if wifiErr == nil {
+		wifiErr = validateWiFiBoardData(unpackedInitrd, filepath.Join(workspace, "module-probe"))
+	}
+	wifiDetails := "matching SP11 Wi-Fi board data is present in the initramfs and deployable root before driver probing"
+	if wifiErr != nil {
+		wifiDetails = wifiErr.Error()
+	}
+	addCheck("live-wifi-board-data", wifiErr == nil, wifiDetails)
 	report.Checks = append(report.Checks, v.validateInstalledSystemSupport(ctx, toolsImage, workspace, manifest)...)
 
 	for _, dtb := range []string{"x1e.dtb", "x1p.dtb"} {
@@ -404,6 +416,7 @@ func validateInstalledInitramfsListing(listing, longListing, abi string) error {
 		alternatives []string
 	}{
 		{label: "init", alternatives: []string{"init"}},
+		{label: "SP11 Wi-Fi board", alternatives: []string{"usr/lib/firmware/" + liveWiFiBoard}},
 		{label: "shell", alternatives: []string{"usr/bin/sh", "bin/sh", "usr/bin/bash", "bin/bash"}},
 		{label: "mount", alternatives: []string{"usr/bin/mount", "bin/mount"}},
 		{label: "modprobe", alternatives: []string{"usr/sbin/modprobe", "sbin/modprobe"}},

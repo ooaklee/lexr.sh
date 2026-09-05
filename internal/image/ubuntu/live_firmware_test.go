@@ -106,6 +106,8 @@ func TestLiveFirmwareHookIntegration(t *testing.T) {
 	const script = `
 /work/hook prereqs
 mkdir -p /lib/firmware/qcom
+mkdir -p /lib/firmware/ath12k/WCN7850/hw2.0
+printf 'board test firmware' > /lib/firmware/ath12k/WCN7850/hw2.0/board.bin
 printf 'GMU test firmware' | zstd -q -o /lib/firmware/qcom/gen70500_gmu.bin.zst
 printf 'SQE test firmware' | xz > /lib/firmware/qcom/gen70500_sqe.fw.xz
 export version=fixture-abi verbose=n DESTDIR=/work/result/main
@@ -114,6 +116,7 @@ ln -s usr/lib "$DESTDIR/lib"
 /work/hook
 cmp /lib/firmware/qcom/gen70500_gmu.bin.zst "$DESTDIR/usr/lib/firmware/qcom/gen70500_gmu.bin.zst"
 cmp /lib/firmware/qcom/gen70500_sqe.fw.xz "$DESTDIR/usr/lib/firmware/qcom/gen70500_sqe.fw.xz"
+cmp /lib/firmware/ath12k/WCN7850/hw2.0/board.bin "$DESTDIR/usr/lib/firmware/ath12k/WCN7850/hw2.0/board.bin"
 rm /lib/firmware/qcom/gen70500_gmu.bin.zst
 export DESTDIR=/work/missing
 mkdir -p "$DESTDIR/usr/lib"

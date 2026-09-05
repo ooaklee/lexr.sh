@@ -581,6 +581,7 @@ func (installer *Installer) runActivationCommands(ctx context.Context, commands 
 		err := installer.runner.Run(commandContext, platform.Command{
 			Name: command.Name, Args: append([]string(nil), command.Args...), Stdout: io.Writer(output), Stderr: io.Writer(output),
 		})
+		contextErr := commandContext.Err()
 		cancel()
 		if err == nil {
 			continue
@@ -588,6 +589,9 @@ func (installer *Installer) runActivationCommands(ctx context.Context, commands 
 		detail := output.String()
 		if detail == "" {
 			detail = err.Error()
+		}
+		if contextErr != nil {
+			detail = fmt.Sprintf("%v: %s", contextErr, detail)
 		}
 		activationErr = errors.Join(activationErr, fmt.Errorf("%s %s: %s", command.Name, strings.Join(command.Args, " "), detail))
 	}

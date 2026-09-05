@@ -328,6 +328,7 @@ if ! DRACUT_INSTALL=/usr/lib/dracut/dracut-install \
 	/usr/bin/dracut \
 		--kmoddir "$module_directory" \
 		--fwdir "$tool_firmware_directory" \
+		--install "$tool_firmware_directory/ath12k/WCN7850/hw2.0/board.bin" \
 		--conf /dev/null \
 		--confdir "$configuration" \
 		--no-hostonly \
@@ -366,6 +367,7 @@ require_any_member() {
 	exit 65
 }
 require_member init
+require_member "usr/lib/firmware/ath12k/WCN7850/hw2.0/board.bin"
 require_member "usr/lib/modules/$abi/modules.dep"
 require_any_member shell usr/bin/sh bin/sh usr/bin/bash bin/bash
 require_any_member mount usr/bin/mount bin/mount

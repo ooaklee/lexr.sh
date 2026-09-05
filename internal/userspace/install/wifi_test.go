@@ -51,6 +51,7 @@ func prepareWiFiActivationSysfs(t *testing.T, driver, module string) string {
 	files := map[string]string{
 		"firmware/devicetree/base/compatible": "microsoft,denali-oled\x00microsoft,denali\x00",
 		"module/" + module + "/initstate":     "live\n",
+		"module/" + module + "/refcnt":        "0\n",
 	}
 	for name, data := range files {
 		path := filepath.Join(root, name)
@@ -62,6 +63,9 @@ func prepareWiFiActivationSysfs(t *testing.T, driver, module string) string {
 		}
 	}
 	writeWiFiActivationPCI(t, root, "0004:01:00.0", "0x1107", driver)
+	if err := os.MkdirAll(filepath.Join(root, "bus/pci/devices/0004:01:00.0/ieee80211/phy0"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	driverPath := filepath.Join(root, "bus/pci/drivers", driver)
 	if err := os.MkdirAll(driverPath, 0o755); err != nil {
 		t.Fatal(err)
@@ -89,8 +93,8 @@ func writeWiFiActivationPCI(t *testing.T, root, address, product, driver string)
 	}
 }
 
-// TestWiFiActivationRecognisesDriverGenerations selects the reloadable family
-// independently of an ABI label, including shared-core PCI registration.
+// TestWiFiActivationRecognisesDriverGenerations admits the legacy layout but
+// rejects the split driver whose reload caused an MHI/QMI kernel Oops on SP11.
 func TestWiFiActivationRecognisesDriverGenerations(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct{ driver, module string }{
@@ -100,6 +104,12 @@ func TestWiFiActivationRecognisesDriverGenerations(t *testing.T) {
 		t.Run(test.driver, func(t *testing.T) {
 			root := prepareWiFiActivationSysfs(t, test.driver, test.module)
 			commands, err := planWiFiActivationFromSysfs(root)
+			if test.driver == "ath12k_wifi7_pci" {
+				if err == nil || !strings.Contains(err.Error(), "crashed the kernel") || len(commands) != 0 {
+					t.Fatalf("unsafe split driver reload accepted: %v %v", commands, err)
+				}
+				return
+			}
 			want := []Command{{Name: "/usr/sbin/modprobe", Args: []string{"-r", test.module}}, {Name: "/usr/sbin/modprobe", Args: []string{test.module}}}
 			if err != nil || !reflect.DeepEqual(commands, want) {
 				t.Fatalf("commands=%v error=%v", commands, err)
@@ -112,21 +122,25 @@ func TestWiFiActivationRecognisesDriverGenerations(t *testing.T) {
 // selection confined to one recognised, loaded radio on the qualified model.
 func TestWiFiActivationRejectsUnsupportedRuntimeState(t *testing.T) {
 	t.Parallel()
-	for _, name := range []string{"unknown-driver", "unbound", "built-in", "module-loading", "wrong-model", "multiple-radios", "shared-driver"} {
+	for _, name := range []string{"unknown-driver", "unbound", "built-in", "module-loading", "wrong-model", "multiple-radios", "shared-driver", "negative-refcount", "failed-probe"} {
 		t.Run(name, func(t *testing.T) {
-			driver := "ath12k_wifi7_pci"
+			driver := "ath12k_pci"
 			if name == "unknown-driver" {
 				driver = "unknown_wifi"
 			}
-			root := prepareWiFiActivationSysfs(t, driver, "ath12k_wifi7")
+			root := prepareWiFiActivationSysfs(t, driver, "ath12k")
 			var err error
 			switch name {
 			case "unbound":
 				err = os.Remove(filepath.Join(root, "bus/pci/devices/0004:01:00.0/driver"))
 			case "built-in":
-				err = os.Remove(filepath.Join(root, "module/ath12k_wifi7/initstate"))
+				err = os.Remove(filepath.Join(root, "module/ath12k/initstate"))
 			case "module-loading":
-				err = os.WriteFile(filepath.Join(root, "module/ath12k_wifi7/initstate"), []byte("coming\n"), 0o644)
+				err = os.WriteFile(filepath.Join(root, "module/ath12k/initstate"), []byte("coming\n"), 0o644)
+			case "negative-refcount":
+				err = os.WriteFile(filepath.Join(root, "module/ath12k/refcnt"), []byte("-1\n"), 0o644)
+			case "failed-probe":
+				err = os.Remove(filepath.Join(root, "bus/pci/devices/0004:01:00.0/ieee80211/phy0"))
 			case "wrong-model":
 				err = os.WriteFile(filepath.Join(root, "firmware/devicetree/base/compatible"), []byte("microsoft,denali\x00"), 0o644)
 			case "multiple-radios":
@@ -350,7 +364,7 @@ func TestWiFiCompressedInputAndActivationFailure(t *testing.T) {
 	if err == nil || !result.FilesInstalled || result.ActivationComplete || result.ActivationError == "" {
 		t.Fatalf("result=%+v error=%v", result, err)
 	}
-	if len(runner.commands) != 3 {
+	if len(runner.commands) != 2 || !reflect.DeepEqual(runner.commands[1].Args, []string{"-r", "ath12k_wifi7"}) {
 		t.Fatalf("commands=%v", runner.commands)
 	}
 	for _, command := range runner.commands {

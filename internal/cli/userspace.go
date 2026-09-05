@@ -391,15 +391,17 @@ func makeUserspaceInstallReport(results []userspaceinstall.Result, dryRun bool) 
 	report := userspaceInstallReport{Results: results}
 	if dryRun {
 		report.NextSteps = append(report.NextSteps,
-			"Review the verified plan, then rerun without --dry-run and pass --yes to install.")
+			"Review the verified plan, then rerun with sudo, without --dry-run, and pass --yes to install.")
 		return report
 	}
 	for _, result := range results {
 		if result.Component == userspacemanager.WiFiComponent {
 			if result.ActivationComplete {
 				report.NextSteps = append(report.NextSteps, "Wi-Fi driver restarted. Connect using Settings, then run lexr doctor hardware wifi.")
-			} else {
-				report.NextSteps = append(report.NextSteps, "On the running Surface Pro 11 X1E/OLED with a recognised, loaded ath12k driver, rerun userspace install wifi --activate --yes to restart Wi-Fi; for a mounted target or a built-in driver, boot that system first.")
+			} else if result.ActivationError != "" {
+				report.NextSteps = append(report.NextSteps, "Board data is installed, but Wi-Fi activation failed. Do not repeat the restart; save diagnostics and reboot. A non-persistent live session needs a rebuilt ISO with board data prepared before boot.")
+			} else if result.FilesInstalled {
+				report.NextSteps = append(report.NextSteps, "Boot the installed system with the prepared board data. Non-persistent live-session changes disappear at reboot; use a rebuilt ISO with Wi-Fi board data included before boot.")
 			}
 			continue
 		}
