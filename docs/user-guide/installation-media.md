@@ -8,8 +8,11 @@ creation to a verified USB write and the physical test which must follow.
 
 > [!CAUTION]
 > Both implemented adapters remain experimental. `implemented` means Lexr can
-> create and structurally validate their output; it does not mean that the image
-> has completed a physical boot or installation. A Fedora 44 candidate passed
+> create and structurally validate their output; physical boot and installation
+> need separate evidence. The Ubuntu candidate built
+> with Lexr `384f2c0` and v23 reached the X1E/OLED live desktop; the tester
+> confirmed Wi-Fi connected without a live-session repair. Installation and
+> remaining hardware checks still need qualification. A Fedora 44 candidate passed
 > structural validation and USB read-back, but a Surface Pro 11 boot reached the
 > emergency path. Removing `quiet` exposed early text before the display remained
 > black for hours. Reproduction and diagnosis continue in
@@ -31,13 +34,22 @@ described here.
 - The shortest command selects `ubuntu-concept-resolute-x1e` and the latest candidate kernel release. Those packages become trusted only after their publisher checksums and measured contents pass verification.
 - Fedora Workstation Live 44 must be selected explicitly and requires a patch-line-qualified verified Surface kernel bundle: 7.2.0/sp11v19+ or 7.2.2/sp11v1+. Its custom live and installed-system path is limited to X1E/OLED; X1P/LCD has a stock-kernel live troubleshooting entry only and must not be installed from this adapter.
 - Structural validation is a publication gate, not a substitute for booting the media on a Surface Pro 11. Disable Secure Boot before using the unsigned custom kernel, and treat an actual device boot as the final compatibility gate.
-- Every current catalogue entry still needs complete end-to-end testing, especially to confirm its image structure and bootability. The implemented entries remain runnable so contributors can reproduce and improve them.
+- Every current catalogue entry still needs complete end-to-end testing. Ubuntu's tested X1E/OLED live desktop and Wi-Fi result does not qualify installation, other models or other kernel versions. The implemented entries remain runnable so contributors can reproduce and improve them.
 - The pre-write router accepts only the implemented Lexr Ubuntu Casper and Fedora Live outputs after their adapter-owned structural validators pass. Compressed raw disk images use a different partition and boot model and need a separate adapter.
 - USB planning is read-only. The real write requires elevated privilege and the exact confirmation generated for the current source and device.
 
 ## 1. Choose, create and validate an image
 
 ### Ubuntu Concept
+
+Physical testing on 2026-09-05 used the dated 2026-03-26 source, Lexr
+`384f2c0`, and kernel `7.2.0-jg-0sp11v23-qcom-x1e`. After a complete Lexr USB
+write and matching SHA-256 read-back, the tester reached the Surface Pro 11
+X1E/OLED live desktop and connected to Wi-Fi without repairing the live
+session. Board data was prepared from the source distribution before the
+first driver probe. See [issue #41](https://github.com/ooaklee/lexr.sh/issues/41)
+for live-boot evidence; installation, installed-system boot and the full
+peripheral matrix remain under [issue #16](https://github.com/ooaklee/lexr.sh/issues/16).
 
 Run the host checks, create the image, and validate the completed output:
 

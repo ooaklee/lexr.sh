@@ -49,7 +49,11 @@ That guide separately covers Fedora Workstation Live 44, which must be selected
 explicitly and paired with a patch-line-qualified verified kernel bundle. The
 accepted floors are 7.2.0/sp11v19 and 7.2.2/sp11v1. Both catalogue entries are
 `implemented` because their adapters run, and `experimental` because structural
-validation does not yet establish physical bootability. The known Fedora
+validation alone does not establish full hardware support. The Ubuntu candidate
+built with Lexr `384f2c0` and v23 reached the X1E/OLED live desktop with Wi-Fi
+working without a live-session repair
+([live-boot evidence](https://github.com/ooaklee/lexr.sh/issues/41)); installation
+and remaining hardware checks still need qualification. The known Fedora
 candidate reached an emergency boot path and then a persistent black screen on
 Surface Pro 11. Follow [the Ubuntu qualification](https://github.com/ooaklee/lexr.sh/issues/16)
 or [the Fedora boot investigation](https://github.com/ooaklee/lexr.sh/issues/17)

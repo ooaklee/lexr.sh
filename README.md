@@ -50,7 +50,11 @@ entry is a stock-kernel, explicit-DTB live troubleshooting path only. Debian,
 elementary OS, Pop!_OS, and Fedora's compressed raw disk image remain
 `catalog-only` until their layouts have dedicated adapters. Here, `implemented`
 means the adapter can create and structurally validate media; `experimental`
-means boot and installation remain unqualified. The current Fedora candidate
+means complete end-to-end qualification is still pending. Ubuntu Concept
+remastered with Lexr `384f2c0` and v23 reached the Surface Pro 11 X1E/OLED live
+desktop with Wi-Fi working without a live-session repair
+([issue #41](https://github.com/ooaklee/lexr.sh/issues/41)). Installation and
+remaining hardware checks still need qualification. The current Fedora candidate
 passed structural validation and USB read-back, but a physical Surface Pro 11
 test reached the emergency boot path and then a persistent black screen. That
 failure is tracked in [issue #17](https://github.com/ooaklee/lexr.sh/issues/17),
