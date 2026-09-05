@@ -50,6 +50,16 @@ that do not apply.
 
 ---
 
+## [0.3.1] - Unreleased
+
+### Fixed
+
+- Include Ubuntu's existing X1E GPU GMU and SQE firmware in the live
+  initramfs when custom-kernel metadata does not declare it, and reject
+  images missing those early-boot files during validation. Physical Ubuntu
+  live-boot qualification remains tracked in
+  [#41](https://github.com/ooaklee/lexr.sh/issues/41).
+
 ## [0.3.0] - 2026-09-05
 
 ### Added

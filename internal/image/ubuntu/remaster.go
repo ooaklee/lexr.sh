@@ -321,6 +321,9 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	}
 
 	logf(r.Out, "Generating initramfs for %s", request.Bundle.ABI)
+	if err := installLiveFirmwareHook(ctx, r.Docker, toolsImage, workspace, workVolume); err != nil {
+		return Result{}, err
+	}
 	if err := r.Docker.RunInWorkspaceVolume(ctx, toolsImage, workspace, workVolume,
 		"chroot", "/linux-work/initramfs-root", "mkinitramfs", "-o", "/boot/initrd.img-"+request.Bundle.ABI, request.Bundle.ABI); err != nil {
 		return Result{}, fmt.Errorf("generate custom initramfs: %w", err)

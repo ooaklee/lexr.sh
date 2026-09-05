@@ -244,6 +244,15 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 	unpackedInitrd := filepath.Join(workspace, "initrd-unpacked")
 	unpackErr := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
 		"unmkinitramfs", "/work/initrd", "/work/initrd-unpacked")
+	firmwareErr := unpackErr
+	if firmwareErr == nil {
+		firmwareErr = validateLiveGPUFirmware(unpackedInitrd, manifest.KernelBundle.ABI)
+	}
+	firmwareDetails := "X1E GPU GMU and SQE firmware are present before the live root is mounted"
+	if firmwareErr != nil {
+		firmwareDetails = firmwareErr.Error()
+	}
+	addCheck("live-gpu-firmware", firmwareErr == nil, firmwareDetails)
 	initrdIdentityRelative := path.Join("main", caspermedia.InitramfsIdentityPath)
 	initrdIdentity, identityReadErr := readBoundedExtractedFile(unpackedInitrd, initrdIdentityRelative, maximumValidationTextBytes)
 	mediaContract, identityErr := caspermedia.Matches(markerBytes, initrdIdentity)

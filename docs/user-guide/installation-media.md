@@ -157,6 +157,15 @@ minimal installation path carries that same kernel contract. The optional
 full-desktop upper layer has its own package database and is not yet proven to
 preserve the hand-off.
 
+The live initramfs also includes the distribution's X1E Adreno GMU and SQE
+firmware. The custom GPU driver can request these files before Casper mounts
+the live filesystem, even when its module metadata does not list them.
+Creation fails if the source lacks either file, and validation checks their
+non-empty contents across the initramfs archives. This does not supply the
+private Denali firmware handled by the [Windows hand-off](windows-handoff.md),
+or establish hardware bootability. Ubuntu live-boot qualification remains
+tracked in [issue #41](https://github.com/ooaklee/lexr.sh/issues/41).
+
 ### Fedora path
 
 The Fedora adapter extracts the LZMA-compressed EROFS root at
