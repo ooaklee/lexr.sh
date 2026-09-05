@@ -32,9 +32,10 @@ confirmation and a full read-back, and audits the support present after boot.
 Where Lexr can make a change, it favours dry runs, exact checksums and recovery
 receipts so you can see what will happen first.
 
-Lexr does **not** publish a ready-made Linux image or redistribute restricted
-firmware. It starts from a supported upstream image and either downloads a
-verified project kernel release or accepts a local bundle.
+Lexr creates images from a supported upstream image and either downloads a
+verified project kernel release or accepts a local bundle. It does not
+redistribute restricted firmware. You can also use
+[prebuilt Linux images](#create-your-first-image) prepared with Lexr.
 
 > [!WARNING]
 > The generated media and its custom kernel are experimental. Back up important
@@ -123,7 +124,15 @@ containing repository.
 
 ## Create your first image
 
-For the shortest experimental Ubuntu image workflow you need Docker with a running daemon
+You can start with a prebuilt Linux image from the OE repository:
+[Ubuntu Concept 26.04 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-ubuntu-concept-26.04-v23-20260905).
+This experimental ARM64 image includes Lexr, prepared Wi-Fi board data, the
+IPTSD bundle and a desktop getting-started guide. Follow the release notes for
+the tested hardware and remaining limitations, the required Lexr version,
+downloading and reconstructing the split ISO, checksum verification, and
+writing it to USB with Lexr.
+
+To create your own experimental Ubuntu image, you need Docker with a running daemon
 and Linux ARM64 container support, at least 24 GiB of free workspace storage,
 and network access for any downloads. Start with the non-destructive readiness
 check:
