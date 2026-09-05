@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -586,6 +587,11 @@ func (installer *Installer) runActivationCommands(ctx context.Context, commands 
 		if err == nil {
 			continue
 		}
+		if contextErr == nil && command.Name == "/usr/bin/systemctl" &&
+			slices.Equal(command.Args, []string{"disable", "--now", "g6-pen.service"}) &&
+			installer.legacyPenServiceAbsent(ctx, timeout) {
+			continue
+		}
 		detail := output.String()
 		if detail == "" {
 			detail = err.Error()
@@ -596,6 +602,34 @@ func (installer *Installer) runActivationCommands(ctx context.Context, commands 
 		activationErr = errors.Join(activationErr, fmt.Errorf("%s %s: %s", command.Name, strings.Join(command.Args, " "), detail))
 	}
 	return activationErr
+}
+
+// legacyPenServiceAbsent accepts a failed legacy cleanup only when systemd
+// independently confirms that no installed or active unit remains. Inspection
+// failures preserve the original activation error, without parsing translated
+// error messages or suppressing failures from any other command.
+func (installer *Installer) legacyPenServiceAbsent(ctx context.Context, timeout time.Duration) bool {
+	commandContext, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	stdout, stderr := &boundedActivationOutput{}, &boundedActivationOutput{}
+	err := installer.runner.Run(commandContext, platform.Command{
+		Name:   "/usr/bin/systemctl",
+		Args:   []string{"show", "--all", "--property=LoadState", "--property=ActiveState", "--property=UnitFileState", "--", "g6-pen.service"},
+		Stdout: stdout, Stderr: stderr,
+	})
+	if err != nil || commandContext.Err() != nil || stdout.buffer.Len() >= maximumActivationOutput {
+		return false
+	}
+	want := map[string]string{"LoadState": "not-found", "ActiveState": "inactive", "UnitFileState": ""}
+	for _, line := range strings.Split(stdout.String(), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		expected, known := want[key]
+		if !ok || !known || value != expected {
+			return false
+		}
+		delete(want, key)
+	}
+	return len(want) == 0
 }
 
 // cloneInstallCommands prevents result consumers from mutating compiled policy.

@@ -65,6 +65,13 @@ that do not apply.
 
 ### Fixed
 
+- Treat absent, inactive `g6-pen.service` as completed legacy cleanup during
+  IPTSD activation after checking systemd's unit state. Fresh Ubuntu live
+  sessions no longer report incomplete activation merely because the obsolete
+  service is missing; failures involving an existing unit remain errors.
+  Pen and touchscreen input were confirmed on X1E/OLED v23 after installing
+  the included IPTSD bundle with the on-USB Lexr
+  ([#41](https://github.com/ooaklee/lexr.sh/issues/41)).
 - Prepare SP11 Wi-Fi board data from the source distribution before live boot,
   include matching data in the deployable root and live initramfs, and reject
   conflicting upper firmware layers. Stop Wi-Fi activation after its first

@@ -49,6 +49,11 @@ An alternate or mounted target root must be trusted and quiescent while it is in
 
 The recommended set deliberately contains the supported audio release and pinned `iptsd` integration. The camera package set is experimental and remains an explicit opt-in. Restricted platform firmware is never downloaded by `lexr`; acquire it from an authorised source and use the status report to verify its presence.
 
+IPTSD activation retires the legacy `g6-pen.service` when present. If its
+cleanup command fails, Lexr checks systemd's unit state: an absent, inactive
+unit with no unit-file state is already clean. An existing unit, failed or
+incomplete inspection, or timeout still produces an activation error.
+
 ```sh
 lexr userspace pull recommended
 lexr userspace pull camera

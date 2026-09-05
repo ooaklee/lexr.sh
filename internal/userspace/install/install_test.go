@@ -902,7 +902,7 @@ func TestIPTSDActivationFailurePreservesInstalledState(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "files are installed") {
 		t.Fatalf("result=%+v error=%v", result, err)
 	}
-	if !result.FilesInstalled || result.ActivationComplete || result.ActivationError == "" || len(runner.commands) != len(iptsdActivationCommands) {
+	if !result.FilesInstalled || result.ActivationComplete || result.ActivationError == "" || len(runner.commands) != len(iptsdActivationCommands)+1 {
 		t.Fatalf("incomplete activation state = %+v, commands=%+v", result, runner.commands)
 	}
 	for _, command := range runner.commands {

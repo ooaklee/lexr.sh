@@ -51,6 +51,12 @@ first driver probe. See [issue #41](https://github.com/ooaklee/lexr.sh/issues/41
 for live-boot evidence; installation, installed-system boot and the full
 peripheral matrix remain under [issue #16](https://github.com/ooaklee/lexr.sh/issues/16).
 
+The tester also confirmed the installer welcome screen and working pen and
+touchscreen input after using the bundled Lexr to install `sp11-iptsd-v2`
+from the USB companion. This confirms the desktop guide's IPTSD workflow;
+pressure, palm rejection and suspend/resume need separate testing. Audio
+configuration and validation remain part of the installed-system workflow.
+
 Run the host checks, create the image, and validate the completed output:
 
 ```sh
