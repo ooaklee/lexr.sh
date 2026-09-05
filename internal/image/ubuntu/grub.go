@@ -9,7 +9,9 @@ import (
 // liveKernelArguments are required by the explicitly selected Surface profiles.
 // Keep them on each linux command: firmware detection and GRUB environment
 // variables must not decide whether clocks and power domains survive live boot.
-const liveKernelArguments = "boot=casper clk_ignore_unused pd_ignore_unused arm64.nopauth systemd.tpm2_wait=0 modprobe.blacklist=qcom_q6v5_pas"
+// The DSP driver must remain available: v23 can attach to UEFI-started ADSP
+// firmware, which supplies the Type-C notifications needed by USB live media.
+const liveKernelArguments = "boot=casper clk_ignore_unused pd_ignore_unused arm64.nopauth systemd.tpm2_wait=0"
 
 // grubConfig renders the direct-GRUB menu for both supported Surface Pro 11
 // device-tree variants while binding every entry to the supplied kernel ABI.
@@ -87,6 +89,17 @@ func validateLiveKernelArguments(config string) error {
 		for _, argument := range strings.Fields(liveKernelArguments) {
 			if !slices.Contains(fields[2:], argument) {
 				return fmt.Errorf("live kernel command is missing explicit %s", argument)
+			}
+		}
+		for _, argument := range fields[2:] {
+			name, value, _ := strings.Cut(argument, "=")
+			switch name {
+			case "modprobe.blacklist", "module_blacklist", "blacklist", "rd.driver.blacklist":
+				for _, module := range strings.Split(value, ",") {
+					if strings.ReplaceAll(module, "-", "_") == "qcom_q6v5_pas" {
+						return fmt.Errorf("live kernel command blocks the DSP driver required for Type-C USB: %s", argument)
+					}
+				}
 			}
 		}
 	}

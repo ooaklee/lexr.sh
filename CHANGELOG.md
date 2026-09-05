@@ -54,6 +54,11 @@ that do not apply.
 
 ### Fixed
 
+- Allow the Ubuntu live session to load the DSP driver needed for Type-C USB.
+  Removing the old blacklist restores live desktop boot on Surface Pro 11
+  X1E/OLED with the v23 kernel. Validation rejects menus that restore the
+  blacklist; installer, Wi-Fi, and audio qualification remains in
+  [#41](https://github.com/ooaklee/lexr.sh/issues/41).
 - Pass Surface live-boot parameters directly on every Ubuntu kernel command
   so missing firmware detection cannot disable required clock and power-domain
   protection. Validate the arguments on each entry, including text diagnostics

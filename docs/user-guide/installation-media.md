@@ -157,10 +157,17 @@ minimal installation path carries that same kernel contract. The optional
 full-desktop upper layer has its own package database and is not yet proven to
 preserve the hand-off.
 
-Every Surface live entry passes the Casper, clock, power-domain, and USB
-protection parameters directly to the kernel. These model-specific entries
+Every Surface live entry passes the Casper, clock, and power-domain
+parameters directly to the kernel. These model-specific entries
 do not depend on a firmware processor-name match. Validation rejects a menu
 that places the required arguments only in a variable or a comment.
+
+Ubuntu leaves `qcom_q6v5_pas` available for Type-C USB. With v23, the driver
+can attach to the ADSP firmware already started by UEFI when the full Denali
+firmware is absent. Blacklisting this driver prevented USB media discovery
+on the tested X1E/OLED Surface; removing it restored the live desktop.
+Validation rejects that blacklist on Ubuntu live entries. X1P/LCD remains
+unqualified, and desktop boot alone does not validate the installer.
 
 The live initramfs also includes the distribution's X1E Adreno GMU and SQE
 firmware. The custom GPU driver can request these files before Casper mounts
@@ -195,13 +202,20 @@ identities together with the boot records, kernel, initramfs, module tree,
 device trees, package ownership, manifests, and EFI locations before the
 manifest and journal are published and the ISO becomes the final commit marker.
 
-Both live and installed boot policies include
-`soundwire_qcom.sp11_feedback_active_offset2_zero=1` for the validated FullIO
-audio behaviour. Live-USB entries additionally blacklist `qcom_q6v5_pas`
-because starting the DSP can disrupt a USB-backed live root; installed systems
-must not retain that live-only blacklist. A directly written hybrid ISO does
-not use `iso-scan/filename`, which belongs to a labelled outer-disk loopback
-workflow.
+The Fedora live policy still blacklists `qcom_q6v5_pas`; its hardware
+qualification is separate from the Ubuntu fix above. Installed systems must
+not retain a live-only DSP blacklist. Ubuntu omits the retired
+`soundwire_qcom.sp11_feedback_active_offset2_zero=1` parameter.
+A directly written hybrid ISO does not use `iso-scan/filename`, which belongs
+to a labelled outer-disk loopback workflow.
+
+The custom kernel does not replace device firmware or audio userspace.
+The distributable ISO carries no private Denali firmware or restricted FullIO
+audio payload. Wi-Fi and full audio therefore need the
+[same-device Windows hand-off](windows-handoff.md) and
+[userspace setup](userspace-support.md). Importing full ADSP firmware can
+restart the DSP and disconnect Type-C USB; perform that hand-off on the
+installed system rather than while its live root depends on USB.
 
 The mutable live filesystem remains inside a named Linux Docker volume during
 the build, preserving ownership, device nodes, case-sensitive paths, SELinux

@@ -300,7 +300,6 @@ func TestGrubConfigPairsDeviceTreesWithBootEntries(t *testing.T) {
 		"Ubuntu for Surface Pro 11 X1P/LCD (test-abi, hardware qualification pending)",
 		"devicetree /sp11/dtb/x1e80100-microsoft-denali-oled.dtb",
 		"devicetree /sp11/dtb/x1p64100-microsoft-denali.dtb",
-		"modprobe.blacklist=qcom_q6v5_pas",
 		"insmod part_gpt",
 		"insmod iso9660",
 		"insmod search_fs_file",
@@ -315,14 +314,8 @@ func TestGrubConfigPairsDeviceTreesWithBootEntries(t *testing.T) {
 	if strings.Contains(config, "sp11_feedback_active_offset2_zero") {
 		t.Fatal("grubConfig() retains the removed SoundWire compatibility parameter")
 	}
-	if strings.Contains(config, "allow aDSP") {
-		t.Fatal("grubConfig() exposes the unsafe live-USB aDSP entry")
-	}
-	for _, line := range strings.Split(config, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "linux /casper/vmlinuz") && !strings.Contains(line, "modprobe.blacklist=qcom_q6v5_pas") {
-			t.Errorf("live kernel line does not protect USB media from aDSP reset: %q", line)
-		}
+	if err := validateLiveKernelArguments(config); err != nil {
+		t.Fatal(err)
 	}
 }
 

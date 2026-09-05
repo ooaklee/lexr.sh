@@ -834,11 +834,8 @@ func buildEmbeddedManifest(
 		},
 		MediaDiscovery:  mediaDiscovery,
 		CompanionBundle: companionRecord,
-		BootArguments: []string{
-			"clk_ignore_unused", "pd_ignore_unused", "arm64.nopauth", "systemd.tpm2_wait=0",
-			"modprobe.blacklist=qcom_q6v5_pas",
-		},
-		SecureBoot: "unsupported; disable Secure Boot for the unsigned custom kernel and direct GRUB",
+		BootArguments:   strings.Fields(liveKernelArguments),
+		SecureBoot:      "unsupported; disable Secure Boot for the unsigned custom kernel and direct GRUB",
 	}, nil
 }
 
@@ -889,7 +886,7 @@ func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manife
 	if manifest.CompanionBundle.Included {
 		companionNote = "A Linux ARM64 Lexr companion, corresponding source, catalogues, and any declared offline userspace releases are under /sp11/companion. Copy the executable to a writable filesystem before running privileged install operations."
 	}
-	readme := fmt.Sprintf("Lexr Surface Pro 11 image\n\nCustom kernel ABI: %s\n\nSecure Boot must be disabled. The USB-safe menu entries temporarily blacklist qcom_q6v5_pas so USB storage remains available in the live session. Kernel packages are included under /sp11/kernel for installed-system setup. Proprietary device firmware is not redistributed.\n\n%s\n", abi, companionNote)
+	readme := fmt.Sprintf("Lexr Surface Pro 11 image\n\nCustom kernel ABI: %s\n\nSecure Boot must be disabled. The live entries allow DSP attachment for Type-C USB. Kernel packages are included under /sp11/kernel for installed-system setup. Proprietary device firmware is not redistributed; Wi-Fi and full audio require the same-device firmware and userspace setup.\n\n%s\n", abi, companionNote)
 	if err := os.WriteFile(filepath.Join(sp11, "README.txt"), []byte(readme), 0o644); err != nil {
 		return err
 	}

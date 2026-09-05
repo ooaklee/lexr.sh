@@ -60,3 +60,28 @@ func TestLiveKernelArgumentsRejectNonLiteralMenus(t *testing.T) {
 		}
 	}
 }
+
+// TestLiveKernelArgumentsRejectDSPBlacklists reproduces the boot-blocking
+// candidate menu, including comma lists and equivalent module-name spelling.
+func TestLiveKernelArgumentsRejectDSPBlacklists(t *testing.T) {
+	for _, argument := range []string{
+		"modprobe.blacklist=qcom_q6v5_pas",
+		"modprobe.blacklist=other,qcom-q6v5-pas",
+		"module_blacklist=qcom_q6v5_pas,other",
+		"blacklist=qcom_q6v5_pas",
+		"rd.driver.blacklist=qcom_q6v5_pas",
+	} {
+		config := strings.Replace(grubConfig(installedTestABI), " --- ", " "+argument+" --- ", 1)
+		if err := validateLiveKernelArguments(config); err == nil || !strings.Contains(err.Error(), "DSP") {
+			t.Fatalf("blocking argument %q error = %v", argument, err)
+		}
+	}
+	config := grubConfig(installedTestABI)
+	if strings.Contains(config, "blacklist") {
+		t.Fatal("generated live menu retains a driver blacklist")
+	}
+	config = strings.Replace(config, " --- ", " modprobe.blacklist=unrelated --- ", 1)
+	if err := validateLiveKernelArguments(config); err != nil {
+		t.Fatalf("unrelated blacklist rejected: %v", err)
+	}
+}

@@ -402,7 +402,7 @@ trap - EXIT HUP INT TERM
 }
 
 // installedGrubDefaults returns the installed operating system's Surface
-// command line without the live-media-only USB safety blacklist.
+// command line without Casper options or DSP blacklists.
 func installedGrubDefaults() string {
 	return `# Surface Pro 11 platform arguments for installed kernels.
 GRUB_CMDLINE_LINUX_DEFAULT="${GRUB_CMDLINE_LINUX_DEFAULT} clk_ignore_unused pd_ignore_unused arm64.nopauth systemd.tpm2_wait=0"

@@ -317,18 +317,10 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 	grubText := string(grubBytes)
 	grubPassed := strings.Contains(grubText, "devicetree /sp11/dtb/x1e80100-microsoft-denali-oled.dtb") &&
 		strings.Contains(grubText, "devicetree /sp11/dtb/x1p64100-microsoft-denali.dtb") &&
-		strings.Contains(grubText, "modprobe.blacklist=qcom_q6v5_pas") &&
 		!strings.Contains(grubText, "sp11_feedback_active_offset2_zero")
-	for _, line := range strings.Split(grubText, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "linux /casper/vmlinuz") && !strings.Contains(line, "modprobe.blacklist=qcom_q6v5_pas") {
-			grubPassed = false
-		}
-	}
-	grubPassed = grubPassed && !strings.Contains(grubText, "allow aDSP")
-	addCheck("surface-grub-menu", grubPassed, "X1E/X1P DTBs and aDSP-safe live entries without the retired SoundWire parameter")
+	addCheck("surface-grub-menu", grubPassed, "X1E/X1P DTBs without the retired SoundWire parameter")
 	argumentsErr := validateLiveKernelArguments(grubText)
-	argumentsDetails := "every live kernel command explicitly selects Casper and preserves Surface clocks, power domains, and USB safety"
+	argumentsDetails := "every live kernel command explicitly selects Casper, preserves Surface clocks and power domains, and permits DSP attachment for Type-C USB"
 	if argumentsErr != nil {
 		argumentsDetails = argumentsErr.Error()
 	}
