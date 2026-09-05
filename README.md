@@ -45,10 +45,13 @@ redistribute restricted firmware. You can also use
 ## What works today
 
 Dedicated image adapters support the experimental Ubuntu Concept Resolute
-Desktop image and Fedora Workstation Live 44 ARM64. The custom live and
+Desktop, Pop!_OS 24.04 Generic 3 and Fedora Workstation Live 44 ARM64 images. Pop
+uses its own Casper, installer and systemd-boot contract; physical live boot,
+installation and recovery qualification are tracked in
+[issue #48](https://github.com/ooaklee/lexr.sh/issues/48). The custom live and
 installed Fedora path is limited to the Surface Pro 11 Qualcomm Snapdragon X Elite model; its X Plus
 entry is a stock-kernel, explicit-DTB live troubleshooting path only. Debian,
-elementary OS, Pop!_OS, and Fedora's compressed raw disk image remain
+elementary OS and Fedora's compressed raw disk image remain
 `catalog-only` until their layouts have dedicated adapters. Here, `implemented`
 means the adapter can create and structurally validate media; `experimental`
 means complete end-to-end qualification is still pending. Ubuntu Concept

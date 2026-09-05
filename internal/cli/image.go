@@ -301,7 +301,7 @@ func (a *application) newImageCreateCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "create",
 		Short: "Create a custom-kernel hybrid ARM64 ISO",
-		Long:  "Create and structurally validate an experimental Surface Pro 11 ISO using the implemented Ubuntu Casper or Fedora Live adapter.",
+		Long:  "Create and structurally validate an experimental Surface Pro 11 ISO using the implemented Ubuntu Casper, Pop Casper or Fedora Live adapter.",
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
 			request.CatalogPath = a.catalogPath

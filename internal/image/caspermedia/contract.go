@@ -1,4 +1,4 @@
-// Package caspermedia models Ubuntu Casper's live-media discovery contract.
+// Package caspermedia models Casper's live-media discovery contract.
 package caspermedia
 
 import (
@@ -11,7 +11,7 @@ import (
 const (
 	// DirectHybridStrategy identifies an ISO written directly to removable media.
 	DirectHybridStrategy = "direct-hybrid"
-	// Protocol identifies the Ubuntu Casper live-boot implementation.
+	// Protocol identifies the Casper live-boot implementation.
 	Protocol = "casper"
 	// MediumIdentityPath is the ISO member Casper compares while scanning media.
 	MediumIdentityPath = ".disk/casper-uuid-generic"
@@ -27,7 +27,7 @@ const (
 	InitramfsScope = "initramfs"
 )
 
-// Contract records how a direct Ubuntu ISO binds its generated initramfs to
+// Contract records how a direct Casper ISO binds its generated initramfs to
 // the physical medium that contains the live filesystem.
 type Contract struct {
 	// Strategy identifies the outer media-discovery layout.
@@ -129,7 +129,7 @@ func (c Contract) DiscoveryRecord(medium imagecontract.ArtifactRecord) (imagecon
 }
 
 // FromDiscoveryRecord validates generic manifest evidence as the exact direct
-// Ubuntu Casper contract and returns its independently hashed medium marker.
+// Casper contract and returns its independently hashed medium marker.
 func FromDiscoveryRecord(record imagecontract.MediaDiscoveryRecord) (Contract, imagecontract.ArtifactRecord, error) {
 	if record.Strategy != DirectHybridStrategy || record.Protocol != Protocol {
 		return Contract{}, imagecontract.ArtifactRecord{}, fmt.Errorf(

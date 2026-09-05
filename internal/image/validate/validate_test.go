@@ -12,6 +12,7 @@ import (
 
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
 	"github.com/ooaklee/lexr.sh/internal/image/fedora"
+	"github.com/ooaklee/lexr.sh/internal/image/popos"
 	"github.com/ooaklee/lexr.sh/internal/image/ubuntu"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/platform"
@@ -38,7 +39,7 @@ func (stub *stubAdapter) Validate(_ context.Context, path string) (imagecontract
 func TestValidatorDispatchesOnlyTheManifestAdapter(t *testing.T) {
 	t.Parallel()
 
-	for _, adapterID := range []string{ubuntu.AdapterID, fedora.AdapterID} {
+	for _, adapterID := range []string{ubuntu.AdapterID, fedora.AdapterID, popos.AdapterID} {
 		adapterID := adapterID
 		t.Run(adapterID, func(t *testing.T) {
 			t.Parallel()
@@ -58,6 +59,12 @@ func TestValidatorDispatchesOnlyTheManifestAdapter(t *testing.T) {
 				},
 				ubuntuFactory: func(*platform.Docker) adapterValidator {
 					if adapterID == ubuntu.AdapterID {
+						return selected
+					}
+					return other
+				},
+				popFactory: func(*platform.Docker) adapterValidator {
+					if adapterID == popos.AdapterID {
 						return selected
 					}
 					return other

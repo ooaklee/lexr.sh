@@ -3,11 +3,11 @@
 Lexr turns a supported upstream image into live media with the selected Surface
 Pro 11 kernel on a structurally validated boot path. It checks that result
 before it can be written to a reviewed removable device. This page covers the
-implemented Ubuntu Concept and Fedora Workstation Live adapters, from image
+implemented Ubuntu Concept, Pop!_OS and Fedora Workstation Live adapters, from image
 creation to a verified USB write and the physical test which must follow.
 
 > [!CAUTION]
-> Both implemented adapters remain experimental. `implemented` means Lexr can
+> All implemented adapters remain experimental. `implemented` means Lexr can
 > create and structurally validate their output; physical boot and installation
 > need separate evidence. The Ubuntu candidate built
 > with Lexr `384f2c0` and v23 reached the X1E/OLED live desktop; the tester
@@ -18,7 +18,9 @@ creation to a verified USB write and the physical test which must follow.
 > black for hours. Reproduction and diagnosis continue in
 > [issue #17](https://github.com/ooaklee/lexr.sh/issues/17); Ubuntu's separate
 > end-to-end qualification is tracked in
-> [issue #16](https://github.com/ooaklee/lexr.sh/issues/16).
+> [issue #16](https://github.com/ooaklee/lexr.sh/issues/16). Pop!_OS structural
+> validation passes; physical boot and installation remain untested under
+> [issue #48](https://github.com/ooaklee/lexr.sh/issues/48).
 
 ## Audience and context
 
@@ -35,7 +37,7 @@ described here.
 - Fedora Workstation Live 44 must be selected explicitly and requires a patch-line-qualified verified Surface kernel bundle: 7.2.0/sp11v19+ or 7.2.2/sp11v1+. Its custom live and installed-system path is limited to X1E/OLED; X1P/LCD has a stock-kernel live troubleshooting entry only and must not be installed from this adapter.
 - Structural validation is a publication gate, not a substitute for booting the media on a Surface Pro 11. Disable Secure Boot before using the unsigned custom kernel, and treat an actual device boot as the final compatibility gate.
 - Every current catalogue entry still needs complete end-to-end testing. Ubuntu's tested X1E/OLED live desktop and Wi-Fi result does not qualify installation, other models or other kernel versions. The implemented entries remain runnable so contributors can reproduce and improve them.
-- The pre-write router accepts only the implemented Lexr Ubuntu Casper and Fedora Live outputs after their adapter-owned structural validators pass. Compressed raw disk images use a different partition and boot model and need a separate adapter.
+- The pre-write router accepts only the implemented Lexr Ubuntu Casper, Pop Casper and Fedora Live outputs after their adapter-owned structural validators pass. Compressed raw disk images use a different partition and boot model and need a separate adapter.
 - USB planning is read-only. The real write requires elevated privilege and the exact confirmation generated for the current source and device.
 
 ## 1. Choose, create and validate an image
@@ -92,6 +94,41 @@ lexr image create \
 
 `--dry-run` prints the deterministic operation plan without remastering an image. `--keep-workspace` retains intermediate files for troubleshooting.
 
+### Pop!_OS 24.04 ARM64
+
+Select the checksum-pinned ARM64 generic image and an explicit external-DTB
+Surface kernel profile. The first structural validation used the v23 release;
+other complete compatible bundles are accepted without a v23-only gate.
+
+```sh
+lexr image create \
+  --catalog-id pop-os-24-04-arm64-generic-3 \
+  --kernel-release sp11-qcom-x1e-7.2.0-jg-0sp11v23 \
+  --kernel-profile surface-pro-11-x1e-oled \
+  --output lexr-pop-os-sp11.iso
+
+lexr image validate lexr-pop-os-sp11.iso
+```
+
+Add the companion options described in [Carry the offline companion](offline-companion.md)
+to include Lexr, its source and licences, portable IPTSD and a desktop
+`LEXR_GETTING_STARTED.txt` guide. The guide covers live Wi-Fi, pen/touch setup,
+installed-system recovery and updating Lexr. The companion is also retained
+under `/usr/share/lexr/pop-media/sp11/companion` in the installed root.
+
+This adapter targets the inspected single-filesystem Pop source. It preserves
+the installer identity and versioned Casper directory, installs the matching
+kernel and modules, prepares Wi-Fi board data, and creates a GPT EFI partition
+for USB boot. Pop's installed system uses systemd-boot and kernelstub: Lexr adds
+separate entries with the matching DTB and retains the native entries. If the
+installer creates its recovery partition, a separate Lexr recovery entry uses
+the original live kernel's DTB and carries the companion onto that partition.
+
+Secure Boot must be disabled. Structural checks do not establish Surface boot,
+installer completion or recovery success. Both model-specific live entries are
+experimental, and X1P/LCD has no hardware qualification. Record physical results
+in [issue #48](https://github.com/ooaklee/lexr.sh/issues/48).
+
 ### Fedora Workstation Live 44
 
 Select Fedora's implemented ARM64 Live ISO explicitly and provide either a
@@ -134,7 +171,7 @@ boundary rather than treating structural validation as proof of bootability.
 `image devices` is read-only and lists every whole physical device with the evidence needed to review it, including whether the disk has an active non-mount consumer. It does not present an internal, non-removable, non-USB, read-only, system-backed, in-use, weakly identified, or undersized device as an acceptable target merely because its path was supplied explicitly.
 
 The commands below use the Ubuntu filename from the shortest example. Replace
-it with `lexr-fedora-44-sp11-7.2.2-v1.iso` when writing the Fedora output.
+it with your Pop!_OS or Fedora output filename when writing those images.
 
 ```sh
 lexr image devices
@@ -157,7 +194,7 @@ sudo lexr image write lexr-ubuntu-sp11.iso \
 
 An interactive terminal can omit `--confirm` and type the displayed phrase at the protected prompt. Automation must pass the exact phrase explicitly. Because the phrase contains the opaque fingerprint, a confirmation obtained for a previous USB device is rejected after another device takes over the same `/dev` path. Immediately before mutation, the manager reopens and rehashes the source, re-inspects the target, compares the already-open source descriptor with target mounts, checks privilege, unmounts only approved removable-style target filesystems, and refuses to continue if any mount, host-storage classification, active storage consumer, or identity drift remains. The production raw opener rejects links and ordinary files, proves that ordinary and raw nodes address the same kernel device, opens with `O_NOFOLLOW`, and proves that its descriptor still denotes that inspected device. The manager then writes bounded chunks, flushes them, reads back exactly the source length, verifies the SHA-256, re-inspects once more, and ejects or powers off the target. A failure returns the exact not-started, prepared, writing, written, verifying, or verified receipt state, complete byte counts, and only complete digests; it never claims that writing, verification, or ejection began before the corresponding boundary was crossed.
 
-This writer is distribution-neutral. Its pre-write router accepts the implemented Lexr Ubuntu Casper and Fedora Live outputs only after dispatching each image to its adapter-owned structural validator. Future Debian, elementary OS, Pop!_OS, and raw-image adapters will retain their own validation and live-media contracts while reusing the removable-device manager.
+This writer is distribution-neutral. Its pre-write router accepts the implemented Lexr Ubuntu Casper, Pop Casper and Fedora Live outputs only after dispatching each image to its adapter-owned structural validator. Future Debian, elementary OS and raw-image adapters will retain their own validation and live-media contracts while reusing the removable-device manager.
 
 ## Why Lexr remasters the live root
 
@@ -204,6 +241,21 @@ private Denali firmware handled by the [Windows hand-off](windows-handoff.md),
 or establish hardware bootability. Ubuntu live-boot qualification remains
 tracked in [issue #41](https://github.com/ooaklee/lexr.sh/issues/41).
 
+### Pop!_OS path
+
+Pop carries one deployable SquashFS, a versioned Casper directory and a
+`/casper` symlink used by its installer. Lexr preserves those paths and
+`.disk/info`, builds separate live and installed initramfs images, and updates
+the package manifest from the modified root. The installed initramfs has no
+Casper default, while the live one is bound to the medium's generated UUID.
+
+The installed boot hooks run after kernelstub and publish per-kernel Lexr entries
+with immutable kernel, initramfs and DTB copies on the declared EFI partition.
+They preserve native Pop and other operating-system entries. Recovery uses the
+original media contract even after an installed kernel update. Read
+[ADR031](../adr/adr-031-pop-casper-and-systemd-boot-handoff.md) for the source
+inspection, installed-system and recovery decisions.
+
 ### Fedora path
 
 The Fedora adapter extracts the LZMA-compressed EROFS root at
@@ -220,8 +272,9 @@ the complete EROFS, RPM, Anaconda, boot-policy, and validation decision.
 
 ### Shared boot and publication safeguards
 
-Both source images are hybrid boot media with an appended GPT EFI System
-Partition. Ubuntu binds Casper to its generated UUID; Fedora binds
+The generated images use hybrid boot media with an appended GPT EFI System
+Partition. Pop's inspected source is optical-only, so its adapter creates that
+partition layout. Ubuntu and Pop bind Casper to their generated UUID; Fedora binds
 `dracut-live` to the pinned `Fedora-WS-Live-44` volume label and preserves the
 ESP marker which hands off to `/boot/grub2/grub.cfg`. Validation checks those
 identities together with the boot records, kernel, initramfs, module tree,

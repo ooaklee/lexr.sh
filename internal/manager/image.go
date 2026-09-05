@@ -18,6 +18,7 @@ import (
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
 	"github.com/ooaklee/lexr.sh/internal/image/companion"
 	"github.com/ooaklee/lexr.sh/internal/image/fedora"
+	"github.com/ooaklee/lexr.sh/internal/image/popos"
 	"github.com/ooaklee/lexr.sh/internal/image/ubuntu"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/kernel/release"
@@ -105,6 +106,8 @@ type ImageManager struct {
 	Remaster *ubuntu.Remasterer
 	// FedoraRemaster performs the Fedora EROFS live-media transformation.
 	FedoraRemaster *fedora.Remasterer
+	// PopRemaster performs Pop's single-root Casper transformation.
+	PopRemaster *popos.Remasterer
 	// Userspace resolves optional verified offline companion releases.
 	Userspace *userspacemanager.Manager
 	// CompanionRunner probes the host Go toolchain needed only when the caller
@@ -241,6 +244,7 @@ func NewImageManager(loader catalog.Loader, out io.Writer) *ImageManager {
 		Releases:        release.NewClient(nil),
 		Remaster:        ubuntu.NewRemasterer(nil, out),
 		FedoraRemaster:  fedora.NewRemasterer(nil, out),
+		PopRemaster:     popos.NewRemasterer(nil, out),
 		CompanionRunner: platform.ExecRunner{},
 	}
 }
@@ -444,6 +448,8 @@ func (m *ImageManager) adapterForEntry(entry catalog.Entry) (imageAdapter, error
 		return ubuntuCasperImageAdapter{remasterer: m.Remaster}, nil
 	case catalog.AdapterFedoraLive:
 		return fedoraLiveImageAdapter{remasterer: m.FedoraRemaster}, nil
+	case catalog.AdapterPopCasper:
+		return popCasperImageAdapter{remasterer: m.PopRemaster}, nil
 	default:
 		return nil, fmt.Errorf("catalog entry %q selects unavailable adapter %q", entry.ID, entry.Adapter)
 	}

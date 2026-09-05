@@ -12,7 +12,7 @@ Use this option while creating installation media when you expect to diagnose us
 - Keep the image output, its sidecars, and any explicit `--workspace-dir` outside that source tree.
 - The source is snapshotted before its binary and archive are built, and a clean Git-backed tree must match the CLI's recorded commit.
 - `--companion-userspace` is repeatable, but the initial offline allow-list accepts only `iptsd`. `recommended`, restricted audio, platform firmware, and experimental camera packages are not accepted for on-media inclusion.
-- Ubuntu carries the portable IPTSD release for an explicit live-session install. Fedora rebuilds the same exact source-bearing release as native binary and source RPMs and installs the binary RPM in the deployable root; do not apply the portable installer on top of that package-owned layout.
+- Ubuntu and Pop!_OS carry the portable IPTSD release for an explicit live-session install. Fedora rebuilds the same exact source-bearing release as native binary and source RPMs and installs the binary RPM in the deployable root; do not apply the portable installer on top of that package-owned layout.
 
 ## 1. Add the companion during image creation
 
@@ -101,7 +101,7 @@ The source path uses the schema-4 companion filename; the copy is invoked as `le
 
 A non-zero userspace doctor result means support is still missing; it does not by itself mean the companion is damaged.
 
-Ubuntu companion images place `LEXR_GETTING_STARTED.txt` on the live desktop.
+Ubuntu and Pop!_OS companion images place `LEXR_GETTING_STARTED.txt` on the live desktop.
 It includes these bootstrap commands, native Wi-Fi board setup, the optional
 IPTSD install, and steps to repeat after installation. Use the home-directory
 path above because writable temporary mounts can still have `noexec` set.
@@ -134,6 +134,6 @@ offline recovery evidence, not as the normal installation path.
 
 ## Success and next steps
 
-The companion is usable when the copied `$TOOL` reports its version, both on-media catalogues validate, and the userspace doctor gives the expected point-in-time result. For Ubuntu IPTSD, review the dry run before installation and check the feature again afterwards. For Fedora IPTSD, require the native RPM query and doctor result instead.
+The companion is usable when the copied `$TOOL` reports its version, both on-media catalogues validate, and the userspace doctor gives the expected point-in-time result. For Ubuntu and Pop!_OS IPTSD, review the dry run before installation and check the feature again afterwards. For Fedora IPTSD, require the native RPM query and doctor result instead.
 
 Continue with [userspace support](userspace-support.md), [the private Windows hand-off](windows-handoff.md), or return to [installation media](installation-media.md).

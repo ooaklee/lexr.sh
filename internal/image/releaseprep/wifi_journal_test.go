@@ -77,7 +77,7 @@ func TestReleaseAcceptsCurrentUbuntuJournal(t *testing.T) {
 				t.Fatal(err)
 			}
 			test.mutate(&changed)
-			if err := validateImageJournal(changed, receipt.Manifest.Image); err == nil {
+			if err := validateImageJournal(changed, receipt.Manifest.Image, ubuntu.AdapterID); err == nil {
 				t.Fatal("private journal accepted invalid workflow")
 			}
 			public := *receipt.Manifest

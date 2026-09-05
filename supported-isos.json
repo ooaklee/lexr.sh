@@ -108,8 +108,8 @@
       "artifact_kind": "iso",
       "url": "https://iso.pop-os.org/24.04/arm64/generic/3/pop-os_24.04_arm64_generic_3.iso",
       "homepage": "https://system76.com/download-pop/",
-      "adapter": "none",
-      "support_level": "catalog-only",
+      "adapter": "pop-casper",
+      "support_level": "implemented",
       "experimental": true,
       "mutable": false,
       "checksum": {
@@ -117,11 +117,11 @@
         "value": "7b4cce0e92dc5c903464e7e7c33760c4417f1400165e9ecfcd064fbceb68ef22"
       },
       "compatibility_notes": [
-        "No lexr image adapter is implemented yet.",
-        "Surface Pro 11 boot and device-tree integration have not yet been automated for this image.",
+        "Experimental SP11 adapter preserves Pop's single Casper filesystem and pairs the custom kernel with external device trees.",
+        "Uses a GPT EFI partition for USB boot and additive systemd-boot entries for installed-system and recovery support; physical boot and installation qualification are pending.",
         "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],
-      "last_verified": "2026-08-30"
+      "last_verified": "2026-09-05"
     },
     {
       "id": "ubuntu-concept-resolute-x1e",

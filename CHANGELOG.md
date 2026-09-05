@@ -54,6 +54,13 @@ that do not apply.
 
 ### Added
 
+- Add the experimental `pop-casper` adapter for the checksum-pinned Pop!_OS
+  24.04 ARM64 Generic 3 source. It prepares SP11 Wi-Fi before first probe,
+  pairs the custom kernel with its external DTBs, creates a USB EFI partition,
+  separates live and installed initramfs images, and retains Lexr companion
+  files for the installed system and Pop recovery. Installed boot and recovery
+  use additive systemd-boot entries. Physical qualification remains tracked
+  separately in [#48](https://github.com/ooaklee/lexr.sh/issues/48).
 - Add native `userspace install wifi` with `--dry-run`, an optional
   `--activate` radio restart, and recoverable board-data installation from
   the distribution's existing WCN7850 firmware. Radio restart requires an
@@ -65,6 +72,9 @@ that do not apply.
 
 ### Fixed
 
+- Bind release creation journals to their image adapter. Pop's single-root
+  workflow and Fedora's native userspace step no longer inherit Ubuntu's
+  workflow solely because their journals have the same number of steps.
 - Accept the complete Ubuntu Wi-Fi preparation journal during image release
   packaging and validation, including its board-data digest, while retaining
   validation of earlier image journals.

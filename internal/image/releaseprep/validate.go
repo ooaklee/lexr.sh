@@ -268,7 +268,7 @@ func validateReleaseManifest(manifest Manifest) error {
 	if err := validateImageContract(manifest.ImageContract); err != nil {
 		return err
 	}
-	expectedSteps := imageStepsForCount(len(manifest.ImageCreation.Records))
+	expectedSteps := imageStepsForAdapter(manifest.ImageContract.Adapter, len(manifest.ImageCreation.Records))
 	if !reflect.DeepEqual(manifest.ImageCreation.Output, manifest.Image) || manifest.ImageCreation.Operation != "image.create" ||
 		manifest.ImageCreation.SchemaVersion != 1 || expectedSteps == nil {
 		return errors.New("path-free image creation provenance is incomplete")
