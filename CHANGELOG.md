@@ -65,6 +65,9 @@ that do not apply.
 
 ### Fixed
 
+- Accept the complete Ubuntu Wi-Fi preparation journal during image release
+  packaging and validation, including its board-data digest, while retaining
+  validation of earlier image journals.
 - Treat absent, inactive `g6-pen.service` as completed legacy cleanup during
   IPTSD activation after checking systemd's unit state. Fresh Ubuntu live
   sessions no longer report incomplete activation merely because the obsolete
