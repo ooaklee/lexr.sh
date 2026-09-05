@@ -169,6 +169,14 @@ on the tested X1E/OLED Surface; removing it restored the live desktop.
 Validation rejects that blacklist on Ubuntu live entries. X1P/LCD remains
 unqualified, and desktop boot alone does not validate the installer.
 
+The adapter preserves Ubuntu's original `.disk/info` bytes, including the
+release and quoted codename used by Desktop Bootstrap. Replacing that identity
+with an unquoted Lexr label caused the installer to fail before its welcome
+page. Source and output validation reject malformed product metadata; Lexr's
+kernel identity and provenance remain under `/sp11`. The corrected metadata
+has reached the welcome page on the tested X1E/OLED live session; an actual
+installation and installed boot still require separate validation.
+
 The live initramfs also includes the distribution's X1E Adreno GMU and SQE
 firmware. The custom GPU driver can request these files before Casper mounts
 the live filesystem, even when its module metadata does not list them.

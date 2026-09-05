@@ -120,6 +120,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		"-extract", "/sp11/lexr-manifest.json", "/work/manifest.json",
 		"-extract", "/casper/vmlinuz", "/work/vmlinuz",
 		"-extract", "/casper/initrd", "/work/initrd",
+		"-extract", "/.disk/info", "/work/disk-info",
 		"-extract", "/.disk/casper-uuid-generic", "/work/casper-uuid-generic",
 		"-extract", "/casper/minimal.squashfs", "/work/minimal.squashfs",
 		"-extract", "/sp11/dtb/x1e80100-microsoft-denali-oled.dtb", "/work/x1e.dtb",
@@ -133,7 +134,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		return report, fmt.Errorf("ISO validation failed: required members cannot be extracted")
 	}
 	initialMembers := []string{
-		"manifest.json", "vmlinuz", "initrd", "casper-uuid-generic", "minimal.squashfs",
+		"manifest.json", "vmlinuz", "initrd", "disk-info", "casper-uuid-generic", "minimal.squashfs",
 		"x1e.dtb", "x1p.dtb", "iso-bootaa64.efi", "iso-grubaa64.efi", "grub.cfg",
 	}
 	if err := validateExtractedRegularFiles(workspace, initialMembers); err != nil {
@@ -142,6 +143,11 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		return report, fmt.Errorf("ISO validation failed: required members are unsafe: %w", err)
 	}
 	addCheck("required-iso-members", true, "kernel, initramfs, Casper identity, live root, paired DTBs, manifest, and GRUB files are present")
+	if err := validateInstallerProductInfo(workspace); err != nil {
+		addCheck("ubuntu-installer-product-info", false, err.Error())
+	} else {
+		addCheck("ubuntu-installer-product-info", true, "Ubuntu product identity contains the quoted codename required by Desktop Bootstrap")
+	}
 
 	manifestPath := filepath.Join(workspace, "manifest.json")
 	manifestBytes, err := readValidationManifest(manifestPath)

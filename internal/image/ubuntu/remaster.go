@@ -275,6 +275,7 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 		"-extract", "/casper/minimal.manifest", "/work/minimal.manifest",
 		"-extract", "/casper/minimal.size", "/work/minimal.size",
 		"-extract", "/md5sum.txt", "/work/md5sum.txt",
+		"-extract", "/.disk/info", "/work/disk-info",
 		"-extract", "/.disk/casper-uuid-generic", "/work/source-casper-uuid-generic",
 		"-extract", "/EFI/boot/grubaa64.efi", "/work/grubaa64.efi"); err != nil {
 		return Result{}, fmt.Errorf("extract ISO inputs: %w", err)
@@ -618,6 +619,9 @@ func validateSourceLayout(workspace string) error {
 	if _, err := caspermedia.ParseUUID(marker); err != nil {
 		return fmt.Errorf("validate Ubuntu source layout: %w", err)
 	}
+	if err := validateInstallerProductInfo(workspace); err != nil {
+		return fmt.Errorf("validate Ubuntu source layout: %w", err)
+	}
 	return nil
 }
 
@@ -858,7 +862,8 @@ func portableKernelBundle(bundle kernel.Bundle) kernel.Bundle {
 }
 
 // writeSupportFiles stages reinstallable kernel packages, provenance, operator
-// notes, disk identity, and the device-specific GRUB configuration under the ISO tree.
+// notes, and the device-specific GRUB configuration under the ISO tree. Ubuntu's
+// extracted disk identity is preserved for the desktop installer's product parser.
 func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manifestBytes []byte, abi string) error {
 	expectedManifestBytes, err := serialiseManifest(manifest)
 	if err != nil {
@@ -893,8 +898,7 @@ func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manife
 	if err := os.WriteFile(filepath.Join(workspace, "grub.cfg"), []byte(grubConfig(abi)), 0o644); err != nil {
 		return err
 	}
-	diskInfo := fmt.Sprintf("Lexr Ubuntu arm64 for Surface Pro 11 (%s)\n", abi)
-	return os.WriteFile(filepath.Join(workspace, "disk-info"), []byte(diskInfo), 0o644)
+	return nil
 }
 
 // companionDigests converts the complete single-manifest companion inventory

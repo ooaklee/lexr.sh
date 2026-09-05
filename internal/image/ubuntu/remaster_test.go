@@ -133,9 +133,18 @@ sources:
 		[]byte("7bda4398-0498-4564-acfe-e90dcc1c75f2\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(workspace, "disk-info"), []byte(testUbuntuDiskInfo), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := validateSourceLayout(workspace); err != nil {
 		t.Fatalf("validateSourceLayout() error = %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspace, "disk-info"), []byte("Lexr Ubuntu arm64 for Surface Pro 11 (test-abi)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateSourceLayout(workspace); err == nil || !strings.Contains(err.Error(), ".disk/info") {
+		t.Fatalf("validateSourceLayout() error = %v, want installer product identity rejection", err)
 	}
 }
 

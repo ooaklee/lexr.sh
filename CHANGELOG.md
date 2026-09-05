@@ -54,6 +54,11 @@ that do not apply.
 
 ### Fixed
 
+- Preserve Ubuntu's original `.disk/info` product identity when remastering.
+  The previous Lexr label caused Desktop Bootstrap to show "Something went
+  wrong" before the welcome page. Source and output validation now reject
+  malformed product metadata
+  ([#41](https://github.com/ooaklee/lexr.sh/issues/41)).
 - Allow the Ubuntu live session to load the DSP driver needed for Type-C USB.
   Removing the old blacklist restores live desktop boot on Surface Pro 11
   X1E/OLED with the v23 kernel. Validation rejects menus that restore the
