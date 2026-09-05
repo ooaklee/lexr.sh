@@ -120,6 +120,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		"-extract", "/sp11/lexr-manifest.json", "/work/manifest.json",
 		"-extract", "/casper/vmlinuz", "/work/vmlinuz",
 		"-extract", "/casper/initrd", "/work/initrd",
+		"-extract", "/.disk/info", "/work/disk-info",
 		"-extract", "/.disk/casper-uuid-generic", "/work/casper-uuid-generic",
 		"-extract", "/casper/minimal.squashfs", "/work/minimal.squashfs",
 		"-extract", "/sp11/dtb/x1e80100-microsoft-denali-oled.dtb", "/work/x1e.dtb",
@@ -133,7 +134,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		return report, fmt.Errorf("ISO validation failed: required members cannot be extracted")
 	}
 	initialMembers := []string{
-		"manifest.json", "vmlinuz", "initrd", "casper-uuid-generic", "minimal.squashfs",
+		"manifest.json", "vmlinuz", "initrd", "disk-info", "casper-uuid-generic", "minimal.squashfs",
 		"x1e.dtb", "x1p.dtb", "iso-bootaa64.efi", "iso-grubaa64.efi", "grub.cfg",
 	}
 	if err := validateExtractedRegularFiles(workspace, initialMembers); err != nil {
@@ -142,6 +143,11 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		return report, fmt.Errorf("ISO validation failed: required members are unsafe: %w", err)
 	}
 	addCheck("required-iso-members", true, "kernel, initramfs, Casper identity, live root, paired DTBs, manifest, and GRUB files are present")
+	if err := validateInstallerProductInfo(workspace); err != nil {
+		addCheck("ubuntu-installer-product-info", false, err.Error())
+	} else {
+		addCheck("ubuntu-installer-product-info", true, "Ubuntu product identity contains the quoted codename required by Desktop Bootstrap")
+	}
 
 	manifestPath := filepath.Join(workspace, "manifest.json")
 	manifestBytes, err := readValidationManifest(manifestPath)
@@ -244,6 +250,15 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 	unpackedInitrd := filepath.Join(workspace, "initrd-unpacked")
 	unpackErr := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
 		"unmkinitramfs", "/work/initrd", "/work/initrd-unpacked")
+	firmwareErr := unpackErr
+	if firmwareErr == nil {
+		firmwareErr = validateLiveGPUFirmware(unpackedInitrd, manifest.KernelBundle.ABI)
+	}
+	firmwareDetails := "X1E GPU GMU and SQE firmware are present before the live root is mounted"
+	if firmwareErr != nil {
+		firmwareDetails = firmwareErr.Error()
+	}
+	addCheck("live-gpu-firmware", firmwareErr == nil, firmwareDetails)
 	initrdIdentityRelative := path.Join("main", caspermedia.InitramfsIdentityPath)
 	initrdIdentity, identityReadErr := readBoundedExtractedFile(unpackedInitrd, initrdIdentityRelative, maximumValidationTextBytes)
 	mediaContract, identityErr := caspermedia.Matches(markerBytes, initrdIdentity)
@@ -279,7 +294,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 
 	moduleProbe := "usr/lib/modules/" + manifest.KernelBundle.ABI + "/modules.dep"
 	moduleErr := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
-		"unsquashfs", "-no-xattrs", "-no-progress", "-d", "/work/module-probe", "/work/minimal.squashfs", moduleProbe)
+		"unsquashfs", "-no-xattrs", "-no-progress", "-d", "/work/module-probe", "/work/minimal.squashfs", moduleProbe, "usr/lib/firmware/"+liveWiFiBoard)
 	moduleValidationErr := validateExtractedRegularFiles(filepath.Join(workspace, "module-probe"), []string{moduleProbe})
 	modulePassed := moduleErr == nil && moduleValidationErr == nil
 	moduleDetails := moduleProbe
@@ -289,6 +304,18 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		moduleDetails = moduleValidationErr.Error()
 	}
 	addCheck("live-root-kernel-modules", modulePassed, moduleDetails)
+	wifiErr := moduleErr
+	if wifiErr == nil {
+		wifiErr = unpackErr
+	}
+	if wifiErr == nil {
+		wifiErr = validateWiFiBoardData(unpackedInitrd, filepath.Join(workspace, "module-probe"))
+	}
+	wifiDetails := "matching SP11 Wi-Fi board data is present in the initramfs and deployable root before driver probing"
+	if wifiErr != nil {
+		wifiDetails = wifiErr.Error()
+	}
+	addCheck("live-wifi-board-data", wifiErr == nil, wifiDetails)
 	report.Checks = append(report.Checks, v.validateInstalledSystemSupport(ctx, toolsImage, workspace, manifest)...)
 
 	for _, dtb := range []string{"x1e.dtb", "x1p.dtb"} {
@@ -308,16 +335,14 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 	grubText := string(grubBytes)
 	grubPassed := strings.Contains(grubText, "devicetree /sp11/dtb/x1e80100-microsoft-denali-oled.dtb") &&
 		strings.Contains(grubText, "devicetree /sp11/dtb/x1p64100-microsoft-denali.dtb") &&
-		strings.Contains(grubText, "modprobe.blacklist=qcom_q6v5_pas") &&
 		!strings.Contains(grubText, "sp11_feedback_active_offset2_zero")
-	for _, line := range strings.Split(grubText, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "linux /casper/vmlinuz") && !strings.Contains(line, "modprobe.blacklist=qcom_q6v5_pas") {
-			grubPassed = false
-		}
+	addCheck("surface-grub-menu", grubPassed, "X1E/X1P DTBs without the retired SoundWire parameter")
+	argumentsErr := validateLiveKernelArguments(grubText)
+	argumentsDetails := "every live kernel command explicitly selects Casper, preserves Surface clocks and power domains, and permits DSP attachment for Type-C USB"
+	if argumentsErr != nil {
+		argumentsDetails = argumentsErr.Error()
 	}
-	grubPassed = grubPassed && !strings.Contains(grubText, "allow aDSP")
-	addCheck("surface-grub-menu", grubPassed, "X1E/X1P DTBs and aDSP-safe live entries without the retired SoundWire parameter")
+	addCheck("surface-live-kernel-arguments", argumentsErr == nil, argumentsDetails)
 	selfLocationPassed := strings.Contains(grubText, "insmod part_gpt") &&
 		strings.Contains(grubText, "insmod iso9660") &&
 		strings.Contains(grubText, "insmod search") &&
@@ -391,6 +416,7 @@ func validateInstalledInitramfsListing(listing, longListing, abi string) error {
 		alternatives []string
 	}{
 		{label: "init", alternatives: []string{"init"}},
+		{label: "SP11 Wi-Fi board", alternatives: []string{"usr/lib/firmware/" + liveWiFiBoard}},
 		{label: "shell", alternatives: []string{"usr/bin/sh", "bin/sh", "usr/bin/bash", "bin/bash"}},
 		{label: "mount", alternatives: []string{"usr/bin/mount", "bin/mount"}},
 		{label: "modprobe", alternatives: []string{"usr/sbin/modprobe", "sbin/modprobe"}},

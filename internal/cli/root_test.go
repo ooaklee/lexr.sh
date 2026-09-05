@@ -437,7 +437,7 @@ func TestImageCreateDryRunIsDeterministic(t *testing.T) {
 		t.Fatalf("dry-run plan operation/schema = %q/%d", operationPlan.Operation, operationPlan.SchemaVersion)
 	}
 	wantStepIDs := []string{
-		"verify-source", "verify-kernel", "stage-companion", "prepare-tools", "extract-live-root", "install-kernel",
+		"verify-source", "verify-kernel", "stage-companion", "prepare-tools", "extract-live-root", "prepare-wifi", "install-kernel",
 		"assemble-initramfs-root", "build-initramfs", "bind-live-media", "pair-device-trees", "repack-live-root",
 		"replay-hybrid-boot", "validate-output", "publish-output",
 	}

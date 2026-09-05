@@ -133,9 +133,18 @@ sources:
 		[]byte("7bda4398-0498-4564-acfe-e90dcc1c75f2\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(workspace, "disk-info"), []byte(testUbuntuDiskInfo), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := validateSourceLayout(workspace); err != nil {
 		t.Fatalf("validateSourceLayout() error = %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workspace, "disk-info"), []byte("Lexr Ubuntu arm64 for Surface Pro 11 (test-abi)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateSourceLayout(workspace); err == nil || !strings.Contains(err.Error(), ".disk/info") {
+		t.Fatalf("validateSourceLayout() error = %v, want installer product identity rejection", err)
 	}
 }
 
@@ -300,12 +309,9 @@ func TestGrubConfigPairsDeviceTreesWithBootEntries(t *testing.T) {
 		"Ubuntu for Surface Pro 11 X1P/LCD (test-abi, hardware qualification pending)",
 		"devicetree /sp11/dtb/x1e80100-microsoft-denali-oled.dtb",
 		"devicetree /sp11/dtb/x1p64100-microsoft-denali.dtb",
-		"modprobe.blacklist=qcom_q6v5_pas",
 		"insmod part_gpt",
 		"insmod iso9660",
 		"insmod search_fs_file",
-		"insmod smbios",
-		"insmod regexp",
 		"insmod fdt",
 		"search --no-floppy --file --set=iso_root /casper/vmlinuz",
 		"set root=$iso_root",
@@ -317,14 +323,8 @@ func TestGrubConfigPairsDeviceTreesWithBootEntries(t *testing.T) {
 	if strings.Contains(config, "sp11_feedback_active_offset2_zero") {
 		t.Fatal("grubConfig() retains the removed SoundWire compatibility parameter")
 	}
-	if strings.Contains(config, "allow aDSP") {
-		t.Fatal("grubConfig() exposes the unsafe live-USB aDSP entry")
-	}
-	for _, line := range strings.Split(config, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "linux /casper/vmlinuz") && !strings.Contains(line, "modprobe.blacklist=qcom_q6v5_pas") {
-			t.Errorf("live kernel line does not protect USB media from aDSP reset: %q", line)
-		}
+	if err := validateLiveKernelArguments(config); err != nil {
+		t.Fatal(err)
 	}
 }
 

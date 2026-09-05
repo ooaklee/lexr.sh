@@ -49,6 +49,11 @@ An alternate or mounted target root must be trusted and quiescent while it is in
 
 The recommended set deliberately contains the supported audio release and pinned `iptsd` integration. The camera package set is experimental and remains an explicit opt-in. Restricted platform firmware is never downloaded by `lexr`; acquire it from an authorised source and use the status report to verify its presence.
 
+IPTSD activation retires the legacy `g6-pen.service` when present. If its
+cleanup command fails, Lexr checks systemd's unit state: an absent, inactive
+unit with no unit-file state is already clean. An existing unit, failed or
+incomplete inspection, or timeout still produces an activation error.
+
 ```sh
 lexr userspace pull recommended
 lexr userspace pull camera
@@ -61,6 +66,53 @@ Source builds invoke only compiled, component-specific adapters with bounded arg
 Both userspace source-build adapters use compiled Go policy and do not invoke repository scripts. They require the complete OE checkout because the native builders authenticate their tracked component inputs; pass `--repository-root <oe-checkout>` when it cannot be detected from the current directory. Pull, status, doctor, and installation from a downloaded immutable release do not have that checkout requirement. A successful native camera build prints an independent authority SHA-256 for its final receipt. Retain it separately from the directory. Installing a native camera build or prepared local camera release repeats static Git-backed provenance proof and therefore requires both the explicit repository root and the corresponding independently retained authority digest.
 
 ## 4. Review and install
+
+### Wi-Fi from distribution firmware
+
+When `lexr doctor hardware wifi` reports a board-data failure, derive the
+qualified Surface Pro 11 fallback from the selected root's existing
+`linux-firmware` package:
+
+```sh
+lexr userspace install wifi --dry-run
+sudo lexr userspace install wifi --yes
+```
+
+This workflow needs no `--from` release, Windows files, previous installation,
+or network download. It parses a bounded `board-2.bin` or decompresses its
+`.zst` variant with the installed `zstd` tool. It prefers the exact Surface
+entry when present; otherwise it extracts the single entry qualified by the
+OE board fixup. It preserves `board-2.bin`, backs up an existing `board.bin`,
+and records source and derived digests in a private receipt. Repeating the
+command with matching data leaves the file in place.
+
+Prepare the board data before booting the installed system:
+
+```sh
+lexr userspace install wifi --dry-run
+sudo lexr userspace install wifi --yes
+```
+
+Reboot the installed system afterwards, then run `lexr doctor hardware wifi`.
+Ubuntu image creation now performs the same derivation before building the live
+and installed initramfs, so the radio can find its board data on its first probe.
+The distribution's `board-2.bin` retains priority, including any native SP11
+entry; the image also carries the selected calibration bytes as `board.bin`.
+
+The optional `--activate` restart is restricted to an initialised X1E/OLED radio
+using the legacy `ath12k_pci` driver. Reloading the split `ath12k_wifi7_pci`
+driver after missing board data caused an MHI/QMI kernel crash during SP11
+testing, so Lexr refuses that layout until reload is separately qualified.
+Eligibility depends on hardware and driver state, without a kernel-version
+allow-list. Unknown layouts, built-in modules and failed initial probes cannot
+be restarted. Do not retry a failed activation; save diagnostics and reboot.
+
+For a mounted installed root, use `--root /target` without `--activate`, then
+boot that system. A non-persistent live session loses its changes at reboot;
+use a rebuilt ISO with board data already included. No Wi-Fi setup command
+restarts NetworkManager, the DSP or USB.
+
+### Released audio, IPTSD and camera support
 
 Review an install before granting elevated access. A real install requires both effective root privileges and `--yes`; the CLI does not elevate itself. `--root` may select an alternate target filesystem where the component supports it.
 

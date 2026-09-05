@@ -129,6 +129,15 @@ func (inspector *Inspector) Inspect(options Options) (Report, error) {
 		}
 		check.Remediation = "install a current linux-firmware package containing WCN7850 hw2.0 firmware"
 		add(policies.decorate(check, wifiComponent))
+		regdb, checkErr := inspector.checkAnyFile(fs, wifiRegulatoryFallback)
+		if checkErr != nil {
+			return Report{}, checkErr
+		}
+		if regdb {
+			add(policies.decorate(Check{ID: "wifi-regulatory-data", Feature: FeatureWiFi, State: StatePass, Detail: "standalone regdb.bin fallback is present; runtime regulatory selection still requires hardware validation"}, wifiComponent))
+		} else {
+			add(policies.decorate(Check{ID: "wifi-regulatory-data", Feature: FeatureWiFi, State: StateSkip, Detail: "no standalone regdb.bin; ath12k first reads regulatory records from board-2.bin, whose selected runtime data is not proven by this file check", Remediation: "run lexr doctor hardware wifi and inspect driver diagnostics if radio initialisation fails"}, wifiComponent))
+		}
 
 		board, checkErr := inspector.checkAnyFile(fs, wifiBoardData)
 		if checkErr != nil {

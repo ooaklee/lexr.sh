@@ -115,6 +115,7 @@ func BuildPlan(request Request) (plan.Plan, error) {
 		{ID: "stage-companion", Kind: "companion", Description: "Stage the optional Linux ARM64 CLI, corresponding source, catalogues, and eligible userspace releases", Inputs: map[string]string{"source": companionSource, "userspace": companionUserspace}},
 		{ID: "prepare-tools", Kind: "prepare", Description: "Prepare the isolated ARM64 image-tooling container", Inputs: map[string]string{"adapter": AdapterID}},
 		{ID: "extract-live-root", Kind: "extract", Description: "Validate and extract the Ubuntu Casper layered filesystems"},
+		{ID: "prepare-wifi", Kind: "firmware", Description: "Derive SP11 Wi-Fi board data from the source distribution before the first driver probe"},
 		{ID: "install-kernel", Kind: "kernel", Description: "Register the custom kernel and modules in the live and installed-system root", Inputs: map[string]string{"abi": request.Bundle.ABI}},
 		{ID: "assemble-initramfs-root", Kind: "filesystem", Description: "Apply the standard and live layers to a temporary initramfs build root"},
 		{ID: "build-initramfs", Kind: "initramfs", Description: "Generate an initramfs for the exact custom kernel ABI"},
@@ -275,6 +276,7 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 		"-extract", "/casper/minimal.manifest", "/work/minimal.manifest",
 		"-extract", "/casper/minimal.size", "/work/minimal.size",
 		"-extract", "/md5sum.txt", "/work/md5sum.txt",
+		"-extract", "/.disk/info", "/work/disk-info",
 		"-extract", "/.disk/casper-uuid-generic", "/work/source-casper-uuid-generic",
 		"-extract", "/EFI/boot/grubaa64.efi", "/work/grubaa64.efi"); err != nil {
 		return Result{}, fmt.Errorf("extract ISO inputs: %w", err)
@@ -296,6 +298,18 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 		return Result{}, err
 	}
 
+	logf(r.Out, "Preparing SP11 Wi-Fi board data before the first driver probe")
+	if err := rejectWiFiLayerOverrides(ctx, r.Docker, toolsImage, workspace); err != nil {
+		return Result{}, fmt.Errorf("validate layered Wi-Fi firmware: %w", err)
+	}
+	wifiDigest, err := prepareWiFiBoard(ctx, r.Docker, toolsImage, workspace, workVolume, "rootfs")
+	if err != nil {
+		return Result{}, err
+	}
+	if err := checkpoint("prepare-wifi", map[string]string{liveWiFiBoard: wifiDigest}); err != nil {
+		return Result{}, err
+	}
+
 	logf(r.Out, "Registering custom kernel %s in the live filesystem", request.Bundle.ABI)
 	if err := installKernelPackages(ctx, r.Docker, toolsImage, workspace, workVolume, request.Bundle); err != nil {
 		return Result{}, err
@@ -308,6 +322,9 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err := installInstalledSystemSupport(ctx, r.Docker, toolsImage, workspace, workVolume, request.Bundle); err != nil {
 		return Result{}, err
 	}
+	if err := installGettingStarted(ctx, r.Docker, toolsImage, workspace, workVolume, companionRecord.Included); err != nil {
+		return Result{}, err
+	}
 	if err := checkpoint("install-kernel", nil); err != nil {
 		return Result{}, err
 	}
@@ -316,11 +333,21 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err := assembleInitramfsRoot(ctx, r.Docker, toolsImage, workspace, workVolume, request.Bundle.ABI); err != nil {
 		return Result{}, err
 	}
+	liveWiFiDigest, err := prepareWiFiBoard(ctx, r.Docker, toolsImage, workspace, workVolume, "initramfs-root")
+	if err != nil {
+		return Result{}, err
+	}
+	if liveWiFiDigest != wifiDigest {
+		return Result{}, errors.New("live and installed roots select different SP11 Wi-Fi board data")
+	}
 	if err := checkpoint("assemble-initramfs-root", nil); err != nil {
 		return Result{}, err
 	}
 
 	logf(r.Out, "Generating initramfs for %s", request.Bundle.ABI)
+	if err := installLiveFirmwareHook(ctx, r.Docker, toolsImage, workspace, workVolume); err != nil {
+		return Result{}, err
+	}
 	if err := r.Docker.RunInWorkspaceVolume(ctx, toolsImage, workspace, workVolume,
 		"chroot", "/linux-work/initramfs-root", "mkinitramfs", "-o", "/boot/initrd.img-"+request.Bundle.ABI, request.Bundle.ABI); err != nil {
 		return Result{}, fmt.Errorf("generate custom initramfs: %w", err)
@@ -615,6 +642,9 @@ func validateSourceLayout(workspace string) error {
 	if _, err := caspermedia.ParseUUID(marker); err != nil {
 		return fmt.Errorf("validate Ubuntu source layout: %w", err)
 	}
+	if err := validateInstallerProductInfo(workspace); err != nil {
+		return fmt.Errorf("validate Ubuntu source layout: %w", err)
+	}
 	return nil
 }
 
@@ -831,11 +861,8 @@ func buildEmbeddedManifest(
 		},
 		MediaDiscovery:  mediaDiscovery,
 		CompanionBundle: companionRecord,
-		BootArguments: []string{
-			"clk_ignore_unused", "pd_ignore_unused", "arm64.nopauth", "systemd.tpm2_wait=0",
-			"modprobe.blacklist=qcom_q6v5_pas",
-		},
-		SecureBoot: "unsupported; disable Secure Boot for the unsigned custom kernel and direct GRUB",
+		BootArguments:   strings.Fields(liveKernelArguments),
+		SecureBoot:      "unsupported; disable Secure Boot for the unsigned custom kernel and direct GRUB",
 	}, nil
 }
 
@@ -858,7 +885,8 @@ func portableKernelBundle(bundle kernel.Bundle) kernel.Bundle {
 }
 
 // writeSupportFiles stages reinstallable kernel packages, provenance, operator
-// notes, disk identity, and the device-specific GRUB configuration under the ISO tree.
+// notes, and the device-specific GRUB configuration under the ISO tree. Ubuntu's
+// extracted disk identity is preserved for the desktop installer's product parser.
 func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manifestBytes []byte, abi string) error {
 	expectedManifestBytes, err := serialiseManifest(manifest)
 	if err != nil {
@@ -886,15 +914,14 @@ func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manife
 	if manifest.CompanionBundle.Included {
 		companionNote = "A Linux ARM64 Lexr companion, corresponding source, catalogues, and any declared offline userspace releases are under /sp11/companion. Copy the executable to a writable filesystem before running privileged install operations."
 	}
-	readme := fmt.Sprintf("Lexr Surface Pro 11 image\n\nCustom kernel ABI: %s\n\nSecure Boot must be disabled. The USB-safe menu entries temporarily blacklist qcom_q6v5_pas so USB storage remains available in the live session. Kernel packages are included under /sp11/kernel for installed-system setup. Proprietary device firmware is not redistributed.\n\n%s\n", abi, companionNote)
+	readme := fmt.Sprintf("Lexr Surface Pro 11 image\n\nCustom kernel ABI: %s\n\nSecure Boot must be disabled. The live entries allow DSP attachment for Type-C USB. Kernel packages are included under /sp11/kernel for installed-system setup. Wi-Fi board data is derived from the source distribution before boot using the same native parser as lexr userspace install wifi. Full audio requires the same-device platform firmware and userspace setup. Proprietary device firmware is not redistributed.\n\n%s\n", abi, companionNote)
 	if err := os.WriteFile(filepath.Join(sp11, "README.txt"), []byte(readme), 0o644); err != nil {
 		return err
 	}
 	if err := os.WriteFile(filepath.Join(workspace, "grub.cfg"), []byte(grubConfig(abi)), 0o644); err != nil {
 		return err
 	}
-	diskInfo := fmt.Sprintf("Lexr Ubuntu arm64 for Surface Pro 11 (%s)\n", abi)
-	return os.WriteFile(filepath.Join(workspace, "disk-info"), []byte(diskInfo), 0o644)
+	return nil
 }
 
 // companionDigests converts the complete single-manifest companion inventory

@@ -8,8 +8,11 @@ creation to a verified USB write and the physical test which must follow.
 
 > [!CAUTION]
 > Both implemented adapters remain experimental. `implemented` means Lexr can
-> create and structurally validate their output; it does not mean that the image
-> has completed a physical boot or installation. A Fedora 44 candidate passed
+> create and structurally validate their output; physical boot and installation
+> need separate evidence. The Ubuntu candidate built
+> with Lexr `384f2c0` and v23 reached the X1E/OLED live desktop; the tester
+> confirmed Wi-Fi connected without a live-session repair. Installation and
+> remaining hardware checks still need qualification. A Fedora 44 candidate passed
 > structural validation and USB read-back, but a Surface Pro 11 boot reached the
 > emergency path. Removing `quiet` exposed early text before the display remained
 > black for hours. Reproduction and diagnosis continue in
@@ -31,13 +34,28 @@ described here.
 - The shortest command selects `ubuntu-concept-resolute-x1e` and the latest candidate kernel release. Those packages become trusted only after their publisher checksums and measured contents pass verification.
 - Fedora Workstation Live 44 must be selected explicitly and requires a patch-line-qualified verified Surface kernel bundle: 7.2.0/sp11v19+ or 7.2.2/sp11v1+. Its custom live and installed-system path is limited to X1E/OLED; X1P/LCD has a stock-kernel live troubleshooting entry only and must not be installed from this adapter.
 - Structural validation is a publication gate, not a substitute for booting the media on a Surface Pro 11. Disable Secure Boot before using the unsigned custom kernel, and treat an actual device boot as the final compatibility gate.
-- Every current catalogue entry still needs complete end-to-end testing, especially to confirm its image structure and bootability. The implemented entries remain runnable so contributors can reproduce and improve them.
+- Every current catalogue entry still needs complete end-to-end testing. Ubuntu's tested X1E/OLED live desktop and Wi-Fi result does not qualify installation, other models or other kernel versions. The implemented entries remain runnable so contributors can reproduce and improve them.
 - The pre-write router accepts only the implemented Lexr Ubuntu Casper and Fedora Live outputs after their adapter-owned structural validators pass. Compressed raw disk images use a different partition and boot model and need a separate adapter.
 - USB planning is read-only. The real write requires elevated privilege and the exact confirmation generated for the current source and device.
 
 ## 1. Choose, create and validate an image
 
 ### Ubuntu Concept
+
+Physical testing on 2026-09-05 used the dated 2026-03-26 source, Lexr
+`384f2c0`, and kernel `7.2.0-jg-0sp11v23-qcom-x1e`. After a complete Lexr USB
+write and matching SHA-256 read-back, the tester reached the Surface Pro 11
+X1E/OLED live desktop and connected to Wi-Fi without repairing the live
+session. Board data was prepared from the source distribution before the
+first driver probe. See [issue #41](https://github.com/ooaklee/lexr.sh/issues/41)
+for live-boot evidence; installation, installed-system boot and the full
+peripheral matrix remain under [issue #16](https://github.com/ooaklee/lexr.sh/issues/16).
+
+The tester also confirmed the installer welcome screen and working pen and
+touchscreen input after using the bundled Lexr to install `sp11-iptsd-v2`
+from the USB companion. This confirms the desktop guide's IPTSD workflow;
+pressure, palm rejection and suspend/resume need separate testing. Audio
+configuration and validation remain part of the installed-system workflow.
 
 Run the host checks, create the image, and validate the completed output:
 
@@ -157,6 +175,35 @@ minimal installation path carries that same kernel contract. The optional
 full-desktop upper layer has its own package database and is not yet proven to
 preserve the hand-off.
 
+Every Surface live entry passes the Casper, clock, and power-domain
+parameters directly to the kernel. These model-specific entries
+do not depend on a firmware processor-name match. Validation rejects a menu
+that places the required arguments only in a variable or a comment.
+
+Ubuntu leaves `qcom_q6v5_pas` available for Type-C USB. With v23, the driver
+can attach to the ADSP firmware already started by UEFI when the full Denali
+firmware is absent. Blacklisting this driver prevented USB media discovery
+on the tested X1E/OLED Surface; removing it restored the live desktop.
+Validation rejects that blacklist on Ubuntu live entries. X1P/LCD remains
+unqualified, and desktop boot alone does not validate the installer.
+
+The adapter preserves Ubuntu's original `.disk/info` bytes, including the
+release and quoted codename used by Desktop Bootstrap. Replacing that identity
+with an unquoted Lexr label caused the installer to fail before its welcome
+page. Source and output validation reject malformed product metadata; Lexr's
+kernel identity and provenance remain under `/sp11`. The corrected metadata
+has reached the welcome page on the tested X1E/OLED live session; an actual
+installation and installed boot still require separate validation.
+
+The live initramfs also includes the distribution's X1E Adreno GMU and SQE
+firmware. The custom GPU driver can request these files before Casper mounts
+the live filesystem, even when its module metadata does not list them.
+Creation fails if the source lacks either file, and validation checks their
+non-empty contents across the initramfs archives. This does not supply the
+private Denali firmware handled by the [Windows hand-off](windows-handoff.md),
+or establish hardware bootability. Ubuntu live-boot qualification remains
+tracked in [issue #41](https://github.com/ooaklee/lexr.sh/issues/41).
+
 ### Fedora path
 
 The Fedora adapter extracts the LZMA-compressed EROFS root at
@@ -181,13 +228,21 @@ identities together with the boot records, kernel, initramfs, module tree,
 device trees, package ownership, manifests, and EFI locations before the
 manifest and journal are published and the ISO becomes the final commit marker.
 
-Both live and installed boot policies include
-`soundwire_qcom.sp11_feedback_active_offset2_zero=1` for the validated FullIO
-audio behaviour. Live-USB entries additionally blacklist `qcom_q6v5_pas`
-because starting the DSP can disrupt a USB-backed live root; installed systems
-must not retain that live-only blacklist. A directly written hybrid ISO does
-not use `iso-scan/filename`, which belongs to a labelled outer-disk loopback
-workflow.
+The Fedora live policy still blacklists `qcom_q6v5_pas`; its hardware
+qualification is separate from the Ubuntu fix above. Installed systems must
+not retain a live-only DSP blacklist. Ubuntu omits the retired
+`soundwire_qcom.sp11_feedback_active_offset2_zero=1` parameter.
+A directly written hybrid ISO does not use `iso-scan/filename`, which belongs
+to a labelled outer-disk loopback workflow.
+
+The custom kernel does not replace device firmware or audio userspace.
+The distributable ISO carries no private Denali firmware or restricted FullIO
+audio payload. The native [Wi-Fi userspace command](userspace-support.md#wi-fi-from-distribution-firmware)
+derives its board fallback from the distribution's existing Linux firmware.
+Full audio needs the [same-device Windows hand-off](windows-handoff.md) and
+[userspace setup](userspace-support.md). Importing full ADSP firmware can
+restart the DSP and disconnect Type-C USB; perform that hand-off on the
+installed system rather than while its live root depends on USB.
 
 The mutable live filesystem remains inside a named Linux Docker volume during
 the build, preserving ownership, device nodes, case-sensitive paths, SELinux

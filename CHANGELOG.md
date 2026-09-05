@@ -50,6 +50,59 @@ that do not apply.
 
 ---
 
+## [0.4.0] - Unreleased
+
+### Added
+
+- Add native `userspace install wifi` with `--dry-run`, an optional
+  `--activate` radio restart, and recoverable board-data installation from
+  the distribution's existing WCN7850 firmware. Radio restart requires an
+  initialised legacy ath12k driver; the split driver's reload is unqualified
+  after an observed kernel crash. No kernel-version allow-list is used.
+  Ubuntu companion images
+  carry `LEXR_GETTING_STARTED.txt` on the desktop with live and post-install
+  setup commands ([#41](https://github.com/ooaklee/lexr.sh/issues/41)).
+
+### Fixed
+
+- Accept the complete Ubuntu Wi-Fi preparation journal during image release
+  packaging and validation, including its board-data digest, while retaining
+  validation of earlier image journals.
+- Treat absent, inactive `g6-pen.service` as completed legacy cleanup during
+  IPTSD activation after checking systemd's unit state. Fresh Ubuntu live
+  sessions no longer report incomplete activation merely because the obsolete
+  service is missing; failures involving an existing unit remain errors.
+  Pen and touchscreen input were confirmed on X1E/OLED v23 after installing
+  the included IPTSD bundle with the on-USB Lexr
+  ([#41](https://github.com/ooaklee/lexr.sh/issues/41)).
+- Prepare SP11 Wi-Fi board data from the source distribution before live boot,
+  include matching data in the deployable root and live initramfs, and reject
+  conflicting upper firmware layers. Stop Wi-Fi activation after its first
+  failure and replace retry advice with a boot-time preparation path. Physical
+  testing reached the X1E/OLED live desktop with Wi-Fi working without a
+  live-session repair using Lexr `384f2c0` and v23
+  ([#41](https://github.com/ooaklee/lexr.sh/issues/41)).
+- Preserve Ubuntu's original `.disk/info` product identity when remastering.
+  The previous Lexr label caused Desktop Bootstrap to show "Something went
+  wrong" before the welcome page. Source and output validation now reject
+  malformed product metadata
+  ([#41](https://github.com/ooaklee/lexr.sh/issues/41)).
+- Allow the Ubuntu live session to load the DSP driver needed for Type-C USB.
+  Removing the old blacklist restores live desktop boot on Surface Pro 11
+  X1E/OLED with the v23 kernel. Validation rejects menus that restore the
+  blacklist ([#41](https://github.com/ooaklee/lexr.sh/issues/41)); installation
+  and remaining hardware checks stay under
+  [#16](https://github.com/ooaklee/lexr.sh/issues/16).
+- Pass Surface live-boot parameters directly on every Ubuntu kernel command
+  so missing firmware detection cannot disable required clock and power-domain
+  protection. Validate the arguments on each entry, including text diagnostics
+  ([#41](https://github.com/ooaklee/lexr.sh/issues/41)).
+- Include Ubuntu's existing X1E GPU GMU and SQE firmware in the live
+  initramfs when custom-kernel metadata does not declare it, and reject
+  images missing those early-boot files during validation. Physical Ubuntu
+  live-boot qualification remains tracked in
+  [#41](https://github.com/ooaklee/lexr.sh/issues/41).
+
 ## [0.3.0] - 2026-09-05
 
 ### Added
