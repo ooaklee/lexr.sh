@@ -10,7 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/ooaklee/lexr.sh/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
 
 const (
@@ -148,7 +148,7 @@ func (manager *Manager) revalidateStagedMetadata(ctx context.Context, planned []
 			return fmt.Errorf("reinspect staged package %s: %w", item.Name, err)
 		}
 		if metadata.DebianPackage != item.DebianPackage || metadata.Version != item.Version ||
-			metadata.Architecture != item.Architecture || metadata.Depends != item.Depends {
+			metadata.Architecture != item.Architecture || metadata.Depends != item.Depends || metadata.Recommends != item.Recommends {
 			return fmt.Errorf("staged package %s metadata changed after preflight", item.Name)
 		}
 	}
@@ -314,6 +314,12 @@ func (manager *Manager) failAndRollback(plan Plan, backup grubBackup, receipt Re
 	defer cancel()
 	packageNames := make([]string, 0, len(plan.Packages))
 	for _, item := range plan.Packages {
+		// Boot support is a singleton shared by fallback ABIs. Purging it as if
+		// it belonged to the failed target can destroy the retained boot path.
+		// Its exact target-ABI state is removed by the image package's postrm hook.
+		if item.Role == kernel.RoleBootSupport {
+			continue
+		}
 		packageNames = append(packageNames, item.DebianPackage)
 	}
 	commands, commandErr := rollbackCommands(plan.Root, packageNames)
@@ -323,7 +329,7 @@ func (manager *Manager) failAndRollback(plan Plan, backup grubBackup, receipt Re
 	} else {
 		for _, command := range commands {
 			recovery.Commands = append(recovery.Commands, cloneCommand(command))
-			if err := manager.runner.Run(rollbackContext, platform.Command{Name: command.Name, Args: append([]string(nil), command.Args...)}); err != nil {
+			if err := manager.runMutationCommand(rollbackContext, command); err != nil {
 				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("%s: %w", command.Operation, err))
 			}
 		}
@@ -341,8 +347,11 @@ func (manager *Manager) failAndRollback(plan Plan, backup grubBackup, receipt Re
 		rollbackErr = errors.Join(rollbackErr, fmt.Errorf("verify fallback after rollback: %w", verificationErr))
 	}
 	if !plan.Overwrite {
-		if err := verifyTargetAbsent(rollbackContext, plan.Root, plan.TargetABI); err != nil {
+		target, err := classifyTargetState(rollbackContext, plan.Root, plan.TargetABI, plan.Packages, plan.DeviceTrees)
+		if err != nil {
 			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("verify target removal after rollback: %w", err))
+		} else if target.Classification != TargetStateAbsent {
+			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("verify target removal after rollback: target is %s", target.Classification))
 		}
 	}
 	if rollbackErr != nil {

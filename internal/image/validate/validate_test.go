@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -198,6 +199,7 @@ func (runner *extractionRunner) Run(_ context.Context, command platform.Command)
 	}
 	runner.extractArgs = append([]string(nil), command.Args...)
 	workspace := ""
+	probe := ""
 	for index, argument := range command.Args {
 		if argument == "--volume" && index+1 < len(command.Args) &&
 			strings.HasSuffix(command.Args[index+1], ":/work") {
@@ -206,9 +208,17 @@ func (runner *extractionRunner) Run(_ context.Context, command platform.Command)
 		if strings.Contains(argument, "xorriso -osirrox") {
 			runner.extractScript = argument
 		}
+		if strings.HasPrefix(argument, ".lexr-workspace-owner-") {
+			probe = argument
+		}
 	}
 	if workspace == "" {
 		return errors.New("Docker command has no workspace")
+	}
+	if runtime.GOOS == "darwin" && probe != "" {
+		if err := os.WriteFile(filepath.Join(workspace, probe), []byte("lexr-workspace-owner"), 0o600); err != nil {
+			return err
+		}
 	}
 	return os.WriteFile(filepath.Join(workspace, "manifest.json"), runner.manifest, 0o644)
 }
@@ -261,6 +271,9 @@ func TestExtractRoutingManifestStrictlyDecodesBoundedBytes(t *testing.T) {
 			if !strings.Contains(runner.extractScript, "ulimit -f") ||
 				!strings.Contains(runner.extractScript, "/sp11/lexr-manifest.json") {
 				t.Fatalf("unbounded or wrong extraction script: %q", runner.extractScript)
+			}
+			if strings.Contains(runner.extractScript, "chmod") {
+				t.Fatalf("routing extraction rewrites package modes: %q", runner.extractScript)
 			}
 			for _, required := range [][2]string{
 				{"--network", "none"},

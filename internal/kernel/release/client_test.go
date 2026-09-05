@@ -82,6 +82,7 @@ func TestDownloadBundleRejectsWrongCommonHeaderBase(t *testing.T) {
 	delete(files, commonName)
 	wrongName := "linux-qcom-x1e-headers-wrong-base_" + testReleaseVersion + "_all.deb"
 	files[wrongName] = contents
+	files[releaseBundleManifestName] = kernelReleaseBundle(files)
 	files["SHA256SUMS"] = kernelReleaseChecksums(files)
 
 	server := newKernelReleaseServer(t, files)
@@ -122,16 +123,163 @@ func TestDownloadBundleRuntimeSelectionIgnoresHeaders(t *testing.T) {
 	}
 }
 
+// TestDownloadBundlePreservesExternalDelivery proves release acquisition keeps
+// source-policy delivery evidence and downloads generic boot support.
+func TestDownloadBundlePreservesExternalDelivery(t *testing.T) {
+	files := map[string][]byte{
+		packageName(kernel.RoleImage):       []byte("fixture for image"),
+		packageName(kernel.RoleModules):     []byte("fixture for modules"),
+		packageName(kernel.RoleBootSupport): []byte("fixture for boot support"),
+	}
+	files[releaseBundleManifestName] = kernelReleaseBundle(files)
+	files["SHA256SUMS"] = kernelReleaseChecksums(files)
+	server := newKernelReleaseServer(t, files)
+	defer server.Close()
+	client := NewClient(server.Client())
+	client.APIBaseURL = server.URL
+	bundle, err := client.DownloadBundle(context.Background(), "owner/repository", "v21", t.TempDir(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bundle.RequestedBootImageMode != kernel.RequestedBootImageModeSource || bundle.EffectiveDTBDelivery != kernel.DTBDeliveryExternalRequired || bundle.EmbeddedDTBCount != 0 {
+		t.Fatalf("delivery contract = %#v", bundle)
+	}
+	if _, ok := bundle.Package(kernel.RoleBootSupport); !ok {
+		t.Fatal("downloaded external-required bundle has no boot support")
+	}
+}
+
+// TestDownloadBundleBindsPackagesToAuthoritativeManifest proves a checksummed
+// schema-2 manifest cannot attach its delivery provenance to different bytes.
+func TestDownloadBundleBindsPackagesToAuthoritativeManifest(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		mutate func(*kernel.Package)
+		want   string
+	}{
+		{name: "digest", mutate: func(pkg *kernel.Package) { pkg.SHA256 = strings.Repeat("a", 64) }, want: "bundle and SHA256SUMS disagree"},
+		{name: "size", mutate: func(pkg *kernel.Package) { pkg.Size++ }, want: "downloaded package bytes disagree"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			files := kernelReleaseFiles()
+			var recorded kernel.Bundle
+			if err := json.Unmarshal(files[releaseBundleManifestName], &recorded); err != nil {
+				t.Fatal(err)
+			}
+			for index := range recorded.Packages {
+				if recorded.Packages[index].Role == kernel.RoleImage {
+					test.mutate(&recorded.Packages[index])
+				}
+			}
+			encoded, err := json.MarshalIndent(recorded, "", "  ")
+			if err != nil {
+				t.Fatal(err)
+			}
+			files[releaseBundleManifestName] = append(encoded, '\n')
+			files["SHA256SUMS"] = kernelReleaseChecksums(files)
+
+			server := newKernelReleaseServer(t, files)
+			defer server.Close()
+			client := NewClient(server.Client())
+			client.APIBaseURL = server.URL
+			_, err = client.DownloadBundle(context.Background(), "owner/repository", "v21", t.TempDir(), false)
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("DownloadBundle() error = %v, want containing %q", err, test.want)
+			}
+		})
+	}
+}
+
 // kernelReleaseFiles returns a complete runtime release plus requested header
 // roles and an authoritative checksum manifest for every package asset.
 func kernelReleaseFiles(headerRoles ...kernel.PackageRole) map[string][]byte {
 	roles := append([]kernel.PackageRole{kernel.RoleImage, kernel.RoleModules}, headerRoles...)
-	files := make(map[string][]byte, len(roles)+1)
+	files := make(map[string][]byte, len(roles)+2)
 	for _, role := range roles {
 		files[packageName(role)] = []byte("fixture for " + role)
 	}
+	files[releaseBundleManifestName] = kernelReleaseBundle(files)
 	files["SHA256SUMS"] = kernelReleaseChecksums(files)
 	return files
+}
+
+// kernelReleaseBundle creates the authoritative fixture delivery contract.
+func kernelReleaseBundle(files map[string][]byte) []byte {
+	packages := make([]kernel.Package, 0, len(files))
+	hasHeaders, hasCommonHeaders, hasBootSupport := false, false, false
+	for name := range files {
+		role, _, _, err := kernel.ParsePackageName(name)
+		if err == nil {
+			hasHeaders = hasHeaders || role == kernel.RoleHeaders
+			hasCommonHeaders = hasCommonHeaders || role == kernel.RoleCommonHeaders
+			hasBootSupport = hasBootSupport || role == kernel.RoleBootSupport
+		}
+	}
+	for name, contents := range files {
+		role, _, _, err := kernel.ParsePackageName(name)
+		if err != nil {
+			continue
+		}
+		if (role == kernel.RoleHeaders || role == kernel.RoleCommonHeaders) && (!hasHeaders || !hasCommonHeaders) {
+			continue
+		}
+		packages = append(packages, kernel.Package{
+			Role: role, Name: name, Path: name, SHA256: releaseDigest(contents), Size: int64(len(contents)), Verified: true,
+		})
+	}
+	requested := kernel.RequestedBootImageModeStubble
+	delivery := kernel.DTBDeliveryEmbedded
+	embeddedCount := 2
+	selection := &kernel.DTBSelectionProvenance{
+		Tool: "stubble", Version: "fixture-1", DatabaseSHA256: strings.Repeat("d", 64),
+		StubSHA256: strings.Repeat("1", 64), HelperSHA256: strings.Repeat("2", 64), SBATSHA256: strings.Repeat("3", 64),
+		UKifyTool: "ukify", UKifyPackage: "systemd-ukify", UKifyVersion: "258.1-1", UKifySHA256: strings.Repeat("4", 64),
+		Selections: []kernel.DeviceTreeSelectionEvidence{
+			{Device: "surface-pro-11-x1e-oled", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "microsoft,denali", HWIDs: []string{"11111111-1111-5111-8111-111111111111"}}}},
+			{Device: "surface-pro-11-x1p-lcd", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "microsoft,denali-x1p", HWIDs: []string{"22222222-2222-5222-8222-222222222222"}}}},
+		},
+	}
+	trees := kernelReleaseDeviceTrees()
+	if hasBootSupport {
+		requested = kernel.RequestedBootImageModeSource
+		delivery = kernel.DTBDeliveryExternalRequired
+		embeddedCount = 0
+		selection = nil
+		for index := range trees {
+			trees[index].EmbeddedMatches = 0
+		}
+	}
+	bundle, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: "v21", Repository: "https://example.invalid/kernel.git",
+		RequestedBootImageMode: requested, EffectiveDTBDelivery: delivery, EmbeddedDTBCount: embeddedCount,
+		DTBSelectionProvenance: selection, Packages: packages, DeviceTrees: trees,
+	})
+	if err != nil {
+		panic(err)
+	}
+	var output strings.Builder
+	if err := bundle.WriteJSON(&output); err != nil {
+		panic(err)
+	}
+	return []byte(output.String())
+}
+
+// kernelReleaseDeviceTrees returns complete embedded-delivery evidence.
+func kernelReleaseDeviceTrees() []kernel.DeviceTree {
+	return []kernel.DeviceTree{
+		{
+			Device: "surface-pro-11-x1e-oled", Basename: "x1e80100-microsoft-denali-oled.dtb",
+			Path:              "usr/lib/firmware/" + testReleaseABI + "/device-tree/qcom/x1e80100-microsoft-denali-oled.dtb",
+			CompatibleStrings: []string{"microsoft,denali", "qcom,x1e80100"}, SHA256: strings.Repeat("e", 64),
+			EmbeddedMatches: 1, Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "11111111-1111-5111-8111-111111111111"}}, Required: true,
+		},
+		{
+			Device: "surface-pro-11-x1p-lcd", Basename: "x1p64100-microsoft-denali.dtb",
+			Path:              "usr/lib/firmware/" + testReleaseABI + "/device-tree/qcom/x1p64100-microsoft-denali.dtb",
+			CompatibleStrings: []string{"microsoft,denali-x1p", "qcom,x1p64100"}, SHA256: strings.Repeat("f", 64),
+			EmbeddedMatches: 1, Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali-x1p"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "22222222-2222-5222-8222-222222222222"}}, Required: true,
+		},
+	}
 }
 
 // kernelReleaseChecksums returns a stable checksum manifest for every package
@@ -164,6 +312,8 @@ func packageName(role kernel.PackageRole) string {
 		return "linux-headers-" + testReleaseABI + "_" + testReleaseVersion + "_arm64.deb"
 	case kernel.RoleCommonHeaders:
 		return "linux-qcom-x1e-headers-" + strings.TrimSuffix(testReleaseABI, "-qcom-x1e") + "_" + testReleaseVersion + "_all.deb"
+	case kernel.RoleBootSupport:
+		return "lexr-kernel-boot-support_" + testReleaseVersion + "_all.deb"
 	default:
 		panic("unsupported test package role " + role)
 	}

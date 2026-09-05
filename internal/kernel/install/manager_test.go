@@ -1,6 +1,7 @@
 package install
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -123,7 +124,7 @@ func fixtureMetadata(name, field string) (string, error) {
 		return "", err
 	}
 	packageName := strings.TrimSuffix(name, "_"+version+"_arm64.deb")
-	if role == kernel.RoleCommonHeaders {
+	if role == kernel.RoleCommonHeaders || role == kernel.RoleBootSupport {
 		packageName = strings.TrimSuffix(name, "_"+version+"_all.deb")
 	}
 	switch field {
@@ -132,7 +133,7 @@ func fixtureMetadata(name, field string) (string, error) {
 	case "Version":
 		return version, nil
 	case "Architecture":
-		if role == kernel.RoleCommonHeaders {
+		if role == kernel.RoleCommonHeaders || role == kernel.RoleBootSupport {
 			return "all", nil
 		}
 		return "arm64", nil
@@ -149,6 +150,11 @@ func fixtureMetadata(name, field string) (string, error) {
 		default:
 			return "", nil
 		}
+	case "Recommends":
+		if role == kernel.RoleBootSupport {
+			return "linux-image-" + fixtureTargetABI + " (= " + version + "), linux-modules-" + fixtureTargetABI + " (= " + version + ")", nil
+		}
+		return "", nil
 	default:
 		return "", fmt.Errorf("unexpected metadata field %s", field)
 	}
@@ -176,8 +182,15 @@ func fixtureEnvironment(t *testing.T) (string, kernel.Bundle) {
 	packages := []kernel.Package{
 		fixturePackage(t, packageDirectory, kernel.RoleImage, "image package"),
 		fixturePackage(t, packageDirectory, kernel.RoleModules, "modules package"),
+		fixturePackage(t, packageDirectory, kernel.RoleBootSupport, "boot support package"),
 	}
-	bundle, err := kernel.NewBundle("sp11-v19", "", packages)
+	bundle, err := kernel.NewBundle(kernel.BundleOptions{
+		Release:                "fixture-v19",
+		RequestedBootImageMode: kernel.RequestedBootImageModeNoStubble,
+		EffectiveDTBDelivery:   kernel.DTBDeliveryExternalRequired,
+		Packages:               packages,
+		DeviceTrees:            fixtureDeviceTrees(fixtureTargetABI, 0),
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,6 +209,37 @@ func fixtureBundleWithHeaders(t *testing.T, bundle kernel.Bundle) kernel.Bundle 
 	return bundle
 }
 
+// fixtureEmbeddedBundle converts the runtime fixture to a validated embedded contract.
+func fixtureEmbeddedBundle(t *testing.T, bundle kernel.Bundle) kernel.Bundle {
+	t.Helper()
+	packages := make([]kernel.Package, 0, 2)
+	for _, item := range bundle.Packages {
+		if item.Role != kernel.RoleBootSupport {
+			packages = append(packages, item)
+		}
+	}
+	embedded, err := kernel.NewBundle(kernel.BundleOptions{
+		Release:                bundle.Release,
+		RequestedBootImageMode: kernel.RequestedBootImageModeStubble,
+		EffectiveDTBDelivery:   kernel.DTBDeliveryEmbedded,
+		EmbeddedDTBCount:       2,
+		DTBSelectionProvenance: &kernel.DTBSelectionProvenance{
+			Tool: "fixture-selector", Version: "1.0", DatabaseSHA256: strings.Repeat("a", 64),
+			StubSHA256: strings.Repeat("1", 64), HelperSHA256: strings.Repeat("2", 64), SBATSHA256: strings.Repeat("3", 64),
+			UKifyTool: "ukify", UKifyPackage: "systemd-ukify", UKifyVersion: "258.1-1", UKifySHA256: strings.Repeat("4", 64),
+			Selections: []kernel.DeviceTreeSelectionEvidence{
+				{Device: "fixture-laptop", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "vendor,fixture-laptop", HWIDs: []string{"11111111-1111-5111-8111-111111111111"}}}},
+				{Device: "fixture-tablet", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "vendor,fixture-tablet", HWIDs: []string{"22222222-2222-5222-8222-222222222222"}}}},
+			},
+		},
+		Packages: packages, DeviceTrees: fixtureDeviceTrees(fixtureTargetABI, 1),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return embedded
+}
+
 // fixturePackage writes one package-shaped immutable fixture and records its digest.
 func fixturePackage(t *testing.T, directory string, role kernel.PackageRole, content string) kernel.Package {
 	t.Helper()
@@ -209,6 +253,8 @@ func fixturePackage(t *testing.T, directory string, role kernel.PackageRole, con
 		name = "linux-headers-" + fixtureTargetABI + "_" + fixtureVersion + "_arm64.deb"
 	case kernel.RoleCommonHeaders:
 		name = "linux-qcom-x1e-headers-" + strings.TrimSuffix(fixtureTargetABI, "-qcom-x1e") + "_" + fixtureVersion + "_all.deb"
+	case kernel.RoleBootSupport:
+		name = "lexr-kernel-boot-support_" + fixtureVersion + "_all.deb"
 	default:
 		t.Fatalf("unsupported fixture role %s", role)
 	}
@@ -225,6 +271,30 @@ func fixturePackage(t *testing.T, directory string, role kernel.PackageRole, con
 	}
 }
 
+// fixtureDeviceTrees returns a deterministic multi-platform DTB inventory.
+func fixtureDeviceTrees(abi string, embeddedMatches int) []kernel.DeviceTree {
+	return []kernel.DeviceTree{
+		{
+			Device: "fixture-laptop", Basename: "fixture-laptop.dtb",
+			Path:              "usr/lib/firmware/" + abi + "/device-tree/vendor/fixture-laptop.dtb",
+			CompatibleStrings: []string{"vendor,fixture-laptop"}, SHA256: digestText("lcd dtb"),
+			EmbeddedMatches: embeddedMatches, Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "vendor,fixture-laptop"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "11111111-1111-5111-8111-111111111111"}}, Required: true,
+		},
+		{
+			Device: "fixture-tablet", Basename: "fixture-tablet.dtb",
+			Path:              "usr/lib/firmware/" + abi + "/device-tree/vendor/fixture-tablet.dtb",
+			CompatibleStrings: []string{"vendor,fixture-tablet"}, SHA256: digestText("oled dtb"),
+			EmbeddedMatches: embeddedMatches, Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "vendor,fixture-tablet"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "22222222-2222-5222-8222-222222222222"}}, Required: true,
+		},
+	}
+}
+
+// digestText returns the SHA-256 digest used by fixture DTB declarations.
+func digestText(value string) string {
+	digest := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(digest[:])
+}
+
 // writeFixtureFile creates all parents and writes one regular test file.
 func writeFixtureFile(t *testing.T, path, content string) {
 	t.Helper()
@@ -236,7 +306,7 @@ func writeFixtureFile(t *testing.T, path, content string) {
 	}
 }
 
-// fixtureGRUB renders one fallback entry and, optionally, one target entry.
+// fixtureGRUB renders one fallback entry and optional target normal/recovery entries.
 func fixtureGRUB(includeTarget bool) string {
 	text := "menuentry 'Ubuntu " + fixtureFallbackABI + "' {\n" +
 		" linux /boot/vmlinuz-" + fixtureFallbackABI + " root=fixture\n" +
@@ -246,7 +316,11 @@ func fixtureGRUB(includeTarget bool) string {
 		text += "menuentry 'Ubuntu " + fixtureTargetABI + "' {\n" +
 			" linux /boot/vmlinuz-" + fixtureTargetABI + " root=fixture\n" +
 			" initrd /boot/initrd.img-" + fixtureTargetABI + "\n" +
-			" devicetree /dtb-" + fixtureTargetABI + "\n}\n"
+			" devicetree /boot/dtb-" + fixtureTargetABI + "\n}\n" +
+			"menuentry 'Ubuntu " + fixtureTargetABI + " (recovery mode)' {\n" +
+			" linux /boot/vmlinuz-" + fixtureTargetABI + " root=fixture single\n" +
+			" initrd /boot/initrd.img-" + fixtureTargetABI + "\n" +
+			" devicetree /boot/dtb-" + fixtureTargetABI + "\n}\n"
 	}
 	return text
 }
@@ -273,14 +347,18 @@ func fixtureManager(runner *fakeRunner) *Manager {
 // installFixtureTarget simulates Debian maintainer scripts for the target ABI.
 func installFixtureTarget(root string) error {
 	files := map[string]string{
-		filepath.Join(root, "boot/vmlinuz-"+fixtureTargetABI):                                                            "target kernel",
-		filepath.Join(root, "boot/System.map-"+fixtureTargetABI):                                                         "target symbols",
-		filepath.Join(root, "boot/config-"+fixtureTargetABI):                                                             "target config",
-		filepath.Join(root, "usr/lib/modules", fixtureTargetABI, "modules.dep"):                                          "kernel/target.ko.zst:\n",
-		filepath.Join(root, "usr/lib/modules", fixtureTargetABI, "kernel/target.ko.zst"):                                 "target module",
-		filepath.Join(root, "usr/lib/firmware", fixtureTargetABI, "device-tree/qcom/x1e80100-microsoft-denali-oled.dtb"): "oled dtb",
-		filepath.Join(root, "usr/lib/firmware", fixtureTargetABI, "device-tree/qcom/x1p64100-microsoft-denali.dtb"):      "lcd dtb",
-		filepath.Join(root, "boot/dtb-"+fixtureTargetABI):                                                                "oled dtb",
+		filepath.Join(root, "boot/vmlinuz-"+fixtureTargetABI):                                              "target kernel",
+		filepath.Join(root, "boot/System.map-"+fixtureTargetABI):                                           "target symbols",
+		filepath.Join(root, "boot/config-"+fixtureTargetABI):                                               "target config",
+		filepath.Join(root, "usr/lib/modules", fixtureTargetABI, "modules.dep"):                            "kernel/target.ko.zst:\n",
+		filepath.Join(root, "usr/lib/modules", fixtureTargetABI, "kernel/target.ko.zst"):                   "target module",
+		filepath.Join(root, "usr/lib/firmware", fixtureTargetABI, "device-tree/vendor/fixture-laptop.dtb"): "lcd dtb",
+		filepath.Join(root, "usr/lib/firmware", fixtureTargetABI, "device-tree/vendor/fixture-tablet.dtb"): "oled dtb",
+		filepath.Join(root, "boot/dtbs", fixtureTargetABI, "vendor/fixture-tablet.dtb"):                    "oled dtb",
+		filepath.Join(root, "boot/dtb-"+fixtureTargetABI):                                                  "oled dtb",
+		filepath.Join(root, "var/lib/lexr/kernel-boot", fixtureTargetABI, "platform"):                      "fixture-tablet\n",
+		filepath.Join(root, "var/lib/lexr/kernel-boot", fixtureTargetABI, "dtb-path"):                      "vendor/fixture-tablet.dtb\n",
+		filepath.Join(root, "var/lib/lexr/kernel-boot", fixtureTargetABI, "dtb-sha256"):                    digestText("oled dtb") + "\n",
 	}
 	for path, content := range files {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -322,6 +400,9 @@ func removeFixtureTarget(root string) error {
 		filepath.Join(root, "boot/config-"+fixtureTargetABI),
 		filepath.Join(root, "usr/lib/modules", fixtureTargetABI),
 		filepath.Join(root, "usr/lib/firmware", fixtureTargetABI),
+		filepath.Join(root, "boot/dtbs", fixtureTargetABI),
+		filepath.Join(root, "boot/dtb-"+fixtureTargetABI),
+		filepath.Join(root, "var/lib/lexr/kernel-boot", fixtureTargetABI),
 		filepath.Join(root, "usr/src/linux-headers-"+fixtureTargetABI),
 		filepath.Join(root, "usr/src/linux-qcom-x1e-headers-"+base),
 	}
@@ -346,7 +427,7 @@ func TestPreflightProducesExactDryRunPlan(t *testing.T) {
 	if plan.TargetABI != fixtureTargetABI || plan.FallbackABI != fixtureFallbackABI || !plan.DryRun {
 		t.Fatalf("unexpected plan identity: %+v", plan)
 	}
-	if len(plan.Packages) != 2 || plan.Packages[0].Role != kernel.RoleModules || plan.Packages[1].Role != kernel.RoleImage {
+	if len(plan.Packages) != 3 || plan.Packages[0].Role != kernel.RoleModules || plan.Packages[1].Role != kernel.RoleImage || plan.Packages[2].Role != kernel.RoleBootSupport {
 		t.Fatalf("unexpected package order: %+v", plan.Packages)
 	}
 	if len(plan.DeviceTrees) != 2 || len(plan.Commands) != 2 {
@@ -407,6 +488,12 @@ func TestInstallStagesPackagesAndVerifiesBootEvidence(t *testing.T) {
 	root, bundle := fixtureEnvironment(t)
 	runner := &fakeRunner{root: root}
 	runner.runHook = func(_ context.Context, command platform.Command) error {
+		if command.Stdout == nil {
+			return errors.New("mutating child stdout was not redirected")
+		}
+		if _, err := fmt.Fprintln(command.Stdout, "fixture mutation progress"); err != nil {
+			return err
+		}
 		switch {
 		case slicesContain(command.Args, "--install"):
 			for _, argument := range command.Args {
@@ -424,6 +511,8 @@ func TestInstallStagesPackagesAndVerifiesBootEvidence(t *testing.T) {
 		return nil
 	}
 	manager := fixtureManager(runner)
+	var diagnostics bytes.Buffer
+	manager.diagnostics = &diagnostics
 	manager.effectiveUID = func() int { return 0 }
 	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
 	if err != nil {
@@ -433,12 +522,101 @@ func TestInstallStagesPackagesAndVerifiesBootEvidence(t *testing.T) {
 		t.Fatalf("unexpected install receipt: %+v", receipt)
 	}
 	if receipt.Installed.DeviceTreeBoot.Mode != DeviceTreeBootExternal ||
-		receipt.Installed.DeviceTreeBoot.GRUBEntryCount != 1 ||
+		receipt.Installed.DeviceTreeBoot.GRUBEntryCount != 2 ||
+		receipt.Installed.DeviceTreeBoot.NormalGRUBEntryCount != 1 ||
+		receipt.Installed.DeviceTreeBoot.RecoveryGRUBEntryCount != 1 ||
 		receipt.Installed.DeviceTreeBoot.SHA256 == "" {
 		t.Fatalf("incomplete boot device-tree evidence: %+v", receipt.Installed.DeviceTreeBoot)
 	}
 	if len(receipt.Executed) != 2 || receipt.Rollback != nil {
 		t.Fatalf("unexpected command receipt: %+v", receipt)
+	}
+	if got := strings.Count(diagnostics.String(), "fixture mutation progress"); got != len(receipt.Executed) {
+		t.Fatalf("mutation diagnostics count = %d, want %d: %q", got, len(receipt.Executed), diagnostics.String())
+	}
+}
+
+// TestNewRoutesMutationDiagnosticsToStderr protects machine-readable stdout
+// for callers which construct the production manager without test overrides.
+func TestNewRoutesMutationDiagnosticsToStderr(t *testing.T) {
+	manager := New(&fakeRunner{})
+	if manager.diagnostics != os.Stderr {
+		t.Fatalf("default mutation diagnostics = %v, want os.Stderr", manager.diagnostics)
+	}
+}
+
+// TestNewWithDiagnosticsHonoursCallerStream keeps embedded CLI construction
+// isolated from process-global stderr while preserving the nil fallback.
+func TestNewWithDiagnosticsHonoursCallerStream(t *testing.T) {
+	var diagnostics bytes.Buffer
+	manager := NewWithDiagnostics(&fakeRunner{}, &diagnostics)
+	if manager.diagnostics != &diagnostics {
+		t.Fatalf("custom mutation diagnostics = %v, want caller stream", manager.diagnostics)
+	}
+	if fallback := NewWithDiagnostics(&fakeRunner{}, nil); fallback.diagnostics != os.Stderr {
+		t.Fatalf("nil mutation diagnostics = %v, want os.Stderr", fallback.diagnostics)
+	}
+}
+
+// TestInstallRequiresRecoveryGRUBBinding proves two normal entries cannot
+// satisfy the target's normal-and-recovery safety gate.
+func TestInstallRequiresRecoveryGRUBBinding(t *testing.T) {
+	root, bundle := fixtureEnvironment(t)
+	runner := &fakeRunner{root: root}
+	runner.runHook = func(_ context.Context, command platform.Command) error {
+		switch {
+		case slicesContain(command.Args, "--install"):
+			if err := installFixtureTarget(root); err != nil {
+				return err
+			}
+			grub := fixtureGRUB(false) +
+				"menuentry 'Ubuntu " + fixtureTargetABI + "' {\n linux /boot/vmlinuz-" + fixtureTargetABI + "\n devicetree /boot/dtb-" + fixtureTargetABI + "\n initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n" +
+				"menuentry 'Ubuntu' {\n linux /boot/vmlinuz-" + fixtureTargetABI + "\n devicetree /boot/dtb-" + fixtureTargetABI + "\n initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
+			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+		case command.Name == chrootCommand && slicesContain(command.Args, updateInitramfsCommand):
+			writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+		}
+		return nil
+	}
+	manager := fixtureManager(runner)
+	manager.effectiveUID = func() int { return 0 }
+	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	if err == nil || !strings.Contains(err.Error(), "verified 2 normal and 0 recovery entries") {
+		t.Fatalf("normal-only installation error = %v", err)
+	}
+	if receipt.Rollback == nil {
+		t.Fatal("normal-only installation did not trigger rollback")
+	}
+}
+
+// TestInstallRejectsEffectiveDeliveryMismatch proves runtime evidence cannot
+// silently replace the bundle's structurally verified delivery mode.
+func TestInstallRejectsEffectiveDeliveryMismatch(t *testing.T) {
+	root, bundle := fixtureEnvironment(t)
+	bundle = fixtureEmbeddedBundle(t, bundle)
+	runner := &fakeRunner{root: root}
+	runner.runHook = func(_ context.Context, command platform.Command) error {
+		switch {
+		case slicesContain(command.Args, "--install"):
+			if err := installFixtureTarget(root); err != nil {
+				return err
+			}
+			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(true))
+		case command.Name == chrootCommand && slicesContain(command.Args, updateInitramfsCommand):
+			writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+		case slicesContain(command.Args, "--purge"):
+			return removeFixtureTarget(root)
+		}
+		return nil
+	}
+	manager := fixtureManager(runner)
+	manager.effectiveUID = func() int { return 0 }
+	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	if err == nil || !strings.Contains(err.Error(), "uses grub-external DTB delivery; bundle requires embedded") {
+		t.Fatalf("effective delivery mismatch error = %v", err)
+	}
+	if receipt.Rollback == nil || !receipt.Rollback.GRUBRestored || receipt.Installed != nil {
+		t.Fatalf("effective delivery mismatch rollback = %+v", receipt)
 	}
 }
 
@@ -460,9 +638,9 @@ func TestMissingBootDeviceTreeBindingRollsBack(t *testing.T) {
 			}
 			grub := strings.Replace(
 				fixtureGRUB(true),
-				" devicetree /dtb-"+fixtureTargetABI+"\n",
+				" devicetree /boot/dtb-"+fixtureTargetABI+"\n",
 				"",
-				1,
+				2,
 			)
 			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
 		case command.Name == chrootCommand && slicesContain(command.Args, updateInitramfsCommand):
@@ -515,6 +693,7 @@ func TestInstallFourPackageSetVerifiesHeaderTrees(t *testing.T) {
 			want := []string{
 				expected[kernel.RoleModules] + "_" + fixtureVersion + "_arm64.deb",
 				expected[kernel.RoleImage] + "_" + fixtureVersion + "_arm64.deb",
+				expected[kernel.RoleBootSupport] + "_" + fixtureVersion + "_all.deb",
 				expected[kernel.RoleCommonHeaders] + "_" + fixtureVersion + "_all.deb",
 				expected[kernel.RoleHeaders] + "_" + fixtureVersion + "_arm64.deb",
 			}
@@ -584,6 +763,12 @@ func TestMissingSelectedHeadersRollsBackFourPackages(t *testing.T) {
 	}
 	purge := receipt.Rollback.Commands[0]
 	for _, item := range receipt.Plan.Packages {
+		if item.Role == kernel.RoleBootSupport {
+			if slicesContain(purge.Args, item.DebianPackage) {
+				t.Errorf("rollback must preserve shared boot support: %+v", purge)
+			}
+			continue
+		}
 		if !slicesContain(purge.Args, item.DebianPackage) {
 			t.Errorf("rollback omitted %s: %+v", item.DebianPackage, purge)
 		}
@@ -622,12 +807,12 @@ func TestPreflightRejectsStaleHeaderTrees(t *testing.T) {
 // redundant final update-grub that would erase a package hook's DTB injection.
 func TestInstallPreservesPackagePostinstDeviceTree(t *testing.T) {
 	root, bundle := fixtureEnvironment(t)
-	injected := " devicetree /boot/sp11-denali.dtb\n"
+	injected := " devicetree /dtb-" + fixtureTargetABI + "\n"
 	postinstGRUB := strings.Replace(
 		fixtureGRUB(true),
-		" devicetree /dtb-"+fixtureTargetABI+"\n",
+		" devicetree /boot/dtb-"+fixtureTargetABI+"\n",
 		injected,
-		1,
+		2,
 	)
 	runner := &fakeRunner{root: root}
 	runner.runHook = func(_ context.Context, command platform.Command) error {
@@ -636,7 +821,6 @@ func TestInstallPreservesPackagePostinstDeviceTree(t *testing.T) {
 			if err := installFixtureTarget(root); err != nil {
 				return err
 			}
-			writeFixtureFile(t, filepath.Join(root, "boot/sp11-denali.dtb"), "oled dtb")
 			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), postinstGRUB)
 		case command.Name == chrootCommand && slicesContain(command.Args, updateInitramfsCommand):
 			writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
@@ -668,9 +852,9 @@ func TestInstallRejectsWrongPatchLineDeviceTree(t *testing.T) {
 	injected := " devicetree /boot/sp11-denali.dtb\n"
 	postinstGRUB := strings.Replace(
 		fixtureGRUB(true),
-		" devicetree /dtb-"+fixtureTargetABI+"\n",
+		" devicetree /boot/dtb-"+fixtureTargetABI+"\n",
 		injected,
-		1,
+		2,
 	)
 	runner := &fakeRunner{root: root}
 	runner.runHook = func(_ context.Context, command platform.Command) error {
@@ -691,7 +875,7 @@ func TestInstallRejectsWrongPatchLineDeviceTree(t *testing.T) {
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
 	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
-	if err == nil || !strings.Contains(err.Error(), "does not match installed ABI "+fixtureTargetABI) {
+	if err == nil || !strings.Contains(err.Error(), "unrecognised declared device-tree path") {
 		t.Fatalf("mismatched device-tree error = %v", err)
 	}
 	if receipt.Installed != nil || receipt.RebootRequired {
@@ -848,6 +1032,12 @@ func TestFailurePurgesOnlyTargetAndRestoresGRUB(t *testing.T) {
 	}
 	runner := &fakeRunner{root: root}
 	runner.runHook = func(ctx context.Context, command platform.Command) error {
+		if command.Stdout == nil {
+			return errors.New("mutating child stdout was not redirected")
+		}
+		if _, err := fmt.Fprintln(command.Stdout, strings.Join(command.Args, " ")); err != nil {
+			return err
+		}
 		switch {
 		case slicesContain(command.Args, "--install"):
 			if err := installFixtureTarget(root); err != nil {
@@ -865,6 +1055,8 @@ func TestFailurePurgesOnlyTargetAndRestoresGRUB(t *testing.T) {
 		return nil
 	}
 	manager := fixtureManager(runner)
+	var diagnostics bytes.Buffer
+	manager.diagnostics = &diagnostics
 	manager.effectiveUID = func() int { return 0 }
 	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
 	if err == nil || !strings.Contains(err.Error(), "fixture initramfs failure") {
@@ -882,6 +1074,11 @@ func TestFailurePurgesOnlyTargetAndRestoresGRUB(t *testing.T) {
 	}
 	if _, statErr := os.Lstat(filepath.Join(root, "boot/vmlinuz-"+fixtureTargetABI)); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("target kernel remained after rollback: %v", statErr)
+	}
+	for _, marker := range []string{"--install", "--purge"} {
+		if !strings.Contains(diagnostics.String(), marker) {
+			t.Errorf("mutation diagnostics omitted %q: %q", marker, diagnostics.String())
+		}
 	}
 }
 
@@ -926,7 +1123,7 @@ func TestSourceMutationAfterPreflightIsRejectedBeforeMutation(t *testing.T) {
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
 	_, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
-	if err == nil || !strings.Contains(err.Error(), "changed after preflight") {
+	if err == nil || (!strings.Contains(err.Error(), "changed after preflight") && !strings.Contains(err.Error(), "manifest records")) {
 		t.Fatalf("error = %v", err)
 	}
 	if len(runner.runs) != 0 {
@@ -994,7 +1191,7 @@ func TestPackagePolicyRejectsUnexpectedSetsAndMetadata(t *testing.T) {
 			mutate: func(t *testing.T, bundle *kernel.Bundle, _ *fakeRunner) {
 				bundle.Packages = append(bundle.Packages, fixturePackage(t, filepath.Dir(bundle.Packages[0].Path), kernel.RoleHeaders, "headers"))
 			},
-			want: "exactly the runtime pair or runtime and header pairs",
+			want: "headers and common headers must be supplied together",
 		},
 		{
 			name: "wrong control package",
@@ -1019,6 +1216,18 @@ func TestPackagePolicyRejectsUnexpectedSetsAndMetadata(t *testing.T) {
 				}
 			},
 			want: "outside the selected ABI set",
+		},
+		{
+			name: "boot support recommendations are not version pinned",
+			mutate: func(_ *testing.T, _ *kernel.Bundle, runner *fakeRunner) {
+				runner.metadataHook = func(name, field string) (string, bool) {
+					if strings.HasPrefix(name, "lexr-kernel-boot-support_") && field == "Recommends" {
+						return "linux-image-" + fixtureTargetABI + ", linux-modules-" + fixtureTargetABI, true
+					}
+					return "", false
+				}
+			},
+			want: "must recommend the exact image and modules pair",
 		},
 		{
 			name: "control character",
@@ -1060,7 +1269,7 @@ func TestCoherentOptionalHeaderPairIsAccepted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(plan.Packages) != 4 || plan.Packages[2].Role != kernel.RoleCommonHeaders || plan.Packages[3].Role != kernel.RoleHeaders {
+	if len(plan.Packages) != 5 || plan.Packages[2].Role != kernel.RoleBootSupport || plan.Packages[3].Role != kernel.RoleCommonHeaders || plan.Packages[4].Role != kernel.RoleHeaders {
 		t.Fatalf("unexpected header package order: %+v", plan.Packages)
 	}
 }
@@ -1444,18 +1653,22 @@ func TestPreflightClassifiesCompleteInstalledTarget(t *testing.T) {
 	writeTargetDPkgStatus(t, root, []string{
 		targetPackageStanza("linux-image-"+fixtureTargetABI, "install ok installed"),
 		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("lexr-kernel-boot-support", "install ok installed"),
 		targetPackageStanza("linux-headers-"+fixtureTargetABI, "install ok installed"),
 		targetPackageStanza("linux-qcom-x1e-headers-"+strings.TrimSuffix(fixtureTargetABI, "-qcom-x1e"), "install ok installed"),
 	})
-	// Simulate the maintainer-script GRUB entry for the complete target,
-	// including the device-tree directive that hook always writes.
+	// Simulate the maintainer-script normal and recovery GRUB entries for the
+	// complete target, including the device-tree directive the hook writes.
 	targetEntry := "menuentry 'Ubuntu " + fixtureTargetABI + "' {\n" +
 		" linux /boot/vmlinuz-" + fixtureTargetABI + "\n" +
-		" devicetree /boot/dtbs/" + fixtureTargetABI + "/qcom/x1e80100-microsoft-denali-oled.dtb\n" +
+		" devicetree /boot/dtb-" + fixtureTargetABI + "\n" +
+		" initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n" +
+		"menuentry 'Ubuntu " + fixtureTargetABI + " (recovery mode)' {\n" +
+		" linux /boot/vmlinuz-" + fixtureTargetABI + " single\n" +
+		" devicetree /boot/dtb-" + fixtureTargetABI + "\n" +
 		" initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(false)+targetEntry)
 	// The boot-side DTB bytes must hash-equal the installed firmware blob.
-	writeFixtureFile(t, filepath.Join(root, "boot/dtbs", fixtureTargetABI, "qcom/x1e80100-microsoft-denali-oled.dtb"), "oled dtb")
 
 	t.Run("blocked without overwrite", func(t *testing.T) {
 		t.Parallel()
@@ -1505,7 +1718,11 @@ func TestTargetStateClassifiesGenuinelyFreshTargetAsAbsent(t *testing.T) {
 		t.Fatal(err)
 	}
 	before := snapshotTree(t, root)
-	evidence, err := classifyTargetState(context.Background(), root, fixtureTargetABI, packages)
+	trees, err := plannedDeviceTrees(root, bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidence, err := classifyTargetState(context.Background(), root, fixtureTargetABI, packages, trees)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1522,6 +1739,42 @@ func TestTargetStateClassifiesGenuinelyFreshTargetAsAbsent(t *testing.T) {
 				t.Errorf("fresh target reported present artefact: %s", finding.Path)
 			}
 		}
+	}
+}
+
+// TestTargetStateRequiresRecoveryGRUBBinding keeps preflight reclassification
+// equivalent to the post-install normal-and-recovery safety gate.
+func TestTargetStateRequiresRecoveryGRUBBinding(t *testing.T) {
+	t.Parallel()
+	root, bundle := fixtureEnvironment(t)
+	if err := installFixtureTarget(root); err != nil {
+		t.Fatal(err)
+	}
+	writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
+	writeTargetDPkgStatus(t, root, []string{
+		targetPackageStanza("linux-image-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("lexr-kernel-boot-support", "install ok installed"),
+	})
+	grub := fixtureGRUB(false) +
+		"menuentry 'Ubuntu " + fixtureTargetABI + "' {\n linux /boot/vmlinuz-" + fixtureTargetABI + "\n devicetree /boot/dtb-" + fixtureTargetABI + "\n initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n" +
+		"menuentry 'Ubuntu' {\n linux /boot/vmlinuz-" + fixtureTargetABI + "\n devicetree /boot/dtb-" + fixtureTargetABI + "\n initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
+	manager := fixtureManager(&fakeRunner{root: root})
+	packages, err := manager.inspectBundle(context.Background(), bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trees, err := plannedDeviceTrees(root, bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidence, err := classifyTargetState(context.Background(), root, fixtureTargetABI, packages, trees)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if evidence.Classification != TargetStatePartial || evidence.DeviceTreeBoot.RecoveryGRUBEntryCount != 0 {
+		t.Fatalf("normal-only target state = %+v", evidence)
 	}
 }
 
@@ -1542,6 +1795,7 @@ func TestPreflightExplainsCompleteTargetWithBrokenGRUBDeviceTree(t *testing.T) {
 	writeTargetDPkgStatus(t, root, []string{
 		targetPackageStanza("linux-image-"+fixtureTargetABI, "install ok installed"),
 		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("lexr-kernel-boot-support", "install ok installed"),
 		targetPackageStanza("linux-headers-"+fixtureTargetABI, "install ok installed"),
 		targetPackageStanza("linux-qcom-x1e-headers-"+strings.TrimSuffix(fixtureTargetABI, "-qcom-x1e"), "install ok installed"),
 	})
@@ -1566,7 +1820,7 @@ func TestPreflightExplainsCompleteTargetWithBrokenGRUBDeviceTree(t *testing.T) {
 	}
 	joined := strings.Join(evidence.Reasons, "\n")
 	if !strings.Contains(joined, "GRUB device-tree binding problem") ||
-		!strings.Contains(joined, "does not match installed ABI "+fixtureTargetABI) {
+		!strings.Contains(joined, "unrecognised declared device-tree path") {
 		t.Errorf("reasons missing the GRUB device-tree binding explanation:\n%s", joined)
 	}
 }
@@ -1587,6 +1841,7 @@ func TestPreflightExplainsCompleteTargetWithoutBootDeviceTree(t *testing.T) {
 	writeTargetDPkgStatus(t, root, []string{
 		targetPackageStanza("linux-image-"+fixtureTargetABI, "install ok installed"),
 		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("lexr-kernel-boot-support", "install ok installed"),
 		targetPackageStanza("linux-headers-"+fixtureTargetABI, "install ok installed"),
 		targetPackageStanza("linux-qcom-x1e-headers-"+strings.TrimSuffix(fixtureTargetABI, "-qcom-x1e"), "install ok installed"),
 	})
@@ -1607,9 +1862,8 @@ func TestPreflightExplainsCompleteTargetWithoutBootDeviceTree(t *testing.T) {
 	}
 }
 
-// TestPreflightExplainsCompleteTargetWithUnlabelledGRUBEntry proves an entry
-// booting the exact target kernel without naming the ABI in its title cannot
-// classify complete, because post-install verification requires that title.
+// TestPreflightExplainsCompleteTargetWithUnlabelledGRUBEntry proves one stock
+// simple entry is digest-verified but cannot replace the labelled uniqueness gate.
 func TestPreflightExplainsCompleteTargetWithUnlabelledGRUBEntry(t *testing.T) {
 	t.Parallel()
 	root, bundle := fixtureEnvironment(t)
@@ -1620,9 +1874,11 @@ func TestPreflightExplainsCompleteTargetWithUnlabelledGRUBEntry(t *testing.T) {
 	writeTargetDPkgStatus(t, root, []string{
 		targetPackageStanza("linux-image-"+fixtureTargetABI, "install ok installed"),
 		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
+		targetPackageStanza("lexr-kernel-boot-support", "install ok installed"),
 	})
 	targetEntry := "menuentry 'Ubuntu mainline' {\n" +
 		" linux /boot/vmlinuz-" + fixtureTargetABI + "\n" +
+		" devicetree /boot/dtb-" + fixtureTargetABI + "\n" +
 		" initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(false)+targetEntry)
 	runner := &fakeRunner{root: root}
@@ -1631,8 +1887,8 @@ func TestPreflightExplainsCompleteTargetWithUnlabelledGRUBEntry(t *testing.T) {
 	if evidence.Classification != TargetStatePartial {
 		t.Fatalf("classification = %s, want partial-or-inconsistent", evidence.Classification)
 	}
-	if !strings.Contains(evidence.GRUBDeviceTreeBindingProblem, "does not name the target ABI") {
-		t.Fatalf("binding problem = %q, want the unlabelled-title explanation", evidence.GRUBDeviceTreeBindingProblem)
+	if !strings.Contains(evidence.GRUBDeviceTreeBindingProblem, "exactly one ABI-labelled non-recovery GRUB entry") {
+		t.Fatalf("binding problem = %q, want the labelled uniqueness explanation", evidence.GRUBDeviceTreeBindingProblem)
 	}
 }
 
@@ -1730,7 +1986,14 @@ func TestOverwriteRejectsRunningTargetABI(t *testing.T) {
 			" linux /boot/vmlinuz-"+request.FallbackABI+" root=fixture\n"+
 			" initrd /boot/initrd.img-"+request.FallbackABI+"\n"+
 			" devicetree /dtb-"+request.FallbackABI+"\n}\n")
-	_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), request)
+	runner := &fakeRunner{root: root}
+	runner.metadataHook = func(name, field string) (string, bool) {
+		if strings.HasPrefix(name, "lexr-kernel-boot-support_") && field == "Recommends" {
+			return "linux-image-" + altTargetABI + " (= " + fixtureVersion + "), linux-modules-" + altTargetABI + " (= " + fixtureVersion + ")", true
+		}
+		return "", false
+	}
+	_, err := fixtureManager(runner).Preflight(context.Background(), request)
 	if err == nil || !strings.Contains(err.Error(), "must never replace the running ABI") {
 		t.Fatalf("error = %v, want the running-ABI overwrite guard", err)
 	}
@@ -1746,5 +2009,6 @@ func renameBundleABI(bundle kernel.Bundle, abi string) kernel.Bundle {
 		renamed.Packages[index].Name = strings.Replace(
 			renamed.Packages[index].Name, bundle.ABI, abi, 1)
 	}
+	renamed.DeviceTrees = fixtureDeviceTrees(abi, 0)
 	return renamed
 }

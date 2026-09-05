@@ -23,6 +23,18 @@ type retainedVolumeRunner struct {
 	volume   string
 }
 
+// ubuntuDetailedSelectionProvenance returns complete embedded fixture evidence.
+func ubuntuDetailedSelectionProvenance() *kernel.DTBSelectionProvenance {
+	return &kernel.DTBSelectionProvenance{
+		Tool: "stubble", Version: "fixture-1", DatabaseSHA256: strings.Repeat("d", 64), StubSHA256: strings.Repeat("1", 64), HelperSHA256: strings.Repeat("2", 64), SBATSHA256: strings.Repeat("3", 64),
+		UKifyTool: "ukify", UKifyPackage: "systemd-ukify", UKifyVersion: "258.1-1", UKifySHA256: strings.Repeat("4", 64),
+		Selections: []kernel.DeviceTreeSelectionEvidence{
+			{Device: "surface-pro-11-x1e-oled", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "microsoft,denali", HWIDs: []string{"11111111-1111-5111-8111-111111111111"}}}},
+			{Device: "surface-pro-11-x1p-lcd", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "microsoft,denali-x1p", HWIDs: []string{"22222222-2222-5222-8222-222222222222"}}}},
+		},
+	}
+}
+
 // Capture simulates the Docker information and volume-identity responses used
 // before the remaster operation reaches its intentional extraction failure.
 func (r *retainedVolumeRunner) Capture(_ context.Context, command platform.Command) ([]byte, error) {
@@ -289,7 +301,6 @@ func TestGrubConfigPairsDeviceTreesWithBootEntries(t *testing.T) {
 		"devicetree /sp11/dtb/x1e80100-microsoft-denali-oled.dtb",
 		"devicetree /sp11/dtb/x1p64100-microsoft-denali.dtb",
 		"modprobe.blacklist=qcom_q6v5_pas",
-		"soundwire_qcom.sp11_feedback_active_offset2_zero=1",
 		"insmod part_gpt",
 		"insmod iso9660",
 		"insmod search_fs_file",
@@ -302,6 +313,9 @@ func TestGrubConfigPairsDeviceTreesWithBootEntries(t *testing.T) {
 		if !strings.Contains(config, want) {
 			t.Errorf("grubConfig() does not contain %q", want)
 		}
+	}
+	if strings.Contains(config, "sp11_feedback_active_offset2_zero") {
+		t.Fatal("grubConfig() retains the removed SoundWire compatibility parameter")
 	}
 	if strings.Contains(config, "allow aDSP") {
 		t.Fatal("grubConfig() exposes the unsafe live-USB aDSP entry")
@@ -357,18 +371,23 @@ func TestCreateErrorReportsRetainedDiagnosticVolume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bundle := kernel.Bundle{
-		SchemaVersion: kernel.BundleSchemaVersion,
-		ABI:           "test-abi",
-		Version:       "test-version",
+	const abi = "7.2.0-test-qcom-x1e"
+	const version = "7.2.0-test"
+	bundle, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: "test", RequestedBootImageMode: kernel.RequestedBootImageModeStubble,
+		EffectiveDTBDelivery: kernel.DTBDeliveryEmbedded, EmbeddedDTBCount: 2,
+		DTBSelectionProvenance: ubuntuDetailedSelectionProvenance(),
 		Packages: []kernel.Package{
-			{Role: kernel.RoleImage, Name: "linux-image-test_test_arm64.deb", Path: imagePackage, SHA256: imageDigest},
-			{Role: kernel.RoleModules, Name: "linux-modules-test_test_arm64.deb", Path: modulesPackage, SHA256: modulesDigest},
+			{Role: kernel.RoleImage, Name: "linux-image-" + abi + "_" + version + "_arm64.deb", Path: imagePackage, SHA256: imageDigest, Size: int64(len("image package")), Verified: true},
+			{Role: kernel.RoleModules, Name: "linux-modules-" + abi + "_" + version + "_arm64.deb", Path: modulesPackage, SHA256: modulesDigest, Size: int64(len("modules package")), Verified: true},
 		},
 		DeviceTrees: []kernel.DeviceTree{
-			{Device: "x1e", Path: "qcom/x1e80100-microsoft-denali-oled.dtb"},
-			{Device: "x1p", Path: "qcom/x1p64100-microsoft-denali.dtb"},
+			{Device: "surface-pro-11-x1e-oled", Basename: "x1e80100-microsoft-denali-oled.dtb", Path: "usr/lib/firmware/" + abi + "/device-tree/qcom/x1e80100-microsoft-denali-oled.dtb", CompatibleStrings: []string{"microsoft,denali"}, SHA256: strings.Repeat("e", 64), EmbeddedMatches: 1, Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "11111111-1111-5111-8111-111111111111"}}, Required: true},
+			{Device: "surface-pro-11-x1p-lcd", Basename: "x1p64100-microsoft-denali.dtb", Path: "usr/lib/firmware/" + abi + "/device-tree/qcom/x1p64100-microsoft-denali.dtb", CompatibleStrings: []string{"microsoft,denali-x1p"}, SHA256: strings.Repeat("f", 64), EmbeddedMatches: 1, Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali-x1p"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "22222222-2222-5222-8222-222222222222"}}, Required: true},
 		},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 	runner := &retainedVolumeRunner{}
 	remasterer := NewRemasterer(platform.NewDocker(runner), nil)
@@ -410,14 +429,24 @@ func TestEmbeddedManifestContainsOnlyPortableKernelPaths(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	bundle, err := kernel.NewBundle("test", "", []kernel.Package{
-		{
-			Name: "linux-image-7.2.0-test-qcom-x1e_7.2.0-test_arm64.deb",
-			Path: filepath.Join(workspace, "private", "image.deb"), SHA256: strings.Repeat("a", 64),
+	const abi = "7.2.0-test-qcom-x1e"
+	bundle, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: "test", RequestedBootImageMode: kernel.RequestedBootImageModeStubble,
+		EffectiveDTBDelivery: kernel.DTBDeliveryEmbedded, EmbeddedDTBCount: 2,
+		DTBSelectionProvenance: ubuntuDetailedSelectionProvenance(),
+		Packages: []kernel.Package{
+			{
+				Name: "linux-image-" + abi + "_7.2.0-test_arm64.deb",
+				Path: filepath.Join(workspace, "private", "image.deb"), SHA256: strings.Repeat("a", 64), Size: 1, Verified: true,
+			},
+			{
+				Name: "linux-modules-" + abi + "_7.2.0-test_arm64.deb",
+				Path: filepath.Join(workspace, "private", "modules.deb"), SHA256: strings.Repeat("b", 64), Size: 1, Verified: true,
+			},
 		},
-		{
-			Name: "linux-modules-7.2.0-test-qcom-x1e_7.2.0-test_arm64.deb",
-			Path: filepath.Join(workspace, "private", "modules.deb"), SHA256: strings.Repeat("b", 64),
+		DeviceTrees: []kernel.DeviceTree{
+			{Device: "surface-pro-11-x1e-oled", Basename: "x1e80100-microsoft-denali-oled.dtb", Path: "usr/lib/firmware/" + abi + "/device-tree/qcom/x1e80100-microsoft-denali-oled.dtb", CompatibleStrings: []string{"microsoft,denali"}, SHA256: strings.Repeat("e", 64), EmbeddedMatches: 1, Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "11111111-1111-5111-8111-111111111111"}}, Required: true},
+			{Device: "surface-pro-11-x1p-lcd", Basename: "x1p64100-microsoft-denali.dtb", Path: "usr/lib/firmware/" + abi + "/device-tree/qcom/x1p64100-microsoft-denali.dtb", CompatibleStrings: []string{"microsoft,denali-x1p"}, SHA256: strings.Repeat("f", 64), EmbeddedMatches: 1, Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali-x1p"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "22222222-2222-5222-8222-222222222222"}}, Required: true},
 		},
 	})
 	if err != nil {
@@ -427,6 +456,14 @@ func TestEmbeddedManifestContainsOnlyPortableKernelPaths(t *testing.T) {
 		Request{Bundle: bundle}, workspace, strings.Repeat("c", 64), companion.Absent(companion.OmissionReasonNotRequested))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if err := validateManifestKernelBundle(manifest.KernelBundle); err != nil {
+		t.Fatalf("portable manifest bundle is invalid: %v", err)
+	}
+	mutated := manifest.KernelBundle
+	mutated.EffectiveDTBDelivery = kernel.DTBDeliveryExternalRequired
+	if err := validateManifestKernelBundle(mutated); err == nil {
+		t.Fatal("manifest validation accepted delivery semantics without boot support")
 	}
 	for _, pkg := range manifest.KernelBundle.Packages {
 		want := "sp11/kernel/" + pkg.Name
@@ -452,5 +489,36 @@ func TestEmbeddedManifestContainsOnlyPortableKernelPaths(t *testing.T) {
 	}
 	if strings.Contains(string(encoded), workspace) {
 		t.Fatalf("embedded manifest leaked host workspace: %s", encoded)
+	}
+}
+
+// TestPortableKernelBundlePreservesExternalDelivery proves Ubuntu media keeps
+// boot-support and delivery provenance while owning nested inventory slices.
+func TestPortableKernelBundlePreservesExternalDelivery(t *testing.T) {
+	bundle := kernel.Bundle{
+		RequestedBootImageMode: kernel.RequestedBootImageModeSource,
+		EffectiveDTBDelivery:   kernel.DTBDeliveryExternalRequired,
+		Packages: []kernel.Package{
+			{Role: kernel.RoleImage, Name: "linux-image.deb", Path: "/host/linux-image.deb"},
+			{Role: kernel.RoleModules, Name: "linux-modules.deb", Path: "/host/linux-modules.deb"},
+			{Role: kernel.RoleBootSupport, Name: "lexr-kernel-boot-support.deb", Path: "/host/lexr-kernel-boot-support.deb"},
+			{Role: kernel.RoleHeaders, Name: "linux-headers.deb", Path: "/host/linux-headers.deb"},
+		},
+		DeviceTrees: []kernel.DeviceTree{{Device: "x1e", Path: "firmware/x1e.dtb", CompatibleStrings: []string{"qcom,x1e"}}},
+	}
+	portable := portableKernelBundle(bundle)
+	for _, role := range []kernel.PackageRole{kernel.RoleImage, kernel.RoleModules, kernel.RoleBootSupport} {
+		pkg, ok := portable.Package(role)
+		if !ok || pkg.Path != "sp11/kernel/"+pkg.Name {
+			t.Fatalf("portable %s package = %#v, present=%t", role, pkg, ok)
+		}
+	}
+	headers, _ := portable.Package(kernel.RoleHeaders)
+	if headers.Path != "" || portable.RequestedBootImageMode != bundle.RequestedBootImageMode || portable.EffectiveDTBDelivery != bundle.EffectiveDTBDelivery {
+		t.Fatalf("portable delivery contract = %#v", portable)
+	}
+	portable.DeviceTrees[0].CompatibleStrings[0] = "mutated"
+	if bundle.DeviceTrees[0].CompatibleStrings[0] != "qcom,x1e" {
+		t.Fatal("portableKernelBundle() aliases nested device-tree evidence")
 	}
 }

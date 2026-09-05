@@ -258,10 +258,19 @@ func (report Report) abiBindingInaccessibleOnly(abi string) bool {
 			continue
 		}
 		unverified = true
-		if entry.BootDTBState != install.GRUBPathInaccessible && entry.InstalledDTBState != install.GRUBPathInaccessible &&
-			(len(entry.DeviceTrees) != 0 || entry.KernelState != install.GRUBPathInaccessible) {
+		if slicesContain(entry.UnsafeCommands, "linux") || slicesContain(entry.UnsafeCommands, "linuxefi") ||
+			slicesContain(entry.UnsafeCommands, "initrd") || slicesContain(entry.UnsafeCommands, "initrdefi") ||
+			slicesContain(entry.UnsafeCommands, "devicetree") ||
+			entry.KernelState == install.GRUBPathMissing || entry.InitramfsState == install.GRUBPathMissing ||
+			entry.BootDTBState == install.GRUBPathMissing || entry.InstalledDTBState == install.GRUBPathMissing ||
+			(entry.DTBMatches != nil && !*entry.DTBMatches) {
 			return false
 		}
+		if entry.KernelState == install.GRUBPathInaccessible || entry.InitramfsState == install.GRUBPathInaccessible ||
+			entry.BootDTBState == install.GRUBPathInaccessible || entry.InstalledDTBState == install.GRUBPathInaccessible {
+			continue
+		}
+		return false
 	}
 	return unverified
 }

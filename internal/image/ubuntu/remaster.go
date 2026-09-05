@@ -45,6 +45,8 @@ type Request struct {
 	OutputISO string
 	// Bundle is the complete, version-bound kernel and device-tree payload.
 	Bundle kernel.Bundle
+	// KernelProfile records the explicitly selected external-DTB platform.
+	KernelProfile string
 	// ToolVersion is written into the embedded provenance manifest.
 	ToolVersion string
 	// Companion describes an optional generic CLI, source, catalogue, and
@@ -109,7 +111,7 @@ func BuildPlan(request Request) (plan.Plan, error) {
 	}
 	return plan.New("image.create", []plan.Step{
 		{ID: "verify-source", Kind: "verify", Description: "Verify the Ubuntu Casper source ISO", Inputs: map[string]string{"path": request.SourceISO, "sha256": request.SourceSHA256}},
-		{ID: "verify-kernel", Kind: "verify", Description: "Verify the version-bound kernel bundle", Inputs: map[string]string{"release": request.Bundle.Release, "abi": request.Bundle.ABI}},
+		{ID: "verify-kernel", Kind: "verify", Description: "Verify the version-bound kernel bundle", Inputs: map[string]string{"release": request.Bundle.Release, "abi": request.Bundle.ABI, "profile": request.KernelProfile}},
 		{ID: "stage-companion", Kind: "companion", Description: "Stage the optional Linux ARM64 CLI, corresponding source, catalogues, and eligible userspace releases", Inputs: map[string]string{"source": companionSource, "userspace": companionUserspace}},
 		{ID: "prepare-tools", Kind: "prepare", Description: "Prepare the isolated ARM64 image-tooling container", Inputs: map[string]string{"adapter": AdapterID}},
 		{ID: "extract-live-root", Kind: "extract", Description: "Validate and extract the Ubuntu Casper layered filesystems"},
@@ -205,7 +207,7 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err := stageBundle(request.Bundle, workspace); err != nil {
 		return Result{}, err
 	}
-	if err := stageInstalledSupportFiles(workspace, request.Bundle.ABI); err != nil {
+	if err := stageInstalledSupportFiles(workspace); err != nil {
 		return Result{}, err
 	}
 	if err := checkpoint("verify-kernel", packageDigests(request.Bundle)); err != nil {
@@ -302,7 +304,7 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 		"depmod", "-a", "-b", "/linux-work/rootfs", request.Bundle.ABI); err != nil {
 		return Result{}, fmt.Errorf("index custom kernel modules: %w", err)
 	}
-	logf(r.Out, "Installing deterministic X1E/X1P support for the installed system")
+	logf(r.Out, "Installing exact-ABI %s DTB support for the installed system", request.Bundle.EffectiveDTBDelivery)
 	if err := installInstalledSystemSupport(ctx, r.Docker, toolsImage, workspace, workVolume, request.Bundle); err != nil {
 		return Result{}, err
 	}
@@ -489,6 +491,14 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 // validateBundlePaths proves that package inputs and device-tree paths are safe,
 // regular, digest-matched files before any of them enters a container command.
 func validateBundlePaths(bundle kernel.Bundle) error {
+	if _, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: bundle.Release, Repository: bundle.Repository,
+		RequestedBootImageMode: bundle.RequestedBootImageMode, EffectiveDTBDelivery: bundle.EffectiveDTBDelivery,
+		EmbeddedDTBCount: bundle.EmbeddedDTBCount, DTBSelectionProvenance: bundle.DTBSelectionProvenance,
+		Packages: bundle.Packages, DeviceTrees: bundle.DeviceTrees,
+	}); err != nil {
+		return fmt.Errorf("kernel bundle delivery contract is invalid: %w", err)
+	}
 	if !safeKernelABI(bundle.ABI) {
 		return fmt.Errorf("kernel bundle ABI %q is not a safe path component", bundle.ABI)
 	}
@@ -535,8 +545,12 @@ func validateBundlePaths(bundle kernel.Bundle) error {
 		if clean != tree.Path || clean == "." || strings.HasPrefix(clean, "../") {
 			return fmt.Errorf("device tree path %q is not a safe relative path", tree.Path)
 		}
-		if _, required := requiredTrees[tree.Path]; required {
-			requiredTrees[tree.Path] = true
+		relative, ok := tree.FirmwareRelativePath(bundle.ABI)
+		if !ok {
+			return fmt.Errorf("device tree path %q is not beneath the bundle firmware directory", tree.Path)
+		}
+		if _, required := requiredTrees[relative]; required {
+			requiredTrees[relative] = true
 		}
 	}
 	for tree, present := range requiredTrees {
@@ -724,7 +738,7 @@ done
 	}
 	for _, dtb := range bundle.DeviceTrees {
 		arguments = append(arguments,
-			"/linux-work/rootfs/usr/lib/firmware/"+bundle.ABI+"/device-tree/"+dtb.Path,
+			"/linux-work/rootfs/"+dtb.Path,
 			"/work/sp11/dtb/"+filepath.Base(dtb.Path),
 		)
 	}
@@ -819,7 +833,6 @@ func buildEmbeddedManifest(
 		CompanionBundle: companionRecord,
 		BootArguments: []string{
 			"clk_ignore_unused", "pd_ignore_unused", "arm64.nopauth", "systemd.tpm2_wait=0",
-			"soundwire_qcom.sp11_feedback_active_offset2_zero=1",
 			"modprobe.blacklist=qcom_q6v5_pas",
 		},
 		SecureBoot: "unsupported; disable Secure Boot for the unsigned custom kernel and direct GRUB",
@@ -827,15 +840,15 @@ func buildEmbeddedManifest(
 }
 
 // portableKernelBundle removes host filesystem paths before publishing kernel
-// provenance. Runtime packages point at their location on the ISO, while
-// build-only packages carry no path because they are not copied onto the media.
+// provenance. Runtime and boot-support packages point at their location on the
+// ISO, while build-only packages carry no path because they are not copied.
 func portableKernelBundle(bundle kernel.Bundle) kernel.Bundle {
 	portable := bundle
 	portable.Packages = append([]kernel.Package(nil), bundle.Packages...)
-	portable.DeviceTrees = append([]kernel.DeviceTree(nil), bundle.DeviceTrees...)
+	portable.DeviceTrees = kernel.CloneDeviceTrees(bundle.DeviceTrees)
 	for index := range portable.Packages {
 		pkg := &portable.Packages[index]
-		if pkg.Role == kernel.RoleImage || pkg.Role == kernel.RoleModules {
+		if pkg.Role == kernel.RoleImage || pkg.Role == kernel.RoleModules || pkg.Role == kernel.RoleBootSupport {
 			pkg.Path = "sp11/kernel/" + pkg.Name
 		} else {
 			pkg.Path = ""
@@ -859,7 +872,7 @@ func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manife
 		return err
 	}
 	for _, pkg := range manifest.KernelBundle.Packages {
-		if pkg.Role != kernel.RoleImage && pkg.Role != kernel.RoleModules {
+		if pkg.Role != kernel.RoleImage && pkg.Role != kernel.RoleModules && pkg.Role != kernel.RoleBootSupport {
 			continue
 		}
 		if err := stageFile(filepath.Join(workspace, "kernel", pkg.Name), filepath.Join(sp11, "kernel", pkg.Name)); err != nil {

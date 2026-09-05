@@ -139,6 +139,8 @@ func healthyTestFileSystem() *testFileSystem {
 		files: map[string][]byte{
 			"/proc/device-tree/model":                       []byte("Microsoft Surface Pro 11th Edition (OLED)\x00"),
 			"/proc/device-tree/compatible":                  []byte("microsoft,denali-oled\x00microsoft,denali\x00qcom,x1e80100\x00"),
+			"/sys/firmware/devicetree/base/model":           []byte("Microsoft Surface Pro 11th Edition (OLED)\x00"),
+			"/sys/firmware/devicetree/base/compatible":      []byte("microsoft,denali-oled\x00microsoft,denali\x00qcom,x1e80100\x00"),
 			"/proc/sys/kernel/osrelease":                    []byte("7.2.0-jg-0sp11v19-qcom-x1e\n"),
 			"/sys/bus/pci/devices/0004:01:00.0/vendor":      []byte("0x17cb\n"),
 			"/sys/bus/pci/devices/0004:01:00.0/device":      []byte("0x1107\n"),
@@ -451,8 +453,8 @@ func TestInspectHonoursParentCancellation(t *testing.T) {
 // TestUnknownPlatformSkipsLiveProbes verifies a non-target host is never interrogated further.
 func TestUnknownPlatformSkipsLiveProbes(t *testing.T) {
 	filesystem := healthyTestFileSystem()
-	filesystem.files["/proc/device-tree/model"] = []byte("unrelated device\n")
-	filesystem.files["/proc/device-tree/compatible"] = []byte("vendor,other\x00")
+	filesystem.files["/sys/firmware/devicetree/base/model"] = []byte("unrelated device\n")
+	filesystem.files["/sys/firmware/devicetree/base/compatible"] = []byte("vendor,other\x00")
 	runner := healthyTestRunner()
 	doctor, err := New(filesystem, runner)
 	if err != nil {
@@ -470,6 +472,54 @@ func TestUnknownPlatformSkipsLiveProbes(t *testing.T) {
 			t.Errorf("%s applicability = %#v", feature, check)
 		}
 	}
+}
+
+// TestPlatformIdentityUsesContainedProcFallback preserves alternate-root
+// fixtures without weakening canonical live-sysfs precedence.
+func TestPlatformIdentityUsesContainedProcFallback(t *testing.T) {
+	filesystem := healthyTestFileSystem()
+	delete(filesystem.files, "/sys/firmware/devicetree/base/model")
+	delete(filesystem.files, "/sys/firmware/devicetree/base/compatible")
+	doctor, err := New(filesystem, healthyTestRunner())
+	if err != nil {
+		t.Fatal(err)
+	}
+	check, matched := doctor.inspectPlatform(context.Background())
+	if !matched || check.State != StatePass {
+		t.Fatalf("contained proc fallback = %#v, matched %t", check, matched)
+	}
+}
+
+// TestCanonicalPlatformIdentityNeverFallsBackOnMismatchOrUnsafeRead proves a
+// matching proc view cannot override present or unreadable canonical evidence.
+func TestCanonicalPlatformIdentityNeverFallsBackOnMismatchOrUnsafeRead(t *testing.T) {
+	t.Run("mismatch", func(t *testing.T) {
+		filesystem := healthyTestFileSystem()
+		filesystem.files["/sys/firmware/devicetree/base/model"] = []byte("unrelated device\n")
+		filesystem.files["/sys/firmware/devicetree/base/compatible"] = []byte("vendor,other\x00")
+		doctor, err := New(filesystem, healthyTestRunner())
+		if err != nil {
+			t.Fatal(err)
+		}
+		check, matched := doctor.inspectPlatform(context.Background())
+		if matched || check.State != StateFail {
+			t.Fatalf("canonical mismatch = %#v, matched %t", check, matched)
+		}
+	})
+
+	t.Run("unsafe read", func(t *testing.T) {
+		filesystem := healthyTestFileSystem()
+		filesystem.failures["/sys/firmware/devicetree/base/model"] = ErrReadLimit
+		delete(filesystem.files, "/sys/firmware/devicetree/base/compatible")
+		doctor, err := New(filesystem, healthyTestRunner())
+		if err != nil {
+			t.Fatal(err)
+		}
+		check, matched := doctor.inspectPlatform(context.Background())
+		if matched || check.State != StateUnavailable {
+			t.Fatalf("canonical unsafe read = %#v, matched %t", check, matched)
+		}
+	})
 }
 
 // TestKernelGenerationClassificationKeepsPatchLinesLocal verifies that a

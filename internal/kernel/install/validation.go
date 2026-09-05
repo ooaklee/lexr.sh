@@ -99,25 +99,23 @@ func expectedPackageNames(abi string) map[kernel.PackageRole]string {
 		kernel.RoleModules:       "linux-modules-" + abi,
 		kernel.RoleHeaders:       "linux-headers-" + abi,
 		kernel.RoleCommonHeaders: "linux-qcom-x1e-headers-" + base,
+		kernel.RoleBootSupport:   "lexr-kernel-boot-support",
 	}
 }
 
-// validateDeviceTrees requires the exact compiled current-hardware DTB set.
+// validateDeviceTrees revalidates the complete schema-v2 evidence before any
+// package metadata or target filesystem inspection is trusted.
 func validateDeviceTrees(bundle kernel.Bundle) error {
-	if len(bundle.DeviceTrees) != len(requiredDeviceTrees) {
-		return fmt.Errorf("kernel bundle contains %d device trees; expected %d", len(bundle.DeviceTrees), len(requiredDeviceTrees))
-	}
-	seen := make(map[string]string, len(bundle.DeviceTrees))
-	for _, tree := range bundle.DeviceTrees {
-		if _, duplicate := seen[tree.Device]; duplicate {
-			return fmt.Errorf("kernel bundle contains duplicate device tree %q", tree.Device)
-		}
-		seen[tree.Device] = tree.Path
-	}
-	for _, required := range requiredDeviceTrees {
-		if seen[required.Device] != required.Path {
-			return fmt.Errorf("kernel bundle must contain device tree %s at %s", required.Device, required.Path)
-		}
+	_, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: bundle.Release, Repository: bundle.Repository,
+		RequestedBootImageMode: bundle.RequestedBootImageMode,
+		EffectiveDTBDelivery:   bundle.EffectiveDTBDelivery,
+		EmbeddedDTBCount:       bundle.EmbeddedDTBCount,
+		DTBSelectionProvenance: bundle.DTBSelectionProvenance,
+		Packages:               bundle.Packages, DeviceTrees: bundle.DeviceTrees,
+	})
+	if err != nil {
+		return fmt.Errorf("invalid kernel bundle delivery contract: %w", err)
 	}
 	return nil
 }
@@ -151,20 +149,26 @@ func parseDependencies(value string) ([]dependency, error) {
 // validateLocalDependencies rejects cross-ABI kernel package dependencies and
 // requires an exact version whenever a selected local dependency is constrained.
 func validateLocalDependencies(owner Package, allowed map[string]bool, version string) ([]dependency, error) {
-	dependencies, err := parseDependencies(owner.Depends)
+	return validateLocalRelationships(owner.Name, "Depends", owner.Depends, allowed, version)
+}
+
+// validateLocalRelationships rejects cross-ABI kernel relationships and
+// requires an exact version whenever a selected local package is constrained.
+func validateLocalRelationships(owner, field, value string, allowed map[string]bool, version string) ([]dependency, error) {
+	dependencies, err := parseDependencies(value)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", owner.Name, err)
+		return nil, fmt.Errorf("%s %s: %w", owner, field, err)
 	}
 	for _, item := range dependencies {
 		if allowed[item.name] {
 			if item.constraint != "" && item.constraint != "= "+version {
-				return nil, fmt.Errorf("%s has non-exact or mismatched local dependency %s (%s)", owner.Name, item.name, item.constraint)
+				return nil, fmt.Errorf("%s has non-exact or mismatched local %s relationship %s (%s)", owner, field, item.name, item.constraint)
 			}
 			continue
 		}
 		if strings.HasPrefix(item.name, "linux-image-") || strings.HasPrefix(item.name, "linux-modules-") ||
 			strings.HasPrefix(item.name, "linux-headers-") || strings.HasPrefix(item.name, "linux-qcom-x1e-headers-") {
-			return nil, fmt.Errorf("%s depends on a kernel package outside the selected ABI set: %s", owner.Name, item.name)
+			return nil, fmt.Errorf("%s %s references a kernel package outside the selected ABI set: %s", owner, field, item.name)
 		}
 	}
 	return dependencies, nil
@@ -174,6 +178,16 @@ func validateLocalDependencies(owner Package, allowed map[string]bool, version s
 func hasDependency(dependencies []dependency, expected string) bool {
 	for _, item := range dependencies {
 		if item.name == expected {
+			return true
+		}
+	}
+	return false
+}
+
+// hasExactDependency reports whether a relationship pins the package version exactly.
+func hasExactDependency(dependencies []dependency, expected, version string) bool {
+	for _, item := range dependencies {
+		if item.name == expected && item.constraint == "= "+version {
 			return true
 		}
 	}

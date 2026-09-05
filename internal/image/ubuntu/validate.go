@@ -8,11 +8,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/ooaklee/lexr.sh/internal/artifact"
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
@@ -24,6 +28,17 @@ import (
 
 // maximumValidationImageBytes bounds one private ISO validation snapshot.
 const maximumValidationImageBytes int64 = 64 << 30
+
+// maximumValidationTextBytes bounds small, extracted configuration records
+// before any of their untrusted contents are retained in validation evidence.
+const maximumValidationTextBytes int64 = 64 << 10
+
+// maximumGRUBConfigurationBytes bounds the extracted live-media menu.
+const maximumGRUBConfigurationBytes int64 = 1 << 20
+
+// maximumPackageStatusBytes accommodates a normal Debian installed-package
+// database while preventing an extracted record from consuming unbounded RAM.
+const maximumPackageStatusBytes int64 = 32 << 20
 
 // Validator inspects a completed Ubuntu image with isolated tooling and produces
 // a digest-bound report covering its boot layout and embedded kernel payload.
@@ -44,7 +59,7 @@ func NewValidator(docker *platform.Docker) *Validator {
 // Validate checks that isoPath is a regular hybrid ARM64 image whose manifest,
 // live and installed kernels, initramfs images, device trees, and GRUB paths
 // agree. It returns accumulated evidence alongside an error on any failure.
-func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract.ValidationReport, error) {
+func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagecontract.ValidationReport, resultErr error) {
 	absolute, err := filepath.Abs(isoPath)
 	if err != nil {
 		return imagecontract.ValidationReport{}, err
@@ -60,12 +75,16 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	if err != nil {
 		return imagecontract.ValidationReport{Path: absolute, Layout: "hybrid-iso", Adapter: AdapterID}, err
 	}
-	defer os.RemoveAll(workspace)
+	defer func() {
+		if err := os.RemoveAll(workspace); err != nil {
+			resultErr = errors.Join(resultErr, fmt.Errorf("remove private validation workspace: %w", err))
+		}
+	}()
 	digest, size, err := snapshotValidationImage(ctx, absolute, filepath.Join(workspace, "image.iso"))
 	if err != nil {
 		return imagecontract.ValidationReport{Path: absolute, Layout: "hybrid-iso", Adapter: AdapterID}, err
 	}
-	report := imagecontract.ValidationReport{
+	report = imagecontract.ValidationReport{
 		Path: absolute, SHA256: digest, Size: size, Layout: "hybrid-iso", Adapter: AdapterID,
 	}
 	addCheck := func(name string, passed bool, details string) {
@@ -96,7 +115,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 		addCheck("arm64-efi-boot-catalog", passed, strings.TrimSpace(details))
 	}
 
-	extractErr := v.Docker.RunInWorkspace(ctx, toolsImage, workspace,
+	extractErr := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
 		"xorriso", "-osirrox", "on", "-indev", "/work/image.iso",
 		"-extract", "/sp11/lexr-manifest.json", "/work/manifest.json",
 		"-extract", "/casper/vmlinuz", "/work/vmlinuz",
@@ -112,6 +131,15 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 		addCheck("required-iso-members", false, extractErr.Error())
 		report.Valid = false
 		return report, fmt.Errorf("ISO validation failed: required members cannot be extracted")
+	}
+	initialMembers := []string{
+		"manifest.json", "vmlinuz", "initrd", "casper-uuid-generic", "minimal.squashfs",
+		"x1e.dtb", "x1p.dtb", "iso-bootaa64.efi", "iso-grubaa64.efi", "grub.cfg",
+	}
+	if err := validateExtractedRegularFiles(workspace, initialMembers); err != nil {
+		addCheck("required-iso-members", false, err.Error())
+		report.Valid = false
+		return report, fmt.Errorf("ISO validation failed: required members are unsafe: %w", err)
 	}
 	addCheck("required-iso-members", true, "kernel, initramfs, Casper identity, live root, paired DTBs, manifest, and GRUB files are present")
 
@@ -136,13 +164,18 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	abiSafe := safeKernelABI(manifest.KernelBundle.ABI)
 	manifestMediaContract, markerRecord, manifestMediaErr := caspermedia.FromDiscoveryRecord(manifest.MediaDiscovery)
 	companionRecordErr := companion.ValidateRecord(manifest.CompanionBundle)
+	manifestBundleErr := validateManifestKernelBundle(manifest.KernelBundle)
 	manifestOK := manifest.SchemaVersion == imagecontract.ManifestSchemaVersion &&
 		manifest.Adapter == AdapterID &&
-		manifest.KernelBundle.SchemaVersion == kernel.BundleSchemaVersion &&
+		manifestBundleErr == nil &&
 		manifestMediaErr == nil &&
 		companionRecordErr == nil &&
 		abiSafe
-	addCheck("embedded-manifest", manifestOK, fmt.Sprintf("schema=%d adapter=%s abi=%s", manifest.SchemaVersion, manifest.Adapter, manifest.KernelBundle.ABI))
+	manifestDetails := fmt.Sprintf("schema=%d adapter=%s abi=%s", manifest.SchemaVersion, manifest.Adapter, manifest.KernelBundle.ABI)
+	if manifestBundleErr != nil {
+		manifestDetails = manifestBundleErr.Error()
+	}
+	addCheck("embedded-manifest", manifestOK, manifestDetails)
 	report.Checks = append(report.Checks, v.validateCompanionBundle(ctx, toolsImage, workspace, manifest.CompanionBundle, companionRecordErr)...)
 	if !abiSafe {
 		report.Valid = false
@@ -193,7 +226,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	}
 
 	markerPath := filepath.Join(workspace, "casper-uuid-generic")
-	markerBytes, markerErr := os.ReadFile(markerPath)
+	markerBytes, markerErr := readBoundedExtractedFile(workspace, "casper-uuid-generic", maximumValidationTextBytes)
 	markerDigest, markerHashErr := artifact.HashFile(markerPath)
 	markerInfo, markerStatErr := os.Stat(markerPath)
 	markerPassed := markerErr == nil && markerHashErr == nil && markerStatErr == nil && markerRecord.SHA256 != "" &&
@@ -209,10 +242,10 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	addCheck("casper-media-identity-digest", markerPassed, markerDetails)
 
 	unpackedInitrd := filepath.Join(workspace, "initrd-unpacked")
-	unpackErr := v.Docker.RunInWorkspace(ctx, toolsImage, workspace,
+	unpackErr := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
 		"unmkinitramfs", "/work/initrd", "/work/initrd-unpacked")
-	initrdIdentityPath := filepath.Join(unpackedInitrd, "main", filepath.FromSlash(caspermedia.InitramfsIdentityPath))
-	initrdIdentity, identityReadErr := os.ReadFile(initrdIdentityPath)
+	initrdIdentityRelative := path.Join("main", caspermedia.InitramfsIdentityPath)
+	initrdIdentity, identityReadErr := readBoundedExtractedFile(unpackedInitrd, initrdIdentityRelative, maximumValidationTextBytes)
 	mediaContract, identityErr := caspermedia.Matches(markerBytes, initrdIdentity)
 	identityPassed := unpackErr == nil && markerErr == nil && identityReadErr == nil && identityErr == nil &&
 		mediaContract.UUID == manifestMediaContract.UUID
@@ -227,8 +260,8 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	}
 	addCheck("casper-media-uuid", identityPassed, identityDetails)
 
-	defaultBoot, defaultBootErr := os.ReadFile(filepath.Join(unpackedInitrd, "main", "conf", "conf.d", "default-boot-to-casper.conf"))
-	defaultLayer, defaultLayerErr := os.ReadFile(filepath.Join(unpackedInitrd, "main", "conf", "conf.d", "default-layer.conf"))
+	defaultBoot, defaultBootErr := readBoundedExtractedFile(unpackedInitrd, "main/conf/conf.d/default-boot-to-casper.conf", maximumValidationTextBytes)
+	defaultLayer, defaultLayerErr := readBoundedExtractedFile(unpackedInitrd, "main/conf/conf.d/default-layer.conf", maximumValidationTextBytes)
 	bootDefaultPassed := unpackErr == nil && defaultBootErr == nil && strings.Contains(string(defaultBoot), "export BOOT=casper")
 	addCheck("casper-default-boot", bootDefaultPassed, "initramfs defaults an otherwise unset BOOT value to casper")
 	layerName := strings.TrimPrefix(strings.TrimSpace(string(defaultLayer)), "LAYERFS_PATH=")
@@ -245,10 +278,17 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	addCheck("casper-default-layer", layerPassed, layerDetails)
 
 	moduleProbe := "usr/lib/modules/" + manifest.KernelBundle.ABI + "/modules.dep"
-	moduleErr := v.Docker.RunInWorkspace(ctx, toolsImage, workspace,
+	moduleErr := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
 		"unsquashfs", "-no-xattrs", "-no-progress", "-d", "/work/module-probe", "/work/minimal.squashfs", moduleProbe)
-	_, statErr := os.Stat(filepath.Join(workspace, "module-probe", filepath.FromSlash(moduleProbe)))
-	addCheck("live-root-kernel-modules", moduleErr == nil && statErr == nil, moduleProbe)
+	moduleValidationErr := validateExtractedRegularFiles(filepath.Join(workspace, "module-probe"), []string{moduleProbe})
+	modulePassed := moduleErr == nil && moduleValidationErr == nil
+	moduleDetails := moduleProbe
+	if moduleErr != nil {
+		moduleDetails = moduleErr.Error()
+	} else if moduleValidationErr != nil {
+		moduleDetails = moduleValidationErr.Error()
+	}
+	addCheck("live-root-kernel-modules", modulePassed, moduleDetails)
 	report.Checks = append(report.Checks, v.validateInstalledSystemSupport(ctx, toolsImage, workspace, manifest)...)
 
 	for _, dtb := range []string{"x1e.dtb", "x1p.dtb"} {
@@ -261,7 +301,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 		addCheck("device-tree-format-"+strings.TrimSuffix(dtb, ".dtb"), passed, details)
 	}
 
-	grubBytes, err := os.ReadFile(filepath.Join(workspace, "grub.cfg"))
+	grubBytes, err := readBoundedExtractedFile(workspace, "grub.cfg", maximumGRUBConfigurationBytes)
 	if err != nil {
 		return report, err
 	}
@@ -269,7 +309,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 	grubPassed := strings.Contains(grubText, "devicetree /sp11/dtb/x1e80100-microsoft-denali-oled.dtb") &&
 		strings.Contains(grubText, "devicetree /sp11/dtb/x1p64100-microsoft-denali.dtb") &&
 		strings.Contains(grubText, "modprobe.blacklist=qcom_q6v5_pas") &&
-		strings.Contains(grubText, "soundwire_qcom.sp11_feedback_active_offset2_zero=1")
+		!strings.Contains(grubText, "sp11_feedback_active_offset2_zero")
 	for _, line := range strings.Split(grubText, "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "linux /casper/vmlinuz") && !strings.Contains(line, "modprobe.blacklist=qcom_q6v5_pas") {
@@ -277,7 +317,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 		}
 	}
 	grubPassed = grubPassed && !strings.Contains(grubText, "allow aDSP")
-	addCheck("surface-grub-menu", grubPassed, "X1E/X1P DTBs, the audio argument, and aDSP-safe live entries")
+	addCheck("surface-grub-menu", grubPassed, "X1E/X1P DTBs and aDSP-safe live entries without the retired SoundWire parameter")
 	selfLocationPassed := strings.Contains(grubText, "insmod part_gpt") &&
 		strings.Contains(grubText, "insmod iso9660") &&
 		strings.Contains(grubText, "insmod search") &&
@@ -296,8 +336,11 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 			addCheck("direct-grub-appended-esp", false, offsetErr.Error())
 		} else {
 			spec := fmt.Sprintf("/work/image.iso@@%d", offset)
-			copyErr := v.Docker.RunInWorkspace(ctx, toolsImage, workspace,
+			copyErr := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
 				"mcopy", "-o", "-i", spec, "::/EFI/BOOT/BOOTAA64.EFI", "/work/esp-bootaa64.efi")
+			if copyErr == nil {
+				copyErr = validateExtractedRegularFiles(workspace, []string{"esp-bootaa64.efi"})
+			}
 			same, compareErr := sameDigest(filepath.Join(workspace, "esp-bootaa64.efi"), filepath.Join(workspace, "iso-grubaa64.efi"))
 			passed := copyErr == nil && compareErr == nil && same
 			details := "appended ESP BOOTAA64.EFI matches direct GRUB"
@@ -320,9 +363,160 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (imagecontract
 
 	report.Valid = !slices.ContainsFunc(report.Checks, func(check imagecontract.ValidationCheck) bool { return !check.Passed })
 	if !report.Valid {
-		return report, errors.New("ISO validation failed")
+		return report, fmt.Errorf("ISO validation failed: %s", failedValidationSummary(report.Checks))
 	}
 	return report, nil
+}
+
+// validateInstalledInitramfsListing proves that Dracut emitted the minimum
+// exact boot capabilities rather than merely copying a module-directory name.
+func validateInstalledInitramfsListing(listing, longListing, abi string) error {
+	members := make(map[string]struct{})
+	for _, line := range strings.Split(listing, "\n") {
+		member := strings.TrimSuffix(line, "\r")
+		if member != "" {
+			members[member] = struct{}{}
+		}
+	}
+	require := func(label string, alternatives ...string) error {
+		for _, member := range alternatives {
+			if _, ok := members[member]; ok {
+				return nil
+			}
+		}
+		return fmt.Errorf("installed initramfs is missing required capability %s", label)
+	}
+	for _, requirement := range []struct {
+		label        string
+		alternatives []string
+	}{
+		{label: "init", alternatives: []string{"init"}},
+		{label: "shell", alternatives: []string{"usr/bin/sh", "bin/sh", "usr/bin/bash", "bin/bash"}},
+		{label: "mount", alternatives: []string{"usr/bin/mount", "bin/mount"}},
+		{label: "modprobe", alternatives: []string{"usr/sbin/modprobe", "sbin/modprobe"}},
+		{label: "Dracut library", alternatives: []string{"usr/lib/dracut-lib.sh", "lib/dracut-lib.sh"}},
+		{label: "Dracut root parser", alternatives: []string{"usr/lib/dracut/hooks/cmdline/00-parse-root.sh", "lib/dracut/hooks/cmdline/00-parse-root.sh"}},
+		{label: "exact modules.dep", alternatives: []string{"usr/lib/modules/" + abi + "/modules.dep"}},
+	} {
+		if err := require(requirement.label, requirement.alternatives...); err != nil {
+			return err
+		}
+	}
+	modulePrefix := "usr/lib/modules/" + abi + "/kernel/"
+	hasModule := false
+	for _, line := range strings.Split(longListing, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 || !strings.HasPrefix(fields[0], "-") {
+			continue
+		}
+		member := fields[len(fields)-1]
+		if strings.HasPrefix(member, modulePrefix) && (strings.HasSuffix(member, ".ko") ||
+			strings.HasSuffix(member, ".ko.gz") || strings.HasSuffix(member, ".ko.xz") ||
+			strings.HasSuffix(member, ".ko.zst")) {
+			hasModule = true
+			break
+		}
+	}
+	for member := range members {
+		if strings.Contains(member, "scripts/casper") {
+			return errors.New("installed initramfs unexpectedly contains Casper support")
+		}
+	}
+	if !hasModule {
+		return fmt.Errorf("installed initramfs contains no kernel modules for %s", abi)
+	}
+	return nil
+}
+
+// failedValidationSummary retains bounded actionable evidence when image
+// creation validates a private partial ISO which cannot be published for a
+// later standalone validation pass.
+func failedValidationSummary(checks []imagecontract.ValidationCheck) string {
+	const maximumSummaryBytes = 2048
+	var summary strings.Builder
+	for _, check := range checks {
+		if check.Passed {
+			continue
+		}
+		name := sanitizedValidationText(check.Name, 96)
+		detail := sanitizedValidationText(check.Details, 256)
+		item := name
+		if detail != "" {
+			item += ": " + detail
+		}
+		separator := ""
+		if summary.Len() > 0 {
+			separator = "; "
+		}
+		if summary.Len()+len(separator)+len(item) > maximumSummaryBytes {
+			marker := separator + "additional failures omitted"
+			if summary.Len()+len(marker) <= maximumSummaryBytes {
+				summary.WriteString(marker)
+			}
+			break
+		}
+		summary.WriteString(separator)
+		summary.WriteString(item)
+	}
+	if summary.Len() == 0 {
+		return "validator returned no failed check details"
+	}
+	return summary.String()
+}
+
+// sanitizedValidationText collapses whitespace, replaces terminal control
+// characters and truncates on rune boundaries within one byte budget.
+func sanitizedValidationText(value string, maximumBytes int) string {
+	compact := strings.Join(strings.Fields(value), " ")
+	if maximumBytes <= 0 {
+		return ""
+	}
+	var cleaned strings.Builder
+	truncated := false
+	contentLimit := maximumBytes
+	if len(compact) > maximumBytes && maximumBytes > len("...") {
+		contentLimit -= len("...")
+		truncated = true
+	}
+	for _, valueRune := range compact {
+		if !unicode.IsPrint(valueRune) {
+			valueRune = '?'
+		}
+		runeBytes := utf8.RuneLen(valueRune)
+		if runeBytes < 0 || cleaned.Len()+runeBytes > contentLimit {
+			truncated = true
+			break
+		}
+		cleaned.WriteRune(valueRune)
+	}
+	if truncated && cleaned.Len()+len("...") <= maximumBytes {
+		cleaned.WriteString("...")
+	}
+	return cleaned.String()
+}
+
+// validateManifestKernelBundle proves that on-media delivery provenance is
+// canonical and every package path matches whether the package is embedded.
+func validateManifestKernelBundle(bundle kernel.Bundle) error {
+	canonical, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: bundle.Release, Repository: bundle.Repository,
+		RequestedBootImageMode: bundle.RequestedBootImageMode, EffectiveDTBDelivery: bundle.EffectiveDTBDelivery,
+		EmbeddedDTBCount: bundle.EmbeddedDTBCount, DTBSelectionProvenance: bundle.DTBSelectionProvenance,
+		Packages: bundle.Packages, DeviceTrees: bundle.DeviceTrees,
+	})
+	if err != nil || !reflect.DeepEqual(bundle, canonical) {
+		return errors.Join(errors.New("manifest kernel bundle delivery contract is invalid or non-canonical"), err)
+	}
+	for _, pkg := range bundle.Packages {
+		expectedPath := ""
+		if pkg.Role == kernel.RoleImage || pkg.Role == kernel.RoleModules || pkg.Role == kernel.RoleBootSupport {
+			expectedPath = "sp11/kernel/" + pkg.Name
+		}
+		if pkg.Path != expectedPath {
+			return fmt.Errorf("manifest kernel package %s has unexpected media path %q", pkg.Name, pkg.Path)
+		}
+	}
+	return nil
 }
 
 // snapshotValidationImage copies and hashes one descriptor-pinned ISO into the
@@ -506,7 +700,7 @@ func (v *Validator) validateCompanionBundle(
 		return checks
 	}
 
-	extractErr := v.Docker.RunInWorkspace(ctx, toolsImage, workspace,
+	extractErr := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
 		"xorriso", "-osirrox", "on", "-indev", "/work/image.iso",
 		"-extract", "/"+companion.ISOFilesystemRoot, "/work/companion")
 	if extractErr != nil {
@@ -535,43 +729,170 @@ func isoDirectoryListingContains(listing []byte, name string) bool {
 	return false
 }
 
+// validateInstalledGRUBGeneratorSyntax asks the trusted tools image to parse
+// the already bounded extracted generator without executing it.
+func validateInstalledGRUBGeneratorSyntax(ctx context.Context, docker *platform.Docker, toolsImage, workspace string) error {
+	if err := docker.RunInWorkspace(ctx, toolsImage, workspace,
+		"sh", "-n", "/work/installed-root/etc/grub.d/10_linux"); err != nil {
+		return fmt.Errorf("parse installed GRUB generator with trusted shell: %w", err)
+	}
+	return nil
+}
+
+// validateExtractedRegularFiles rejects any extracted member whose path is
+// non-canonical, escapes the private root, traverses a symbolic link, or ends
+// in anything other than a regular file.
+func validateExtractedRegularFiles(root string, paths []string) error {
+	rootInfo, err := os.Lstat(root)
+	if err != nil {
+		return fmt.Errorf("inspect extracted root: %w", err)
+	}
+	if rootInfo.Mode()&os.ModeSymlink != 0 || !rootInfo.IsDir() {
+		return errors.New("extracted root is not a non-symbolic-link directory")
+	}
+	for _, relative := range paths {
+		if relative == "" || path.IsAbs(relative) || path.Clean(relative) != relative || relative == "." || strings.HasPrefix(relative, "../") {
+			return fmt.Errorf("extracted path %q is not canonical and relative", relative)
+		}
+		current := root
+		components := strings.Split(relative, "/")
+		for index, component := range components {
+			if component == "" || component == "." || component == ".." {
+				return fmt.Errorf("extracted path %q contains an invalid component", relative)
+			}
+			current = filepath.Join(current, filepath.FromSlash(component))
+			info, err := os.Lstat(current)
+			if err != nil {
+				return fmt.Errorf("inspect extracted path %q: %w", relative, err)
+			}
+			if info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("extracted path %q traverses a symbolic link", relative)
+			}
+			if index < len(components)-1 {
+				if !info.IsDir() {
+					return fmt.Errorf("extracted path %q traverses a non-directory", relative)
+				}
+				continue
+			}
+			if !info.Mode().IsRegular() {
+				return fmt.Errorf("extracted path %q is not a regular file", relative)
+			}
+		}
+	}
+	return nil
+}
+
+// readBoundedExtractedFile reads one regular extracted file through an
+// os.Root descriptor after rejecting symbolic-link traversal. The descriptor
+// identity and size are rechecked so untrusted contents cannot escape their
+// private extraction root or produce unbounded validation evidence.
+func readBoundedExtractedFile(rootPath, relative string, maximumBytes int64) (data []byte, resultErr error) {
+	if maximumBytes < 0 {
+		return nil, errors.New("extracted file size bound must not be negative")
+	}
+	if err := validateExtractedRegularFiles(rootPath, []string{relative}); err != nil {
+		return nil, err
+	}
+	root, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, fmt.Errorf("open extracted root: %w", err)
+	}
+	defer func() { resultErr = errors.Join(resultErr, root.Close()) }()
+	listed, err := root.Lstat(relative)
+	if err != nil || listed.Mode()&os.ModeSymlink != 0 || !listed.Mode().IsRegular() || listed.Size() < 0 || listed.Size() > maximumBytes {
+		return nil, errors.Join(fmt.Errorf("extracted path %q is not a bounded regular file", relative), err)
+	}
+	file, err := root.Open(relative)
+	if err != nil {
+		return nil, fmt.Errorf("open extracted path %q: %w", relative, err)
+	}
+	defer func() { resultErr = errors.Join(resultErr, file.Close()) }()
+	opened, err := file.Stat()
+	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(listed, opened) || opened.Size() != listed.Size() {
+		return nil, errors.Join(fmt.Errorf("extracted path %q changed while opening", relative), err)
+	}
+	data, err = io.ReadAll(io.LimitReader(file, maximumBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read extracted path %q: %w", relative, err)
+	}
+	afterRead, statErr := file.Stat()
+	current, lstatErr := root.Lstat(relative)
+	if statErr != nil || lstatErr != nil || int64(len(data)) != opened.Size() || int64(len(data)) > maximumBytes ||
+		!afterRead.Mode().IsRegular() || !os.SameFile(opened, afterRead) || afterRead.Size() != opened.Size() ||
+		current.Mode()&os.ModeSymlink != 0 || !current.Mode().IsRegular() || !os.SameFile(opened, current) || current.Size() != opened.Size() {
+		return nil, errors.Join(fmt.Errorf("extracted path %q changed while reading", relative), statErr, lstatErr)
+	}
+	return data, nil
+}
+
 // validateInstalledSystemSupport extracts and checks the minimal root assets
 // that Ubuntu's installer is expected to copy into the target filesystem.
 func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsImage, workspace string, manifest imagecontract.Manifest) []imagecontract.ValidationCheck {
-	checks := make([]imagecontract.ValidationCheck, 0, 7)
+	checks := make([]imagecontract.ValidationCheck, 0, 9)
 	addCheck := func(name string, passed bool, details string) {
 		checks = append(checks, imagecontract.ValidationCheck{Name: name, Passed: passed, Details: details})
 	}
-	abi := manifest.KernelBundle.ABI
-	paths := installedSupportPaths(abi)
+	bundle := manifest.KernelBundle
+	abi := bundle.ABI
+	paths, pathsErr := installedSupportPaths(bundle)
+	if pathsErr != nil {
+		addCheck("installed-system-support-members", false, pathsErr.Error())
+		return checks
+	}
 	arguments := []string{
 		"unsquashfs", "-no-xattrs", "-no-progress", "-d", "/work/installed-root", "/work/minimal.squashfs",
 	}
 	arguments = append(arguments, paths...)
-	if err := v.Docker.RunInWorkspace(ctx, toolsImage, workspace, arguments...); err != nil {
+	if err := v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace, arguments...); err != nil {
 		addCheck("installed-system-support-members", false, err.Error())
 		return checks
 	}
-	addCheck("installed-system-support-members", true, "dpkg records, installed initramfs, paired DTBs, GRUB configuration, and kernel hooks are present")
-
 	root := filepath.Join(workspace, "installed-root")
-	statusBytes, statusErr := os.ReadFile(filepath.Join(root, "var/lib/dpkg/status"))
+	if err := validateExtractedRegularFiles(root, paths); err != nil {
+		addCheck("installed-system-support-members", false, err.Error())
+		return checks
+	}
+	addCheck("installed-system-support-members", true, "delivery-specific dpkg records, initramfs, GRUB generation support, and boot support are present")
+
+	listingBytes, listingErr := v.Docker.CaptureInWorkspace(ctx, toolsImage, workspace,
+		"unsquashfs", "-ll", "/work/minimal.squashfs")
+	listing := string(listingBytes)
+	retiredAbsent := listingErr == nil
+	for _, retired := range retiredInstalledSupportPaths {
+		retiredAbsent = retiredAbsent && !squashFSListingContainsPath(listing, retired)
+	}
+	retiredDetails := "retired SP11-specific refresh helper, hooks, seed DTBs, and GRUB generator are absent"
+	if listingErr != nil {
+		retiredDetails = listingErr.Error()
+	}
+	addCheck("installed-system-retired-support-absent", retiredAbsent, retiredDetails)
+	transientAbsent := listingErr == nil && !strings.Contains(listing, "/boot/.initrd.img-")
+	transientDetails := "no Lexr initramfs staging or inspection files remain in the deployable root"
+	if listingErr != nil {
+		transientDetails = listingErr.Error()
+	}
+	addCheck("installed-system-transient-state-absent", transientAbsent, transientDetails)
+
+	statusBytes, statusErr := readBoundedExtractedFile(root, "var/lib/dpkg/status", maximumPackageStatusBytes)
 	packagesInstalled := statusErr == nil
-	for _, packageName := range installedPackageNames(abi) {
-		packagesInstalled = packagesInstalled && installedPackageStatus(string(statusBytes), packageName, manifest.KernelBundle.Version)
-		if info, err := os.Stat(filepath.Join(root, "var/lib/dpkg/info", packageName+".list")); err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
+	for _, expected := range installedPackageExpectations(bundle) {
+		packagesInstalled = packagesInstalled && installedPackageStatus(
+			string(statusBytes), expected.name, expected.version, expected.architecture)
+		if info, err := os.Stat(filepath.Join(root, "var/lib/dpkg/info", expected.name+".list")); err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
 			packagesInstalled = false
 		}
 	}
-	packageDetails := "exact ARM64 image and modules packages are registered as installed"
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryEmbedded {
+		packagesInstalled = packagesInstalled && !installedPackagePresent(string(statusBytes), "lexr-kernel-boot-support")
+	}
+	packageDetails := "the exact delivery-specific package set is registered as installed"
 	if statusErr != nil {
 		packageDetails = statusErr.Error()
 	}
 	addCheck("installed-system-kernel-packages", packagesInstalled, packageDetails)
 	installedKernelDigest, installedKernelErr := artifact.HashFile(filepath.Join(root, "boot", "vmlinuz-"+abi))
 	installedKernelPassed := installedKernelErr == nil &&
-		manifest.BootArtifacts.Kernel.SHA256 != "" &&
-		installedKernelDigest == manifest.BootArtifacts.Kernel.SHA256
+		manifest.BootArtifacts.Kernel.SHA256 != "" && installedKernelDigest == manifest.BootArtifacts.Kernel.SHA256
 	installedKernelDetails := fmt.Sprintf("expected=%s actual=%s", manifest.BootArtifacts.Kernel.SHA256, installedKernelDigest)
 	if installedKernelErr != nil {
 		installedKernelDetails = installedKernelErr.Error()
@@ -581,13 +902,18 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 	installedInitrd := filepath.Join(root, "boot", "initrd.img-"+abi)
 	initrdListing, initrdErr := v.Docker.CaptureInWorkspace(ctx, toolsImage, workspace,
 		"lsinitramfs", "/work/installed-root/boot/initrd.img-"+abi)
+	initrdLongListing, initrdLongErr := v.Docker.CaptureInWorkspace(ctx, toolsImage, workspace,
+		"lsinitramfs", "-l", "/work/installed-root/boot/initrd.img-"+abi)
 	initrdText := string(initrdListing)
-	installedInitrdPassed := initrdErr == nil &&
-		strings.Contains(initrdText, "usr/lib/modules/"+abi+"/") &&
-		!strings.Contains(initrdText, "scripts/casper")
-	initrdDetails := "non-Casper initramfs contains modules for " + abi
+	initrdContractErr := validateInstalledInitramfsListing(initrdText, string(initrdLongListing), abi)
+	installedInitrdPassed := initrdErr == nil && initrdLongErr == nil && initrdContractErr == nil
+	initrdDetails := "complete non-Casper Dracut initramfs contains modules for " + abi
 	if initrdErr != nil {
 		initrdDetails = initrdErr.Error()
+	} else if initrdLongErr != nil {
+		initrdDetails = initrdLongErr.Error()
+	} else if initrdContractErr != nil {
+		initrdDetails = initrdContractErr.Error()
 	} else if info, err := os.Stat(installedInitrd); err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
 		installedInitrdPassed = false
 		if err != nil {
@@ -598,64 +924,175 @@ func (v *Validator) validateInstalledSystemSupport(ctx context.Context, toolsIma
 	}
 	addCheck("installed-system-initramfs", installedInitrdPassed, initrdDetails)
 
-	dtbPassed := true
-	for _, name := range []string{"x1e80100-microsoft-denali-oled.dtb", "x1p64100-microsoft-denali.dtb"} {
-		record := findArtifact(manifest.BootArtifacts.DTBs, name)
-		for _, path := range []string{
-			filepath.Join(root, "boot", "dtbs", abi, "qcom", name),
-			filepath.Join(root, "usr", "lib", "lexr", "sp11", "dtb", name),
-		} {
-			actual, err := artifact.HashFile(path)
-			if err != nil || record.SHA256 == "" || actual != record.SHA256 {
-				dtbPassed = false
+	dtbPassed := listingErr == nil
+	dtbDetails := "the installed kernel retains its manifest-bound embedded DTB inventory without external support"
+	var dtbValidationErr error
+	if listingErr != nil {
+		dtbValidationErr = fmt.Errorf("inspect installed filesystem inventory: %w", listingErr)
+	}
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		profile, tree, profileErr := requiredExternalProfile(bundle)
+		dtbPassed = dtbPassed && profileErr == nil
+		if profileErr != nil && dtbValidationErr == nil {
+			dtbValidationErr = profileErr
+		}
+		relative, ok := tree.FirmwareRelativePath(abi)
+		dtbPassed = dtbPassed && ok
+		if !ok && dtbValidationErr == nil {
+			dtbValidationErr = fmt.Errorf("device tree %s is outside the exact-ABI firmware directory", tree.Device)
+		}
+		if ok {
+			for _, candidatePath := range []string{
+				filepath.Join(root, "boot", "dtbs", abi, filepath.FromSlash(relative)),
+				filepath.Join(root, "boot", "dtb-"+abi),
+			} {
+				actual, hashErr := artifact.HashFile(candidatePath)
+				dtbPassed = dtbPassed && hashErr == nil && actual == tree.SHA256
+				if hashErr != nil && dtbValidationErr == nil {
+					dtbValidationErr = fmt.Errorf("hash installed device tree %s: %w", candidatePath, hashErr)
+				} else if hashErr == nil && actual != tree.SHA256 && dtbValidationErr == nil {
+					dtbValidationErr = fmt.Errorf("installed device-tree %s digest %s does not match %s", candidatePath, actual, tree.SHA256)
+				}
+			}
+			for _, stateRoot := range []string{
+				path.Join("usr/lib/lexr/kernel-platforms", profile),
+				path.Join("var/lib/lexr/kernel-boot", abi, profile),
+			} {
+				pathState := path.Join(stateRoot, "dtb-path")
+				digestState := path.Join(stateRoot, "dtb-sha256")
+				pathBytes, pathErr := readBoundedExtractedFile(root, pathState, maximumValidationTextBytes)
+				digestBytes, digestErr := readBoundedExtractedFile(root, digestState, maximumValidationTextBytes)
+				dtbPassed = dtbPassed && pathErr == nil && digestErr == nil &&
+					strings.TrimSpace(string(pathBytes)) == relative && strings.TrimSpace(string(digestBytes)) == tree.SHA256
+				if pathErr != nil && dtbValidationErr == nil {
+					dtbValidationErr = fmt.Errorf("read installed device-tree path state %s: %w", pathState, pathErr)
+				} else if digestErr != nil && dtbValidationErr == nil {
+					dtbValidationErr = fmt.Errorf("read installed device-tree digest state %s: %w", digestState, digestErr)
+				} else if pathErr == nil && digestErr == nil &&
+					(strings.TrimSpace(string(pathBytes)) != relative || strings.TrimSpace(string(digestBytes)) != tree.SHA256) && dtbValidationErr == nil {
+					dtbValidationErr = errors.New("installed device-tree package state does not match the selected manifest profile")
+				}
+			}
+		}
+		dtbDetails = "the selected profile has digest-bound canonical and stock-GRUB exact-ABI DTBs with package-owned state"
+	} else {
+		dtbPassed = dtbPassed && bundle.EffectiveDTBDelivery == kernel.DTBDeliveryEmbedded && bundle.EmbeddedDTBCount > 0 &&
+			!squashFSListingContainsPath(listing, "boot/dtbs/"+abi) &&
+			!squashFSListingContainsPath(listing, "boot/dtb-"+abi)
+		for _, tree := range bundle.DeviceTrees {
+			if tree.Required {
+				dtbPassed = dtbPassed && tree.EmbeddedMatches == 1
 			}
 		}
 	}
-	seedABI, seedABIErr := os.ReadFile(filepath.Join(root, "usr", "lib", "lexr", "sp11", "kernel-abi"))
-	dtbPassed = dtbPassed && seedABIErr == nil && strings.TrimSpace(string(seedABI)) == abi
-	addCheck("installed-system-device-trees", dtbPassed, "versioned and refresh-seed X1E/X1P DTBs match the exact kernel ABI")
+	if dtbValidationErr != nil {
+		dtbDetails = dtbValidationErr.Error()
+	}
+	addCheck("installed-system-device-trees", dtbPassed, dtbDetails)
 
-	grubDefaults, defaultsErr := os.ReadFile(filepath.Join(root, "etc/default/grub.d/99-surface-pro-11.cfg"))
-	grubGenerator, generatorErr := os.ReadFile(filepath.Join(root, "etc/grub.d/09_lexr_sp11"))
-	installedGrubText := string(grubDefaults) + string(grubGenerator)
+	grubDefaults, defaultsErr := readBoundedExtractedFile(root, "etc/default/grub.d/99-surface-pro-11.cfg", maximumValidationTextBytes)
+	generatorErr := validateInstalledGRUBGenerator(filepath.Join(root, "etc/grub.d/10_linux"))
+	if generatorErr == nil {
+		generatorErr = validateInstalledGRUBGeneratorSyntax(ctx, v.Docker, toolsImage, workspace)
+	}
+	installedGrubText := string(grubDefaults)
 	grubSupportPassed := defaultsErr == nil && generatorErr == nil
 	for _, required := range []string{
 		"clk_ignore_unused",
 		"pd_ignore_unused",
 		"arm64.nopauth",
 		"systemd.tpm2_wait=0",
-		"soundwire_qcom.sp11_feedback_active_offset2_zero=1",
-		"x1e80100-microsoft-denali-oled.dtb",
-		"x1p64100-microsoft-denali.dtb",
 	} {
 		grubSupportPassed = grubSupportPassed && strings.Contains(installedGrubText, required)
 	}
-	grubSupportPassed = grubSupportPassed && installedGrubModelTitlesPresent(installedGrubText)
 	grubSupportPassed = grubSupportPassed && !strings.Contains(installedGrubText, "qcom_q6v5_pas")
-	addCheck("installed-system-grub-support", grubSupportPassed, "explicit X1E/X1P entries use installed-system arguments without the live USB blacklist")
+	grubSupportPassed = grubSupportPassed && !strings.Contains(installedGrubText, "sp11_feedback_active_offset2_zero")
+	grubDetails := "the installed root is ready for target-side GRUB generation after Ubuntu mounts the destination disk"
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		grubDetails = "stock 10_linux prefers /dtb-<abi>; the installer must generate and verify concrete entries on the mounted target"
+	}
+	if defaultsErr != nil {
+		grubDetails = defaultsErr.Error()
+	} else if generatorErr != nil {
+		grubDetails = generatorErr.Error()
+	}
+	addCheck("installed-system-grub-support", grubSupportPassed, grubDetails)
 
-	refresh, refreshErr := os.ReadFile(filepath.Join(root, "usr/local/sbin/lexr-refresh-sp11-boot"))
-	postInstall, postInstallErr := os.ReadFile(filepath.Join(root, "etc/kernel/postinst.d/05-lexr-sp11-dtb"))
-	postRemove, postRemoveErr := os.ReadFile(filepath.Join(root, "etc/kernel/postrm.d/05-lexr-sp11-dtb"))
-	refreshText := string(refresh)
-	refreshPassed := refreshErr == nil && postInstallErr == nil && postRemoveErr == nil &&
-		strings.Contains(refreshText, "is_safe_abi") &&
-		strings.Contains(refreshText, "/usr/lib/firmware/$abi/device-tree/qcom/$name") &&
-		strings.Contains(refreshText, "/usr/lib/linux-image-$abi/qcom/$name") &&
-		strings.Contains(string(postInstall), "/usr/local/sbin/lexr-refresh-sp11-boot") &&
-		strings.Contains(string(postRemove), `*[!A-Za-z0-9.+_~-]*`) &&
-		strings.Contains(string(postRemove), `rm -rf -- "/boot/dtbs/$abi"`) &&
-		!strings.Contains(string(postRemove), "/usr/local/sbin/lexr-refresh-sp11-boot") &&
-		!strings.Contains(refreshText+string(postInstall)+string(postRemove), "qcom_q6v5_pas")
-	addCheck("installed-system-kernel-refresh", refreshPassed, "bounded hooks refresh new ABI-paired DTBs and remove only the retired ABI directory")
+	refreshPassed := listingErr == nil
+	refreshDetails := "embedded delivery has no external boot-support package or lifecycle files"
+	var refreshValidationErr error
+	if listingErr != nil {
+		refreshValidationErr = fmt.Errorf("inspect installed filesystem inventory: %w", listingErr)
+	}
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		refreshPath := "usr/libexec/lexr/kernel-boot-refresh"
+		postInstallPath := "etc/kernel/postinst.d/05-lexr-kernel-boot"
+		postRemovePath := "etc/kernel/postrm.d/05-lexr-kernel-boot"
+		refresh, refreshErr := readBoundedExtractedFile(root, refreshPath, maximumGRUBConfigurationBytes)
+		postInstall, postInstallErr := readBoundedExtractedFile(root, postInstallPath, maximumValidationTextBytes)
+		postRemove, postRemoveErr := readBoundedExtractedFile(root, postRemovePath, maximumValidationTextBytes)
+		refreshPassed = refreshPassed && refreshErr == nil && postInstallErr == nil && postRemoveErr == nil &&
+			strings.Contains(string(refresh), `--defer-grub`) &&
+			strings.Contains(string(refresh), `"$target_root/boot/dtbs/$abi/$dtb_path"`) &&
+			strings.Contains(string(refresh), `compatibility="$target_root/boot/dtb-$abi"`) &&
+			strings.Contains(string(refresh), `ensure_single_profile`) &&
+			strings.Contains(string(postInstall), "/usr/libexec/lexr/kernel-boot-refresh refresh") &&
+			strings.Contains(string(postRemove), "/usr/libexec/lexr/kernel-boot-refresh remove") &&
+			lifecycleAvoidsDevicePolicy(string(refresh), abi, string(postInstall), string(postRemove))
+		refreshDetails = "the installed generic package owns exact-ABI selection, refresh, removal, and stock-GRUB compatibility state"
+		for _, candidate := range []struct {
+			path string
+			err  error
+		}{
+			{path: refreshPath, err: refreshErr},
+			{path: postInstallPath, err: postInstallErr},
+			{path: postRemovePath, err: postRemoveErr},
+		} {
+			if candidate.err != nil && refreshValidationErr == nil {
+				refreshValidationErr = fmt.Errorf("read installed lifecycle file %s: %w", candidate.path, candidate.err)
+			}
+		}
+		if !refreshPassed && refreshValidationErr == nil {
+			refreshValidationErr = errors.New("installed kernel boot-support lifecycle does not match the generic package contract")
+		}
+	} else {
+		refreshPassed = refreshPassed && !installedPackagePresent(string(statusBytes), "lexr-kernel-boot-support")
+		for _, path := range genericInstalledSupportPaths {
+			refreshPassed = refreshPassed && !squashFSListingContainsPath(listing, path)
+		}
+		if !refreshPassed && refreshValidationErr == nil {
+			refreshValidationErr = errors.New("embedded delivery retains external boot-support package state")
+		}
+	}
+	if refreshValidationErr != nil {
+		refreshDetails = refreshValidationErr.Error()
+	}
+	addCheck("installed-system-kernel-refresh", refreshPassed, refreshDetails)
 	return checks
 }
 
-// installedGrubModelTitlesPresent reports whether an installed-system GRUB
-// generator contains the complete pair of current Lexr Surface model titles.
-func installedGrubModelTitlesPresent(content string) bool {
-	return strings.Contains(content, `title="Lexr Surface Pro 11 X1E/OLED`) &&
-		strings.Contains(content, `title="Lexr Surface Pro 11 X1P/LCD`)
+// lifecycleAvoidsDevicePolicy permits only ABI-bound hooks to name their exact
+// device-scoped ABI. The generic refresh helper and every other hook token must
+// remain free of independent SP11 or Denali policy.
+func lifecycleAvoidsDevicePolicy(refresh, abi string, abiBoundHooks ...string) bool {
+	if abi == "" {
+		return false
+	}
+	containsDevicePolicy := func(value string) bool {
+		lower := strings.ToLower(value)
+		return strings.Contains(lower, "sp11") || strings.Contains(lower, "denali")
+	}
+	if containsDevicePolicy(refresh) {
+		return false
+	}
+	lowerABI := strings.ToLower(abi)
+	for _, hook := range abiBoundHooks {
+		normalized := strings.ReplaceAll(strings.ToLower(hook), lowerABI, "<exact-abi>")
+		if containsDevicePolicy(normalized) {
+			return false
+		}
+	}
+	return true
 }
 
 // appendedESPOffset parses xorriso's GPT report and returns the byte offset of

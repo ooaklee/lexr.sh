@@ -235,7 +235,8 @@ jobs:
              .release_name == ("sp11-qcom-x1e-" + .version) and
              .experimental == true and
              .hardware_qualified == false and
-             .source.boot_image_mode == "stubble" and
+             .source.requested_boot_image_mode == "stubble" and
+             .source.effective_dtb_delivery == "embedded" and
              ([.assets[].kind] | index("source") != null) and
              ([.assets[].kind] | index("licence") != null)' \
             "${RUNNER_TEMP}/kernel-release-validation.json" >/dev/null
@@ -306,7 +307,8 @@ jobs:
              .release_name == ("sp11-qcom-x1e-" + .version) and
              .experimental == true and
              .hardware_qualified == false and
-             .source.boot_image_mode == "stubble" and
+             .source.requested_boot_image_mode == "stubble" and
+             .source.effective_dtb_delivery == "embedded" and
              ([.assets[].kind] | index("source") != null) and
              ([.assets[].kind] | index("licence") != null)' \
             "${validation_file}" >/dev/null

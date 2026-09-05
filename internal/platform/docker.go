@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,8 +22,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
 	  binutils ca-certificates coreutils cpio dosfstools dpkg e2fsprogs \
-	  file initramfs-tools kmod libarchive-tools md5deep mtools parted \
-	  squashfs-tools xorriso xz-utils zstd \
+	  dracut-core file initramfs-tools kmod libarchive-tools md5deep mtools parted \
+	  squashfs-tools systemd-sysv xorriso xz-utils zstd \
  && rm -rf /var/lib/apt/lists/*
 `
 
@@ -115,6 +116,77 @@ func (d *Docker) RunInWorkspace(ctx context.Context, image, workspace string, ar
 	}
 	dockerArgs = append(dockerArgs, args...)
 	return d.Runner.Run(ctx, Command{Name: "docker", Args: dockerArgs})
+}
+
+// RunInWorkspaceAsHostUser executes one disposable ARM64 container as the
+// numeric owner of the private host workspace. It is reserved for extracting
+// untrusted filesystem evidence whose original modes must remain intact while
+// still being readable and removable by the calling process.
+func (d *Docker) RunInWorkspaceAsHostUser(ctx context.Context, image, workspace string, args ...string) error {
+	return d.runInWorkspaceAsHostUser(ctx, image, workspace, nil, args...)
+}
+
+// RunWithReadOnlyInputInWorkspaceAsHostUser adds one read-only host input and
+// a networkless, capability-free container boundary to host-readable private
+// extraction. inputTarget must be one absolute container path.
+func (d *Docker) RunWithReadOnlyInputInWorkspaceAsHostUser(
+	ctx context.Context,
+	image string,
+	workspace string,
+	inputPath string,
+	inputTarget string,
+	args ...string,
+) error {
+	if !filepath.IsAbs(inputPath) || filepath.Clean(inputPath) != inputPath ||
+		!filepath.IsAbs(inputTarget) || filepath.Clean(inputTarget) != inputTarget {
+		return errors.New("read-only extraction input and target must be absolute canonical paths")
+	}
+	if inputTarget == "/" || inputTarget == "/work" || strings.HasPrefix(inputTarget, "/work/") ||
+		inputTarget == "/tmp" || strings.HasPrefix(inputTarget, "/tmp/") {
+		return errors.New("read-only extraction target overlaps reserved container state")
+	}
+	options := []string{
+		"--network", "none", "--read-only", "--cap-drop", "ALL",
+		"--security-opt", "no-new-privileges",
+		"--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=16m",
+		"--volume", inputPath + ":" + inputTarget + ":ro",
+	}
+	return d.runInWorkspaceAsHostUser(ctx, image, workspace, options, args...)
+}
+
+// runInWorkspaceAsHostUser applies the platform-specific ownership boundary
+// after caller-supplied Docker options and before the private workspace mount.
+func (d *Docker) runInWorkspaceAsHostUser(ctx context.Context, image, workspace string, options []string, args ...string) error {
+	if len(args) == 0 {
+		return errors.New("host-user workspace command is empty")
+	}
+	absolute, err := filepath.Abs(workspace)
+	if err != nil {
+		return fmt.Errorf("resolve workspace: %w", err)
+	}
+	owner, err := numericWorkspaceOwner(absolute)
+	if err != nil {
+		return fmt.Errorf("resolve numeric workspace owner: %w", err)
+	}
+	var probeToken [12]byte
+	if _, err := rand.Read(probeToken[:]); err != nil {
+		return fmt.Errorf("generate workspace ownership probe: %w", err)
+	}
+	probeName := fmt.Sprintf(".lexr-workspace-owner-%x", probeToken)
+	dockerArgs := []string{
+		"run", "--rm", "--platform", "linux/arm64",
+	}
+	dockerArgs = append(dockerArgs, workspaceOwnerDockerArgs(owner)...)
+	dockerArgs = append(dockerArgs, options...)
+	dockerArgs = append(dockerArgs,
+		"--volume", absolute+":/work",
+		"--workdir", "/work",
+		image,
+	)
+	dockerArgs = append(dockerArgs, workspaceOwnerCommand(owner, probeName, args)...)
+	runErr := d.Runner.Run(ctx, Command{Name: "docker", Args: dockerArgs})
+	probeErr := verifyWorkspaceOwnerExecution(absolute, probeName)
+	return errors.Join(runErr, probeErr)
 }
 
 // CaptureInWorkspace executes a disposable ARM64 container and returns its

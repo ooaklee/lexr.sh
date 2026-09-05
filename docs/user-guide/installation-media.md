@@ -49,6 +49,13 @@ lexr image validate lexr-ubuntu-sp11.iso
 
 Use `--source` to supply an already downloaded Ubuntu Concept ISO, `--source-sha256` to require a known digest, `--kernel-dir` to use a local kernel bundle, or `--kernel-release` to select a tagged release. Cache and temporary-workspace locations can also be overridden.
 
+If the selected kernel bundle reports `external-required` DTB delivery, also
+pass `--kernel-profile <platform-id>`. Offline media has no physical machine
+identity during creation, so Lexr requires one explicit declared profile (for
+example, `surface-pro-11-x1e-oled`) and records that projection in the image
+manifest. Embedded Stubble bundles select their matching DTB at boot and reject
+this option.
+
 The catalogue pins Canonical's dated 2026-03-26 snapshot rather than its mutable latest-image alias. Canonical does not publish a checksum alongside that snapshot, so a reproducible trust decision still requires you to record the downloaded SHA-256 digest and pass both the local path and digest:
 
 ```sh

@@ -828,13 +828,25 @@ func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manife
 
 // validateBundlePaths rejects unsafe or incomplete host-side kernel bundle members.
 func validateBundlePaths(bundle kernel.Bundle) error {
+	if _, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: bundle.Release, Repository: bundle.Repository,
+		RequestedBootImageMode: bundle.RequestedBootImageMode, EffectiveDTBDelivery: bundle.EffectiveDTBDelivery,
+		EmbeddedDTBCount: bundle.EmbeddedDTBCount, DTBSelectionProvenance: bundle.DTBSelectionProvenance,
+		Packages: bundle.Packages, DeviceTrees: bundle.DeviceTrees,
+	}); err != nil {
+		return fmt.Errorf("kernel bundle delivery contract is invalid: %w", err)
+	}
 	if !safeKernelABIExpression.MatchString(bundle.ABI) {
 		return fmt.Errorf("kernel ABI %q is not a safe path component", bundle.ABI)
 	}
 	if err := requireSupportedKernel(bundle.ABI); err != nil {
 		return err
 	}
-	for _, role := range []kernel.PackageRole{kernel.RoleImage, kernel.RoleModules} {
+	requiredRoles := []kernel.PackageRole{kernel.RoleImage, kernel.RoleModules}
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		requiredRoles = append(requiredRoles, kernel.RoleBootSupport)
+	}
+	for _, role := range requiredRoles {
 		pkg, ok := bundle.Package(role)
 		if !ok {
 			return fmt.Errorf("kernel bundle has no %s package", role)
@@ -868,8 +880,12 @@ func validateBundlePaths(bundle kernel.Bundle) error {
 		"qcom/x1p64100-microsoft-denali.dtb":      false,
 	}
 	for _, dtb := range bundle.DeviceTrees {
-		if _, ok := requiredDTBs[dtb.Path]; ok {
-			requiredDTBs[dtb.Path] = true
+		relative, ok := dtb.FirmwareRelativePath(bundle.ABI)
+		if !ok {
+			return fmt.Errorf("kernel bundle device tree %q is outside its firmware directory", dtb.Path)
+		}
+		if _, required := requiredDTBs[relative]; required {
+			requiredDTBs[relative] = true
 		}
 	}
 	for path, found := range requiredDTBs {
@@ -887,7 +903,7 @@ func stageBundle(bundle kernel.Bundle, workspace string) error {
 		return err
 	}
 	for _, pkg := range bundle.Packages {
-		if pkg.Role != kernel.RoleImage && pkg.Role != kernel.RoleModules {
+		if pkg.Role != kernel.RoleImage && pkg.Role != kernel.RoleModules && pkg.Role != kernel.RoleBootSupport {
 			continue
 		}
 		if err := stageFile(pkg.Path, filepath.Join(directory, pkg.Name)); err != nil {
@@ -958,14 +974,14 @@ func portableKernelBundle(bundle kernel.Bundle) kernel.Bundle {
 	portable := bundle
 	portable.Packages = nil
 	for _, source := range bundle.Packages {
-		if source.Role != kernel.RoleImage && source.Role != kernel.RoleModules {
+		if source.Role != kernel.RoleImage && source.Role != kernel.RoleModules && source.Role != kernel.RoleBootSupport {
 			continue
 		}
 		pkg := source
 		pkg.Path = "sp11/kernel/" + pkg.Name
 		portable.Packages = append(portable.Packages, pkg)
 	}
-	portable.DeviceTrees = append([]kernel.DeviceTree(nil), bundle.DeviceTrees...)
+	portable.DeviceTrees = kernel.CloneDeviceTrees(bundle.DeviceTrees)
 	return portable
 }
 

@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
@@ -68,7 +70,11 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 			return Plan{}, errors.New("--overwrite must never replace the running ABI: choose a distinct target ABI")
 		}
 	}
-	targetState, err := classifyTargetState(ctx, root, request.Bundle.ABI, packages)
+	deviceTrees, err := plannedDeviceTrees(root, request.Bundle)
+	if err != nil {
+		return Plan{}, err
+	}
+	targetState, err := classifyTargetState(ctx, root, request.Bundle.ABI, packages, deviceTrees)
 	if err != nil {
 		return Plan{}, err
 	}
@@ -86,20 +92,12 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 			FallbackMismatchForced: fallbackMismatchForced,
 			Warnings:               warnings,
 			Version:                request.Bundle.Version,
+			EffectiveDTBDelivery:   request.Bundle.EffectiveDTBDelivery,
 			DryRun:                 request.DryRun,
 			UnverifiedAccepted:     unverified,
 			Overwrite:              request.Overwrite,
 			TargetState:            &targetState,
 		}, &TargetStateError{Evidence: targetState}
-	}
-	deviceTrees := make([]DeviceTree, 0, len(requiredDeviceTrees))
-	for _, tree := range requiredDeviceTrees {
-		relative := "usr/lib/firmware/" + request.Bundle.ABI + "/device-tree/" + tree.Path
-		target, err := rootPath(root, relative)
-		if err != nil {
-			return Plan{}, err
-		}
-		deviceTrees = append(deviceTrees, DeviceTree{Device: tree.Device, RelativePath: tree.Path, TargetPath: target})
 	}
 	packagePaths := make([]string, 0, len(packages))
 	for _, item := range packages {
@@ -125,6 +123,7 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 		FallbackMismatchForced: fallbackMismatchForced,
 		Warnings:               warnings,
 		Version:                request.Bundle.Version,
+		EffectiveDTBDelivery:   request.Bundle.EffectiveDTBDelivery,
 		DryRun:                 request.DryRun,
 		UnverifiedAccepted:     unverified,
 		Overwrite:              request.Overwrite,
@@ -204,7 +203,7 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	// Re-run the complete read-only classification immediately before
 	// mutation so records or artefacts added after preflight cannot bypass
 	// the fresh-target gate.
-	recheckState, err := classifyTargetState(ctx, plan.Root, plan.TargetABI, plan.Packages)
+	recheckState, err := classifyTargetState(ctx, plan.Root, plan.TargetABI, plan.Packages, plan.DeviceTrees)
 	if err != nil {
 		return receipt, fmt.Errorf("target changed after preflight: %w", err)
 	}
@@ -241,7 +240,7 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 		}
 		receipt.Executed = append(receipt.Executed, cloneCommand(command))
 		mutationStarted = true
-		return manager.runner.Run(ctx, platform.Command{Name: command.Name, Args: append([]string(nil), command.Args...)})
+		return manager.runMutationCommand(ctx, command)
 	}
 	for _, command := range commands {
 		if err := ctx.Err(); err != nil {
@@ -281,6 +280,19 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	if err != nil {
 		return manager.failAndRollback(plan, backup, receipt, err)
 	}
+	wantBootMode := DeviceTreeBootEmbedded
+	if plan.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		wantBootMode = DeviceTreeBootExternal
+	}
+	if installed.DeviceTreeBoot.Mode != wantBootMode {
+		return manager.failAndRollback(plan, backup, receipt, fmt.Errorf(
+			"installed ABI %s uses %s DTB delivery; bundle requires %s", plan.TargetABI, installed.DeviceTreeBoot.Mode, plan.EffectiveDTBDelivery))
+	}
+	if installed.DeviceTreeBoot.NormalGRUBEntryCount == 0 || installed.DeviceTreeBoot.RecoveryGRUBEntryCount == 0 {
+		return manager.failAndRollback(plan, backup, receipt, fmt.Errorf(
+			"installed ABI %s requires normal and recovery GRUB bindings; verified %d normal and %d recovery entries",
+			plan.TargetABI, installed.DeviceTreeBoot.NormalGRUBEntryCount, installed.DeviceTreeBoot.RecoveryGRUBEntryCount))
+	}
 	headers, err := verifyInstalledHeaders(ctx, plan.Root, plan.TargetABI, plan.Packages)
 	if err != nil {
 		return manager.failAndRollback(plan, backup, receipt, err)
@@ -299,6 +311,27 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	return receipt, nil
 }
 
+// plannedDeviceTrees converts the signed package-relative inventory into the
+// exact target-root paths used by classification and post-install evidence.
+func plannedDeviceTrees(root string, bundle kernel.Bundle) ([]DeviceTree, error) {
+	trees := make([]DeviceTree, 0, len(bundle.DeviceTrees))
+	for _, tree := range bundle.DeviceTrees {
+		relative, valid := tree.FirmwareRelativePath(bundle.ABI)
+		if !valid {
+			return nil, fmt.Errorf("device tree %s is outside the target ABI firmware directory", tree.Device)
+		}
+		target, err := rootPath(root, tree.Path)
+		if err != nil {
+			return nil, err
+		}
+		trees = append(trees, DeviceTree{
+			Device: tree.Device, RelativePath: relative, TargetPath: target,
+			ExpectedSHA256: tree.SHA256, EmbeddedMatches: tree.EmbeddedMatches, Required: tree.Required,
+		})
+	}
+	return trees, nil
+}
+
 // managerTimestamp safely obtains a timestamp even from a nil or test manager.
 func managerTimestamp(manager *Manager) time.Time {
 	if manager == nil || manager.now == nil {
@@ -311,4 +344,22 @@ func managerTimestamp(manager *Manager) time.Time {
 func cloneCommand(command Command) Command {
 	command.Args = append([]string(nil), command.Args...)
 	return command
+}
+
+// runMutationCommand preserves Lexr's stdout for its human or JSON result.
+// Child stderr remains inherited, while operational stdout is routed to the
+// manager's diagnostic sink, which defaults to the parent process's stderr.
+func (manager *Manager) runMutationCommand(ctx context.Context, command Command) error {
+	if err := validateCommand(command); err != nil {
+		return err
+	}
+	diagnostics := manager.diagnostics
+	if diagnostics == nil {
+		diagnostics = os.Stderr
+	}
+	return manager.runner.Run(ctx, platform.Command{
+		Name:   command.Name,
+		Args:   append([]string(nil), command.Args...),
+		Stdout: diagnostics,
+	})
 }

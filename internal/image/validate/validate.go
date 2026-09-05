@@ -195,7 +195,6 @@ func extractRoutingManifest(ctx context.Context, docker *platform.Docker, isoPat
 	extractScript := `umask 077
 ulimit -f "$1"
 xorriso -osirrox on -indev /input.iso -extract /sp11/lexr-manifest.json /work/manifest.json
-chmod 0644 /work/manifest.json
 `
 	if err := runManifestExtraction(ctx, docker, toolsImage, absolute, workspace,
 		extractScript, strconv.FormatInt(fileLimitBlocks, 10)); err != nil {
@@ -236,24 +235,10 @@ func runManifestExtraction(
 	script string,
 	fileLimitBlocks string,
 ) error {
-	absoluteWorkspace, err := filepath.Abs(workspace)
-	if err != nil {
-		return fmt.Errorf("resolve manifest-routing workspace: %w", err)
-	}
-	return docker.Runner.Run(ctx, platform.Command{
-		Name: "docker",
-		Args: []string{
-			"run", "--rm", "--platform", "linux/arm64",
-			"--network", "none", "--read-only", "--cap-drop", "ALL",
-			"--security-opt", "no-new-privileges",
-			"--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=16m",
-			"--volume", isoPath + ":/input.iso:ro",
-			"--volume", absoluteWorkspace + ":/work",
-			"--workdir", "/work",
-			toolsImage,
-			"sh", "-ceu", script, "lexr-manifest-extract", fileLimitBlocks,
-		},
-	})
+	return docker.RunWithReadOnlyInputInWorkspaceAsHostUser(
+		ctx, toolsImage, workspace, isoPath, "/input.iso",
+		"sh", "-ceu", script, "lexr-manifest-extract", fileLimitBlocks,
+	)
 }
 
 // routingImageIdentity records the descriptor-backed source inspected before

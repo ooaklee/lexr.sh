@@ -331,6 +331,7 @@ func (a *application) newImageCreateCommand() *cobra.Command {
 	command.Flags().StringVar(&request.KernelDirectory, "kernel-dir", "", "directory containing a verified local kernel image/modules Debian package bundle")
 	command.Flags().StringVar(&request.KernelRepository, "kernel-repository", release.DefaultRepository, "GitHub owner/repository containing kernel releases")
 	command.Flags().StringVar(&request.KernelRelease, "kernel-release", "latest", "kernel release tag, or latest")
+	command.Flags().StringVar(&request.KernelProfile, "kernel-profile", "", "declared external-DTB platform ID for offline image creation")
 	command.Flags().StringVar(&request.CacheDirectory, "cache-dir", "", "download cache (defaults to the user cache directory)")
 	command.Flags().StringVar(&request.WorkspaceRoot, "workspace-dir", "", "parent directory for temporary remaster work")
 	command.Flags().StringVar(&request.CompanionSourceDirectory, "companion-source-dir", "", "complete lexr source directory to archive and cross-build with the host Go toolchain")

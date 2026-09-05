@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -326,7 +327,7 @@ func (v *Validator) validateKernelPackages(ctx context.Context, image, workspace
 		checks = append(checks, imagecontract.ValidationCheck{Name: name, Passed: passed, Details: details})
 	}
 	for index, pkg := range manifest.KernelBundle.Packages {
-		if pkg.Role != kernel.RoleImage && pkg.Role != kernel.RoleModules {
+		if pkg.Role != kernel.RoleImage && pkg.Role != kernel.RoleModules && pkg.Role != kernel.RoleBootSupport {
 			continue
 		}
 		if filepath.Base(pkg.Path) != pkg.Name || !strings.HasPrefix(pkg.Path, "sp11/kernel/") {
@@ -591,17 +592,22 @@ func validateFedoraManifest(manifest imagecontract.Manifest) error {
 		requireSupportedKernel(bundle.ABI) != nil {
 		return errors.New("manifest kernel bundle identity is incomplete or unsupported")
 	}
-	if len(bundle.Packages) != 2 {
-		return fmt.Errorf("manifest kernel bundle contains %d packages; expected exact image/modules pair", len(bundle.Packages))
+	expectedPackages := 2
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		expectedPackages = 3
 	}
-	seenRoles := make(map[kernel.PackageRole]bool, 2)
+	if len(bundle.Packages) != expectedPackages {
+		return fmt.Errorf("manifest kernel bundle contains %d packages; expected %d delivery packages", len(bundle.Packages), expectedPackages)
+	}
+	seenRoles := make(map[kernel.PackageRole]bool, expectedPackages)
 	for _, pkg := range bundle.Packages {
-		if pkg.Role != kernel.RoleImage && pkg.Role != kernel.RoleModules || seenRoles[pkg.Role] || !pkg.Verified || pkg.Size <= 0 {
+		if pkg.Role != kernel.RoleImage && pkg.Role != kernel.RoleModules && pkg.Role != kernel.RoleBootSupport || seenRoles[pkg.Role] || !pkg.Verified || pkg.Size <= 0 {
 			return fmt.Errorf("manifest kernel package %q has invalid role, verification, or size", pkg.Name)
 		}
 		seenRoles[pkg.Role] = true
 		role, abi, version, err := kernel.ParsePackageName(pkg.Name)
-		if err != nil || role != pkg.Role || abi != bundle.ABI || version != bundle.Version ||
+		identityMatches := role == kernel.RoleBootSupport && abi == "" && version == bundle.Version || abi == bundle.ABI && version == bundle.Version
+		if err != nil || role != pkg.Role || !identityMatches ||
 			pkg.Path != "sp11/kernel/"+pkg.Name {
 			return errors.Join(fmt.Errorf("manifest kernel package %q does not match bundle identity", pkg.Name), err)
 		}
@@ -612,12 +618,17 @@ func validateFedoraManifest(manifest imagecontract.Manifest) error {
 	if !seenRoles[kernel.RoleImage] || !seenRoles[kernel.RoleModules] {
 		return errors.New("manifest kernel bundle lacks the exact image/modules pair")
 	}
-	expectedTrees := []kernel.DeviceTree{
-		{Device: "surface-pro-11-x1e-oled", Path: "qcom/x1e80100-microsoft-denali-oled.dtb"},
-		{Device: "surface-pro-11-x1p-lcd", Path: "qcom/x1p64100-microsoft-denali.dtb"},
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired && !seenRoles[kernel.RoleBootSupport] {
+		return errors.New("manifest external-required kernel bundle lacks boot support")
 	}
-	if !slices.Equal(bundle.DeviceTrees, expectedTrees) {
-		return errors.New("manifest device-tree declarations do not match the exact Surface set")
+	canonical, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: bundle.Release, Repository: bundle.Repository,
+		RequestedBootImageMode: bundle.RequestedBootImageMode, EffectiveDTBDelivery: bundle.EffectiveDTBDelivery,
+		EmbeddedDTBCount: bundle.EmbeddedDTBCount, DTBSelectionProvenance: bundle.DTBSelectionProvenance,
+		Packages: bundle.Packages, DeviceTrees: bundle.DeviceTrees,
+	})
+	if err != nil || !reflect.DeepEqual(bundle, canonical) {
+		return errors.Join(errors.New("manifest kernel bundle delivery contract is invalid or non-canonical"), err)
 	}
 	if err := imagecontract.ValidateArtifactRecord(manifest.BootArtifacts.Kernel); err != nil ||
 		manifest.BootArtifacts.Kernel.Path != "boot/aarch64/loader/linux" {

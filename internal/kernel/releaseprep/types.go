@@ -12,7 +12,7 @@ import (
 
 const (
 	// SchemaVersion identifies the native kernel release manifest contract.
-	SchemaVersion = 2
+	SchemaVersion = 3
 	// ChecksumFileName is the sole checksum authority in a prepared directory.
 	ChecksumFileName = "SHA256SUMS"
 	// BundleFileName is the path-independent kernel bundle manifest.
@@ -80,8 +80,16 @@ type SourceProvenance struct {
 	GitURL string `json:"git_url"`
 	// GitRef is the branch or tag selected for the build.
 	GitRef string `json:"git_ref"`
-	// BootImageMode records the source policy or explicit Stubble override.
-	BootImageMode build.BootImageMode `json:"boot_image_mode"`
+	// BootImageMode records the requested source policy or explicit override.
+	BootImageMode build.BootImageMode `json:"requested_boot_image_mode"`
+	// EffectiveDTBDelivery is the structurally verified image result.
+	EffectiveDTBDelivery kernel.DTBDelivery `json:"effective_dtb_delivery"`
+	// EmbeddedDTBCount is the total .dtbauto section count.
+	EmbeddedDTBCount int `json:"embedded_dtb_count"`
+	// DeviceTrees is the complete portable packaged/embedded inventory.
+	DeviceTrees []kernel.DeviceTree `json:"device_trees"`
+	// DTBSelectionProvenance records Stubble and its HWID database for embedded builds.
+	DTBSelectionProvenance *kernel.DTBSelectionProvenance `json:"dtb_selection_provenance,omitempty"`
 	// RefKind distinguishes a fetched branch from a fetched tag.
 	RefKind string `json:"ref_kind"`
 	// Revision is the exact source commit that was built.
@@ -190,6 +198,8 @@ func (manager *Manager) Validate(ctx context.Context, directory string) (Manifes
 func publicProvenance(provenance build.Provenance) SourceProvenance {
 	return SourceProvenance{
 		GitURL: provenance.GitURL, GitRef: provenance.GitRef, BootImageMode: provenance.BootImageMode, RefKind: provenance.RefKind,
+		EffectiveDTBDelivery: provenance.EffectiveDTBDelivery, EmbeddedDTBCount: provenance.EmbeddedDTBCount,
+		DeviceTrees: kernel.CloneDeviceTrees(provenance.DeviceTrees), DTBSelectionProvenance: provenance.DTBSelectionProvenance,
 		Revision: provenance.Revision, Tree: provenance.Tree, CommitTime: provenance.CommitTime,
 		RecipeSHA256: provenance.RecipeSHA256, ContainerImage: provenance.ContainerImage,
 		ToolchainSHA256: provenance.ToolchainSHA256,

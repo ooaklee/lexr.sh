@@ -73,6 +73,7 @@ type Request struct {
 	SourceSHA256       string
 	OutputISO          string
 	Bundle             kernel.Bundle
+	KernelProfile      string
 	ToolVersion        string
 	Companion          companion.BuildRequest
 	CompanionUserspace []string
@@ -113,6 +114,9 @@ func BuildPlan(request Request) (plan.Plan, error) {
 		if err := requireSupportedKernel(request.Bundle.ABI); err != nil {
 			return plan.Plan{}, err
 		}
+	}
+	if strings.TrimSpace(request.KernelProfile) != "" {
+		return plan.Plan{}, errors.New("Fedora Stubble image creation does not accept --kernel-profile")
 	}
 	companionSource := "not-requested"
 	if request.Companion.SourceDirectory != "" {

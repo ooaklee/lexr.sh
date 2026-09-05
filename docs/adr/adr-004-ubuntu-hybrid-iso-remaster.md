@@ -8,6 +8,11 @@ description: Architecture decision for replacing the live kernel while preservin
 
 Accepted on 2026-08-30.
 
+Partially superseded on 2026-09-04 by
+[ADR029](adr-029-self-contained-kernel-dtb-delivery.md) and
+[ADR030](adr-030-structural-offline-root-boot-preparation.md). This record
+retains the original remaster decision and its contemporary assumptions.
+
 ## Context
 
 Placing kernel packages beside an unchanged installer does not change the kernel used by its live environment. The Ubuntu Concept image uses Casper and layered live filesystems. It is also hybrid media with ISO boot records, a protective partition layout, and an appended EFI System Partition.

@@ -7,6 +7,10 @@ description: Architecture Decision Record (ADR) for [TITLE] [DESCRIPTION]
 
 <!-- These documents have names that are short noun phrases. For example, "ADR001: Deployment on Ruby on Rails 3.0.10" or "ADR009: LDAP for Multitenant Integration" -->
 
+## Status
+
+<!-- Record when this decision was accepted. If a later ADR supersedes all or part of it, retain the original body and add only a dated status note linking to the successor. -->
+
 ## Context
 
 <!--

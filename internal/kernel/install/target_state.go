@@ -61,6 +61,9 @@ type PackageStateFinding struct {
 	// HalfConfigured reports a pending transaction state such as
 	// "install ok unpacked" or "install ok half-configured".
 	HalfConfigured bool `json:"half_configured"`
+	// Global reports the singleton boot-support package, which is shared by
+	// target and fallback ABIs and is never itself a target-ABI artefact.
+	Global bool `json:"global,omitempty"`
 }
 
 // TargetStateEvidence is the complete bounded read-only classification of one
@@ -78,11 +81,18 @@ type TargetStateEvidence struct {
 	Firmware []ArtefactFinding `json:"firmware"`
 	// FirmwareDeviceTrees records each required device-tree blob.
 	FirmwareDeviceTrees []ArtefactFinding `json:"firmware_device_trees"`
+	// BootDeviceTrees records ABI-scoped external DTBs created by boot support.
+	BootDeviceTrees []ArtefactFinding `json:"boot_device_trees"`
+	// BootSupportState records the exact ABI's generated singleton-package state.
+	BootSupportState []ArtefactFinding `json:"boot_support_state"`
 	// Headers records both development-header source trees.
 	Headers []ArtefactFinding `json:"headers"`
 	// GRUBEntries counts ABI-labelled non-recovery GRUB entries, matching the
 	// post-install verification contract of exactly one such entry.
 	GRUBEntries int `json:"grub_entries"`
+	// DeviceTreeBoot records the same normal-and-recovery boot binding evidence
+	// required by post-install verification.
+	DeviceTreeBoot DeviceTreeBootEvidence `json:"device_tree_boot"`
 	// GRUBDeviceTreeBindingProblem records why the target GRUB entry failed
 	// the same device-tree binding verification applied after installation.
 	GRUBDeviceTreeBindingProblem string `json:"grub_device_tree_binding_problem,omitempty"`
@@ -153,6 +163,8 @@ func (e *TargetStateEvidence) DiagnosticLines() []string {
 	appendFindings(e.ModuleTrees)
 	appendFindings(e.Firmware)
 	appendFindings(e.FirmwareDeviceTrees)
+	appendFindings(e.BootDeviceTrees)
+	appendFindings(e.BootSupportState)
 	appendFindings(e.Headers)
 	lines = append(lines, fmt.Sprintf("grub entries for target ABI: %d", e.GRUBEntries))
 	if !e.PackageDatabasePresent {
@@ -174,14 +186,18 @@ type targetStatePaths struct {
 	firmware string
 	// deviceTrees are the required DTB paths.
 	deviceTrees []string
+	// bootDeviceTrees are ABI-scoped external DTB paths.
+	bootDeviceTrees []string
+	// bootSupportState is the singleton package's exact-ABI state directory.
+	bootSupportState string
 	// headers are the flavour and common header source trees.
 	headers []string
 }
 
 // classifyTargetState collects every target-ABI artefact and package record
 // with read-only filesystem access and returns the explicit classification.
-func classifyTargetState(ctx context.Context, root, abi string, packages []Package) (TargetStateEvidence, error) {
-	paths, err := targetStatePathSet(root, abi)
+func classifyTargetState(ctx context.Context, root, abi string, packages []Package, trees []DeviceTree) (TargetStateEvidence, error) {
+	paths, err := targetStatePathSet(root, abi, trees)
 	if err != nil {
 		return TargetStateEvidence{}, err
 	}
@@ -198,6 +214,12 @@ func classifyTargetState(ctx context.Context, root, abi string, packages []Packa
 	if evidence.FirmwareDeviceTrees, err = artefactFindings(root, "device-tree", paths.deviceTrees); err != nil {
 		return TargetStateEvidence{}, err
 	}
+	if evidence.BootDeviceTrees, err = artefactFindings(root, "boot-device-tree", paths.bootDeviceTrees); err != nil {
+		return TargetStateEvidence{}, err
+	}
+	if evidence.BootSupportState, err = artefactFindings(root, "boot-support-state", []string{paths.bootSupportState}); err != nil {
+		return TargetStateEvidence{}, err
+	}
 	if evidence.Headers, err = artefactFindings(root, "headers", paths.headers); err != nil {
 		return TargetStateEvidence{}, err
 	}
@@ -208,23 +230,23 @@ func classifyTargetState(ctx context.Context, root, abi string, packages []Packa
 	if err := validateTargetRoute(root, grub, false); err != nil {
 		return TargetStateEvidence{}, err
 	}
-	entries, err := countGRUBEntries(ctx, grub, abi, false, false)
+	entries, err := countGRUBEntries(ctx, grub, abi, true, false)
 	if err != nil {
 		return TargetStateEvidence{}, err
 	}
 	evidence.GRUBEntries = entries
-	databasePresent, packageFindings, err := readTargetPackageStates(root, abi)
+	databasePresent, packageFindings, err := readTargetPackageStates(root, abi, hasPackageRole(packages, kernel.RoleBootSupport))
 	if err != nil {
 		return TargetStateEvidence{}, err
 	}
 	evidence.PackageDatabasePresent = databasePresent
 	evidence.Packages = packageFindings
-	classifyTargetOutcome(ctx, root, abi, packages, &evidence)
+	classifyTargetOutcome(ctx, root, abi, packages, trees, &evidence)
 	return evidence, nil
 }
 
 // targetStatePathSet resolves and route-validates every closed inspection path.
-func targetStatePathSet(root, abi string) (targetStatePaths, error) {
+func targetStatePathSet(root, abi string, trees []DeviceTree) (targetStatePaths, error) {
 	paths := targetStatePaths{
 		boot: []string{
 			"boot/vmlinuz-" + abi,
@@ -232,7 +254,8 @@ func targetStatePathSet(root, abi string) (targetStatePaths, error) {
 			"boot/System.map-" + abi,
 			"boot/config-" + abi,
 		},
-		firmware: "usr/lib/firmware/" + abi,
+		firmware:         "usr/lib/firmware/" + abi,
+		bootSupportState: "var/lib/lexr/kernel-boot/" + abi,
 		headers: []string{
 			"usr/src/linux-headers-" + abi,
 			"usr/src/linux-qcom-x1e-headers-" + strings.TrimSuffix(abi, "-qcom-x1e"),
@@ -243,12 +266,12 @@ func targetStatePathSet(root, abi string) (targetStatePaths, error) {
 		return targetStatePaths{}, err
 	}
 	paths.moduleTrees = candidates
-	for _, tree := range requiredDeviceTrees {
-		target, err := rootPath(root, "usr/lib/firmware/"+abi+"/device-tree/"+tree.Path)
-		if err != nil {
-			return targetStatePaths{}, err
-		}
-		paths.deviceTrees = append(paths.deviceTrees, target)
+	if len(trees) != 0 {
+		paths.bootDeviceTrees = append(paths.bootDeviceTrees, "boot/dtb-"+abi)
+	}
+	for _, tree := range trees {
+		paths.deviceTrees = append(paths.deviceTrees, tree.TargetPath)
+		paths.bootDeviceTrees = append(paths.bootDeviceTrees, "boot/dtbs/"+abi+"/"+tree.RelativePath)
 	}
 	resolved := targetStatePaths{}
 	resolve := func(relative string) (string, error) {
@@ -285,6 +308,18 @@ func targetStatePathSet(root, abi string) (targetStatePaths, error) {
 		}
 		resolved.deviceTrees = append(resolved.deviceTrees, target)
 	}
+	for _, relative := range paths.bootDeviceTrees {
+		target, err := resolve(relative)
+		if err != nil {
+			return targetStatePaths{}, err
+		}
+		resolved.bootDeviceTrees = append(resolved.bootDeviceTrees, target)
+	}
+	state, err := resolve(paths.bootSupportState)
+	if err != nil {
+		return targetStatePaths{}, err
+	}
+	resolved.bootSupportState = state
 	for _, relative := range paths.headers {
 		target, err := resolve(relative)
 		if err != nil {
@@ -312,9 +347,12 @@ func artefactFindings(root, category string, paths []string) ([]ArtefactFinding,
 
 // classifyTargetOutcome assigns the explicit classification, reasons, and
 // recommendations from the collected evidence without touching the filesystem.
-func classifyTargetOutcome(ctx context.Context, root, abi string, packages []Package, evidence *TargetStateEvidence) {
-	anyArtefact := evidence.GRUBEntries != 0 || evidence.PackageDatabasePresent && len(evidence.Packages) != 0
-	for _, findings := range [][]ArtefactFinding{evidence.BootFiles, evidence.ModuleTrees, evidence.Firmware, evidence.FirmwareDeviceTrees, evidence.Headers} {
+func classifyTargetOutcome(ctx context.Context, root, abi string, packages []Package, trees []DeviceTree, evidence *TargetStateEvidence) {
+	anyArtefact := evidence.GRUBEntries != 0
+	for _, item := range evidence.Packages {
+		anyArtefact = anyArtefact || !item.Global || item.HalfConfigured || !item.Installed
+	}
+	for _, findings := range [][]ArtefactFinding{evidence.BootFiles, evidence.ModuleTrees, evidence.Firmware, evidence.FirmwareDeviceTrees, evidence.BootDeviceTrees, evidence.BootSupportState, evidence.Headers} {
 		for _, finding := range findings {
 			anyArtefact = anyArtefact || finding.Present
 		}
@@ -323,7 +361,7 @@ func classifyTargetOutcome(ctx context.Context, root, abi string, packages []Pac
 		evidence.Classification = TargetStateAbsent
 		return
 	}
-	if evidence.isComplete(ctx, root, abi, packages) {
+	if evidence.isComplete(ctx, root, abi, packages, trees) {
 		evidence.Classification = TargetStateComplete
 		evidence.Recommendations = []string{
 			fmt.Sprintf("target ABI %s is already fully installed; remove only the exact target-ABI packages with the package manager before reinstalling", abi),
@@ -341,7 +379,7 @@ func classifyTargetOutcome(ctx context.Context, root, abi string, packages []Pac
 // baseline equivalent to the post-install verification evidence. Every
 // selected package must have an installed record and every required device
 // tree must be a non-empty regular file.
-func (e *TargetStateEvidence) isComplete(ctx context.Context, root, abi string, packages []Package) bool {
+func (e *TargetStateEvidence) isComplete(ctx context.Context, root, abi string, packages []Package, trees []DeviceTree) bool {
 	if _, err := verifyBootFiles(ctx, root, abi); err != nil {
 		return false
 	}
@@ -358,11 +396,32 @@ func (e *TargetStateEvidence) isComplete(ctx context.Context, root, abi string, 
 	if err := verifyDeviceTreeEvidence(e.FirmwareDeviceTrees); err != nil {
 		return false
 	}
-	if e.GRUBEntries != 1 {
+	for _, tree := range trees {
+		evidence, err := requireRegularEvidence(ctx, "installed device-tree", tree.TargetPath)
+		if err != nil || evidence.SHA256 != tree.ExpectedSHA256 {
+			return false
+		}
+	}
+	if hasPackageRole(packages, kernel.RoleBootSupport) {
+		if len(e.BootSupportState) != 1 || !e.BootSupportState[0].Present {
+			return false
+		}
+		bootDTBPresent := false
+		for _, finding := range e.BootDeviceTrees {
+			bootDTBPresent = bootDTBPresent || finding.Present
+		}
+		if !bootDTBPresent {
+			return false
+		}
+	}
+	if problem := e.grubDeviceTreeBindingProblem(ctx, root, abi, trees); problem != "" {
+		e.GRUBDeviceTreeBindingProblem = problem
 		return false
 	}
-	if problem := e.grubDeviceTreeBindingProblem(ctx, root, abi); problem != "" {
-		e.GRUBDeviceTreeBindingProblem = problem
+	if e.DeviceTreeBoot.NormalGRUBEntryCount == 0 || e.DeviceTreeBoot.RecoveryGRUBEntryCount == 0 {
+		return false
+	}
+	if e.GRUBEntries != 1 {
 		return false
 	}
 	if e.hasHeaderRoles(packages) {
@@ -413,7 +472,7 @@ func verifyDeviceTreeEvidence(findings []ArtefactFinding) error {
 // independent of title) and returns a bounded explanation when the entry has
 // no, ambiguous, or non-matching device-tree binding. An empty result means
 // the binding is sound.
-func (e *TargetStateEvidence) grubDeviceTreeBindingProblem(ctx context.Context, root, abi string) string {
+func (e *TargetStateEvidence) grubDeviceTreeBindingProblem(ctx context.Context, root, abi string, trees []DeviceTree) string {
 	grub, err := rootPath(root, "boot/grub/grub.cfg")
 	if err != nil {
 		return "GRUB device-tree bindings could not be inspected: " + err.Error()
@@ -423,30 +482,27 @@ func (e *TargetStateEvidence) grubDeviceTreeBindingProblem(ctx context.Context, 
 		return "GRUB device-tree bindings could not be inspected: " + err.Error()
 	}
 	targetEntries := make([]GRUBEntry, 0, 2)
-	normalEntries := 0
+	labelledNormalEntries := 0
 	for _, entry := range parsedEntries {
-		if !entryHasArtefact(entry.Linux, "vmlinuz-"+abi) ||
-			!entryHasArtefact(entry.Initrd, "initrd.img-"+abi) {
+		if !entryHasArtefact(entry.Linux, "vmlinuz-"+abi) {
 			continue
 		}
 		targetEntries = append(targetEntries, entry)
-		if !entry.Recovery {
-			normalEntries++
+		if !entry.Recovery && strings.Contains(entry.Title, abi) &&
+			entryHasArtefact(entry.Initrd, "initrd.img-"+abi) {
+			labelledNormalEntries++
 		}
 	}
-	if normalEntries != 1 {
-		return fmt.Sprintf("expected exactly one bootable GRUB entry for the target ABI, found %d", normalEntries)
+	if labelledNormalEntries != 1 {
+		return fmt.Sprintf("expected exactly one ABI-labelled non-recovery GRUB entry, found %d", labelledNormalEntries)
 	}
-	// Post-install verification requires the ABI-labelled title, so an
-	// unlabelled entry could never pass that contract either; fail closed
-	// here rather than let the shared verifier skip it silently.
-	for _, entry := range targetEntries {
-		if !strings.Contains(entry.Title, abi) {
-			return "matching GRUB entry does not name the target ABI in its title"
-		}
-	}
-	if _, err := verifyGRUBDeviceTreeBindings(ctx, root, abi, targetEntries, nil); err != nil {
+	deviceTreeBoot, err := verifyGRUBDeviceTreeBindings(ctx, root, abi, targetEntries, trees)
+	if err != nil {
 		return "GRUB device-tree binding verification failed: " + err.Error()
+	}
+	e.DeviceTreeBoot = deviceTreeBoot
+	if e.GRUBEntries != 1 {
+		return fmt.Sprintf("expected exactly one ABI-labelled non-recovery GRUB entry, found %d", e.GRUBEntries)
 	}
 	return ""
 }
@@ -483,7 +539,7 @@ func (e *TargetStateEvidence) partialReasons() []string {
 	if e.PackageDatabasePresent && len(e.Packages) == 0 {
 		reasons = append(reasons, "target artefacts exist without any matching package records")
 	}
-	for _, findings := range [][]ArtefactFinding{e.BootFiles, e.ModuleTrees, e.Firmware, e.FirmwareDeviceTrees, e.Headers} {
+	for _, findings := range [][]ArtefactFinding{e.BootFiles, e.ModuleTrees, e.Firmware, e.FirmwareDeviceTrees, e.BootDeviceTrees, e.BootSupportState, e.Headers} {
 		for _, finding := range findings {
 			if finding.Present {
 				reasons = append(reasons, fmt.Sprintf("leftover %s already has an installed artefact: %s", finding.Category, finding.Path))
@@ -510,6 +566,9 @@ func (e *TargetStateEvidence) partialRecommendations() []string {
 	recommendations := make([]string, 0, 4)
 	halfConfigured := make([]string, 0, 2)
 	for _, item := range e.Packages {
+		if item.Global && item.Installed {
+			continue
+		}
 		if item.HalfConfigured {
 			halfConfigured = append(halfConfigured, item.Package)
 		}
@@ -520,9 +579,14 @@ func (e *TargetStateEvidence) partialRecommendations() []string {
 	if e.PackageDatabasePresent && len(e.Packages) != 0 {
 		names := make([]string, 0, len(e.Packages))
 		for _, item := range e.Packages {
+			if item.Global {
+				continue
+			}
 			names = append(names, item.Package)
 		}
-		recommendations = append(recommendations, fmt.Sprintf("if the partial installation is unwanted, purge only the exact target-ABI packages: %s", strings.Join(names, " ")))
+		if len(names) != 0 {
+			recommendations = append(recommendations, fmt.Sprintf("if the partial installation is unwanted, purge only the exact target-ABI packages: %s", strings.Join(names, " ")))
+		}
 	}
 	recommendations = append(recommendations,
 		"or rerun with --overwrite to replace the partial installation after reviewing its risk",
@@ -539,7 +603,7 @@ func overwriteTargetWarning(classification TargetStateClassification) string {
 
 // readTargetPackageStates parses the bounded target package database without
 // executing any package-manager command.
-func readTargetPackageStates(root, abi string) (bool, []PackageStateFinding, error) {
+func readTargetPackageStates(root, abi string, includeBootSupport bool) (bool, []PackageStateFinding, error) {
 	statusPath, err := rootPath(root, "var/lib/dpkg/status")
 	if err != nil {
 		return false, nil, err
@@ -577,7 +641,8 @@ func readTargetPackageStates(root, abi string) (bool, []PackageStateFinding, err
 		if currentPackage == "" {
 			return
 		}
-		if !packageRelevantToTarget(currentPackage, abi) {
+		global := currentPackage == "lexr-kernel-boot-support"
+		if !packageRelevantToTarget(currentPackage, abi) && !(includeBootSupport && global) {
 			currentPackage, currentStatus = "", ""
 			return
 		}
@@ -586,6 +651,7 @@ func readTargetPackageStates(root, abi string) (bool, []PackageStateFinding, err
 			Status:         currentStatus,
 			Installed:      currentStatus == dpkgInstalledStatus,
 			HalfConfigured: strings.HasPrefix(currentStatus, dpkgInstallWant+" ok ") && currentStatus != dpkgInstalledStatus,
+			Global:         global,
 		})
 		currentPackage, currentStatus = "", ""
 	}
@@ -611,6 +677,16 @@ func readTargetPackageStates(root, abi string) (bool, []PackageStateFinding, err
 		return false, nil, fmt.Errorf("package database changed while it was read: %s", statusPath)
 	}
 	return true, findings, nil
+}
+
+// hasPackageRole reports whether the inspected package set contains role.
+func hasPackageRole(packages []Package, role kernel.PackageRole) bool {
+	for _, item := range packages {
+		if item.Role == role {
+			return true
+		}
+	}
+	return false
 }
 
 // packageRelevantToTarget matches the exact closed package-name set for one ABI.

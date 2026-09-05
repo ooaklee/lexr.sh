@@ -1,6 +1,7 @@
 package build
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,10 +23,12 @@ import (
 const (
 	// maximumProvenanceBytes bounds every container-produced identity field.
 	maximumProvenanceBytes int64 = 4096
+	// maximumDeviceTreeInventoryBytes bounds structured build evidence.
+	maximumDeviceTreeInventoryBytes int64 = 1 << 20
 	// maximumPackageBytes bounds each generated Debian package at four GiB.
 	maximumPackageBytes int64 = 4 << 30
-	// maximumGeneratedPackages bounds the exact runtime and header set.
-	maximumGeneratedPackages = 4
+	// maximumGeneratedPackages bounds runtime, header, and optional boot-support packages.
+	maximumGeneratedPackages = 5
 	// maximumPackageNameBytes preserves portable package and manifest names.
 	maximumPackageNameBytes = 255
 	// checksumManifestName is the downstream local bundle trust manifest.
@@ -45,10 +49,12 @@ var packageFileNameExpression = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9.+_~%-
 func readProvenance(transaction string, plan Plan) (Provenance, error) {
 	directory := filepath.Join(transaction, "provenance")
 	fields := map[string]*string{}
-	var gitURL, gitRef, bootImageMode, refKind, revision, tree, commitTime, recipe, toolchain string
+	var gitURL, gitRef, bootImageMode, effectiveDelivery, embeddedDTBCount, refKind, revision, tree, commitTime, recipe, toolchain string
 	fields["git-url"] = &gitURL
 	fields["git-ref"] = &gitRef
 	fields["boot-image-mode"] = &bootImageMode
+	fields["effective-dtb-delivery"] = &effectiveDelivery
+	fields["embedded-dtb-count"] = &embeddedDTBCount
 	fields["ref-kind"] = &refKind
 	fields["revision"] = &revision
 	fields["tree"] = &tree
@@ -68,6 +74,54 @@ func readProvenance(transaction string, plan Plan) (Provenance, error) {
 	if BootImageMode(bootImageMode) != plan.BootImageMode {
 		return Provenance{}, errors.New("container boot-image mode differs from the reviewed plan")
 	}
+	if kernel.DTBDelivery(effectiveDelivery) != kernel.DTBDeliveryEmbedded && kernel.DTBDelivery(effectiveDelivery) != kernel.DTBDeliveryExternalRequired {
+		return Provenance{}, fmt.Errorf("container returned unsupported effective DTB delivery %q", effectiveDelivery)
+	}
+	embeddedCount, err := strconv.Atoi(embeddedDTBCount)
+	if err != nil || embeddedCount < 0 || strconv.Itoa(embeddedCount) != embeddedDTBCount {
+		return Provenance{}, errors.New("container returned malformed embedded DTB count")
+	}
+	deviceTrees, err := readDeviceTreeInventory(filepath.Join(directory, "device-tree-inventory.json"))
+	if err != nil {
+		return Provenance{}, fmt.Errorf("read kernel build provenance device-tree inventory: %w", err)
+	}
+	deviceTrees = kernel.CloneDeviceTrees(deviceTrees)
+	sort.Slice(deviceTrees, func(left, right int) bool {
+		if deviceTrees[left].Device != deviceTrees[right].Device {
+			return deviceTrees[left].Device < deviceTrees[right].Device
+		}
+		return deviceTrees[left].Path < deviceTrees[right].Path
+	})
+	var selectionProvenance *kernel.DTBSelectionProvenance
+	if kernel.DTBDelivery(effectiveDelivery) == kernel.DTBDeliveryEmbedded {
+		identities := make(map[string]string)
+		for _, name := range []string{
+			"stubble-tool", "stubble-version", "stubble-stub-sha256", "stubble-helper-sha256",
+			"stubble-sbat-sha256", "stubble-hwids-sha256", "ukify-tool", "ukify-package",
+			"ukify-version", "ukify-sha256",
+		} {
+			value, err := readIdentityFile(filepath.Join(directory, name))
+			if err != nil {
+				return Provenance{}, fmt.Errorf("read kernel build provenance %s: %w", name, err)
+			}
+			identities[name] = value
+		}
+		machDBSHA256, err := readOptionalIdentityFile(filepath.Join(directory, "stubble-machdb-sha256"))
+		if err != nil {
+			return Provenance{}, fmt.Errorf("read kernel build provenance stubble-machdb-sha256: %w", err)
+		}
+		selections, err := readDeviceTreeSelectionEvidence(filepath.Join(directory, "device-tree-selection-records.json"))
+		if err != nil {
+			return Provenance{}, fmt.Errorf("read kernel build provenance device-tree selections: %w", err)
+		}
+		selectionProvenance = &kernel.DTBSelectionProvenance{
+			Tool: identities["stubble-tool"], Version: identities["stubble-version"],
+			DatabaseSHA256: identities["stubble-hwids-sha256"], StubSHA256: identities["stubble-stub-sha256"],
+			HelperSHA256: identities["stubble-helper-sha256"], SBATSHA256: identities["stubble-sbat-sha256"],
+			MachDBSHA256: machDBSHA256, UKifyTool: identities["ukify-tool"], UKifyPackage: identities["ukify-package"],
+			UKifyVersion: identities["ukify-version"], UKifySHA256: identities["ukify-sha256"], Selections: selections,
+		}
+	}
 	if refKind != "branch" && refKind != "tag" {
 		return Provenance{}, fmt.Errorf("container returned unsupported Git ref kind %q", refKind)
 	}
@@ -85,10 +139,89 @@ func readProvenance(transaction string, plan Plan) (Provenance, error) {
 		return Provenance{}, fmt.Errorf("parse kernel source commit time: %w", err)
 	}
 	return Provenance{
-		GitURL: gitURL, GitRef: gitRef, BootImageMode: BootImageMode(bootImageMode), RefKind: refKind, Revision: revision, Tree: tree,
-		CommitTime: committed.UTC(), RecipeSHA256: recipe,
+		GitURL: gitURL, GitRef: gitRef, BootImageMode: BootImageMode(bootImageMode),
+		EffectiveDTBDelivery: kernel.DTBDelivery(effectiveDelivery), EmbeddedDTBCount: embeddedCount,
+		DeviceTrees: deviceTrees, RefKind: refKind, Revision: revision, Tree: tree,
+		DTBSelectionProvenance: selectionProvenance,
+		CommitTime:             committed.UTC(), RecipeSHA256: recipe,
 		ContainerImage: plan.ContainerImage, WorkVolume: plan.WorkVolume, ToolchainSHA256: toolchain,
 	}, nil
+}
+
+// readDeviceTreeInventory strictly decodes one unchanged, bounded inventory.
+func readDeviceTreeInventory(path string) ([]kernel.DeviceTree, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > maximumDeviceTreeInventoryBytes {
+		return nil, errors.New("inventory is not a bounded non-empty regular file")
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	data, readErr := io.ReadAll(io.LimitReader(file, maximumDeviceTreeInventoryBytes+1))
+	closeErr := file.Close()
+	current, statErr := os.Lstat(path)
+	if err := errors.Join(readErr, closeErr, statErr); err != nil {
+		return nil, err
+	}
+	if int64(len(data)) != info.Size() || current.Mode()&os.ModeSymlink != 0 || !os.SameFile(info, current) || current.Size() != info.Size() {
+		return nil, errors.New("inventory changed while it was read")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	var inventory []kernel.DeviceTree
+	if err := decoder.Decode(&inventory); err != nil {
+		return nil, err
+	}
+	var trailing json.RawMessage
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		if err == nil {
+			err = errors.New("multiple JSON values")
+		}
+		return nil, err
+	}
+	return inventory, nil
+}
+
+// readDeviceTreeSelectionEvidence strictly decodes bounded public attribution.
+func readDeviceTreeSelectionEvidence(path string) ([]kernel.DeviceTreeSelectionEvidence, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > maximumDeviceTreeInventoryBytes {
+		return nil, errors.New("selection evidence is not a bounded non-empty regular file")
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	data, readErr := io.ReadAll(io.LimitReader(file, maximumDeviceTreeInventoryBytes+1))
+	closeErr := file.Close()
+	current, statErr := os.Lstat(path)
+	if err := errors.Join(readErr, closeErr, statErr); err != nil {
+		return nil, err
+	}
+	if int64(len(data)) != info.Size() || current.Mode()&os.ModeSymlink != 0 || !os.SameFile(info, current) || current.Size() != info.Size() {
+		return nil, errors.New("selection evidence changed while it was read")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	var evidence []kernel.DeviceTreeSelectionEvidence
+	if err := decoder.Decode(&evidence); err != nil {
+		return nil, err
+	}
+	var trailing json.RawMessage
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		if err == nil {
+			err = errors.New("multiple JSON values")
+		}
+		return nil, err
+	}
+	return evidence, nil
 }
 
 // readIdentityFile reads one non-empty, bounded, regular provenance field.
@@ -118,6 +251,15 @@ func readIdentityFile(path string) (string, error) {
 		return "", fmt.Errorf("identity contains whitespace or control delimiters: %s", path)
 	}
 	return value, nil
+}
+
+// readOptionalIdentityFile reads an absent-or-valid bounded identity field.
+func readOptionalIdentityFile(path string) (string, error) {
+	value, err := readIdentityFile(path)
+	if os.IsNotExist(err) {
+		return "", nil
+	}
+	return value, err
 }
 
 // inspectArtifacts validates the exact coherent Surface package set emitted by Docker.
@@ -168,7 +310,13 @@ func inspectArtifacts(ctx context.Context, transaction string, plan Plan, proven
 	if !roles[kernel.RoleHeaders] || !roles[kernel.RoleCommonHeaders] {
 		return kernel.Bundle{}, nil, errors.New("generated native kernel build must include ABI headers and common headers")
 	}
-	bundle, err := kernel.NewBundle("build:"+provenance.Revision, plan.GitURL, packages)
+	bundle, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: "build:" + provenance.Revision, Repository: plan.GitURL,
+		RequestedBootImageMode: kernel.RequestedBootImageMode(provenance.BootImageMode),
+		EffectiveDTBDelivery:   provenance.EffectiveDTBDelivery, EmbeddedDTBCount: provenance.EmbeddedDTBCount,
+		Packages: packages, DeviceTrees: provenance.DeviceTrees,
+		DTBSelectionProvenance: provenance.DTBSelectionProvenance,
+	})
 	if err != nil {
 		return kernel.Bundle{}, nil, fmt.Errorf("validate generated kernel bundle: %w", err)
 	}
@@ -287,7 +435,12 @@ func publishArtifacts(ctx context.Context, plan Plan, provenance Provenance, bun
 	for _, item := range bundle.Packages {
 		finalPackages = append(finalPackages, packageByName[item.Name])
 	}
-	finalBundle, err := kernel.NewBundle(bundle.Release, bundle.Repository, finalPackages)
+	finalBundle, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: bundle.Release, Repository: bundle.Repository,
+		RequestedBootImageMode: bundle.RequestedBootImageMode, EffectiveDTBDelivery: bundle.EffectiveDTBDelivery,
+		EmbeddedDTBCount: bundle.EmbeddedDTBCount, Packages: finalPackages, DeviceTrees: bundle.DeviceTrees,
+		DTBSelectionProvenance: bundle.DTBSelectionProvenance,
+	})
 	if err != nil {
 		return nil, false, err
 	}

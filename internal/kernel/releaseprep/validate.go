@@ -32,7 +32,7 @@ func validateDirectory(ctx context.Context, path string) (Manifest, error) {
 		ChecksumFileName: {}, BundleFileName: {}, ReleaseManifestFileName: {}, ReleaseNotesFileName: {},
 	}
 	assetByName := make(map[string]Asset, len(manifest.Assets))
-	packages := make([]kernel.Package, 0, 4)
+	packages := make([]kernel.Package, 0, 5)
 	for _, asset := range manifest.Assets {
 		expected[asset.Name] = struct{}{}
 		assetByName[asset.Name] = asset
@@ -78,7 +78,13 @@ func validateDirectory(ctx context.Context, path string) (Manifest, error) {
 			}
 		}
 	}
-	canonicalBundle, err := kernel.NewBundle(manifest.ReleaseName, manifest.Source.GitURL, packages)
+	canonicalBundle, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: manifest.ReleaseName, Repository: manifest.Source.GitURL,
+		RequestedBootImageMode: kernel.RequestedBootImageMode(manifest.Source.BootImageMode),
+		EffectiveDTBDelivery:   manifest.Source.EffectiveDTBDelivery, EmbeddedDTBCount: manifest.Source.EmbeddedDTBCount,
+		DTBSelectionProvenance: manifest.Source.DTBSelectionProvenance,
+		Packages:               packages, DeviceTrees: manifest.Source.DeviceTrees,
+	})
 	if err != nil {
 		return Manifest{}, err
 	}
@@ -115,11 +121,11 @@ func validateManifest(manifest Manifest) error {
 	if err := validatePublicProvenance(manifest.Source); err != nil {
 		return err
 	}
-	if len(manifest.Assets) < 4 || len(manifest.Assets) > maximumSupplementaryAssets+4 {
+	if len(manifest.Assets) < 4 || len(manifest.Assets) > maximumSupplementaryAssets+5 {
 		return errors.New("kernel release manifest has an invalid asset count")
 	}
 	seen := make(map[string]bool, len(manifest.Assets))
-	roles := make(map[kernel.PackageRole]bool, 4)
+	roles := make(map[kernel.PackageRole]bool, 5)
 	sourceCount, licenceCount := 0, 0
 	previous := ""
 	for _, asset := range manifest.Assets {
@@ -139,7 +145,8 @@ func validateManifest(manifest Manifest) error {
 		switch asset.Kind {
 		case AssetPackage:
 			role, abi, version, err := kernel.ParsePackageName(asset.Name)
-			if err != nil || role != asset.Role || roles[role] || (role != kernel.RoleCommonHeaders && abi != manifest.ABI) || version != manifest.Version {
+			if err != nil || role != asset.Role || roles[role] ||
+				(role != kernel.RoleCommonHeaders && role != kernel.RoleBootSupport && abi != manifest.ABI) || version != manifest.Version {
 				return fmt.Errorf("kernel release manifest contains an inconsistent package: %s", asset.Name)
 			}
 			roles[role] = true
@@ -170,6 +177,8 @@ func validateManifest(manifest Manifest) error {
 func validatePublicProvenance(provenance SourceProvenance) error {
 	private := build.Provenance{
 		GitURL: provenance.GitURL, GitRef: provenance.GitRef, BootImageMode: provenance.BootImageMode, RefKind: provenance.RefKind,
+		EffectiveDTBDelivery: provenance.EffectiveDTBDelivery, EmbeddedDTBCount: provenance.EmbeddedDTBCount,
+		DeviceTrees: kernel.CloneDeviceTrees(provenance.DeviceTrees), DTBSelectionProvenance: provenance.DTBSelectionProvenance,
 		Revision: provenance.Revision, Tree: provenance.Tree, CommitTime: provenance.CommitTime,
 		RecipeSHA256: provenance.RecipeSHA256, ContainerImage: provenance.ContainerImage,
 		ToolchainSHA256: provenance.ToolchainSHA256, WorkVolume: "lexr-kernel-build-0000000000000000",

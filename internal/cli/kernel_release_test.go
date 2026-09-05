@@ -115,7 +115,7 @@ func TestKernelReleasePrepareHumanOutputIsPathFree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("kernel release prepare error = %v", err)
 	}
-	for _, expected := range []string{"kernel release prepared", manifest.ReleaseName, "build boot-image mode: stubble", "installed boot binding: not inspected", "published atomically: true", "durable: true", "hardware-qualified: false"} {
+	for _, expected := range []string{"kernel release prepared", manifest.ReleaseName, "requested boot image mode: stubble", "effective DTB delivery: embedded", "embedded DTBs: 2", "installed boot binding: not inspected", "published atomically: true", "durable: true", "hardware-qualified: false"} {
 		if !strings.Contains(output.String(), expected) {
 			t.Errorf("human output does not contain %q:\n%s", expected, output.String())
 		}
@@ -192,7 +192,8 @@ func TestKernelReleaseValidateSupportsHumanAndJSONOutput(t *testing.T) {
 					t.Fatalf("validation JSON = %#v / %v", decoded, err)
 				}
 			} else if !strings.Contains(output.String(), "kernel release valid") || !strings.Contains(output.String(), manifest.ABI) ||
-				!strings.Contains(output.String(), "build boot-image mode: stubble") || !strings.Contains(output.String(), "installed boot binding: not inspected") {
+				!strings.Contains(output.String(), "requested boot image mode: stubble") || !strings.Contains(output.String(), "effective DTB delivery: embedded") ||
+				!strings.Contains(output.String(), "embedded DTBs: 2") || !strings.Contains(output.String(), "installed boot binding: not inspected") {
 				t.Fatalf("validation human output:\n%s", output.String())
 			}
 		})
@@ -206,7 +207,9 @@ func kernelReleaseCLIManifest() releaseprep.Manifest {
 		ReleaseName:   "sp11-qcom-x1e-7.2.0-jg-0sp11v19",
 		Experimental:  true, HardwareQualified: false,
 		ABI: "7.2.0-jg-0sp11v19-qcom-x1e", Version: "7.2.0-jg-0sp11v19", Architecture: "arm64",
-		Source: releaseprep.SourceProvenance{BootImageMode: build.BootImageModeStubble},
+		Source: releaseprep.SourceProvenance{
+			BootImageMode: build.BootImageModeStubble, EffectiveDTBDelivery: kernel.DTBDeliveryEmbedded, EmbeddedDTBCount: 2,
+		},
 		Assets: []releaseprep.Asset{
 			{Name: "LICENSE.txt", Kind: releaseprep.AssetLicence, SHA256: strings.Repeat("1", 64), Size: 10},
 			{Name: "linux-image.deb", Kind: releaseprep.AssetPackage, Role: kernel.RoleImage, SHA256: strings.Repeat("2", 64), Size: 20},

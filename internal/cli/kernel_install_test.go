@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -743,6 +744,49 @@ func writeKernelCLIBundleDirectory(t *testing.T, includeHeaders bool) string {
 		if err := os.WriteFile(filepath.Join(directory, name), []byte(content), 0o600); err != nil {
 			t.Fatalf("write package fixture %s: %v", name, err)
 		}
+	}
+	bundlePackages := make([]kernel.Package, 0, len(packages))
+	for name, content := range packages {
+		role, _, _, err := kernel.ParsePackageName(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		digest := sha256.Sum256([]byte(content))
+		bundlePackages = append(bundlePackages, kernel.Package{
+			Role: role, Name: name, Path: filepath.Join(directory, name), SHA256: fmt.Sprintf("%x", digest), Size: int64(len(content)),
+		})
+	}
+	bundle, err := kernel.NewBundle(kernel.BundleOptions{
+		Release: "fixture", RequestedBootImageMode: kernel.RequestedBootImageModeStubble,
+		EffectiveDTBDelivery: kernel.DTBDeliveryEmbedded, EmbeddedDTBCount: 2,
+		DTBSelectionProvenance: &kernel.DTBSelectionProvenance{
+			Tool: "stubble", Version: "fixture-1", DatabaseSHA256: strings.Repeat("d", 64),
+			StubSHA256: strings.Repeat("1", 64), HelperSHA256: strings.Repeat("2", 64), SBATSHA256: strings.Repeat("3", 64),
+			UKifyTool: "ukify", UKifyPackage: "systemd-ukify", UKifyVersion: "258.1-1", UKifySHA256: strings.Repeat("4", 64),
+			Selections: []kernel.DeviceTreeSelectionEvidence{
+				{Device: "surface-pro-11-x1e-oled", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "microsoft,denali", HWIDs: []string{"11111111-1111-5111-8111-111111111111"}}}},
+				{Device: "surface-pro-11-x1p-lcd", Records: []kernel.DTBSelectionRecord{{Source: "hwids", Compatible: "microsoft,denali-x1p", HWIDs: []string{"22222222-2222-5222-8222-222222222222"}}}},
+			},
+		},
+		Packages: bundlePackages,
+		DeviceTrees: []kernel.DeviceTree{
+			{Device: "surface-pro-11-x1e-oled", Basename: "x1e80100-microsoft-denali-oled.dtb", Path: "usr/lib/firmware/" + kernelCLITargetABI + "/device-tree/qcom/x1e80100-microsoft-denali-oled.dtb", CompatibleStrings: []string{"microsoft,denali"}, SHA256: strings.Repeat("e", 64), EmbeddedMatches: 1, Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "11111111-1111-5111-8111-111111111111"}}, Required: true},
+			{Device: "surface-pro-11-x1p-lcd", Basename: "x1p64100-microsoft-denali.dtb", Path: "usr/lib/firmware/" + kernelCLITargetABI + "/device-tree/qcom/x1p64100-microsoft-denali.dtb", CompatibleStrings: []string{"microsoft,denali-x1p"}, SHA256: strings.Repeat("f", 64), EmbeddedMatches: 1, Selectors: []kernel.DeviceTreeSelector{{Kind: kernel.DeviceTreeSelectorCompatible, Value: "microsoft,denali-x1p"}, {Kind: kernel.DeviceTreeSelectorHWID, Value: "22222222-2222-5222-8222-222222222222"}}, Required: true},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := os.Create(filepath.Join(directory, "lexr-kernel-bundle.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := bundle.WriteJSON(manifest); err != nil {
+		_ = manifest.Close()
+		t.Fatal(err)
+	}
+	if err := manifest.Close(); err != nil {
+		t.Fatal(err)
 	}
 	return directory
 }

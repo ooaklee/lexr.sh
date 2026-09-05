@@ -113,8 +113,11 @@ func TestMaintainedDocumentationReferencesLexr(t *testing.T) {
 	if count := bytes.Count(kernelWorkflow, []byte(`.release_name == ("sp11-qcom-x1e-" + .version)`)); count != 2 {
 		t.Errorf("kernel workflow contains %d manifest/version release-name bindings, want two", count)
 	}
-	if count := bytes.Count(kernelWorkflow, []byte(`.source.boot_image_mode == "stubble"`)); count != 2 {
+	if count := bytes.Count(kernelWorkflow, []byte(`.source.requested_boot_image_mode == "stubble"`)); count != 2 {
 		t.Errorf("kernel workflow contains %d Stubble provenance bindings, want two", count)
+	}
+	if count := bytes.Count(kernelWorkflow, []byte(`.source.effective_dtb_delivery == "embedded"`)); count != 2 {
+		t.Errorf("kernel workflow contains %d effective embedded-delivery bindings, want two", count)
 	}
 	if count := bytes.Count(kernelWorkflow, []byte(`git/refs`)); count != 1 {
 		t.Errorf("kernel workflow contains %d explicit draft-tag creations, want one", count)

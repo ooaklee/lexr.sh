@@ -8,6 +8,12 @@ description: Architecture decision for carrying the selected Surface kernel and 
 
 Accepted on 2026-08-30.
 
+Partially superseded on 2026-09-04 by
+[ADR029](adr-029-self-contained-kernel-dtb-delivery.md) and
+[ADR030](adr-030-structural-offline-root-boot-preparation.md). This record
+retains the original installed-system hand-off decision and its contemporary
+assumptions.
+
 ## Context
 
 A live image can boot the custom kernel while still installing an operating system that lacks that kernel, its device trees, or usable firmware entries. Leaving packages under an ISO support directory is not an installed-system strategy. Running the historical support scripts after installation would also reintroduce retired audio, touchscreen, wireless, and service workarounds that no longer belong in the maintained path.
