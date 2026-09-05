@@ -75,6 +75,9 @@ that do not apply.
 - Bind release creation journals to their image adapter. Pop's single-root
   workflow and Fedora's native userspace step no longer inherit Ubuntu's
   workflow solely because their journals have the same number of steps.
+- Copy Pop validation evidence as the calling host user from a read-only Linux
+  work volume, so regular-user validation and USB planning can remove their
+  temporary directories on native Linux.
 - Accept the complete Ubuntu Wi-Fi preparation journal during image release
   packaging and validation, including its board-data digest, while retaining
   validation of earlier image journals.

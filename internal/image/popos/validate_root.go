@@ -51,7 +51,19 @@ lsinitramfs "$root/boot/initrd.img-$abi" > /work/installed-initrd.members
 regular /linux-work/live-initrd/main/conf/uuid.conf
 cmp /linux-work/live-initrd/main/conf/uuid.conf /work/disk/casper-uuid-generic
 regular /linux-work/live-initrd/main/scripts/casper
-
+`
+	if err := v.Docker.RunInWorkspaceVolume(ctx, toolsImage, workspace, volume, "bash", "-ceu", extract, "lexr-pop-validate-root", abi); err != nil {
+		return err
+	}
+	// Root extraction needs Linux file ownership; evidence copied to the host
+	// must instead belong to the caller so validation can remove it afterwards.
+	const evidence = `set -o pipefail
+root=/linux-work/rootfs
+regular() {
+    path=$1
+    test -s "$path" && test -f "$path" && test ! -L "$path"
+    test "$(realpath "$path")" = "$path"
+}
 mkdir /work/root-evidence /work/initrd-firmware
 for relative in usr/libexec/lexr/pop-boot-refresh etc/initramfs/post-update.d/zzz-lexr-pop-boot-refresh etc/kernel/postinst.d/zzz-lexr-pop-boot etc/kernel/postrm.d/zzz-lexr-pop-boot etc/initramfs-tools/hooks/lexr-sp11-firmware; do
     regular "$root/$relative"
@@ -74,7 +86,7 @@ for section in /linux-work/live-initrd/*; do
 done
 chmod -R a+rX /work/root-evidence /work/initrd-firmware
 `
-	if err := v.Docker.RunInWorkspaceVolume(ctx, toolsImage, workspace, volume, "bash", "-ceu", extract, "lexr-pop-validate-root", abi); err != nil {
+	if err := v.Docker.RunWithReadOnlyVolumeAsHostUser(ctx, toolsImage, workspace, volume, "bash", "-ceu", evidence); err != nil {
 		return err
 	}
 	// Compare all package-owned DTBs, kernel bytes and module objects to the

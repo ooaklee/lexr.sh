@@ -77,11 +77,11 @@ cmp "$media/lexr-manifest.json" /work/sp11/lexr-manifest.json
 cp "$root/usr/libexec/lexr/pop-recovery-refresh" /work/recovery-helper
 cp "$root/etc/initramfs/post-update.d/zzzz-lexr-pop-recovery" /work/recovery-hook
 if [ -d "$media/sp11/companion" ]; then
-    cp -a "$media/sp11/companion" /work/recovery-companion
+    cp -R --no-dereference --preserve=mode,timestamps "$media/sp11/companion" /work/recovery-companion
 fi
 diff -r --no-dereference "$media/sp11/dtb" /work/sp11/dtb
 `
-	if err := v.Docker.RunInWorkspaceVolume(ctx, toolsImage, workspace, volume, "bash", "-ceu", script); err != nil {
+	if err := v.Docker.RunWithReadOnlyVolumeAsHostUser(ctx, toolsImage, workspace, volume, "bash", "-ceu", script); err != nil {
 		return err
 	}
 	for name, expected := range map[string]string{"recovery-helper": popRecoveryRefresh, "recovery-hook": popRecoveryHook} {
