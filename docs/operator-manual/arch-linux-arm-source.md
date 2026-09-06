@@ -48,6 +48,10 @@ mechanism, desktop/installer packages and the custom-kernel installation
 lifecycle still need to be prepared and tested. The kernel alone does not
 supply firmware files.
 
+The [Arch implementation status](../developer-guide/arch-linux-arm.md) records
+the signed GRUB/live-hook package audit and the separate boot configurations
+being tested with v23. Those bootstrap checks do not enable image creation.
+
 ## Verify a retained copy
 
 For this exact accepted snapshot, download it into a separate source directory

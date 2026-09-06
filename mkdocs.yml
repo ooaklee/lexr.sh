@@ -60,6 +60,7 @@ nav:
   - Developer guide:
       - Overview: developer-guide/index.md
       - Architecture: developer-guide/architecture.md
+      - Arch Linux ARM implementation: developer-guide/arch-linux-arm.md
       - Development and testing: developer-guide/development.md
       - Catalogue maintenance: developer-guide/catalogues.md
       - Documentation: developer-guide/documentation.md

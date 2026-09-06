@@ -63,6 +63,8 @@ hand-off is not permission to modify a system.
 
 Rolling root filesystem source intake and catalogue version-3 compatibility are
 recorded in [ADR033](../adr/adr-033-pinned-rolling-rootfs-sources.md).
+The [Arch implementation status](arch-linux-arm.md) records the tested bootstrap
+contracts and the remaining live-image and installation work.
 
 Architecture decision records explain why lasting boundaries exist. Start with
 the decision closest to the question you are asking:
