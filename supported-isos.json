@@ -37,8 +37,8 @@
       "artifact_kind": "iso",
       "url": "https://dl.sda1.eu/linux/elementary/elementaryos-8.1-stable-arm64.20260219.iso",
       "homepage": "https://elementary.io/",
-      "adapter": "none",
-      "support_level": "catalog-only",
+      "adapter": "elementary-casper",
+      "support_level": "implemented",
       "experimental": true,
       "mutable": false,
       "checksum": {
@@ -46,7 +46,9 @@
         "value": "85116d48c406ae7cd60c936050a099d4b8610321273f6f0a694796db4d4e86ba"
       },
       "compatibility_notes": [
-        "No lexr image adapter is implemented yet.",
+        "Experimental SP11 adapter preserves elementary's single Casper filesystem and pairs the custom kernel with external device trees.",
+        "Elementary's Distinst installer uses GRUB, and its update-grub patches both /boot/grub/grub.cfg and /boot/efi/EFI/ubuntu/grub/grub.cfg; no systemd-boot or automatic Pop-style recovery partition is involved.",
+        "Physical boot and installation qualification are pending; the adapter makes no hardware qualification claim.",
         "The mirror download matches the ARM64 SHA-256 published at https://elementary.io/docs/installation.",
         "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],

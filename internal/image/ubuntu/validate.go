@@ -10,7 +10,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -20,8 +19,9 @@ import (
 
 	"github.com/ooaklee/lexr.sh/internal/artifact"
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/image/caspermedia"
 	"github.com/ooaklee/lexr.sh/internal/image/companion"
-	"github.com/ooaklee/lexr.sh/internal/image/ubuntu/caspermedia"
+	"github.com/ooaklee/lexr.sh/internal/image/sp11"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
@@ -524,111 +524,18 @@ func sanitizedValidationText(value string, maximumBytes int) string {
 // validateManifestKernelBundle proves that on-media delivery provenance is
 // canonical and every package path matches whether the package is embedded.
 func validateManifestKernelBundle(bundle kernel.Bundle) error {
-	canonical, err := kernel.NewBundle(kernel.BundleOptions{
-		Release: bundle.Release, Repository: bundle.Repository,
-		RequestedBootImageMode: bundle.RequestedBootImageMode, EffectiveDTBDelivery: bundle.EffectiveDTBDelivery,
-		EmbeddedDTBCount: bundle.EmbeddedDTBCount, DTBSelectionProvenance: bundle.DTBSelectionProvenance,
-		Packages: bundle.Packages, DeviceTrees: bundle.DeviceTrees,
-	})
-	if err != nil || !reflect.DeepEqual(bundle, canonical) {
-		return errors.Join(errors.New("manifest kernel bundle delivery contract is invalid or non-canonical"), err)
-	}
-	for _, pkg := range bundle.Packages {
-		expectedPath := ""
-		if pkg.Role == kernel.RoleImage || pkg.Role == kernel.RoleModules || pkg.Role == kernel.RoleBootSupport {
-			expectedPath = "sp11/kernel/" + pkg.Name
-		}
-		if pkg.Path != expectedPath {
-			return fmt.Errorf("manifest kernel package %s has unexpected media path %q", pkg.Name, pkg.Path)
-		}
-	}
-	return nil
+	return sp11.ValidateManifestBundle(bundle)
 }
 
-// snapshotValidationImage copies and hashes one descriptor-pinned ISO into the
-// private validation workspace so every later check observes those same bytes.
-func snapshotValidationImage(ctx context.Context, sourcePath, destinationPath string) (digest string, size int64, resultErr error) {
-	return snapshotValidationImageAfterInspection(ctx, sourcePath, destinationPath, nil)
+// snapshotValidationImage uses the shared descriptor-pinned file snapshot.
+func snapshotValidationImage(ctx context.Context, sourcePath, destinationPath string) (string, int64, error) {
+	return imagecontract.SnapshotFile(ctx, sourcePath, destinationPath, maximumValidationImageBytes, nil)
 }
 
-// snapshotValidationImageAfterInspection exposes one test-only scheduling seam
-// while retaining the production descriptor and identity checks.
-func snapshotValidationImageAfterInspection(ctx context.Context, sourcePath, destinationPath string, afterInspection func() error) (digest string, size int64, resultErr error) {
-	listed, err := os.Lstat(sourcePath)
-	if err != nil {
-		return "", 0, fmt.Errorf("inspect ISO: %w", err)
-	}
-	if listed.Mode()&os.ModeSymlink != 0 || !listed.Mode().IsRegular() || listed.Size() <= 0 || listed.Size() > maximumValidationImageBytes {
-		return "", 0, fmt.Errorf("ISO path %q is not a bounded non-symbolic-link regular file", sourcePath)
-	}
-	if afterInspection != nil {
-		if err := afterInspection(); err != nil {
-			return "", 0, err
-		}
-	}
-	source, err := os.Open(sourcePath)
-	if err != nil {
-		return "", 0, fmt.Errorf("open ISO snapshot source: %w", err)
-	}
-	defer func() { resultErr = errors.Join(resultErr, source.Close()) }()
-	opened, err := source.Stat()
-	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(listed, opened) ||
-		opened.Size() != listed.Size() || opened.Size() <= 0 || opened.Size() > maximumValidationImageBytes {
-		return "", 0, errors.Join(errors.New("ISO identity changed while opening its validation snapshot"), err)
-	}
-	destination, err := os.OpenFile(destinationPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-	if err != nil {
-		return "", 0, fmt.Errorf("create private ISO validation snapshot: %w", err)
-	}
-	keepDestination := false
-	defer func() {
-		if !keepDestination {
-			resultErr = errors.Join(resultErr, os.Remove(destinationPath))
-		}
-	}()
-	hasher := sha256.New()
-	buffer := make([]byte, 256*1024)
-	for {
-		if err := ctx.Err(); err != nil {
-			_ = destination.Close()
-			return "", size, err
-		}
-		count, readErr := source.Read(buffer)
-		if count > 0 {
-			size += int64(count)
-			if size > opened.Size() || size > maximumValidationImageBytes {
-				_ = destination.Close()
-				return "", size, errors.New("ISO grew while its validation snapshot was copied")
-			}
-			written, writeErr := io.MultiWriter(destination, hasher).Write(buffer[:count])
-			if writeErr != nil {
-				_ = destination.Close()
-				return "", size, writeErr
-			}
-			if written != count {
-				_ = destination.Close()
-				return "", size, io.ErrShortWrite
-			}
-		}
-		if errors.Is(readErr, io.EOF) {
-			break
-		}
-		if readErr != nil {
-			_ = destination.Close()
-			return "", size, readErr
-		}
-	}
-	afterRead, statErr := source.Stat()
-	syncErr := destination.Sync()
-	closeErr := destination.Close()
-	if err := errors.Join(statErr, syncErr, closeErr); err != nil {
-		return "", size, err
-	}
-	if size != opened.Size() || !afterRead.Mode().IsRegular() || !os.SameFile(opened, afterRead) || afterRead.Size() != opened.Size() {
-		return "", size, errors.New("ISO changed while its validation snapshot was copied")
-	}
-	keepDestination = true
-	return fmt.Sprintf("%x", hasher.Sum(nil)), size, nil
+// snapshotValidationImageAfterInspection retains Ubuntu's deterministic
+// identity-race regression seam at the shared snapshot boundary.
+func snapshotValidationImageAfterInspection(ctx context.Context, sourcePath, destinationPath string, afterInspection func() error) (string, int64, error) {
+	return imagecontract.SnapshotFile(ctx, sourcePath, destinationPath, maximumValidationImageBytes, afterInspection)
 }
 
 // readValidationManifest reads one bounded regular manifest from a single
@@ -765,90 +672,16 @@ func validateInstalledGRUBGeneratorSyntax(ctx context.Context, docker *platform.
 	return nil
 }
 
-// validateExtractedRegularFiles rejects any extracted member whose path is
-// non-canonical, escapes the private root, traverses a symbolic link, or ends
-// in anything other than a regular file.
+// validateExtractedRegularFiles retains the Ubuntu validation boundary while
+// sharing bounded extraction checks with the other image adapters.
 func validateExtractedRegularFiles(root string, paths []string) error {
-	rootInfo, err := os.Lstat(root)
-	if err != nil {
-		return fmt.Errorf("inspect extracted root: %w", err)
-	}
-	if rootInfo.Mode()&os.ModeSymlink != 0 || !rootInfo.IsDir() {
-		return errors.New("extracted root is not a non-symbolic-link directory")
-	}
-	for _, relative := range paths {
-		if relative == "" || path.IsAbs(relative) || path.Clean(relative) != relative || relative == "." || strings.HasPrefix(relative, "../") {
-			return fmt.Errorf("extracted path %q is not canonical and relative", relative)
-		}
-		current := root
-		components := strings.Split(relative, "/")
-		for index, component := range components {
-			if component == "" || component == "." || component == ".." {
-				return fmt.Errorf("extracted path %q contains an invalid component", relative)
-			}
-			current = filepath.Join(current, filepath.FromSlash(component))
-			info, err := os.Lstat(current)
-			if err != nil {
-				return fmt.Errorf("inspect extracted path %q: %w", relative, err)
-			}
-			if info.Mode()&os.ModeSymlink != 0 {
-				return fmt.Errorf("extracted path %q traverses a symbolic link", relative)
-			}
-			if index < len(components)-1 {
-				if !info.IsDir() {
-					return fmt.Errorf("extracted path %q traverses a non-directory", relative)
-				}
-				continue
-			}
-			if !info.Mode().IsRegular() {
-				return fmt.Errorf("extracted path %q is not a regular file", relative)
-			}
-		}
-	}
-	return nil
+	return imagecontract.ValidateExtractedRegularFiles(root, paths)
 }
 
-// readBoundedExtractedFile reads one regular extracted file through an
-// os.Root descriptor after rejecting symbolic-link traversal. The descriptor
-// identity and size are rechecked so untrusted contents cannot escape their
-// private extraction root or produce unbounded validation evidence.
-func readBoundedExtractedFile(rootPath, relative string, maximumBytes int64) (data []byte, resultErr error) {
-	if maximumBytes < 0 {
-		return nil, errors.New("extracted file size bound must not be negative")
-	}
-	if err := validateExtractedRegularFiles(rootPath, []string{relative}); err != nil {
-		return nil, err
-	}
-	root, err := os.OpenRoot(rootPath)
-	if err != nil {
-		return nil, fmt.Errorf("open extracted root: %w", err)
-	}
-	defer func() { resultErr = errors.Join(resultErr, root.Close()) }()
-	listed, err := root.Lstat(relative)
-	if err != nil || listed.Mode()&os.ModeSymlink != 0 || !listed.Mode().IsRegular() || listed.Size() < 0 || listed.Size() > maximumBytes {
-		return nil, errors.Join(fmt.Errorf("extracted path %q is not a bounded regular file", relative), err)
-	}
-	file, err := root.Open(relative)
-	if err != nil {
-		return nil, fmt.Errorf("open extracted path %q: %w", relative, err)
-	}
-	defer func() { resultErr = errors.Join(resultErr, file.Close()) }()
-	opened, err := file.Stat()
-	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(listed, opened) || opened.Size() != listed.Size() {
-		return nil, errors.Join(fmt.Errorf("extracted path %q changed while opening", relative), err)
-	}
-	data, err = io.ReadAll(io.LimitReader(file, maximumBytes+1))
-	if err != nil {
-		return nil, fmt.Errorf("read extracted path %q: %w", relative, err)
-	}
-	afterRead, statErr := file.Stat()
-	current, lstatErr := root.Lstat(relative)
-	if statErr != nil || lstatErr != nil || int64(len(data)) != opened.Size() || int64(len(data)) > maximumBytes ||
-		!afterRead.Mode().IsRegular() || !os.SameFile(opened, afterRead) || afterRead.Size() != opened.Size() ||
-		current.Mode()&os.ModeSymlink != 0 || !current.Mode().IsRegular() || !os.SameFile(opened, current) || current.Size() != opened.Size() {
-		return nil, errors.Join(fmt.Errorf("extracted path %q changed while reading", relative), statErr, lstatErr)
-	}
-	return data, nil
+// readBoundedExtractedFile reads untrusted evidence through the shared rooted
+// descriptor boundary, retaining Ubuntu's existing validation call sites.
+func readBoundedExtractedFile(root, relative string, maximum int64) ([]byte, error) {
+	return imagecontract.ReadBoundedExtractedFile(root, relative, maximum)
 }
 
 // validateInstalledSystemSupport extracts and checks the minimal root assets

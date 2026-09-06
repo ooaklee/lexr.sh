@@ -692,6 +692,8 @@ func TestAdapterSupportsArtifact(t *testing.T) {
 		{adapter: AdapterUbuntuCasper, kind: ArtifactKindRawXZ, want: false},
 		{adapter: AdapterFedoraLive, kind: ArtifactKindISO, want: true},
 		{adapter: AdapterFedoraLive, kind: ArtifactKindRawXZ, want: false},
+		{adapter: AdapterElementaryCasper, kind: ArtifactKindISO, want: true},
+		{adapter: AdapterElementaryCasper, kind: ArtifactKindRawXZ, want: false},
 		{adapter: AdapterNone, kind: ArtifactKindISO, want: false},
 		{adapter: Adapter("future"), kind: ArtifactKindISO, want: false},
 	}
@@ -902,7 +904,7 @@ func TestShippedCatalogContract(t *testing.T) {
 		}
 	}
 
-	if want := []string{"fedora-workstation-live-44", "ubuntu-concept-resolute-x1e"}; !reflect.DeepEqual(implementedIDs, want) {
+	if want := []string{"elementary-os-8-1-20260219", "fedora-workstation-live-44", "ubuntu-concept-resolute-x1e"}; !reflect.DeepEqual(implementedIDs, want) {
 		t.Fatalf("implemented IDs = %v, want %v", implementedIDs, want)
 	}
 	ubuntu, ok := loaded.Get("ubuntu-concept-resolute-x1e")
@@ -918,6 +920,13 @@ func TestShippedCatalogContract(t *testing.T) {
 	}
 	if fedora.Adapter != AdapterFedoraLive || fedora.SupportLevel != SupportLevelImplemented || !fedora.Experimental {
 		t.Fatalf("Fedora adapter/support/experimental = %q/%q/%v, want fedora-live/implemented/true", fedora.Adapter, fedora.SupportLevel, fedora.Experimental)
+	}
+	elementary, ok := loaded.Get("elementary-os-8-1-20260219")
+	if !ok {
+		t.Fatal("shipped catalog is missing elementary OS entry")
+	}
+	if elementary.Adapter != AdapterElementaryCasper || elementary.SupportLevel != SupportLevelImplemented || !elementary.Experimental {
+		t.Fatalf("elementary adapter/support/experimental = %q/%q/%v, want elementary-casper/implemented/true", elementary.Adapter, elementary.SupportLevel, elementary.Experimental)
 	}
 }
 

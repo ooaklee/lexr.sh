@@ -17,6 +17,7 @@ import (
 
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
 	"github.com/ooaklee/lexr.sh/internal/image/companion"
+	"github.com/ooaklee/lexr.sh/internal/image/elementary"
 	"github.com/ooaklee/lexr.sh/internal/plan"
 )
 
@@ -28,9 +29,29 @@ var expectedImageSteps = []string{
 	"validate-output", "publish-output",
 }
 
-// imageStepsForCount selects one complete reviewed journal generation. The
-// newer workflow adds Wi-Fi preparation immediately after live-root extraction.
-func imageStepsForCount(count int) []string {
+// imageStepsForAdapter selects the producer's workflow before considering a
+// journal generation. Equal step counts must never substitute another distro's
+// filesystem, userspace or boot preparation sequence.
+func imageStepsForAdapter(adapter string, count int) []string {
+	if adapter == elementary.AdapterID {
+		steps := elementary.CreationStepIDs()
+		if count == len(steps) {
+			return steps
+		}
+		return nil
+	}
+	if adapter == "fedora-live" {
+		steps := append([]string(nil), expectedImageSteps[:6]...)
+		steps = append(steps, "install-userspace")
+		steps = append(steps, expectedImageSteps[6:]...)
+		if count == len(steps) {
+			return steps
+		}
+		return nil
+	}
+	if adapter != "ubuntu-casper" {
+		return nil
+	}
 	if count == len(expectedImageSteps) {
 		return expectedImageSteps
 	}
@@ -118,7 +139,7 @@ func (manager *Manager) plan(ctx context.Context, request Request) (Plan, source
 	if err := decodeStrictJSON(journalData, &journal); err != nil {
 		return Plan{}, sourceContracts{}, fmt.Errorf("decode image creation journal: %w", err)
 	}
-	if err := validateImageJournal(journal, imageIdentity.record); err != nil {
+	if err := validateImageJournal(journal, imageIdentity.record, manifest.Adapter); err != nil {
 		return Plan{}, sourceContracts{}, err
 	}
 	releaseName := request.ReleaseName
@@ -353,14 +374,14 @@ func validateImageContract(manifest imagecontract.Manifest) error {
 }
 
 // validateImageJournal proves complete successful publication of the exact ISO.
-func validateImageJournal(journal plan.Journal, image FileRecord) error {
+func validateImageJournal(journal plan.Journal, image FileRecord, adapter string) error {
 	if journal.SchemaVersion != plan.SchemaVersion || journal.Operation != "image.create" || journal.Output == nil {
 		return errors.New("image creation journal has an unsupported or incomplete contract")
 	}
 	if filepath.Base(journal.Output.Path) != image.Name || journal.Output.SHA256 != image.SHA256 || journal.Output.Size != image.Size {
 		return errors.New("image creation journal output does not match the source ISO")
 	}
-	expectedSteps := imageStepsForCount(len(journal.Records))
+	expectedSteps := imageStepsForAdapter(adapter, len(journal.Records))
 	if expectedSteps == nil {
 		return errors.New("image creation journal does not contain the complete native workflow")
 	}

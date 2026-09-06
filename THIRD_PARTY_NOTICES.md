@@ -17,6 +17,19 @@ it must be reviewed against every supported binary. It must be updated before
 publication. If you find an omission or outdated notice, please open an issue or
 pull request.
 
+## Firmware added to elementary installation images
+
+The elementary image adapter downloads two public Qualcomm Adreno firmware
+files (`qcom/gen70500_gmu.bin` and `qcom/gen70500_sqe.fw`) from
+[Linux firmware revision 599764611a8ac213c6aa6dad17c941c2f46b53cb](https://gitlab.com/kernel-firmware/linux-firmware/-/tree/599764611a8ac213c6aa6dad17c941c2f46b53cb).
+These files are carried in generated images, not linked into Lexr binaries.
+The upstream `WHENCE` entry identifies `LICENSE.qcom` and `qcom/NOTICE.txt` as
+the applicable redistribution documents. Lexr retains their exact bytes,
+including `LICENSE.qcom.txt`, plus the full upstream `WHENCE` and a SHA-256
+provenance record under `sp11/firmware` on the medium and
+`/usr/share/lexr/firmware` in its filesystem. The licence restricts use to
+Qualcomm platforms and requires the accompanying terms and notices.
+
 ## Components in every release target
 
 | Component | Version | Licence | Copyright notice |

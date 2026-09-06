@@ -29,7 +29,7 @@ share one manager and operation plan.
 | --- | --- | --- |
 | Discovery | `internal/catalog`, `internal/userspace/catalog` | Strict, human-editable metadata and semantic validation |
 | Kernel | `internal/kernel` and its build, release and install packages | ABI-bound bundles, native builds, release preparation and recoverable installation |
-| Images | `internal/manager`, `internal/image`, `internal/image/ubuntu`, `internal/image/fedora` | Source and kernel orchestration, adapter-owned remastering and validation, and shared descriptor-bound publication |
+| Images | `internal/manager`, `internal/image`, `internal/image/ubuntu`, `internal/image/elementary`, `internal/image/fedora` | Source and kernel orchestration, adapter-owned remastering and validation, and shared descriptor-bound publication |
 | Removable media | `internal/media` | Whole-device identity, confirmation, raw writing, full read-back and ejection |
 | Private hand-offs | `internal/handoff` | Closed private stores, same-device evidence, application and restoration |
 | Userspace | `internal/userspace` plus audio and camera packages | Status, authenticated acquisition, bounded builds, installs and release preparation |
@@ -76,3 +76,6 @@ Read an ADR as historical reasoning, then check current code and task guides for
 the implemented contract. When an agreed change needs a new record, use the
 [ADR template](../adr/_adr-XXXX-template.md) and follow the coordination rule in
 [`CONTRIBUTING.md`](https://github.com/ooaklee/lexr.sh/blob/main/CONTRIBUTING.md#before-you-start).
+
+The elementary adapter and its retained native GRUB lifecycle are described in
+[ADR032](../adr/adr-032-elementary-casper-and-grub-handoff.md).

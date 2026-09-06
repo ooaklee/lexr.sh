@@ -36,13 +36,15 @@ const (
 	AdapterUbuntuCasper Adapter = "ubuntu-casper"
 	// AdapterFedoraLive selects the Fedora Workstation EROFS live-media remasterer.
 	AdapterFedoraLive Adapter = "fedora-live"
+	// AdapterElementaryCasper selects elementary OS's Casper and GRUB implementation.
+	AdapterElementaryCasper Adapter = "elementary-casper"
 )
 
 // AdapterSupportsArtifact reports whether an implemented adapter can safely
 // consume the declared upstream artefact format.
 func AdapterSupportsArtifact(adapter Adapter, kind ArtifactKind) bool {
 	switch adapter {
-	case AdapterUbuntuCasper, AdapterFedoraLive:
+	case AdapterUbuntuCasper, AdapterFedoraLive, AdapterElementaryCasper:
 		return kind == ArtifactKindISO
 	default:
 		return false

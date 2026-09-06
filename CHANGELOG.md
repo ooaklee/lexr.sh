@@ -54,6 +54,12 @@ that do not apply.
 
 ### Added
 
+- Add the experimental elementary OS 8.1 ARM64 image adapter with separate live
+  and installed initramfs images, matching Surface device trees, first-boot Wi-Fi
+  board preparation, pinned public GPU firmware and retained offline Lexr support.
+  Keep elementary's native GRUB installer and recovery handling; physical
+  qualification remains tracked in [#49](https://github.com/ooaklee/lexr.sh/issues/49).
+
 - Add native `userspace install wifi` with `--dry-run`, an optional
   `--activate` radio restart, and recoverable board-data installation from
   the distribution's existing WCN7850 firmware. Radio restart requires an

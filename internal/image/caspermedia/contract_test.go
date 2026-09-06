@@ -8,7 +8,7 @@ import (
 )
 
 // TestNewDirectHybridBuildsCasperContract verifies a generated UUID expands to
-// the exact direct-media identity paths understood by Ubuntu Casper.
+// the exact direct-media identity paths understood by Casper.
 func TestNewDirectHybridBuildsCasperContract(t *testing.T) {
 	t.Parallel()
 

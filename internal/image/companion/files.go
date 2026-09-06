@@ -44,7 +44,8 @@ var (
 	// maintainedEmbeddedSourceFiles admits exact non-Go compiler inputs without
 	// including neighbouring text files or private development artefacts.
 	maintainedEmbeddedSourceFiles = map[string]bool{
-		"internal/image/ubuntu/LEXR_GETTING_STARTED.txt": true,
+		"internal/image/ubuntu/LEXR_GETTING_STARTED.txt":     true,
+		"internal/image/elementary/LEXR_GETTING_STARTED.txt": true,
 	}
 	// projectDocumentKinds is the closed set of conventional root legal
 	// documents that may be inventoried or used to declare redistribution terms.
