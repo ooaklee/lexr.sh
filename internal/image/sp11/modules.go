@@ -1,4 +1,4 @@
-package elementary
+package sp11
 
 import (
 	"context"
@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // earlyModules includes platform dependencies which ELF module dependencies
@@ -21,9 +23,9 @@ var earlyModules = []string{
 	"surface_aggregator_hub",
 }
 
-// earlyModuleHook copies modules and their dependencies for normal coldplug.
+// EarlyModuleHook copies modules and their dependencies for normal coldplug.
 // It neither forces a load nor restarts the DSP, and remains useful after install.
-func earlyModuleHook() string {
+func EarlyModuleHook() string {
 	return `#!/bin/sh
 set -e
 case "${1:-}" in
@@ -84,12 +86,12 @@ func moduleClosure(output, root, abi string) ([]string, error) {
 	return records, nil
 }
 
-// validateEarlyModules resolves dependencies from freshly indexed kernel package
+// ValidateEarlyModules resolves dependencies from freshly indexed kernel package
 // bytes, then compares the shipped initramfs indices and objects. Only container
 // kmod runs; image executables and modprobe configuration are never executed.
-func (v *Validator) validateEarlyModules(ctx context.Context, image, workspace, volume, abi string) error {
-	if !kernelABIPattern.MatchString(abi) {
-		return fmt.Errorf("invalid elementary early module kernel ABI")
+func ValidateEarlyModules(ctx context.Context, docker *platform.Docker, image, workspace, volume, abi string) error {
+	if !SafeKernelABI(abi) {
+		return fmt.Errorf("invalid SP11 early module kernel ABI")
 	}
 	expected := "/linux-work/package-linux-modules-" + abi
 	const prepare = `set -o pipefail
@@ -125,7 +127,7 @@ for kind in live installed; do
     done
 done
 `
-	if err := v.Docker.RunInWorkspaceVolume(ctx, image, workspace, volume, "bash", "-ceu", prepare, "lexr-early-module-view", expected, abi); err != nil {
+	if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume, "bash", "-ceu", prepare, "lexr-early-module-view", expected, abi); err != nil {
 		return fmt.Errorf("prepare early module validation: %w", err)
 	}
 	query := `root=$1
@@ -137,7 +139,7 @@ done
 `
 	queryClosure := func(root string) ([]string, error) {
 		args := append([]string{"bash", "-ceu", query, "lexr-early-module-query", root, abi}, earlyModules...)
-		output, err := v.Docker.CaptureInWorkspaceVolume(ctx, image, workspace, volume, args...)
+		output, err := docker.CaptureInWorkspaceVolume(ctx, image, workspace, volume, args...)
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +188,7 @@ done
 				args = append(args, relative)
 			}
 		}
-		if err := v.Docker.RunInWorkspaceVolume(ctx, image, workspace, volume, args...); err != nil {
+		if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume, args...); err != nil {
 			return fmt.Errorf("%s initramfs early driver bytes differ from the kernel package: %w", kind, err)
 		}
 	}
