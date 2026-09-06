@@ -61,6 +61,13 @@ menuentry "elementary OS for Surface Pro 11 X1E/OLED (text diagnostics)" {
     devicetree /sp11/dtb/x1e80100-microsoft-denali-oled.dtb
     initrd /casper/initrd.lz
 }
+menuentry "elementary OS for Surface Pro 11 X1E/OLED (firmware display diagnostics)" {
+    terminal_output console
+    set gfxpayload=keep
+    linux /casper/vmlinuz boot=casper live-media-path=/casper %[2]s module_blacklist=msm debug=vc earlycon=efifb,ram loglevel=4 systemd.unit=multi-user.target plymouth.enable=0 console=tty0 ---
+    devicetree /sp11/dtb/x1e80100-microsoft-denali-oled.dtb
+    initrd /casper/initrd.lz
+}
 menuentry 'Boot from next volume' {
     exit 1
 }

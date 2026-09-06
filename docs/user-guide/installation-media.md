@@ -102,9 +102,18 @@ installation and recovery still need testing under
 The first X1E/OLED candidate passed structural validation and USB read-back,
 but showed a splash followed by a black screen. Its text-diagnostics recording
 showed Casper searching the internal drive without finding the live filesystem.
-The initial initramfs omitted the Qualcomm DSP and graphics drivers present in
-the working Ubuntu live image. This is an early-boot preparation gap; a repaired
-image still requires a physical boot before desktop support can be claimed.
+Adding early DSP and graphics drivers exposed another gap: the next candidate
+went black before the splash. Its initramfs lacked the OLED panel driver required
+by the device tree, even though the graphics driver's module dependencies were
+complete. It also lacked QRTR's socket protocol and remote transport for Qualcomm
+service discovery. Preparation now includes both supported panels and these
+service dependencies, and validates their module bytes against the kernel bundle.
+Physical confirmation of the corrected image remains pending.
+
+The separate **firmware display diagnostics** GRUB entry disables only the `msm`
+graphics module for that boot and requests a text session without Plymouth.
+It can help collect early boot messages when graphics startup loses the display;
+it does not qualify the accelerated desktop or installed-system boot.
 
 ```sh
 lexr image create \

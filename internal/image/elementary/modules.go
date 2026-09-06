@@ -10,9 +10,16 @@ import (
 	"strings"
 )
 
-// earlyModules supplies USB role discovery, graphics and the detachable
-// keyboard hub before Casper can access the root filesystem on a USB device.
-var earlyModules = []string{"qcom_q6v5_pas", "msm", "surface_aggregator_hub"}
+// earlyModules includes platform dependencies which ELF module dependencies
+// alone do not describe. The OLED DT uses samsung,atna33xc20 and the LCD DT
+// uses edp-panel; msm must not take over the firmware display without them.
+// QMI/PDR opens an AF_QIPCRTR socket, so its QRTR protocol and remote transport
+// must be available before the PMIC GLINK USB role service can initialise.
+var earlyModules = []string{
+	"qcom_q6v5_pas", "qrtr", "qrtr_smd", "qcom_pd_mapper",
+	"msm", "panel_samsung_atna33xc20", "panel_edp",
+	"surface_aggregator_hub",
+}
 
 // earlyModuleHook copies modules and their dependencies for normal coldplug.
 // It neither forces a load nor restarts the DSP, and remains useful after install.

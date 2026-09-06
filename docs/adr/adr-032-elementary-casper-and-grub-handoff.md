@@ -46,6 +46,15 @@ profile through the generic package-owned boot helper and pair both live device
 choices with their bundle DTBs. Set root and boot kernel/initramfs links to the
 selected ABI before Distinst copies the kernel. Retain native update hooks.
 
+Stage early platform dependencies explicitly, including the OLED and LCD panel
+drivers selected by the two device trees, and QRTR's socket protocol and remote
+transport used by QMI/PDR service discovery. These relationships are not all ELF
+module dependencies: resolving `msm` alone does not include its panel. Validate
+each required driver's dependency membership and bytes against the kernel bundle
+in both initramfs images. Keep normal coldplug loading rather than force-loading
+drivers or restarting the DSP. A separate firmware-display text entry disables
+only `msm` for diagnosis; normal desktop and installed boot retain graphics.
+
 Replace shim with the inspected direct GRUB, canonicalise the alternate ARM64
 and loopback menus, and put the same EFI image in the USB GPT ESP and optical
 boot catalogue. Keep Secure Boot disabled for unsigned custom-kernel media.

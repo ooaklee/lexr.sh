@@ -72,9 +72,10 @@ that do not apply.
 ### Fixed
 
 - Include Surface Pro 11 USB/DSP, graphics and keyboard-hub drivers in elementary
-  initramfs images and validate their dependency closure before accepting an ISO.
-  The first candidate stalled during live-media discovery; physical validation
-  of the corrected image remains pending
+  initramfs images, including the device-tree panel drivers and QRTR service
+  dependencies that are absent from the graphics driver's ELF dependency closure.
+  Validate their dependency bytes and add a firmware-display text diagnostic entry.
+  Physical validation of the corrected image remains pending
   ([#49](https://github.com/ooaklee/lexr.sh/issues/49)).
 - Keep image tooling, companion-build and removable-media diagnostics on stderr
   so `--json` output can be decoded without stripping progress messages.

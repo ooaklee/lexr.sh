@@ -8,6 +8,9 @@ erases a disk.
 If the USB does not reach the desktop, select the X1E/OLED "text diagnostics"
 entry and record the visible boot messages. This entry starts a text session
 instead of the desktop; it does not intentionally pause at an initramfs prompt.
+If that entry also goes black, try "firmware display diagnostics". It disables
+only the msm graphics module for that boot and requests a text session using
+the firmware display. It is a diagnostic fallback, not an accelerated desktop.
 All entries are experimental until qualified on your exact device.
 
 1. START THE LEXR INCLUDED ON THIS USB

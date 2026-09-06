@@ -59,8 +59,19 @@ func TestLiveGRUBKeepsCasperAndDeviceTrees(t *testing.T) {
 			t.Errorf("unexpected %q", forbidden)
 		}
 	}
-	if strings.Count(config, "linux /casper/vmlinuz boot=casper live-media-path=/casper") != 3 || strings.Count(config, "initrd /casper/initrd.lz") != 3 {
+	if strings.Count(config, "linux /casper/vmlinuz boot=casper live-media-path=/casper") != 4 || strings.Count(config, "initrd /casper/initrd.lz") != 4 {
 		t.Fatal("unpaired live entries")
+	}
+	// The fallback changes graphics only for its labelled diagnostic entry.
+	// Normal desktop boot must retain msm, and every entry retains DSP/USB.
+	for _, entry := range strings.Split(config, "menuentry ")[1:] {
+		fallback := strings.HasPrefix(entry, `"elementary OS for Surface Pro 11 X1E/OLED (firmware display diagnostics)"`)
+		if strings.Contains(entry, "module_blacklist=msm") != fallback {
+			t.Fatal("graphics blacklist escaped its diagnostic entry")
+		}
+		if fallback && (!strings.Contains(entry, "plymouth.enable=0") || !strings.Contains(entry, "systemd.unit=multi-user.target")) {
+			t.Fatal("firmware display diagnostic attempts graphical startup")
+		}
 	}
 	if err := validateGRUBConfig([]byte(config+"linux /other"), layout, "7.2.0-jg-0sp11v23-qcom-x1e"); err == nil {
 		t.Fatal("accepted an added boot command")

@@ -135,6 +135,18 @@ depmod -C /dev/null -b "$root" "$abi"
 		{"complete split archives", "", true},
 		{"fresh subset indices", `ln -s usr/lib /linux-work/live-initrd/early2/lib; rm "$live/modules.order"; depmod -C /dev/null -b /linux-work/live-initrd/early2 "$abi"`, true},
 		{"missing DSP", `rm "$live/$dsp"`, false},
+		{"missing OLED panel with complete msm dependencies", `rm "$live/$oled"`, false},
+		{"missing LCD panel module or builtin index", `if [ "$lcd" = "(builtin)" ]; then
+sed -i '\|kernel/drivers/gpu/drm/panel/panel-edp.ko|d' "$live/modules.builtin"
+ln -s usr/lib /linux-work/live-initrd/early2/lib
+rm "$live/modules.order"
+depmod -C /dev/null -b /linux-work/live-initrd/early2 "$abi"
+else
+rm "$live/$lcd"
+fi`, false},
+		{"missing QRTR socket protocol", `rm "$live/$qrtr"`, false},
+		{"missing QRTR remote transport", `rm "$live/$transport"`, false},
+		{"missing in-kernel domain mapper", `rm "$live/$mapper"`, false},
 		{"missing transitive dependency", `rm "$live/$dependency"`, false},
 		{"corrupt dependency", `file="$live/$dependency"; rm "$file"; printf broken > "$file"`, false},
 		{"stale early override", `file="$live/$dsp"; cp --parents "${file#/linux-work/live-initrd/early2/}" /linux-work/live-initrd/main/; rm "$file"; printf stale > "$file"`, false},
@@ -145,11 +157,12 @@ depmod -C /dev/null -b "$root" "$abi"
 abi=$1
 root=/linux-work/package-linux-modules-$abi
 rm -rf /linux-work/live-initrd /linux-work/installed-initrd /linux-work/live-module-view /linux-work/installed-module-view
+shift
 for kind in live installed; do
     destination=/linux-work/$kind-initrd/early2/usr/lib/modules/$abi
     mkdir -p "$destination" /linux-work/$kind-initrd/early /linux-work/$kind-initrd/main
     cp -a "$root/usr/lib/modules/$abi"/modules.* "$destination/"
-    for module in qcom_q6v5_pas msm surface_aggregator_hub; do
+    for module in "$@"; do
         modprobe -d "$root" -S "$abi" -C /dev/null --ignore-install --show-depends "$module"
     done > /linux-work/dependencies
     while read -r action file remainder; do
@@ -164,10 +177,20 @@ dsp=$(modinfo -b "$root" -k "$abi" -F filename qcom_q6v5_pas)
 dsp=${dsp#"$root/lib/modules/$abi/"}
 dependency=$(modinfo -b "$root" -k "$abi" -F filename mdt_loader)
 dependency=${dependency#"$root/lib/modules/$abi/"}
+module_relative() {
+    file=$(modinfo -b "$root" -k "$abi" -F filename "$1")
+    printf '%s\n' "${file#"$root/lib/modules/$abi/"}"
+}
+oled=$(module_relative panel_samsung_atna33xc20)
+lcd=$(module_relative panel_edp)
+qrtr=$(module_relative qrtr)
+transport=$(module_relative qrtr_smd)
+mapper=$(module_relative qcom_pd_mapper)
 test -f "$live/$dsp" && test -f "$live/$dependency"
 cd /linux-work/live-initrd/early2
 `
-			if err := docker.RunInWorkspaceVolume(t.Context(), image, workspace, volume, "bash", "-ceu", setup+testcase.mutation, "module-fixture", abi); err != nil {
+			args := append([]string{"bash", "-ceu", setup + testcase.mutation, "module-fixture", abi}, earlyModules...)
+			if err := docker.RunInWorkspaceVolume(t.Context(), image, workspace, volume, args...); err != nil {
 				t.Fatal(err)
 			}
 			err := validator.validateEarlyModules(t.Context(), image, workspace, volume, abi)
