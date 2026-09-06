@@ -17,6 +17,7 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/kernel/release"
 	"github.com/ooaklee/lexr.sh/internal/manager"
 	"github.com/ooaklee/lexr.sh/internal/media"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 	"github.com/ooaklee/lexr.sh/internal/version"
 )
 
@@ -197,7 +198,7 @@ func (a *application) newRemovableMediaWorkflow() (removableMediaWorkflow, error
 	if a.mediaFactory != nil {
 		return a.mediaFactory()
 	}
-	backend, err := media.NewSystemBackend(media.SystemBackendOptions{})
+	backend, err := media.NewSystemBackend(media.SystemBackendOptions{Runner: platform.NewDiagnosticRunner(a.errOut)})
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +211,13 @@ func (a *application) validateImageForMedia(ctx context.Context, path string) (i
 	if a.imageValidator != nil {
 		return a.imageValidator(ctx, path)
 	}
-	return imagevalidator.NewValidator(nil).Validate(ctx, path)
+	return a.newImageValidator().Validate(ctx, path)
+}
+
+// newImageValidator keeps adapter tooling and cleanup diagnostics on the
+// application's error stream, including when validation is reused for releases.
+func (a *application) newImageValidator() *imagevalidator.Validator {
+	return imagevalidator.NewValidator(platform.NewDocker(platform.NewDiagnosticRunner(a.errOut)))
 }
 
 // readMediaConfirmation prompts only an interactive terminal and otherwise

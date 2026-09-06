@@ -71,6 +71,8 @@ that do not apply.
 
 ### Fixed
 
+- Keep image tooling, companion-build and removable-media diagnostics on stderr
+  so `--json` output can be decoded without stripping progress messages.
 - Replace the expired elementary OS 8.1 ARM64 catalogue URL with a verified
   mirror and pin the publisher's SHA-256. Image creation remains unimplemented
   pending the adapter and hardware tests

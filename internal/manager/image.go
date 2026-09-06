@@ -236,17 +236,24 @@ type imageOperation struct {
 }
 
 // NewImageManager constructs an image workflow with production resolvers and a
-// caller-provided catalogue loader and progress writer.
+// caller-provided catalogue loader and progress/child-diagnostics writer.
 func NewImageManager(loader catalog.Loader, out io.Writer) *ImageManager {
-	return &ImageManager{
+	runner := platform.NewDiagnosticRunner(out)
+	manager := &ImageManager{
 		Catalogs:           loader,
 		Artifacts:          artifact.NewResolver(nil),
 		Releases:           release.NewClient(nil),
-		Remaster:           ubuntu.NewRemasterer(nil, out),
-		FedoraRemaster:     fedora.NewRemasterer(nil, out),
-		ElementaryRemaster: elementary.NewRemasterer(nil, out),
-		CompanionRunner:    platform.ExecRunner{},
+		Remaster:           ubuntu.NewRemasterer(platform.NewDocker(runner), out),
+		FedoraRemaster:     fedora.NewRemasterer(platform.NewDocker(runner), out),
+		ElementaryRemaster: elementary.NewRemasterer(platform.NewDocker(runner), out),
+		CompanionRunner:    runner,
 	}
+	// Companion compilation is a separate process boundary from Docker. Give
+	// each adapter its own builder while keeping both on the caller's stream.
+	manager.Remaster.Companions = companion.NewBuilder(runner)
+	manager.FedoraRemaster.Companions = companion.NewBuilder(runner)
+	manager.ElementaryRemaster.Companions = companion.NewBuilder(runner)
+	return manager
 }
 
 // Plan describes the externally visible workflow without downloading or
