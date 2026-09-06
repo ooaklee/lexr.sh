@@ -75,12 +75,14 @@ that do not apply.
   initramfs images, including the device-tree panel drivers and QRTR service
   dependencies that are absent from the graphics driver's ELF dependency closure.
   Validate their dependency bytes and add a firmware-display text diagnostic entry.
-  Physical validation of the corrected image remains pending
+  The maintainer confirmed the corrected `927d00e`/v23 image reaches the X1E/OLED
+  live desktop with Wi-Fi, web browsing and the language/try/install chooser.
+  Installation, recovery and other hardware checks remain pending
   ([#49](https://github.com/ooaklee/lexr.sh/issues/49)).
 - Keep image tooling, companion-build and removable-media diagnostics on stderr
   so `--json` output can be decoded without stripping progress messages.
 - Replace the expired elementary OS 8.1 ARM64 catalogue URL with a verified
-  mirror and pin the publisher's SHA-256. Hardware qualification remains pending
+  mirror and pin the publisher's SHA-256
   ([#49](https://github.com/ooaklee/lexr.sh/issues/49)).
 - Accept the complete Ubuntu Wi-Fi preparation journal during image release
   packaging and validation, including its board-data digest, while retaining

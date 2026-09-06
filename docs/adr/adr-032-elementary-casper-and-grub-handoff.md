@@ -6,8 +6,10 @@ description: Preserve elementary OS installer and bootloader contracts while sha
 
 ## Status
 
-Proposed on 2026-09-06 for [issue #49](https://github.com/ooaklee/lexr.sh/issues/49).
-Implementation review and physical installation qualification remain pending.
+Accepted on 2026-09-06 for [issue #49](https://github.com/ooaklee/lexr.sh/issues/49)
+after OpenCode implementation review. The maintainer confirmed X1E/OLED live
+desktop boot, Wi-Fi, browsing and installer startup with Lexr `927d00e` and v23.
+Physical installation and recovery qualification remain pending.
 
 ## Context
 
@@ -75,6 +77,8 @@ image preparation downloads a small pinned firmware supplement. Existing Ubuntu
 and Fedora contracts retain regression coverage.
 
 Structural validation checks media identity, EFI extents, complete package and
-boot artefact bytes, the installed payload and source/licence inventory. Physical
-desktop, Wi-Fi, input, installer, authorised installation and recovery boot still
-require separate evidence. No installation target is selected by image creation.
+boot artefact bytes, the installed payload and source/licence inventory. The
+confirmed X1E/OLED live desktop, Wi-Fi and installer startup do not qualify an
+installation or other devices. Input userspaces, audio, an authorised installation
+and recovery boot still require separate evidence. No installation target is
+selected by image creation.

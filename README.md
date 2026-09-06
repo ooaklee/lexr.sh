@@ -45,18 +45,21 @@ redistribute restricted firmware. You can also use
 ## What works today
 
 Dedicated image adapters support the experimental Ubuntu Concept Resolute
-Desktop image and Fedora Workstation Live 44 ARM64. The custom live and
-installed Fedora path is limited to the Surface Pro 11 Qualcomm Snapdragon X Elite model; its X Plus
+Desktop image, elementary OS 8.1 ARM64 and Fedora Workstation Live 44 ARM64.
+The custom live and installed Fedora path is limited to the Surface Pro 11 Qualcomm Snapdragon X Elite model; its X Plus
 entry is a stock-kernel, explicit-DTB live troubleshooting path only. Debian,
-elementary OS, Pop!_OS, and Fedora's compressed raw disk image remain
+Pop!_OS and Fedora's compressed raw disk image remain
 `catalog-only` until their layouts have dedicated adapters. Here, `implemented`
 means the adapter can create and structurally validate media; `experimental`
 means complete end-to-end qualification is still pending. Ubuntu Concept
 remastered with Lexr `384f2c0` and v23 reached the Surface Pro 11 X1E/OLED live
 desktop with Wi-Fi working without a live-session repair
-([issue #41](https://github.com/ooaklee/lexr.sh/issues/41)). Installation and
-remaining hardware checks still need qualification. The current Fedora candidate
-passed structural validation and USB read-back, but a physical Surface Pro 11
+([issue #41](https://github.com/ooaklee/lexr.sh/issues/41)). Elementary OS 8.1
+remastered with Lexr `927d00e` and v23 reached the same X1E/OLED live desktop;
+Wi-Fi, web browsing and the language/try/install chooser were confirmed on
+2026-09-06 ([issue #49](https://github.com/ooaklee/lexr.sh/issues/49)). Installation,
+recovery and remaining hardware checks still need qualification for both images.
+The current Fedora candidate passed structural validation and USB read-back, but a physical Surface Pro 11
 test reached the emergency boot path and then a persistent black screen. That
 failure is tracked in [issue #17](https://github.com/ooaklee/lexr.sh/issues/17),
 while [issue #16](https://github.com/ooaklee/lexr.sh/issues/16) tracks the
@@ -125,12 +128,17 @@ containing repository.
 ## Create your first image
 
 You can start with a prebuilt Linux image from the OE repository:
-[Ubuntu Concept 26.04 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-ubuntu-concept-26.04-v23-20260905).
-This experimental ARM64 image includes Lexr, prepared Wi-Fi board data, the
-IPTSD bundle and a desktop getting-started guide. Follow the release notes for
-the tested hardware and remaining limitations, the required Lexr version,
-downloading and reconstructing the split ISO, checksum verification, and
-writing it to USB with Lexr.
+
+- [Ubuntu Concept 26.04 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-ubuntu-concept-26.04-v23-20260905).
+- [elementary OS 8.1 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-elementary-os-8.1-v23-20260906).
+
+These experimental ARM64 images include Lexr, prepared Wi-Fi board data, the
+IPTSD bundle and a desktop getting-started guide. Follow each release's
+**Download, verify and write with Lexr** instructions to install the latest Lexr,
+download and reconstruct the split ISO, verify its checksum and write it to USB.
+The elementary release also provides a pinned source build for use until its
+adapter is available in a stable Lexr release; v0.3.0 cannot validate or write
+that image. The notes record the exact tested hardware and remaining limitations.
 
 To create your own experimental Ubuntu image, you need Docker with a running daemon
 and Linux ARM64 container support, at least 24 GiB of free workspace storage,
@@ -153,7 +161,7 @@ that the image will boot or install on physical hardware.
 Fedora requires the explicit `fedora-workstation-live-44` catalogue ID and a
 patch-line-qualified verified kernel bundle. The accepted floors are
 7.2.0/sp11v19 and 7.2.2/sp11v1. The
-[installation-media guide](docs/user-guide/installation-media.md) shows both
+[installation-media guide](docs/user-guide/installation-media.md) shows the implemented
 distribution paths, the Fedora boot failure already observed, their hardware
 limits, and how to review a USB write safely.
 

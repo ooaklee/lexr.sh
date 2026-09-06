@@ -48,7 +48,7 @@
       "compatibility_notes": [
         "Experimental SP11 adapter preserves elementary's single Casper filesystem and pairs the custom kernel with external device trees.",
         "Elementary's Distinst installer uses GRUB, and its update-grub patches both /boot/grub/grub.cfg and /boot/efi/EFI/ubuntu/grub/grub.cfg; no systemd-boot or automatic Pop-style recovery partition is involved.",
-        "Physical boot and installation qualification are pending; the adapter makes no hardware qualification claim.",
+        "The maintainer confirmed X1E/OLED live desktop boot, Wi-Fi, web browsing and the language/try/install chooser with Lexr 927d00e and v23 on 2026-09-06; installation, recovery, other peripherals and X1P/LCD remain unqualified.",
         "The mirror download matches the ARM64 SHA-256 published at https://elementary.io/docs/installation.",
         "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],

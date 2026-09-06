@@ -95,20 +95,28 @@ lexr image create \
 ### elementary OS 8.1 ARM64
 
 The `elementary-os-8-1-20260219` entry pins the ARM64 image and publisher checksum.
-Its `elementary-casper` adapter is experimental: physical desktop boot,
-installation and recovery still need testing under
-[issue #49](https://github.com/ooaklee/lexr.sh/issues/49).
+Its `elementary-casper` adapter remains experimental. On 2026-09-06, the maintainer
+confirmed that the image built with Lexr `927d00e` and v23 reached the Surface Pro
+11 X1E/OLED desktop from the default GRUB entry. Wi-Fi, browsing a website and the
+language/try/install chooser worked. Boot showed the elementary logo and spinner,
+then took longer than expected before reaching the desktop; allow time for that
+first start. No fixed boot-time guarantee has been measured.
 
-The first X1E/OLED candidate passed structural validation and USB read-back,
-but showed a splash followed by a black screen. Its text-diagnostics recording
-showed Casper searching the internal drive without finding the live filesystem.
-Adding early DSP and graphics drivers exposed another gap: the next candidate
-went black before the splash. Its initramfs lacked the OLED panel driver required
-by the device tree, even though the graphics driver's module dependencies were
-complete. It also lacked QRTR's socket protocol and remote transport for Qualcomm
-service discovery. Preparation now includes both supported panels and these
-service dependencies, and validates their module bytes against the kernel bundle.
-Physical confirmation of the corrected image remains pending.
+Download the [tested elementary OS 8.1 image](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-elementary-os-8.1-v23-20260906)
+or build it with the command below. The release notes include the latest Lexr
+installer and a pinned source-build option until elementary support ships in a
+stable release. Lexr v0.3.0 predates this adapter.
+
+The corrected initramfs includes early DSP, graphics and keyboard-hub drivers,
+the device-tree panel drivers, and QRTR's socket protocol and remote transport
+for Qualcomm service discovery. These are not all implied by the graphics
+module's ELF dependencies. Preparation and validation cover each required
+driver's dependency membership and bytes against the kernel bundle.
+
+An actual installation, installed custom-kernel/DTB boot, recovery, audio,
+pen/touch setup and other peripherals still need testing under
+[issue #49](https://github.com/ooaklee/lexr.sh/issues/49). Reaching the installer
+chooser does not establish that installation succeeds.
 
 The separate **firmware display diagnostics** GRUB entry disables only the `msm`
 graphics module for that boot and requests a text session without Plymouth.
@@ -116,14 +124,15 @@ It can help collect early boot messages when graphics startup loses the display;
 it does not qualify the accelerated desktop or installed-system boot.
 
 ```sh
+mkdir -p ../lexr-build
 lexr image create \
   --catalog-id elementary-os-8-1-20260219 \
   --kernel-release sp11-qcom-x1e-7.2.0-jg-0sp11v23 \
   --kernel-profile surface-pro-11-x1e-oled \
   --companion-source-dir . \
   --companion-userspace iptsd-v1 \
-  --output lexr-elementary-sp11.iso
-lexr image validate lexr-elementary-sp11.iso
+  --output ../lexr-build/lexr-elementary-sp11.iso
+lexr image validate ../lexr-build/lexr-elementary-sp11.iso
 ```
 
 Run from the Lexr source tree when including its companion, or replace `.` with
@@ -284,8 +293,9 @@ the complete EROFS, RPM, Anaconda, boot-policy, and validation decision.
 
 ### Shared boot and publication safeguards
 
-Both source images are hybrid boot media with an appended GPT EFI System
-Partition. Ubuntu binds Casper to its generated UUID; Fedora binds
+The Ubuntu and Fedora source images are hybrid boot media with an appended GPT
+EFI System Partition; the elementary adapter adds a USB GPT ESP to its optical
+source. Ubuntu and elementary bind Casper to their generated UUIDs; Fedora binds
 `dracut-live` to the pinned `Fedora-WS-Live-44` volume label and preserves the
 ESP marker which hands off to `/boot/grub2/grub.cfg`. Validation checks those
 identities together with the boot records, kernel, initramfs, module tree,
