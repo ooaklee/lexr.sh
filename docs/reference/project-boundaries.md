@@ -59,8 +59,9 @@ release. Restricted platform firmware is not downloaded or redistributed; it
 must come from an authorised Windows installation on the same device through
 the private hand-off workflow.
 
-The `ubuntu-concept-resolute-x1e` and `fedora-workstation-live-44` entries have
-implemented image adapters. Debian, elementary OS, Pop!_OS, and Fedora's
+The `ubuntu-concept-resolute-x1e`, `elementary-os-8-1-20260219` and
+`fedora-workstation-live-44` entries have implemented image adapters.
+Debian, Pop!_OS, and Fedora's
 compressed raw disk entry are `catalog-only`: they are discoverable metadata,
 not buildable promises. Fedora's custom live and installed path is scoped to
 X1E/OLED. Its X1P/LCD entry retains a manifest-bound stock-kernel,

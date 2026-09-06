@@ -111,6 +111,69 @@ func TestRunWithReadOnlyInputInWorkspaceAsHostUserRetainsIsolation(t *testing.T)
 	}
 }
 
+// TestRunWithReadOnlyVolumeAsHostUserRetainsIsolation checks that copying
+// evidence cannot modify the Linux source volume or bypass caller ownership.
+func TestRunWithReadOnlyVolumeAsHostUserRetainsIsolation(t *testing.T) {
+	workspace := t.TempDir()
+	runner := &workspaceOwnerRunner{workspace: workspace}
+	docker := NewDocker(runner)
+	volume := "lexr-work-0123456789abcdef01234567"
+	if err := docker.RunWithReadOnlyVolumeAsHostUser(context.Background(), "tools:test", workspace, volume, "cp", "-R", "/linux-work/source", "/work/copy"); err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(runner.commands[0].Args, "\n")
+	for _, required := range []string{volume + ":/linux-work:ro", "--network", "none", "--cap-drop", "ALL", "--read-only", "no-new-privileges"} {
+		if !strings.Contains(joined, required) {
+			t.Errorf("missing isolation argument %q", required)
+		}
+	}
+	if err := docker.RunWithReadOnlyVolumeAsHostUser(context.Background(), "tools:test", workspace, "../outside", "true"); err == nil {
+		t.Fatal("accepted a non-Lexr source volume")
+	}
+}
+
+// TestReadOnlyVolumeEvidenceOwnershipIntegration reproduces native Linux
+// root-owned extraction, then proves nested copies are removable by the caller.
+func TestReadOnlyVolumeEvidenceOwnershipIntegration(t *testing.T) {
+	if os.Getenv("LEXR_DOCKER_INTEGRATION") != "1" {
+		t.Skip("set LEXR_DOCKER_INTEGRATION=1 to exercise the Docker daemon")
+	}
+	ctx := context.Background()
+	docker := NewDocker(nil)
+	image, err := docker.EnsureToolsImage(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	workspace, err := os.MkdirTemp(".", ".lexr-volume-owner-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(workspace)
+	volume, err := docker.CreateWorkVolume(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := docker.RemoveWorkVolume(ctx, volume); err != nil {
+			t.Error(err)
+		}
+	}()
+	if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume, "sh", "-ceu", "umask 022; mkdir -p /linux-work/evidence/licences; printf licence > /linux-work/evidence/licences/LICENSE"); err != nil {
+		t.Fatal(err)
+	}
+	if err := docker.RunWithReadOnlyVolumeAsHostUser(ctx, image, workspace, volume, "sh", "-ceu", "cp -R --no-dereference --preserve=mode,timestamps /linux-work/evidence /work/copied; if touch /linux-work/forbidden 2>/dev/null; then exit 1; fi"); err != nil {
+		t.Fatal(err)
+	}
+	copy := filepath.Join(workspace, "copied")
+	contents, err := os.ReadFile(filepath.Join(copy, "licences/LICENSE"))
+	if err != nil || string(contents) != "licence" {
+		t.Fatalf("copied evidence: %q %v", contents, err)
+	}
+	if err := os.RemoveAll(copy); err != nil {
+		t.Fatalf("caller could not remove nested evidence: %v", err)
+	}
+}
+
 // TestRunInWorkspaceAsHostUserIntegration proves the real daemon's bind-mount
 // mapping leaves a private extracted file readable and removable by the host.
 func TestRunInWorkspaceAsHostUserIntegration(t *testing.T) {

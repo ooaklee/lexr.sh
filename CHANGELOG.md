@@ -54,6 +54,12 @@ that do not apply.
 
 ### Added
 
+- Add the experimental elementary OS 8.1 ARM64 image adapter with separate live
+  and installed initramfs images, matching Surface device trees, first-boot Wi-Fi
+  board preparation, pinned public GPU firmware and retained offline Lexr support.
+  Keep elementary's native GRUB installer and recovery handling; physical
+  qualification remains tracked in [#49](https://github.com/ooaklee/lexr.sh/issues/49).
+
 - Add native `userspace install wifi` with `--dry-run`, an optional
   `--activate` radio restart, and recoverable board-data installation from
   the distribution's existing WCN7850 firmware. Radio restart requires an
@@ -65,6 +71,19 @@ that do not apply.
 
 ### Fixed
 
+- Include Surface Pro 11 USB/DSP, graphics and keyboard-hub drivers in elementary
+  initramfs images, including the device-tree panel drivers and QRTR service
+  dependencies that are absent from the graphics driver's ELF dependency closure.
+  Validate their dependency bytes and add a firmware-display text diagnostic entry.
+  The maintainer confirmed the corrected `927d00e`/v23 image reaches the X1E/OLED
+  live desktop with Wi-Fi, web browsing and the language/try/install chooser.
+  Installation, recovery and other hardware checks remain pending
+  ([#49](https://github.com/ooaklee/lexr.sh/issues/49)).
+- Keep image tooling, companion-build and removable-media diagnostics on stderr
+  so `--json` output can be decoded without stripping progress messages.
+- Replace the expired elementary OS 8.1 ARM64 catalogue URL with a verified
+  mirror and pin the publisher's SHA-256
+  ([#49](https://github.com/ooaklee/lexr.sh/issues/49)).
 - Accept the complete Ubuntu Wi-Fi preparation journal during image release
   packaging and validation, including its board-data digest, while retaining
   validation of earlier image journals.

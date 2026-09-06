@@ -39,16 +39,39 @@ type Runner interface {
 
 // ExecRunner executes commands directly as child processes without invoking a
 // shell.
-type ExecRunner struct{}
+type ExecRunner struct {
+	// Stdout supplies the default child output when Command.Stdout is nil.
+	// A nil default preserves inheritance from the parent process.
+	Stdout io.Writer
+	// Stderr supplies the default child diagnostics when Command.Stderr is nil.
+	// A nil default preserves inheritance from the parent process.
+	Stderr io.Writer
+}
 
-// Run executes command, inheriting process output streams when none are
-// supplied, and annotates failures with the executable name.
-func (ExecRunner) Run(ctx context.Context, command Command) error {
+// NewDiagnosticRunner directs uncaptured child output to one diagnostic stream,
+// leaving command-specific streams and Capture results independent. A nil
+// destination uses stderr; the zero-value ExecRunner still inherits both streams.
+func NewDiagnosticRunner(destination io.Writer) ExecRunner {
+	if destination == nil {
+		destination = os.Stderr
+	}
+	return ExecRunner{Stdout: destination, Stderr: destination}
+}
+
+// Run executes command using its explicit streams, then the runner's defaults,
+// then the parent process streams, and annotates failures with the executable name.
+func (r ExecRunner) Run(ctx context.Context, command Command) error {
 	cmd := exec.CommandContext(ctx, command.Name, command.Args...)
 	cmd.Dir = command.Dir
 	cmd.Stdin = command.Stdin
 	cmd.Stdout = command.Stdout
 	cmd.Stderr = command.Stderr
+	if cmd.Stdout == nil {
+		cmd.Stdout = r.Stdout
+	}
+	if cmd.Stderr == nil {
+		cmd.Stderr = r.Stderr
+	}
 	if cmd.Stdout == nil {
 		cmd.Stdout = os.Stdout
 	}

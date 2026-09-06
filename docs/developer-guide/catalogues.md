@@ -41,9 +41,9 @@ This support level describes executable CLI capability, not successful physical
 boot or installation. Keep `experimental: true` until the workflow has completed
 its hardware qualification, and record known outcomes in `compatibility_notes`
 instead of hiding them behind a generic warning. The
-`ubuntu-concept-resolute-x1e` and `fedora-workstation-live-44` entries are
-implemented and experimental. Fedora's compressed raw disk image and the Debian,
-elementary OS, and Pop!_OS entries remain catalogue-only.
+`ubuntu-concept-resolute-x1e`, `elementary-os-8-1-20260219` and
+`fedora-workstation-live-44` entries are implemented and experimental. Fedora's
+compressed raw disk image and the Debian and Pop!_OS entries remain catalogue-only.
 
 ## Userspace catalogue
 

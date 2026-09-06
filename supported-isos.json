@@ -35,18 +35,24 @@
       "filename": "elementaryos-8.1-stable-arm64.20260219.iso",
       "architecture": "arm64",
       "artifact_kind": "iso",
-      "url": "https://ams3.dl.elementary.io/download/MTc4ODA3NzI1Mg==/elementaryos-8.1-stable-arm64.20260219.iso",
+      "url": "https://dl.sda1.eu/linux/elementary/elementaryos-8.1-stable-arm64.20260219.iso",
       "homepage": "https://elementary.io/",
-      "adapter": "none",
-      "support_level": "catalog-only",
+      "adapter": "elementary-casper",
+      "support_level": "implemented",
       "experimental": true,
       "mutable": false,
+      "checksum": {
+        "algorithm": "sha256",
+        "value": "85116d48c406ae7cd60c936050a099d4b8610321273f6f0a694796db4d4e86ba"
+      },
       "compatibility_notes": [
-        "No lexr image adapter is implemented yet.",
-        "The publisher generates a new epoch-tokenised URL on each page request; this stored URL was live on 2026-08-30.",
+        "Experimental SP11 adapter preserves elementary's single Casper filesystem and pairs the custom kernel with external device trees.",
+        "Elementary's Distinst installer uses GRUB, and its update-grub patches both /boot/grub/grub.cfg and /boot/efi/EFI/ubuntu/grub/grub.cfg; no systemd-boot or automatic Pop-style recovery partition is involved.",
+        "The maintainer confirmed X1E/OLED live desktop boot, Wi-Fi, web browsing and the language/try/install chooser with Lexr 927d00e and v23 on 2026-09-06; installation, recovery, other peripherals and X1P/LCD remain unqualified.",
+        "The mirror download matches the ARM64 SHA-256 published at https://elementary.io/docs/installation.",
         "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],
-      "last_verified": "2026-08-30"
+      "last_verified": "2026-09-06"
     },
     {
       "id": "fedora-workstation-44-raw",

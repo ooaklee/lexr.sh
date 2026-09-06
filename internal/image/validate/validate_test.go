@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/image/elementary"
 	"github.com/ooaklee/lexr.sh/internal/image/fedora"
 	"github.com/ooaklee/lexr.sh/internal/image/ubuntu"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
@@ -38,7 +39,7 @@ func (stub *stubAdapter) Validate(_ context.Context, path string) (imagecontract
 func TestValidatorDispatchesOnlyTheManifestAdapter(t *testing.T) {
 	t.Parallel()
 
-	for _, adapterID := range []string{ubuntu.AdapterID, fedora.AdapterID} {
+	for _, adapterID := range []string{elementary.AdapterID, ubuntu.AdapterID, fedora.AdapterID} {
 		adapterID := adapterID
 		t.Run(adapterID, func(t *testing.T) {
 			t.Parallel()
@@ -64,6 +65,12 @@ func TestValidatorDispatchesOnlyTheManifestAdapter(t *testing.T) {
 				},
 				fedoraFactory: func(*platform.Docker) adapterValidator {
 					if adapterID == fedora.AdapterID {
+						return selected
+					}
+					return other
+				},
+				elementaryFactory: func(*platform.Docker) adapterValidator {
+					if adapterID == elementary.AdapterID {
 						return selected
 					}
 					return other
@@ -114,8 +121,9 @@ func TestValidatorRejectsUntrustedRoutingValues(t *testing.T) {
 				extract: func(context.Context, *platform.Docker, string) (routedImage, error) {
 					return routed, nil
 				},
-				ubuntuFactory: factory,
-				fedoraFactory: factory,
+				ubuntuFactory:     factory,
+				fedoraFactory:     factory,
+				elementaryFactory: factory,
 			}
 			_, err := validator.Validate(context.Background(), filepath.Join(t.TempDir(), "image.iso"))
 			if err == nil || !strings.Contains(err.Error(), testCase.wantText) {

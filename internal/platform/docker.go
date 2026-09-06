@@ -126,6 +126,22 @@ func (d *Docker) RunInWorkspaceAsHostUser(ctx context.Context, image, workspace 
 	return d.runInWorkspaceAsHostUser(ctx, image, workspace, nil, args...)
 }
 
+// RunWithReadOnlyVolumeAsHostUser copies evidence from a Linux work volume
+// without creating root-owned directories on a native Linux host. The source
+// volume is read-only; all output uses the existing workspace-owner boundary.
+func (d *Docker) RunWithReadOnlyVolumeAsHostUser(ctx context.Context, image, workspace, volume string, args ...string) error {
+	if !validWorkVolumeName(volume) {
+		return fmt.Errorf("invalid Docker work volume %q", volume)
+	}
+	options := []string{
+		"--network", "none", "--read-only", "--cap-drop", "ALL",
+		"--security-opt", "no-new-privileges",
+		"--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=16m",
+		"--volume", volume + ":/linux-work:ro",
+	}
+	return d.runInWorkspaceAsHostUser(ctx, image, workspace, options, args...)
+}
+
 // RunWithReadOnlyInputInWorkspaceAsHostUser adds one read-only host input and
 // a networkless, capability-free container boundary to host-readable private
 // extraction. inputTarget must be one absolute container path.
