@@ -156,7 +156,7 @@ func supportPackagePayload() (map[string][]byte, error) {
 		"etc/grub.d/10_linux":                              []byte(grubWrapperScript),
 		"usr/share/lexr/debian-grub/grub_generator.py":     grubGenerator,
 		"usr/share/doc/lexr-debian-grub-support/copyright": licence,
-		"usr/share/doc/lexr-debian-grub-support/NOTICE":    notice,
+		"usr/share/lexr/debian-grub/NOTICE":                notice,
 	}, nil
 }
 
@@ -187,6 +187,8 @@ func buildSupportPackage(ctx context.Context, docker *platform.Docker, image, wo
 pkg=$(mktemp -d /linux-work/debian-grub-package.XXXXXX)
 trap 'rm -rf -- "$pkg"' EXIT
 cp -a /work/debian-grub-package/. "$pkg/"
+find "$pkg" -type d -exec chmod 0755 '{}' +
+find "$pkg" -type f -exec chmod 0644 '{}' +
 chmod 0755 "$pkg/etc/grub.d/10_linux" "$pkg/DEBIAN/preinst" "$pkg/DEBIAN/postrm"
 find "$pkg" -print0 | xargs -0 touch --date=@0
 SOURCE_DATE_EPOCH=0 dpkg-deb --root-owner-group --uniform-compression -Zxz --build "$pkg" "/work/sp11/debian-grub/$1"
