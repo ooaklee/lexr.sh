@@ -20,6 +20,9 @@ func buildInitramfs(ctx context.Context, docker *platform.Docker, image, workspa
 	if err := os.WriteFile(filepath.Join(workspace, "sp11-firmware-hook"), []byte(sp11.LiveFirmwareHook()), 0o644); err != nil {
 		return err
 	}
+	if err := os.WriteFile(filepath.Join(workspace, "sp11-module-hook"), []byte(earlyModuleHook()), 0o644); err != nil {
+		return err
+	}
 	const script = `set -o pipefail
 root=/linux-work/rootfs
 abi=$1
@@ -32,6 +35,7 @@ test -x "$root/usr/sbin/mkinitramfs"
 test -f "$root/usr/share/initramfs-tools/hooks/casper"
 test -f "$root/usr/share/initramfs-tools/scripts/casper"
 install -D -m 0755 /work/sp11-firmware-hook "$root/etc/initramfs-tools/hooks/lexr-sp11-firmware"
+install -D -m 0755 /work/sp11-module-hook "$root/etc/initramfs-tools/hooks/lexr-sp11-modules"
 mkdir -p "$backup/hooks" "$backup/scripts"
 
 restore_casper() {

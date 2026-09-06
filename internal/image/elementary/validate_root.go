@@ -70,7 +70,7 @@ regular() {
     test "$(realpath "$path")" = "$path"
 }
 mkdir /work/root-evidence /work/initrd-firmware
-for relative in usr/sbin/update-grub etc/grub.d/10_linux etc/initramfs-tools/hooks/lexr-sp11-firmware; do
+for relative in usr/sbin/update-grub etc/grub.d/10_linux etc/initramfs-tools/hooks/lexr-sp11-firmware etc/initramfs-tools/hooks/lexr-sp11-modules; do
     regular "$root/$relative"
     test -x "$root/$relative"
     (cd "$root" && cp --parents "$relative" /work/root-evidence)
@@ -146,9 +146,13 @@ done < <(find "$unpacked" -type f \( -name '*.ko' -o -name '*.ko.xz' -o -name '*
 			return err
 		}
 	}
+	if err := v.validateEarlyModules(ctx, toolsImage, workspace, volume, abi); err != nil {
+		return err
+	}
 	for _, member := range []struct{ path, expected string }{
 		{"etc/default/grub.d/99-surface-pro-11.cfg", installedGrubDefaults},
 		{"etc/initramfs-tools/hooks/lexr-sp11-firmware", sp11.LiveFirmwareHook()},
+		{"etc/initramfs-tools/hooks/lexr-sp11-modules", earlyModuleHook()},
 	} {
 		data, err := imagecontract.ReadBoundedExtractedFile(workspace, "root-evidence/"+member.path, 1<<20)
 		if err != nil {

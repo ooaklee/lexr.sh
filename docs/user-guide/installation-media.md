@@ -99,6 +99,13 @@ Its `elementary-casper` adapter is experimental: physical desktop boot,
 installation and recovery still need testing under
 [issue #49](https://github.com/ooaklee/lexr.sh/issues/49).
 
+The first X1E/OLED candidate passed structural validation and USB read-back,
+but showed a splash followed by a black screen. Its text-diagnostics recording
+showed Casper searching the internal drive without finding the live filesystem.
+The initial initramfs omitted the Qualcomm DSP and graphics drivers present in
+the working Ubuntu live image. This is an early-boot preparation gap; a repaired
+image still requires a physical boot before desktop support can be claimed.
+
 ```sh
 lexr image create \
   --catalog-id elementary-os-8-1-20260219 \
@@ -205,7 +212,7 @@ sudo lexr image write lexr-ubuntu-sp11.iso \
 
 An interactive terminal can omit `--confirm` and type the displayed phrase at the protected prompt. Automation must pass the exact phrase explicitly. Because the phrase contains the opaque fingerprint, a confirmation obtained for a previous USB device is rejected after another device takes over the same `/dev` path. Immediately before mutation, the manager reopens and rehashes the source, re-inspects the target, compares the already-open source descriptor with target mounts, checks privilege, unmounts only approved removable-style target filesystems, and refuses to continue if any mount, host-storage classification, active storage consumer, or identity drift remains. The production raw opener rejects links and ordinary files, proves that ordinary and raw nodes address the same kernel device, opens with `O_NOFOLLOW`, and proves that its descriptor still denotes that inspected device. The manager then writes bounded chunks, flushes them, reads back exactly the source length, verifies the SHA-256, re-inspects once more, and ejects or powers off the target. A failure returns the exact not-started, prepared, writing, written, verifying, or verified receipt state, complete byte counts, and only complete digests; it never claims that writing, verification, or ejection began before the corresponding boundary was crossed.
 
-This writer is distribution-neutral. Its pre-write router accepts the implemented Lexr Ubuntu Casper, elementary Casper and Fedora Live outputs only after dispatching each image to its adapter-owned structural validator. Future Debian, elementary OS, Pop!_OS, and raw-image adapters will retain their own validation and live-media contracts while reusing the removable-device manager.
+This writer is distribution-neutral. Its pre-write router accepts the implemented Lexr Ubuntu Casper, elementary Casper and Fedora Live outputs only after dispatching each image to its adapter-owned structural validator. Future Debian, Pop!_OS, and raw-image adapters will retain their own validation and live-media contracts while reusing the removable-device manager.
 
 ## Why Lexr remasters the live root
 

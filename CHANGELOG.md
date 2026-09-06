@@ -71,11 +71,15 @@ that do not apply.
 
 ### Fixed
 
+- Include Surface Pro 11 USB/DSP, graphics and keyboard-hub drivers in elementary
+  initramfs images and validate their dependency closure before accepting an ISO.
+  The first candidate stalled during live-media discovery; physical validation
+  of the corrected image remains pending
+  ([#49](https://github.com/ooaklee/lexr.sh/issues/49)).
 - Keep image tooling, companion-build and removable-media diagnostics on stderr
   so `--json` output can be decoded without stripping progress messages.
 - Replace the expired elementary OS 8.1 ARM64 catalogue URL with a verified
-  mirror and pin the publisher's SHA-256. Image creation remains unimplemented
-  pending the adapter and hardware tests
+  mirror and pin the publisher's SHA-256. Hardware qualification remains pending
   ([#49](https://github.com/ooaklee/lexr.sh/issues/49)).
 - Accept the complete Ubuntu Wi-Fi preparation journal during image release
   packaging and validation, including its board-data digest, while retaining
