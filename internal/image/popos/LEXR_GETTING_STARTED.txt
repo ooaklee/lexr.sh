@@ -5,6 +5,14 @@ Terminal. Commands in the live session change its temporary filesystem; repeat
 the relevant setup after installing Pop!_OS. No command below installs Pop!_OS or
 erases a disk.
 
+If this USB does not reach the desktop, select the X1E/OLED "text diagnostics"
+entry and record its last visible loading stage and boot messages. The paired
+"firmware loader diagnostics" entry tests the same kernel, initramfs and device
+tree through the firmware's EFI image loader. Both stop at a text session if
+boot succeeds. These are diagnostic comparisons, not qualified fixes. Loading
+errors remain visible for 60 seconds before returning to firmware; Escape
+returns sooner. Include which entry you selected when reporting a failure.
+
 1. START THE LEXR INCLUDED ON THIS USB
 
 In the live session:

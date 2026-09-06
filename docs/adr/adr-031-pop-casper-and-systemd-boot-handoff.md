@@ -46,6 +46,20 @@ for El Torito and an appended GPT ESP, with a partition-relative ISO view.
 Reject a changed uninspected GRUB bootstrap instead of assuming it routes to
 the generated menu.
 
+The initial X1E/OLED physical test reached GRUB and then reportedly showed a
+black screen for both desktop and text entries. The exact failing stage is
+unconfirmed. Keep the existing desktop loader while adding visible loading
+stages and a paired diagnostic comparison. Pop's pinned Ubuntu GRUB includes
+the `peimage` module, which overrides EFI image loading. The alternate diagnostic
+entry unloads that module before loading Linux to use firmware EFI services;
+the baseline explicitly selects it. Both use identical kernel, initramfs, DTB
+and early-console arguments. Refuse a failed loader selection and keep any
+loading error visible before exiting to firmware, avoiding GRUB's implicit
+boot of a partially prepared entry. This introduces no new bootloader binary,
+does not change the installed systemd-boot contract, and does not establish a
+hardware fix. The 64 GB memory workaround is not evidence for a failure on a
+16 GB Surface.
+
 Share verified Debian package registration, Casper UUID pairing, SP11 firmware
 preparation, bounded file reads and publication services with Ubuntu. Keep Pop's
 filesystem, boot arguments, installer and EFI lifecycle explicit. Do not add a
@@ -74,6 +88,30 @@ Structural validation independently checks the finished ISO, package payloads,
 boot files, firmware and installed/recovery support. Release preparation selects
 the journal sequence by adapter and retains known Ubuntu journal generations.
 Structural success does not assert physical boot or successful installation.
+
+### EFI diagnostic verification
+
+Use the pinned source GRUB binary and its matching modules in an isolated
+AArch64 EFI virtual machine when changing loader selection or failure handling.
+Check `lsmod`, `rmmod peimage`, `lsmod`, `insmod peimage`, `lsmod`: removal and
+restoration must succeed. Do not insert `peimage` immediately before removing
+it; inserting an already embedded module raises its reference count and blocks
+removal in this build.
+
+Check the generated menu with `grub-script-check`. In a disposable probe image,
+retain the actual kernel but omit the selected DTB, choose the firmware-loader
+diagnostic entry, and shorten only the menu timeout and failure pause. Verify
+that the kernel loads, the missing-DTB error is displayed, and GRUB exits to
+firmware without reaching the initramfs or kernel-start stages. This exercises
+a partially prepared entry; string comparisons cannot prove that runtime
+invariant. Keep these altered probe images separate from Lexr's validated media.
+
+The pinned GRUB passed module removal/restoration and this failure-path check.
+Separate probes reached v23 EFI-stub decompression and early Linux output with
+both EFI loaders on virtual hardware. These probes used the virtual machine's
+serial console, not an SP11 live desktop, and do not resolve the physical
+black-screen report. Repeat both diagnostic entries on the Surface and retain
+the last visible stage before choosing a permanent boot-path change.
 
 ## Consequences
 

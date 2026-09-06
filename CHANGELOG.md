@@ -72,6 +72,10 @@ that do not apply.
 
 ### Fixed
 
+- Show Pop live boot loading stages and early-console diagnostics after the
+  first X1E/OLED candidate's reported black screen. Add a firmware EFI loader
+  comparison with identical kernel inputs; physical boot remains unqualified
+  ([#48](https://github.com/ooaklee/lexr.sh/issues/48)).
 - Bind release creation journals to their image adapter. Pop's single-root
   workflow and Fedora's native userspace step no longer inherit Ubuntu's
   workflow solely because their journals have the same number of steps.

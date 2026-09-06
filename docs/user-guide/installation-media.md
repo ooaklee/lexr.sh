@@ -129,6 +129,18 @@ installer completion or recovery success. Both model-specific live entries are
 experimental, and X1P/LCD has no hardware qualification. Record physical results
 in [issue #48](https://github.com/ooaklee/lexr.sh/issues/48).
 
+The first X1E/OLED physical candidate displayed GRUB but was reported to go
+black after selecting either the desktop or text entry. The failure stage is
+still unconfirmed. New images show loading stages and provide two X1E/OLED
+diagnostic entries: `text diagnostics` uses Pop's GRUB EFI image loader;
+`firmware loader diagnostics` uses the firmware's EFI image loader. They pass
+identical kernel, initramfs, DTB and diagnostic arguments. Record the selected
+entry and the last visible messages, including the transition after starting
+it. Diagnostics stop at a text session if boot succeeds. A reported loading
+error remains visible for up to 60 seconds before returning to firmware; Escape
+returns sooner. These entries do not establish that either loader fixes the
+physical failure.
+
 ### Fedora Workstation Live 44
 
 Select Fedora's implemented ARM64 Live ISO explicitly and provide either a
