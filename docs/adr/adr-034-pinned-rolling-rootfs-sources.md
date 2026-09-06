@@ -1,6 +1,6 @@
 ---
-id: adrs-adr033
-title: "ADR033: Pinned rolling root filesystem sources"
+id: adrs-adr034
+title: "ADR034: Pinned rolling root filesystem sources"
 description: Represent authenticated root filesystem snapshots without weakening source pins or losing cached inputs on refresh.
 ---
 
