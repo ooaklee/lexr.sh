@@ -43,6 +43,7 @@ var modulePathPattern = regexp.MustCompile(`^[a-zA-Z0-9_./+-]+$`)
 func moduleClosure(output, root, abi string) ([]string, error) {
 	var records []string
 	seen := make(map[string]bool)
+	variants := make(map[string]string)
 	for _, line := range strings.Split(output, "\n") {
 		fields := strings.Fields(line)
 		if len(fields) == 0 {
@@ -67,7 +68,13 @@ func moduleClosure(output, root, abi string) ([]string, error) {
 				!(strings.HasSuffix(relative, ".ko") || strings.HasSuffix(relative, ".ko.zst") || strings.HasSuffix(relative, ".ko.xz")) {
 				return nil, fmt.Errorf("module dependency escapes the selected kernel: %q", fields[1])
 			}
-			record = "insmod " + relative
+			// Debian decompresses modules inside its initramfs. Compare the
+			// kernel object identity here and its complete decoded bytes below.
+			record = "insmod " + strings.TrimSuffix(strings.TrimSuffix(relative, ".zst"), ".xz")
+			if previous, exists := variants[record]; exists && previous != relative {
+				return nil, fmt.Errorf("ambiguous module representations for %q", record)
+			}
+			variants[record] = relative
 		default:
 			return nil, fmt.Errorf("module query returned a non-data action %q", fields[0])
 		}
@@ -107,13 +114,15 @@ depmod -C /dev/null -b "$expected" "$abi"
 for kind in live installed; do
     unpacked="/linux-work/$kind-initrd"
     merged="/linux-work/$kind-module-view"
-    test ! -e "$merged" && test ! -L "$merged"
+    test ! -e "$merged"
+    test ! -L "$merged"
     mkdir -p "$merged/lib/modules/$abi"
     # unmkinitramfs emits early, early2 ... earlyN, then main. Reproduce
     # that overlay in an isolated view using links to data, never executables.
     while IFS= read -r section; do
         [[ "$section" = early || "$section" = main || "$section" =~ ^early([2-9]|[1-9][0-9]+)$ ]]
-        test -d "$unpacked/$section" && test ! -L "$unpacked/$section"
+        test -d "$unpacked/$section"
+        test ! -L "$unpacked/$section"
         directory="$unpacked/$section/usr/lib/modules/$abi"
         if [ -d "$directory" ]; then
             test "$(realpath "$directory")" = "$directory"
@@ -122,7 +131,8 @@ for kind in live installed; do
     done < <(find "$unpacked" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort -V)
     for metadata in modules.dep modules.dep.bin modules.builtin modules.builtin.bin; do
         file="$merged/lib/modules/$abi/$metadata"
-        test -f "$file" && test ! -L "$file"
+        test -f "$file"
+        test ! -L "$file"
         test "$(realpath "$file")" = "$file"
     done
 done
@@ -158,27 +168,58 @@ done
 		if !reflect.DeepEqual(want, got) {
 			return fmt.Errorf("%s initramfs early driver dependencies differ from the kernel package", kind)
 		}
-		const compare = `expected=$1
+		const compare = `set -o pipefail
+expected=$1
 merged=$2
 unpacked=$3
 abi=$4
 shift 4
-for relative in "$@"; do
-    source="$expected/usr/lib/modules/$abi/$relative"
-    target="$merged/lib/modules/$abi/$relative"
-    for file in "$source" "$target"; do
-        test -f "$file" && test ! -L "$file"
-        test "$(realpath "$file")" = "$file"
-    done
-    cmp "$source" "$target"
-    # A stale copy in an earlier CPIO section must not silently survive.
-    for section in "$unpacked"/*; do
-        file="$section/usr/lib/modules/$abi/$relative"
-        if [ -e "$file" ] || [ -L "$file" ]; then
-            test -f "$file" && test ! -L "$file"
-            test "$(realpath "$file")" = "$file"
-            cmp "$source" "$file"
+scratch=$(mktemp -d /linux-work/module-compare.XXXXXX)
+trap 'rm -rf -- "$scratch"' EXIT
+module_file() {
+    local base=$1 selected= candidate
+    for candidate in "$base" "$base.xz" "$base.zst"; do
+        if [ -e "$candidate" ] || [ -L "$candidate" ]; then
+            test -z "$selected" || return 1
+            test -s "$candidate" || return 1
+            test -f "$candidate" || return 1
+            test ! -L "$candidate" || return 1
+            test "$(realpath "$candidate")" = "$candidate" || return 1
+            test "$(stat -c %s "$candidate")" -le 134217728 || return 1
+            selected=$candidate
         fi
+    done
+    test -n "$selected" || return 1
+    printf '%s\n' "$selected"
+}
+decode_module() {
+    local input=$1 output=$2
+    case "$input" in
+        *.ko.zst) timeout 30 zstd -dcq --memory=256MB "$input" | head -c 134217729 > "$output" ;;
+        *.ko.xz) timeout 30 xz -dc --memlimit-decompress=256MiB "$input" | head -c 134217729 > "$output" ;;
+        *.ko) head -c 134217729 "$input" > "$output" ;;
+        *) return 1 ;;
+    esac
+    test "$(stat -c %s "$output")" -le 134217728
+}
+for relative in "$@"; do
+    source=$(module_file "$expected/usr/lib/modules/$abi/$relative")
+    target=$(module_file "$merged/lib/modules/$abi/$relative")
+    decode_module "$source" "$scratch/source"
+    decode_module "$target" "$scratch/target"
+    cmp "$scratch/source" "$scratch/target"
+    # A stale copy in an earlier CPIO section must not silently survive,
+    # including a copy using a different compression representation.
+    for section in "$unpacked"/*; do
+        base="$section/usr/lib/modules/$abi/$relative"
+        for file in "$base" "$base.xz" "$base.zst"; do
+            if [ -e "$file" ] || [ -L "$file" ]; then
+                previous=$(module_file "$base")
+                decode_module "$previous" "$scratch/previous"
+                cmp "$scratch/source" "$scratch/previous"
+                break
+            fi
+        done
     done
 done
 `

@@ -20,7 +20,7 @@ func TestModuleClosureAcceptsBuiltinsAndDependencies(t *testing.T) {
 	output := dependency + "builtin qcom-q6v5-pas\n" + dependency +
 		"insmod " + root + "/lib/modules/" + abi + "/kernel/drivers/gpu/drm/msm/msm.ko.xz\n"
 	got, err := moduleClosure(output, root, abi)
-	want := []string{"builtin qcom_q6v5_pas", "insmod kernel/drivers/gpu/drm/msm/msm.ko.xz", "insmod kernel/drivers/remoteproc/qcom_common.ko.zst"}
+	want := []string{"builtin qcom_q6v5_pas", "insmod kernel/drivers/gpu/drm/msm/msm.ko", "insmod kernel/drivers/remoteproc/qcom_common.ko"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("closure=%v error=%v", got, err)
 	}
@@ -51,6 +51,7 @@ func TestModuleClosureRejectsForeignPathsAndCommands(t *testing.T) {
 		"insmod /elsewhere/module.ko", "insmod /inspection/lib/modules/old/kernel/module.ko",
 		prefix + "../../module.ko", prefix + "kernel/../module.ko", prefix + "kernel/module.ko force=1",
 		prefix + "kernel/module.txt", prefix + "kernel//module.ko",
+		prefix + "kernel/module.ko\n" + prefix + "kernel/module.ko.zst\n",
 	} {
 		if _, err := moduleClosure(output, root, abi); err == nil {
 			t.Fatalf("accepted invalid closure %q", output)
@@ -133,6 +134,15 @@ depmod -C /dev/null -b "$root" "$abi"
 	}{
 		{"complete split archives", "", true},
 		{"fresh subset indices", `ln -s usr/lib /linux-work/live-initrd/early2/lib; rm "$live/modules.order"; depmod -C /dev/null -b /linux-work/live-initrd/early2 "$abi"`, true},
+		{"decompressed Debian modules", decompressedModulesFixture, true},
+		{"xz representation", `zstd -dcq "$live/$dependency" | xz > "$live/${dependency%.zst}.xz"
+rm "$live/$dependency"
+ln -s usr/lib /linux-work/live-initrd/early2/lib
+rm "$live/modules.order"
+depmod -C /dev/null -b /linux-work/live-initrd/early2 "$abi"`, true},
+		{"corrupt decompressed dependency", decompressedModulesFixture + `printf broken > "$live/${dependency%.zst}"`, false},
+		{"ambiguous compressed and plain module", `zstd -dcq "$live/$dependency" > "$live/${dependency%.zst}"`, false},
+		{"stale plain early copy", decompressedModulesFixture + `file="$live/${dependency%.zst}"; cp --parents "${file#/linux-work/live-initrd/early2/}" /linux-work/live-initrd/main/; printf stale > "$file"`, false},
 		{"missing DSP", `rm "$live/$dsp"`, false},
 		{"missing OLED panel with complete msm dependencies", `rm "$live/$oled"`, false},
 		{"missing LCD panel module or builtin index", `if [ "$lcd" = "(builtin)" ]; then
@@ -199,3 +209,14 @@ cd /linux-work/live-initrd/early2
 		})
 	}
 }
+
+// decompressedModulesFixture models Debian's real mkinitramfs conversion of
+// package zstd modules to plain ELF objects followed by a fresh dependency index.
+const decompressedModulesFixture = `for kind in live installed; do
+    tree=/linux-work/$kind-initrd/early2
+    find "$tree/usr/lib/modules/$abi" -name '*.ko.zst' -exec zstd -dq --rm '{}' \;
+    ln -s usr/lib "$tree/lib"
+    rm "$tree/usr/lib/modules/$abi/modules.order"
+    depmod -C /dev/null -b "$tree" "$abi"
+done
+`

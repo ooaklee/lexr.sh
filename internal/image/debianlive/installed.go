@@ -159,40 +159,14 @@ func validateInstalledGRUB(ctx context.Context, docker *platform.Docker, image, 
 	if err := extractGRUBDependencies(ctx, docker, image, workspace, "image.iso"); err != nil {
 		return err
 	}
-	const script = `set -o pipefail
-root=/linux-work/rootfs
-archive=$1
-package=$2
-version=$3
-architecture=$4
-kind=$5
-test "$(dpkg-deb -f "$archive" Package)" = "$package"
-test "$(dpkg-deb -f "$archive" Version)" = "$version"
-test "$(dpkg-deb -f "$archive" Architecture)" = "$architecture"
-test "$(dpkg-query --admindir="$root/var/lib/dpkg" -W -f='${Status}|${Version}|${Architecture}' "$package")" = "install ok installed|$version|$architecture"
-unpacked="/linux-work/inspect-debian-$package"
-dpkg-deb -x "$archive" "$unpacked"
-# Dependency binaries and modules must match their pinned source packages.
-# The support package's complete payload is compared, including project terms.
-while IFS= read -r -d '' file; do
- relative=${file#"$unpacked/"}
- if [ "$kind" = dependency ]; then
-  case "$relative" in usr/sbin/*|usr/bin/*|usr/lib/grub/*) ;; *) continue ;; esac
- fi
- target="$root/$relative"
- test -f "$target"
- test ! -L "$target"
- case "$(realpath "$target")" in "$root/"*) ;; *) exit 1 ;; esac
- cmp "$file" "$target"
-done < <(find "$unpacked" -type f -print0)
-`
+
 	for _, dependency := range grubDependencies {
-		if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume, "bash", "-ceu", script, "lexr-debian-package-validation", "/work/debian-grub-dependencies/"+dependency.File, dependency.Package, dependency.Version, dependency.Arch, "dependency"); err != nil {
-			return err
+		if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume, "bash", "-ceu", installedPackageValidation, "lexr-debian-package-validation", "/work/debian-grub-dependencies/"+dependency.File, dependency.Package, dependency.Version, dependency.Arch, "dependency"); err != nil {
+			return fmt.Errorf("validate installed Debian package %s: %w", dependency.Package, err)
 		}
 	}
-	if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume, "bash", "-ceu", script, "lexr-debian-package-validation", "/work/"+grubSupportDirectory+"/"+grubSupportDebName, supportPackageName, grubSupportVersion, "all", "support"); err != nil {
-		return err
+	if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume, "bash", "-ceu", installedPackageValidation, "lexr-debian-package-validation", "/work/"+grubSupportDirectory+"/"+grubSupportDebName, supportPackageName, grubSupportVersion, "all", "support"); err != nil {
+		return fmt.Errorf("validate installed Debian GRUB support payload: %w", err)
 	}
 	// Rebuild expected data from compiled source, not the ISO's own .deb claims.
 	payload, err := supportPackagePayload()
@@ -253,3 +227,33 @@ for relative in ['etc/grub.d/10_linux', 'usr/sbin/update-grub']:
 	args = append(args, requiredInstalledPackages(abi)...)
 	return docker.RunInWorkspaceVolume(ctx, image, workspace, volume, args...)
 }
+
+// installedPackageValidation compares installed state and package payloads with
+// trusted container tools, including any files filtered by offline dpkg policy.
+const installedPackageValidation = `set -o pipefail
+root=/linux-work/rootfs
+archive=$1
+package=$2
+version=$3
+architecture=$4
+kind=$5
+test "$(dpkg-deb -f "$archive" Package)" = "$package"
+test "$(dpkg-deb -f "$archive" Version)" = "$version"
+test "$(dpkg-deb -f "$archive" Architecture)" = "$architecture"
+test "$(dpkg-query --admindir="$root/var/lib/dpkg" -W -f='${Status}|${Version}|${Architecture}' "$package")" = "install ok installed|$version|$architecture"
+unpacked="/linux-work/inspect-debian-$package"
+dpkg-deb -x "$archive" "$unpacked"
+# Dependency binaries and modules must match their pinned source packages.
+# The support package's complete payload is compared, including project terms.
+while IFS= read -r -d '' file; do
+ relative=${file#"$unpacked/"}
+ if [ "$kind" = dependency ]; then
+  case "$relative" in usr/sbin/*|usr/bin/*|usr/lib/grub/*) ;; *) continue ;; esac
+ fi
+ target="$root/$relative"
+ test -f "$target"
+ test ! -L "$target"
+ case "$(realpath "$target")" in "$root/"*) ;; *) exit 1 ;; esac
+ cmp "$file" "$target"
+done < <(find "$unpacked" -type f -print0)
+`

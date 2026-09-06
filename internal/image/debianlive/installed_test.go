@@ -69,12 +69,30 @@ func TestDebianGRUBSupportIntegration(t *testing.T) {
 	if err := prepareInstalledPackages(t.Context(), docker, image, workspace, volume); err != nil {
 		t.Fatal(err)
 	}
+	if err := docker.RunInWorkspaceVolume(t.Context(), image, workspace, volume, "bash", "-ceu", installedPackageValidation, "lexr-debian-package-test", "/work/"+grubSupportDirectory+"/"+grubSupportDebName, supportPackageName, grubSupportVersion, "all", "support"); err != nil {
+		t.Fatalf("Offline package filters dropped required support files: %v", err)
+	}
 	original, err := recordFile(filepath.Join(workspace, grubSupportDirectory, grubSupportDebName), grubSupportDebName)
 	if err != nil {
 		t.Fatal(err)
 	}
 	second := filepath.Join(workspace, "second")
 	if err := os.Mkdir(second, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := buildSupportPackage(t.Context(), docker, image, second, volume); err != nil {
+		t.Fatal(err)
+	}
+	// A restrictive host umask or pre-existing stage must not change archive modes.
+	if err := filepath.WalkDir(filepath.Join(second, "debian-grub-package"), func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return os.Chmod(path, 0700)
+		}
+		return os.Chmod(path, 0600)
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if err := buildSupportPackage(t.Context(), docker, image, second, volume); err != nil {
