@@ -65,6 +65,10 @@ that do not apply.
 
 ### Fixed
 
+- Replace the expired elementary OS 8.1 ARM64 catalogue URL with a verified
+  mirror and pin the publisher's SHA-256. Image creation remains unimplemented
+  pending the adapter and hardware tests
+  ([#49](https://github.com/ooaklee/lexr.sh/issues/49)).
 - Accept the complete Ubuntu Wi-Fi preparation journal during image release
   packaging and validation, including its board-data digest, while retaining
   validation of earlier image journals.

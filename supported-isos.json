@@ -35,18 +35,22 @@
       "filename": "elementaryos-8.1-stable-arm64.20260219.iso",
       "architecture": "arm64",
       "artifact_kind": "iso",
-      "url": "https://ams3.dl.elementary.io/download/MTc4ODA3NzI1Mg==/elementaryos-8.1-stable-arm64.20260219.iso",
+      "url": "https://dl.sda1.eu/linux/elementary/elementaryos-8.1-stable-arm64.20260219.iso",
       "homepage": "https://elementary.io/",
       "adapter": "none",
       "support_level": "catalog-only",
       "experimental": true,
       "mutable": false,
+      "checksum": {
+        "algorithm": "sha256",
+        "value": "85116d48c406ae7cd60c936050a099d4b8610321273f6f0a694796db4d4e86ba"
+      },
       "compatibility_notes": [
         "No lexr image adapter is implemented yet.",
-        "The publisher generates a new epoch-tokenised URL on each page request; this stored URL was live on 2026-08-30.",
+        "The mirror download matches the ARM64 SHA-256 published at https://elementary.io/docs/installation.",
         "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],
-      "last_verified": "2026-08-30"
+      "last_verified": "2026-09-06"
     },
     {
       "id": "fedora-workstation-44-raw",
