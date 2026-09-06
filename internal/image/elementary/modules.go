@@ -6,6 +6,7 @@ import (
 	"path"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -69,6 +70,10 @@ func moduleClosure(output, root, abi string) ([]string, error) {
 	if len(records) == 0 {
 		return nil, fmt.Errorf("required early module dependency closure is empty")
 	}
+	// depmod may order independent dependency branches differently in the full
+	// package and the smaller initramfs tree. Compare membership, not one
+	// particular topological ordering of the same required objects.
+	sort.Strings(records)
 	return records, nil
 }
 

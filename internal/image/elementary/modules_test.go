@@ -20,9 +20,24 @@ func TestModuleClosureAcceptsBuiltinsAndDependencies(t *testing.T) {
 	output := dependency + "builtin qcom-q6v5-pas\n" + dependency +
 		"insmod " + root + "/lib/modules/" + abi + "/kernel/drivers/gpu/drm/msm/msm.ko.xz\n"
 	got, err := moduleClosure(output, root, abi)
-	want := []string{"insmod kernel/drivers/remoteproc/qcom_common.ko.zst", "builtin qcom_q6v5_pas", "insmod kernel/drivers/gpu/drm/msm/msm.ko.xz"}
+	want := []string{"builtin qcom_q6v5_pas", "insmod kernel/drivers/gpu/drm/msm/msm.ko.xz", "insmod kernel/drivers/remoteproc/qcom_common.ko.zst"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("closure=%v error=%v", got, err)
+	}
+}
+
+// TestModuleClosureIgnoresIndependentBranchOrder covers depmod's different
+// valid traversal orders for a complete package and an initramfs subset.
+func TestModuleClosureIgnoresIndependentBranchOrder(t *testing.T) {
+	const root, abi = "/inspection", "7.3.0-test-qcom-x1e"
+	prefix := "insmod " + root + "/lib/modules/" + abi + "/kernel/"
+	first, err := moduleClosure(prefix+"drm_exec.ko\n"+prefix+"gpu-sched.ko\n"+prefix+"msm.ko\n", root, abi)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := moduleClosure(prefix+"gpu-sched.ko\n"+prefix+"drm_exec.ko\n"+prefix+"msm.ko\n", root, abi)
+	if err != nil || !reflect.DeepEqual(first, second) {
+		t.Fatalf("equivalent dependency sets differ: %v, %v, error=%v", first, second, err)
 	}
 }
 
@@ -118,6 +133,7 @@ depmod -C /dev/null -b "$root" "$abi"
 		valid          bool
 	}{
 		{"complete split archives", "", true},
+		{"fresh subset indices", `ln -s usr/lib /linux-work/live-initrd/early2/lib; rm "$live/modules.order"; depmod -C /dev/null -b /linux-work/live-initrd/early2 "$abi"`, true},
 		{"missing DSP", `rm "$live/$dsp"`, false},
 		{"missing transitive dependency", `rm "$live/$dependency"`, false},
 		{"corrupt dependency", `file="$live/$dependency"; rm "$file"; printf broken > "$file"`, false},
