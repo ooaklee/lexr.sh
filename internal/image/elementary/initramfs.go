@@ -20,7 +20,7 @@ func buildInitramfs(ctx context.Context, docker *platform.Docker, image, workspa
 	if err := os.WriteFile(filepath.Join(workspace, "sp11-firmware-hook"), []byte(sp11.LiveFirmwareHook()), 0o644); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(workspace, "sp11-module-hook"), []byte(earlyModuleHook()), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(workspace, "sp11-module-hook"), []byte(sp11.EarlyModuleHook()), 0o644); err != nil {
 		return err
 	}
 	const script = `set -o pipefail

@@ -146,7 +146,7 @@ func TestWorkspaceVolumeArgsMountsLinuxWorkVolume(t *testing.T) {
 func TestUbuntuToolsDefinitionOwnsOfflineInitramfsTooling(t *testing.T) {
 	t.Parallel()
 
-	for _, required := range []string{"FROM ubuntu:24.04", "dracut-core", "initramfs-tools", "systemd-sysv"} {
+	for _, required := range []string{"FROM ubuntu:24.04", "dracut-core", "initramfs-tools", "systemd-sysv", "python3"} {
 		if !strings.Contains(toolsDockerfile, required) {
 			t.Errorf("Ubuntu tools definition does not contain %q", required)
 		}
@@ -172,7 +172,7 @@ func TestUbuntuToolsImageIntegration(t *testing.T) {
 		Name: "docker",
 		Args: []string{
 			"run", "--rm", "--platform", "linux/arm64", image,
-			"bash", "-ceu", "test -x /usr/bin/dracut; test -x /usr/lib/dracut/dracut-install; test -d /usr/lib/dracut/modules.d; command -v poweroff; command -v reboot; command -v halt; /usr/bin/dracut --help | grep -qF -- --kmoddir; /usr/bin/dracut --help | grep -qF -- --fwdir",
+			"bash", "-ceu", "python3 -c 'import pathlib, stat'; test -x /usr/bin/dracut; test -x /usr/lib/dracut/dracut-install; test -d /usr/lib/dracut/modules.d; command -v poweroff; command -v reboot; command -v halt; /usr/bin/dracut --help | grep -qF -- --kmoddir; /usr/bin/dracut --help | grep -qF -- --fwdir",
 		},
 	}); err != nil {
 		t.Fatal(err)

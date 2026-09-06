@@ -1,4 +1,4 @@
-package elementary
+package sp11
 
 import (
 	"context"
@@ -69,7 +69,7 @@ func TestEarlyModuleClosureIntegration(t *testing.T) {
 	}
 	name, prefixed := strings.CutPrefix(filepath.Base(archive), "linux-modules-")
 	abi, _, ok := strings.Cut(name, "_")
-	if !prefixed || !ok || !kernelABIPattern.MatchString(abi) {
+	if !prefixed || !ok || !SafeKernelABI(abi) {
 		t.Fatal("expected a linux-modules-<ABI>_<version>_<arch>.deb fixture")
 	}
 	// Keep the exchange directory inside the checkout shared with Docker;
@@ -127,7 +127,6 @@ depmod -C /dev/null -b "$root" "$abi"
 	if err := docker.RunInWorkspaceVolume(t.Context(), image, workspace, volume, "bash", "-ceu", extract, "module-fixture", abi); err != nil {
 		t.Fatal(err)
 	}
-	validator := NewValidator(docker)
 	for _, testcase := range []struct {
 		name, mutation string
 		valid          bool
@@ -193,7 +192,7 @@ cd /linux-work/live-initrd/early2
 			if err := docker.RunInWorkspaceVolume(t.Context(), image, workspace, volume, args...); err != nil {
 				t.Fatal(err)
 			}
-			err := validator.validateEarlyModules(t.Context(), image, workspace, volume, abi)
+			err := ValidateEarlyModules(t.Context(), docker, image, workspace, volume, abi)
 			if (err == nil) != testcase.valid {
 				t.Fatalf("validation error=%v want valid=%v", err, testcase.valid)
 			}

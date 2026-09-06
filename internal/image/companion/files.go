@@ -46,6 +46,8 @@ var (
 	maintainedEmbeddedSourceFiles = map[string]bool{
 		"internal/image/ubuntu/LEXR_GETTING_STARTED.txt":     true,
 		"internal/image/elementary/LEXR_GETTING_STARTED.txt": true,
+		"internal/image/debianlive/LEXR_GETTING_STARTED.txt": true,
+		"internal/image/debianlive/grub_generator.py":        true,
 	}
 	// projectDocumentKinds is the closed set of conventional root legal
 	// documents that may be inventoried or used to declare redistribution terms.

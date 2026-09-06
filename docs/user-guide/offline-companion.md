@@ -12,7 +12,7 @@ Use this option while creating installation media when you expect to diagnose us
 - Keep the image output, its sidecars, and any explicit `--workspace-dir` outside that source tree.
 - The source is snapshotted before its binary and archive are built, and a clean Git-backed tree must match the CLI's recorded commit.
 - `--companion-userspace` is repeatable, but the initial offline allow-list accepts only `iptsd`. `recommended`, restricted audio, platform firmware, and experimental camera packages are not accepted for on-media inclusion.
-- Ubuntu and elementary OS carry the portable IPTSD release for an explicit live-session install. Fedora rebuilds the same exact source-bearing release as native binary and source RPMs and installs the binary RPM in the deployable root; do not apply the portable installer on top of that package-owned layout.
+- Ubuntu, elementary OS and Debian Live carry the portable IPTSD release for an explicit live-session install. Fedora rebuilds the same exact source-bearing release as native binary and source RPMs and installs the binary RPM in the deployable root; do not apply the portable installer on top of that package-owned layout.
 
 ## 1. Add the companion during image creation
 
@@ -67,6 +67,12 @@ elementary OS normally mount it at `/cdrom`:
 COMPANION_ROOT=/cdrom/sp11/companion
 ```
 
+Debian Live uses its own live-boot mount:
+
+```sh
+COMPANION_ROOT=/run/live/medium/sp11/companion
+```
+
 On Fedora, ask the mount table for the exact catalogue-bound volume label rather
 than guessing its path:
 
@@ -101,8 +107,8 @@ The source path uses the schema-4 companion filename; the copy is invoked as `le
 
 A non-zero userspace doctor result means support is still missing; it does not by itself mean the companion is damaged.
 
-Ubuntu and elementary companion images place `LEXR_GETTING_STARTED.txt` in the
-live user's Desktop folder. Elementary may expose it through Files rather than
+Ubuntu, elementary and Debian companion images place `LEXR_GETTING_STARTED.txt` in the
+live user's Desktop folder. Elementary and Debian GNOME may expose it through Files rather than
 desktop icons.
 It includes these bootstrap commands, native Wi-Fi board setup, the optional
 IPTSD install, and steps to repeat after installation. Use the home-directory
@@ -110,7 +116,7 @@ path above because writable temporary mounts can still have `noexec` set.
 
 ## 4. Use the included IPTSD support
 
-On Ubuntu or elementary OS, if IPTSD was included, first verify its portable installation plan and then apply it to the live session:
+On Ubuntu, elementary OS or Debian Live, if IPTSD was included, first verify its portable installation plan and then apply it to the live session:
 
 ```sh
 IPTSD_ROOT="$COMPANION_ROOT/userspace/iptsd-v1/sp11-iptsd-v2"
@@ -140,6 +146,6 @@ offline recovery evidence, not as the normal installation path.
 
 ## Success and next steps
 
-The companion is usable when the copied `$TOOL` reports its version, both on-media catalogues validate, and the userspace doctor gives the expected point-in-time result. For Ubuntu or elementary IPTSD, review the dry run before installation and check the feature again afterwards. For Fedora IPTSD, require the native RPM query and doctor result instead.
+The companion is usable when the copied `$TOOL` reports its version, both on-media catalogues validate, and the userspace doctor gives the expected point-in-time result. For Ubuntu, elementary or Debian IPTSD, review the dry run before installation and check the feature again afterwards. For Fedora IPTSD, require the native RPM query and doctor result instead.
 
 Continue with [userspace support](userspace-support.md), [the private Windows hand-off](windows-handoff.md), or return to [installation media](installation-media.md).

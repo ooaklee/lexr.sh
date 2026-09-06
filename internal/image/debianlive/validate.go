@@ -1,4 +1,4 @@
-package elementary
+package debianlive
 
 import (
 	"bytes"
@@ -15,7 +15,6 @@ import (
 
 	"github.com/ooaklee/lexr.sh/internal/artifact"
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
-	"github.com/ooaklee/lexr.sh/internal/image/caspermedia"
 	"github.com/ooaklee/lexr.sh/internal/image/companion"
 	"github.com/ooaklee/lexr.sh/internal/image/sp11"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
@@ -35,14 +34,14 @@ func NewValidator(docker *platform.Docker) *Validator {
 }
 
 // Validate binds all evidence to one complete ISO and checks both boot paths,
-// Casper discovery, installed-system payload and companion bytes.
+// live-boot discovery, installed-system payload and companion bytes.
 func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagecontract.ValidationReport, resultErr error) {
 	absolute, err := filepath.Abs(isoPath)
 	if err != nil {
 		return report, err
 	}
 	report = imagecontract.ValidationReport{Path: absolute, Layout: "hybrid-iso", Adapter: AdapterID}
-	workspace, err := os.MkdirTemp(filepath.Dir(absolute), ".lexr-elementary-validate-")
+	workspace, err := os.MkdirTemp(filepath.Dir(absolute), ".lexr-debian-validate-")
 	if err != nil {
 		return report, err
 	}
@@ -67,7 +66,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		}
 		report.Checks = append(report.Checks, imagecontract.ValidationCheck{Name: name, Passed: err == nil, Details: detail})
 		if err != nil {
-			return fmt.Errorf("elementary validation %s: %w", name, err)
+			return fmt.Errorf("Debian validation %s: %w", name, err)
 		}
 		return nil
 	}
@@ -75,7 +74,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		return v.Docker.RunInWorkspaceAsHostUser(ctx, toolsImage, workspace,
 			append([]string{"xorriso", "-osirrox", "on", "-indev", "/work/image.iso"}, arguments...)...)
 	}
-	if err := extract("-extract", "/sp11", "/work/sp11", "-extract", "/boot/grub", "/work/grub", "-extract", "/.disk", "/work/disk", "-extract", "/EFI/boot/bootaa64.efi", "/work/bootaa64.efi", "-extract", "/EFI/boot/grubaa64.efi", "/work/alternate-grubaa64.efi", "-extract", "/efi.img", "/work/alternate-esp.img", "-extract", "/live/vmlinuz", "/work/alternate-vmlinuz", "-extract", "/md5sum.txt", "/work/md5sum.txt"); err != nil {
+	if err := extract("-extract", "/sp11", "/work/sp11", "-extract", "/boot/grub", "/work/grub", "-extract", "/.disk", "/work/disk", "-extract", "/EFI/boot/bootaa64.efi", "/work/bootaa64.efi", "-extract", "/EFI/boot/grubaa64.efi", "/work/alternate-grubaa64.efi", "-extract", "/efi.img", "/work/alternate-esp.img", "-extract", "/md5sum.txt", "/work/md5sum.txt"); err != nil {
 		return report, check("required-media-members", err, "")
 	}
 	encoded, err := imagecontract.ReadBoundedExtractedFile(workspace, "sp11/lexr-manifest.json", imagecontract.MaximumManifestSize)
@@ -89,7 +88,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		return report, check("embedded-manifest", err, "")
 	}
 	layout, contract, records, err := validateManifest(manifest)
-	if err := check("embedded-manifest", err, "canonical elementary kernel, boot and media-discovery contract"); err != nil {
+	if err := check("embedded-manifest", err, "canonical Debian kernel, boot and media-discovery contract"); err != nil {
 		return report, err
 	}
 	report.KernelABI = manifest.KernelBundle.ABI
@@ -118,16 +117,6 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 			return report, check("embedded-artifacts", err, "")
 		}
 	}
-	for _, alternate := range []struct {
-		path     string
-		original imagecontract.ArtifactRecord
-	}{
-		{"alternate-vmlinuz", manifest.BootArtifacts.Kernel},
-	} {
-		if err := verifyRecord(workspace, alternate.path, alternate.original); err != nil {
-			return report, check("alternate-boot-copies", err, "")
-		}
-	}
 	for _, pair := range [][2]string{{"alternate-esp.img", "grub/efi.img"}, {"alternate-grubaa64.efi", "bootaa64.efi"}} {
 		expected, err := recordFile(filepath.Join(workspace, pair[1]), pair[1])
 		if err != nil {
@@ -148,7 +137,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 	for _, member := range []string{"grub/arm64-efi/grub.cfg", "grub/loopback.cfg"} {
 		data, err := imagecontract.ReadBoundedExtractedFile(workspace, member, maximumSourceConfigBytes)
 		if err != nil || string(data) != forwardingGRUBConfig {
-			return report, check("grub-bootstrap", errors.New("alternate elementary GRUB route differs"), "")
+			return report, check("grub-bootstrap", errors.New("alternate Debian GRUB route differs"), "")
 		}
 	}
 	grubDigest, err := artifact.HashFile(filepath.Join(workspace, "bootaa64.efi"))
@@ -160,13 +149,10 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 	if err != nil {
 		return report, check("installer-product", err, "")
 	}
-	// Reuse the source identity parser with a minimal data-only selector; the
-	// finished multi-entry menu has already been checked in its entirety.
-	selector := fmt.Sprintf("linux /%s boot=casper live-media-path=/%s\ninitrd /%s\n", layout.kernel, layout.liveDirectory, layout.initrd)
-	_, err = parseSourceLayout([]byte(selector), info)
-	if err := check("installer-product", err, "elementary ARM64 installer identity preserved"); err != nil {
-		return report, err
+	if string(info) != inspectedDiskInfo {
+		return report, check("installer-product", errors.New("Debian installer identity changed"), "")
 	}
+	check("installer-product", nil, "inspected Debian ARM64 GNOME live snapshot preserved")
 	if err := check("optical-and-usb-efi", v.validateEFI(ctx, toolsImage, workspace, report.Size), "GPT ESP and El Torito select the same verified direct ARM64 GRUB"); err != nil {
 		return report, err
 	}
@@ -174,10 +160,10 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		return report, err
 	}
 	replacements := map[string]string{
-		"casper/filesystem.squashfs": "live/filesystem.squashfs", "casper/filesystem.manifest": "live/filesystem.manifest", "casper/filesystem.size": "live/filesystem.size",
-		"casper/vmlinuz": "live/vmlinuz", "casper/initrd.lz": "live/initrd.lz", ".disk/casper-uuid-generic": "disk/casper-uuid-generic",
+		"live/filesystem.squashfs": "live/filesystem.squashfs", "live/filesystem.packages": "live/filesystem.packages", "live/filesystem.size": "live/filesystem.size",
+		"live/vmlinuz": "live/vmlinuz", "live/initrd.img": "live/initrd.img", ".disk/live-uuid": "disk/live-uuid",
 		"boot/grub/grub.cfg": "grub/grub.cfg", "boot/grub/arm64-efi/grub.cfg": "grub/arm64-efi/grub.cfg", "boot/grub/loopback.cfg": "grub/loopback.cfg",
-		"boot/grub/efi.img": "grub/efi.img", "EFI/boot/bootaa64.efi": "bootaa64.efi", "efi.img": "alternate-esp.img", "live/vmlinuz": "alternate-vmlinuz",
+		"boot/grub/efi.img": "grub/efi.img", "EFI/boot/bootaa64.efi": "bootaa64.efi", "efi.img": "alternate-esp.img",
 	}
 	if err := filepath.WalkDir(filepath.Join(workspace, "sp11"), func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
@@ -226,14 +212,14 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 
 // validateManifest interprets only bounded portable paths from canonical
 // provenance; no manifest string is evaluated as a command or GRUB program.
-func validateManifest(manifest imagecontract.Manifest) (sourceLayout, caspermedia.Contract, []imagecontract.ArtifactRecord, error) {
+func validateManifest(manifest imagecontract.Manifest) (sourceLayout, mediaContract, []imagecontract.ArtifactRecord, error) {
 	var layout sourceLayout
-	var empty caspermedia.Contract
+	var empty mediaContract
 	if manifest.SchemaVersion != imagecontract.ManifestSchemaVersion || manifest.Adapter != AdapterID || manifest.Layout != "hybrid-iso" || manifest.SecureBoot != secureBootPolicy || manifest.ToolVersion == "" || manifest.CreatedAt.IsZero() {
-		return layout, empty, nil, errors.New("unsupported or incomplete elementary manifest identity")
+		return layout, empty, nil, errors.New("unsupported or incomplete Debian manifest identity")
 	}
 	if !kernelABIPattern.MatchString(manifest.KernelBundle.ABI) || manifest.KernelBundle.EffectiveDTBDelivery != kernel.DTBDeliveryExternalRequired {
-		return layout, empty, nil, errors.New("elementary requires a portable exact ABI and external-required DTBs")
+		return layout, empty, nil, errors.New("Debian requires a portable exact ABI and external-required DTBs")
 	}
 	if err := sp11.ValidateManifestBundle(manifest.KernelBundle); err != nil {
 		return layout, empty, nil, err
@@ -241,55 +227,58 @@ func validateManifest(manifest imagecontract.Manifest) (sourceLayout, caspermedi
 	if err := imagecontract.ValidateArtifactRecord(manifest.SourceImage); err != nil {
 		return layout, empty, nil, err
 	}
+	if manifest.SourceImage.SHA256 != inspectedSourceISOHash || manifest.SourceImage.Size != inspectedSourceISOSize {
+		return layout, empty, nil, errors.New("unrecognised Debian source snapshot")
+	}
 	if err := companion.ValidateRecord(manifest.CompanionBundle); err != nil {
 		return layout, empty, nil, err
 	}
 	media := manifest.MediaDiscovery
-	casper := media
-	casper.Evidence = nil
+	liveBoot := media
+	liveBoot.Evidence = nil
 	seen := make(map[string]bool)
 	records := []imagecontract.ArtifactRecord{manifest.BootArtifacts.Kernel, manifest.BootArtifacts.Initrd}
 	for _, evidence := range media.Evidence {
 		if seen[evidence.Role] {
-			return layout, empty, nil, errors.New("duplicate elementary media-discovery role")
+			return layout, empty, nil, errors.New("duplicate Debian media-discovery role")
 		}
 		seen[evidence.Role] = true
 		switch evidence.Role {
-		case caspermedia.MediumIdentityRole, caspermedia.InitramfsIdentityRole:
-			casper.Evidence = append(casper.Evidence, evidence)
+		case mediumIdentityRole, initramfsIdentityRole, bootArgumentsRole:
+			liveBoot.Evidence = append(liveBoot.Evidence, evidence)
 		case "live-directory":
-			if evidence.Scope != "iso-filesystem" || !liveDirectoryPattern.MatchString(evidence.Path) || evidence.Value != "/"+evidence.Path || evidence.Artifact != nil {
-				return layout, empty, nil, errors.New("invalid elementary live-directory evidence")
+			if evidence.Scope != "iso-filesystem" || evidence.Path != liveMediaPath || evidence.Value != "/"+evidence.Path || evidence.Artifact != nil {
+				return layout, empty, nil, errors.New("invalid Debian live-directory evidence")
 			}
 			layout.liveDirectory = evidence.Path
-		case "efi-bootloader", "efi-system-partition", "installer-product":
-			expected := map[string]string{"efi-bootloader": "EFI/boot/bootaa64.efi", "efi-system-partition": "boot/grub/efi.img", "installer-product": ".disk/info"}[evidence.Role]
+		case "efi-bootloader", "efi-system-partition", "installer-product", "installed-grub-package":
+			expected := map[string]string{"efi-bootloader": "EFI/boot/bootaa64.efi", "efi-system-partition": "boot/grub/efi.img", "installer-product": ".disk/info", "installed-grub-package": grubSupportDirectory + "/" + grubSupportDebName}[evidence.Role]
 			if evidence.Scope != "iso-filesystem" || evidence.Path != expected || evidence.Value != "" || evidence.Artifact == nil || evidence.Artifact.Path != expected {
-				return layout, empty, nil, errors.New("invalid elementary EFI or installer evidence")
+				return layout, empty, nil, errors.New("invalid Debian EFI or installer evidence")
 			}
 			records = append(records, *evidence.Artifact)
 		default:
-			return layout, empty, nil, errors.New("unrecognised elementary media-discovery role")
+			return layout, empty, nil, errors.New("unrecognised Debian media-discovery role")
 		}
 	}
-	if len(seen) != 6 || layout.liveDirectory == "" {
-		return layout, empty, nil, errors.New("incomplete elementary media-discovery evidence")
+	if len(seen) != 8 || layout.liveDirectory == "" {
+		return layout, empty, nil, errors.New("incomplete Debian media-discovery evidence")
 	}
-	contract, marker, err := caspermedia.FromDiscoveryRecord(casper)
+	contract, marker, err := fromDiscoveryRecord(liveBoot)
 	if err != nil {
 		return layout, empty, nil, err
 	}
 	records = append(records, marker)
-	layout.kernel, layout.initrd = layout.member("vmlinuz"), layout.member("initrd.lz")
+	layout.kernel, layout.initrd = layout.member("vmlinuz"), layout.member("initrd.img")
 	if manifest.BootArtifacts.Kernel.Path != layout.kernel || manifest.BootArtifacts.Initrd.Path != layout.initrd {
-		return layout, empty, nil, errors.New("elementary boot artefacts do not use the declared live directory")
+		return layout, empty, nil, errors.New("Debian boot artefacts do not use the declared live directory")
 	}
-	expectedArgs := strings.Fields("boot=casper live-media-path=/" + layout.liveDirectory + " " + surfaceKernelArguments)
+	expectedArgs := strings.Fields(requiredBootArguments + " " + surfaceKernelArguments)
 	if !reflect.DeepEqual(manifest.BootArguments, expectedArgs) {
-		return layout, empty, nil, errors.New("elementary kernel arguments differ from the adapter contract")
+		return layout, empty, nil, errors.New("Debian kernel arguments differ from the adapter contract")
 	}
 	if len(manifest.BootArtifacts.DTBs) != len(manifest.KernelBundle.DeviceTrees) {
-		return layout, empty, nil, errors.New("elementary boot DTB inventory differs from the kernel bundle")
+		return layout, empty, nil, errors.New("Debian boot DTB inventory differs from the kernel bundle")
 	}
 	required := map[string]bool{"x1e80100-microsoft-denali-oled.dtb": false, "x1p64100-microsoft-denali.dtb": false}
 	selectedProfiles := 0
@@ -299,7 +288,7 @@ func validateManifest(manifest imagecontract.Manifest) (sourceLayout, caspermedi
 		}
 		actual := manifest.BootArtifacts.DTBs[index]
 		if actual.Path != "sp11/dtb/"+tree.Basename || actual.SHA256 != tree.SHA256 {
-			return layout, empty, nil, errors.New("elementary boot DTB identity differs from the kernel bundle")
+			return layout, empty, nil, errors.New("Debian boot DTB identity differs from the kernel bundle")
 		}
 		if _, ok := required[tree.Basename]; ok {
 			required[tree.Basename] = true
@@ -307,11 +296,11 @@ func validateManifest(manifest imagecontract.Manifest) (sourceLayout, caspermedi
 		records = append(records, actual)
 	}
 	if selectedProfiles != 1 {
-		return layout, empty, nil, errors.New("elementary requires exactly one installed device profile")
+		return layout, empty, nil, errors.New("Debian requires exactly one installed device profile")
 	}
 	for _, present := range required {
 		if !present {
-			return layout, empty, nil, errors.New("elementary SP11 DTB inventory is incomplete")
+			return layout, empty, nil, errors.New("Debian SP11 DTB inventory is incomplete")
 		}
 	}
 	for _, pkg := range manifest.KernelBundle.Packages {

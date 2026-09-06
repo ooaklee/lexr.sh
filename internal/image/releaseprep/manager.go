@@ -17,6 +17,7 @@ import (
 
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
 	"github.com/ooaklee/lexr.sh/internal/image/companion"
+	"github.com/ooaklee/lexr.sh/internal/image/debianlive"
 	"github.com/ooaklee/lexr.sh/internal/image/elementary"
 	"github.com/ooaklee/lexr.sh/internal/plan"
 )
@@ -33,6 +34,13 @@ var expectedImageSteps = []string{
 // journal generation. Equal step counts must never substitute another distro's
 // filesystem, userspace or boot preparation sequence.
 func imageStepsForAdapter(adapter string, count int) []string {
+	if adapter == debianlive.AdapterID {
+		steps := debianlive.CreationStepIDs()
+		if count == len(steps) {
+			return steps
+		}
+		return nil
+	}
 	if adapter == elementary.AdapterID {
 		steps := elementary.CreationStepIDs()
 		if count == len(steps) {

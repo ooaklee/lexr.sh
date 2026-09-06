@@ -22,7 +22,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
 	  binutils ca-certificates coreutils cpio dosfstools dpkg e2fsprogs \
-	  dracut-core file initramfs-tools kmod libarchive-tools md5deep mtools parted \
+	  dracut-core file initramfs-tools kmod libarchive-tools md5deep mtools parted python3 \
 	  squashfs-tools systemd-sysv xorriso xz-utils zstd \
  && rm -rf /var/lib/apt/lists/*
 `

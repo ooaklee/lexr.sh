@@ -22,9 +22,11 @@ func TestImageManagerRoutesChildDiagnostics(t *testing.T) {
 	runners := map[string]platform.Runner{
 		"ubuntu tooling":       manager.Remaster.Docker.Runner,
 		"fedora tooling":       manager.FedoraRemaster.Docker.Runner,
+		"Debian tooling":       manager.DebianRemaster.Docker.Runner,
 		"elementary tooling":   manager.ElementaryRemaster.Docker.Runner,
 		"ubuntu companion":     manager.Remaster.Companions.Runner,
 		"fedora companion":     manager.FedoraRemaster.Companions.Runner,
+		"Debian companion":     manager.DebianRemaster.Companions.Runner,
 		"elementary companion": manager.ElementaryRemaster.Companions.Runner,
 		"companion probe":      manager.CompanionRunner,
 	}

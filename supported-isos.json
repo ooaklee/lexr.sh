@@ -28,6 +28,34 @@
       "last_verified": "2026-08-30"
     },
     {
+      "id": "debian-live-testing-gnome-arm64-20240902",
+      "name": "Debian Live GNOME ARM64 (2024-09-02 snapshot)",
+      "distribution": "Debian",
+      "release": "testing (2024-09-02 snapshot)",
+      "filename": "debian-live-testing-arm64-gnome.iso",
+      "architecture": "arm64",
+      "artifact_kind": "iso",
+      "url": "https://cdimage.debian.org/cdimage/weekly-live-builds/arm64/iso-hybrid/debian-live-testing-arm64-gnome.iso",
+      "homepage": "https://www.debian.org/CD/live/",
+      "adapter": "debian-live",
+      "support_level": "implemented",
+      "experimental": true,
+      "mutable": true,
+      "checksum": {
+        "algorithm": "sha256",
+        "value": "3260c69821f85464974e2136a0cda5d3954818467dda168bdfcb69547c4d7abc"
+      },
+      "compatibility_notes": [
+        "Historical official ARM64 GNOME testing snapshot dated 2024-09-02; the testing filename does not imply current packages.",
+        "Publisher SHA-256 and its Debian Testing CDs signature were verified before source inspection; the mutable URL is pinned to these exact bytes.",
+        "Uses Debian live-boot, Calamares and GRUB with an exact-ABI external Surface device tree; disable Secure Boot.",
+        "Live desktop, Wi-Fi, input, installation, installed boot and recovery require physical qualification.",
+        "The Debian Installer DVD catalogue entry is separate and has no live-image adapter.",
+        "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
+      ],
+      "last_verified": "2026-09-06"
+    },
+    {
       "id": "elementary-os-8-1-20260219",
       "name": "elementary OS 8.1 ARM64",
       "distribution": "elementary OS",

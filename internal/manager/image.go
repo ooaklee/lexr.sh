@@ -17,6 +17,7 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/catalog"
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
 	"github.com/ooaklee/lexr.sh/internal/image/companion"
+	"github.com/ooaklee/lexr.sh/internal/image/debianlive"
 	"github.com/ooaklee/lexr.sh/internal/image/elementary"
 	"github.com/ooaklee/lexr.sh/internal/image/fedora"
 	"github.com/ooaklee/lexr.sh/internal/image/ubuntu"
@@ -106,6 +107,8 @@ type ImageManager struct {
 	Remaster *ubuntu.Remasterer
 	// FedoraRemaster performs the Fedora EROFS live-media transformation.
 	FedoraRemaster *fedora.Remasterer
+	// DebianRemaster performs Debian live-boot and Calamares preparation.
+	DebianRemaster *debianlive.Remasterer
 	// ElementaryRemaster performs elementary OS's Casper and GRUB transformation.
 	ElementaryRemaster *elementary.Remasterer
 	// Userspace resolves optional verified offline companion releases.
@@ -245,6 +248,7 @@ func NewImageManager(loader catalog.Loader, out io.Writer) *ImageManager {
 		Releases:           release.NewClient(nil),
 		Remaster:           ubuntu.NewRemasterer(platform.NewDocker(runner), out),
 		FedoraRemaster:     fedora.NewRemasterer(platform.NewDocker(runner), out),
+		DebianRemaster:     debianlive.NewRemasterer(platform.NewDocker(runner), out),
 		ElementaryRemaster: elementary.NewRemasterer(platform.NewDocker(runner), out),
 		CompanionRunner:    runner,
 	}
@@ -252,6 +256,7 @@ func NewImageManager(loader catalog.Loader, out io.Writer) *ImageManager {
 	// each adapter its own builder while keeping both on the caller's stream.
 	manager.Remaster.Companions = companion.NewBuilder(runner)
 	manager.FedoraRemaster.Companions = companion.NewBuilder(runner)
+	manager.DebianRemaster.Companions = companion.NewBuilder(runner)
 	manager.ElementaryRemaster.Companions = companion.NewBuilder(runner)
 	return manager
 }
@@ -455,6 +460,8 @@ func (m *ImageManager) adapterForEntry(entry catalog.Entry) (imageAdapter, error
 		return ubuntuCasperImageAdapter{remasterer: m.Remaster}, nil
 	case catalog.AdapterFedoraLive:
 		return fedoraLiveImageAdapter{remasterer: m.FedoraRemaster}, nil
+	case catalog.AdapterDebianLive:
+		return debianLiveImageAdapter{remasterer: m.DebianRemaster}, nil
 	case catalog.AdapterElementaryCasper:
 		return elementaryCasperImageAdapter{remasterer: m.ElementaryRemaster}, nil
 	default:

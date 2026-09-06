@@ -14,6 +14,7 @@ import (
 	"strconv"
 
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/image/debianlive"
 	"github.com/ooaklee/lexr.sh/internal/image/elementary"
 	"github.com/ooaklee/lexr.sh/internal/image/fedora"
 	"github.com/ooaklee/lexr.sh/internal/image/ubuntu"
@@ -59,6 +60,7 @@ type Validator struct {
 	ubuntuFactory     adapterFactory
 	fedoraFactory     adapterFactory
 	elementaryFactory adapterFactory
+	debianFactory     adapterFactory
 }
 
 // NewValidator creates a generated-image validator and supplies the standard
@@ -76,6 +78,7 @@ func NewValidator(docker *platform.Docker) *Validator {
 		fedoraFactory: func(docker *platform.Docker) adapterValidator {
 			return fedora.NewValidator(docker)
 		},
+		debianFactory:     func(docker *platform.Docker) adapterValidator { return debianlive.NewValidator(docker) },
 		elementaryFactory: func(docker *platform.Docker) adapterValidator { return elementary.NewValidator(docker) },
 	}
 }
@@ -126,6 +129,8 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		factory = v.ubuntuFactory
 	case fedora.AdapterID:
 		factory = v.fedoraFactory
+	case debianlive.AdapterID:
+		factory = v.debianFactory
 	case elementary.AdapterID:
 		factory = v.elementaryFactory
 	default:

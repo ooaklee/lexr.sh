@@ -45,9 +45,10 @@ redistribute restricted firmware. You can also use
 ## What works today
 
 Dedicated image adapters support the experimental Ubuntu Concept Resolute
-Desktop image, elementary OS 8.1 ARM64 and Fedora Workstation Live 44 ARM64.
+Desktop image, elementary OS 8.1 ARM64, the historical Debian ARM64 GNOME live
+snapshot dated 2024-09-02, and Fedora Workstation Live 44 ARM64.
 The custom live and installed Fedora path is limited to the Surface Pro 11 Qualcomm Snapdragon X Elite model; its X Plus
-entry is a stock-kernel, explicit-DTB live troubleshooting path only. Debian,
+entry is a stock-kernel, explicit-DTB live troubleshooting path only. The Debian Installer DVD,
 Pop!_OS and Fedora's compressed raw disk image remain
 `catalog-only` until their layouts have dedicated adapters. Here, `implemented`
 means the adapter can create and structurally validate media; `experimental`
@@ -59,6 +60,9 @@ remastered with Lexr `927d00e` and v23 reached the same X1E/OLED live desktop;
 Wi-Fi, web browsing and the language/try/install chooser were confirmed on
 2026-09-06 ([issue #49](https://github.com/ooaklee/lexr.sh/issues/49)). Installation,
 recovery and remaining hardware checks still need qualification for both images.
+Debian live-image preparation is tracked separately in
+[issue #50](https://github.com/ooaklee/lexr.sh/issues/50); Debian live desktop,
+installation and recovery remain unqualified.
 The current Fedora candidate passed structural validation and USB read-back, but a physical Surface Pro 11
 test reached the emergency boot path and then a persistent black screen. That
 failure is tracked in [issue #17](https://github.com/ooaklee/lexr.sh/issues/17),
