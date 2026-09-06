@@ -61,6 +61,9 @@ hand-off is not permission to modify a system.
 
 ## Architecture decisions
 
+Rolling root filesystem source intake and catalogue version-3 compatibility are
+recorded in [ADR033](../adr/adr-033-pinned-rolling-rootfs-sources.md).
+
 Architecture decision records explain why lasting boundaries exist. Start with
 the decision closest to the question you are asking:
 

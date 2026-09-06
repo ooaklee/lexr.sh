@@ -54,6 +54,11 @@ that do not apply.
 
 ### Added
 
+- Add the authenticated Arch Linux ARM AArch64 rootfs snapshot to catalogue
+  version 3 as catalogue-only input; retain version-2 ISO/raw catalogue support.
+  Pinned source downloads keep separate digest identities, and failed refreshes
+  preserve the previous accepted bytes.
+
 - Add the experimental elementary OS 8.1 ARM64 image adapter with separate live
   and installed initramfs images, matching Surface device trees, first-boot Wi-Fi
   board preparation, pinned public GPU firmware and retained offline Lexr support.

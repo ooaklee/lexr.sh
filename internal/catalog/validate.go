@@ -89,8 +89,8 @@ func validate(raw document, entries []Entry) error {
 		issues = append(issues, Issue{Field: field, Message: fmt.Sprintf(format, values...)})
 	}
 
-	if raw.SchemaVersion != CurrentSchemaVersion {
-		add("schema_version", "must be %d, got %d", CurrentSchemaVersion, raw.SchemaVersion)
+	if raw.SchemaVersion != CurrentSchemaVersion && raw.SchemaVersion != LegacySchemaVersion {
+		add("schema_version", "must be %d or %d, got %d", LegacySchemaVersion, CurrentSchemaVersion, raw.SchemaVersion)
 	}
 	validateHumanText(add, "description", raw.Description)
 	if len(raw.Entries) == 0 {
@@ -129,8 +129,14 @@ func validate(raw document, entries []Entry) error {
 			switch entry.ArtifactKind {
 			case ArtifactKindISO, ArtifactKindRawXZ:
 				artifactKindValid = true
+			case ArtifactKindRootfsTarGZ:
+				if raw.SchemaVersion != CurrentSchemaVersion {
+					add(prefix+".artifact_kind", "%q requires schema_version %d", ArtifactKindRootfsTarGZ, CurrentSchemaVersion)
+				} else {
+					artifactKindValid = true
+				}
 			default:
-				add(prefix+".artifact_kind", "must be %q or %q, got %q", ArtifactKindISO, ArtifactKindRawXZ, entry.ArtifactKind)
+				add(prefix+".artifact_kind", "must be %q, %q, or %q, got %q", ArtifactKindISO, ArtifactKindRawXZ, ArtifactKindRootfsTarGZ, entry.ArtifactKind)
 			}
 		}
 
@@ -178,6 +184,9 @@ func validate(raw document, entries []Entry) error {
 		}
 
 		validateChecksum(add, prefix+".checksum", entry.Checksum)
+		if entry.ArtifactKind == ArtifactKindRootfsTarGZ && (entry.Checksum == nil || entry.Checksum.Algorithm != "sha256") {
+			add(prefix+".checksum", "%q requires a pinned SHA-256 snapshot", ArtifactKindRootfsTarGZ)
+		}
 		if len(entry.CompatibilityNotes) == 0 {
 			add(prefix+".compatibility_notes", "must contain at least one note")
 		}
@@ -298,6 +307,10 @@ func validateFilename(add func(string, string, ...any), field, filename string, 
 	case ArtifactKindRawXZ:
 		if !strings.HasSuffix(lowerFilename, ".raw.xz") {
 			add(field, "must end in .raw.xz when artifact_kind is %q", ArtifactKindRawXZ)
+		}
+	case ArtifactKindRootfsTarGZ:
+		if !strings.HasSuffix(lowerFilename, ".tar.gz") {
+			add(field, "must end in .tar.gz when artifact_kind is %q", ArtifactKindRootfsTarGZ)
 		}
 	}
 }

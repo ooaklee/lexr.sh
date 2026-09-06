@@ -50,6 +50,7 @@ nav:
       - Overview: operator-manual/index.md
       - Kernel management: operator-manual/kernel-management.md
       - Release preparation: operator-manual/release-preparation.md
+      - Arch Linux ARM source intake: operator-manual/arch-linux-arm-source.md
       - Automation and release channels: operator-manual/automation-and-releases.md
   - Reference:
       - Overview: reference/index.md

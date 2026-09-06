@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "description": "Curated ARM64 installation media for Surface Pro 11. Entries with implemented support have runnable image adapters; entries also marked experimental still require complete end-to-end boot and installation testing.",
   "entries": [
     {
@@ -152,6 +152,32 @@
         "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],
       "last_verified": "2026-08-30"
+    },
+    {
+      "id": "arch-linux-arm-aarch64-20260805",
+      "name": "Arch Linux ARM AArch64 (2026-08-05 snapshot)",
+      "distribution": "Arch Linux ARM",
+      "release": "Rolling snapshot 2026-08-05",
+      "filename": "ArchLinuxARM-aarch64-latest.tar.gz",
+      "architecture": "arm64",
+      "artifact_kind": "rootfs-tar-gz",
+      "url": "https://ca.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
+      "homepage": "https://archlinuxarm.org/about/downloads",
+      "adapter": "none",
+      "support_level": "catalog-only",
+      "experimental": true,
+      "mutable": true,
+      "checksum": {
+        "algorithm": "sha256",
+        "value": "42a4eeaa038994ffd31fa173256ef2f0ef511358eeb41b9ea1f8626391b9b319"
+      },
+      "compatibility_notes": [
+        "Root filesystem archive, not a bootable ISO or disk image. Arch live-media creation and GRUB installation alongside other OSes are tracked in Lexr issue #52.",
+        "The URL is rolling; this entry accepts only the SHA-256-pinned 2026-08-05 snapshot. If latest changes, verification must fail until a separately authenticated snapshot is deliberately selected.",
+        "Maintainer authenticated the archive signature on 2026-09-06 against Arch Linux ARM build key 68B3537F39A313B3E574D06777193F152BDBE6A6 before recording this SHA-256.",
+        "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
+      ],
+      "last_verified": "2026-09-06"
     }
   ]
 }
