@@ -7,8 +7,13 @@ description: Preserve Debian live-media discovery and installed GRUB device-tree
 ## Status
 
 Proposed on 2026-09-06 for [issue #50](https://github.com/ooaklee/lexr.sh/issues/50).
-Implementation and OpenCode review are in progress. Physical live boot,
-installation and recovery remain unqualified.
+The implementation checkpoint has been reviewed with OpenCode, and structural
+checks have passed.
+Investigation was paused on 2026-09-07 after failed X1E/OLED live boots, including
+a reported blank screen when trying `toram`. Successful RAM-backed operation was
+not confirmed. Issue #50 retains the failure evidence and resumption plan.
+Physical live boot, installation and recovery remain unqualified; this proposal
+has not been accepted as a working Debian installation path.
 
 ## Context
 
