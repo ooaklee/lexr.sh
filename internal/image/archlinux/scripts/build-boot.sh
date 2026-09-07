@@ -19,7 +19,7 @@ cp /work/grub.cfg /linux-work/iso/boot/grub/grub.cfg
 cp "$root/usr/share/grub/unicode.pf2" /linux-work/iso/boot/grub/unicode.pf2
 cp /work/grub.cfg /work/bootstrap.cfg "$root/"
 chroot "$root" grub-script-check /grub.cfg
-chroot "$root" grub-mkstandalone -O arm64-efi --modules='part_gpt iso9660 search search_fs_file fdt linux normal configfile' -o /boot/lexr-BOOTAA64.EFI boot/grub/grub.cfg=/bootstrap.cfg
+chroot "$root" grub-mkstandalone -O arm64-efi --modules='part_gpt iso9660 search search_fs_file fdt linux normal configfile font gfxterm all_video fwsetup' -o /boot/lexr-BOOTAA64.EFI boot/grub/grub.cfg=/bootstrap.cfg
 cp "$root/boot/lexr-BOOTAA64.EFI" /work/BOOTAA64.EFI
 rm "$root/boot/lexr-BOOTAA64.EFI" "$root/grub.cfg" "$root/bootstrap.cfg"
 chroot "$root" pacman -Q > /work/packages.installed
