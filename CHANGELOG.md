@@ -52,6 +52,15 @@ that do not apply.
 
 ## [0.4.0] - Unreleased
 
+### Removed
+
+- Temporarily withdraw the Debian Installer DVD, Fedora Live and raw disk,
+  and Pop!_OS entries from the shipped image catalogue while compatibility
+  work continues. Preserve their complete entries in
+  [#50](https://github.com/ooaklee/lexr.sh/issues/50),
+  [#17](https://github.com/ooaklee/lexr.sh/issues/17) and
+  [#48](https://github.com/ooaklee/lexr.sh/issues/48), respectively.
+
 ### Added
 
 - Add the experimental elementary OS 8.1 ARM64 image adapter with separate live

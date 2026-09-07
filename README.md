@@ -44,12 +44,13 @@ redistribute restricted firmware. You can also use
 
 ## What works today
 
-Dedicated image adapters support the experimental Ubuntu Concept Resolute
-Desktop image, elementary OS 8.1 ARM64 and Fedora Workstation Live 44 ARM64.
-The custom live and installed Fedora path is limited to the Surface Pro 11 Qualcomm Snapdragon X Elite model; its X Plus
-entry is a stock-kernel, explicit-DTB live troubleshooting path only. Debian,
-Pop!_OS and Fedora's compressed raw disk image remain
-`catalog-only` until their layouts have dedicated adapters. Here, `implemented`
+The shipped image catalogue contains the experimental Ubuntu Concept Resolute
+Desktop image and elementary OS 8.1 ARM64. Debian, Fedora and Pop!_OS entries
+are temporarily withdrawn while compatibility work continues in
+[issue #50](https://github.com/ooaklee/lexr.sh/issues/50),
+[issue #17](https://github.com/ooaklee/lexr.sh/issues/17) and
+[issue #48](https://github.com/ooaklee/lexr.sh/issues/48), respectively; their
+original entries are preserved in those issues. Here, `implemented`
 means the adapter can create and structurally validate media; `experimental`
 means complete end-to-end qualification is still pending. Ubuntu Concept
 remastered with Lexr `384f2c0` and v23 reached the Surface Pro 11 X1E/OLED live
@@ -158,12 +159,10 @@ yourself, record its SHA-256 digest, and pass both `--source` and
 `--source-sha256`. A successful build and structural validation do not prove
 that the image will boot or install on physical hardware.
 
-Fedora requires the explicit `fedora-workstation-live-44` catalogue ID and a
-patch-line-qualified verified kernel bundle. The accepted floors are
-7.2.0/sp11v19 and 7.2.2/sp11v1. The
-[installation-media guide](docs/user-guide/installation-media.md) shows the implemented
-distribution paths, the Fedora boot failure already observed, their hardware
-limits, and how to review a USB write safely.
+The [installation-media guide](docs/user-guide/installation-media.md) covers
+Ubuntu and elementary OS, their hardware limits, and how to review a USB write
+safely. It also retains Fedora contributor instructions using an explicit
+custom catalogue while the shipped Fedora entries are withdrawn.
 
 Running `lexr` in an interactive terminal opens the guided image wizard. Every
 wizard choice uses the same image services as the scriptable commands, so you

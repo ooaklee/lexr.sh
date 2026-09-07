@@ -181,11 +181,7 @@ func TestCatalogListDelivery(t *testing.T) {
 			t.Fatalf("catalog table does not expose checksum-pin states:\n%s", output)
 		}
 		orderedIDs := []string{
-			"debian-13-6-0-dvd-1",
 			"elementary-os-8-1-20260219",
-			"fedora-workstation-44-raw",
-			"fedora-workstation-live-44",
-			"pop-os-24-04-arm64-generic-3",
 			"ubuntu-concept-resolute-x1e",
 		}
 		previous := -1
@@ -212,8 +208,8 @@ func TestCatalogListDelivery(t *testing.T) {
 		if err := json.Unmarshal([]byte(output), &entries); err != nil {
 			t.Fatalf("catalog list JSON cannot be decoded: %v\n%s", err, output)
 		}
-		if len(entries) != 6 {
-			t.Fatalf("catalog list JSON entries = %d, want 6", len(entries))
+		if len(entries) != 2 {
+			t.Fatalf("catalog list JSON entries = %d, want 2", len(entries))
 		}
 		for index := 1; index < len(entries); index++ {
 			if entries[index-1].ID >= entries[index].ID {
@@ -221,6 +217,48 @@ func TestCatalogListDelivery(t *testing.T) {
 			}
 		}
 	})
+}
+
+// writeRawXZCatalogFixture writes a small explicit catalogue containing one
+// publisher-pinned raw-xz catalog-only entry so display coverage for raw-xz
+// artefacts and checksum pinning does not depend on the shipped inventory.
+func writeRawXZCatalogFixture(t *testing.T) string {
+	t.Helper()
+
+	const fixture = `{
+  "schema_version": 2,
+  "description": "Test fixture with one raw-xz catalog-only entry.",
+  "entries": [
+    {
+      "id": "fixture-raw-xz-entry",
+      "name": "Fixture Raw XZ Entry",
+      "distribution": "Fixture",
+      "release": "1.0",
+      "filename": "fixture-raw-1.0.arm64.raw.xz",
+      "architecture": "arm64",
+      "artifact_kind": "raw-xz",
+      "url": "https://example.com/fixtures/fixture-raw-1.0.arm64.raw.xz",
+      "homepage": "https://example.com/fixtures/",
+      "adapter": "none",
+      "support_level": "catalog-only",
+      "experimental": true,
+      "mutable": false,
+      "checksum": {
+        "algorithm": "sha256",
+        "value": "0361c13141e6f57e24d6ee5227066c33a45f7f92a95f41d0bbd343e4fd05da18"
+      },
+      "compatibility_notes": [
+        "Fixture entry used to exercise raw-xz and catalog-only display."
+      ],
+      "last_verified": "2026-09-01"
+    }
+  ]
+}`
+	path := filepath.Join(t.TempDir(), "raw-xz-catalog.json")
+	if err := os.WriteFile(path, []byte(fixture), 0o600); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+	return path
 }
 
 // TestCatalogShowDelivery verifies detailed catalogue display, JSON output, and
@@ -257,7 +295,8 @@ func TestCatalogShowDelivery(t *testing.T) {
 	t.Run("pinned entry", func(t *testing.T) {
 		t.Parallel()
 
-		output, _, err := executeCLI(t, "catalog", "show", "fedora-workstation-44-raw")
+		fixturePath := writeRawXZCatalogFixture(t)
+		output, _, err := executeCLI(t, "--catalog", fixturePath, "catalog", "show", "fixture-raw-xz-entry")
 		if err != nil {
 			t.Fatalf("catalog show pinned entry error = %v", err)
 		}
@@ -274,7 +313,8 @@ func TestCatalogShowDelivery(t *testing.T) {
 	t.Run("JSON entry", func(t *testing.T) {
 		t.Parallel()
 
-		output, _, err := executeCLI(t, "catalog", "show", "fedora-workstation-44-raw", "--json")
+		fixturePath := writeRawXZCatalogFixture(t)
+		output, _, err := executeCLI(t, "--catalog", fixturePath, "catalog", "show", "fixture-raw-xz-entry", "--json")
 		if err != nil {
 			t.Fatalf("catalog show --json error = %v", err)
 		}
@@ -282,7 +322,7 @@ func TestCatalogShowDelivery(t *testing.T) {
 		if err := json.Unmarshal([]byte(output), &entry); err != nil {
 			t.Fatalf("catalog show JSON cannot be decoded: %v\n%s", err, output)
 		}
-		if entry.ID != "fedora-workstation-44-raw" || entry.ArtifactKind != catalog.ArtifactKindRawXZ || entry.SupportLevel != catalog.SupportLevelCatalogOnly {
+		if entry.ID != "fixture-raw-xz-entry" || entry.ArtifactKind != catalog.ArtifactKindRawXZ || entry.SupportLevel != catalog.SupportLevelCatalogOnly {
 			t.Fatalf("catalog show JSON entry = %#v", entry)
 		}
 	})
@@ -309,7 +349,7 @@ func TestCatalogValidateDelivery(t *testing.T) {
 		if err != nil {
 			t.Fatalf("catalog validate error = %v", err)
 		}
-		if output != "catalog valid: schema 2, 6 entries\n" {
+		if output != "catalog valid: schema 2, 2 entries\n" {
 			t.Fatalf("catalog validate output = %q", output)
 		}
 	})
@@ -330,7 +370,7 @@ func TestCatalogValidateDelivery(t *testing.T) {
 		if err := json.Unmarshal([]byte(output), &result); err != nil {
 			t.Fatalf("catalog validate JSON cannot be decoded: %v\n%s", err, output)
 		}
-		if !result.Valid || result.SchemaVersion != 2 || result.Entries != 6 || result.Description == "" {
+		if !result.Valid || result.SchemaVersion != 2 || result.Entries != 2 || result.Description == "" {
 			t.Fatalf("catalog validate result = %#v", result)
 		}
 	})

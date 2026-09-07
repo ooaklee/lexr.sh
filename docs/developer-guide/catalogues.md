@@ -40,10 +40,19 @@ named adapter can create and structurally validate that exact artefact format.
 This support level describes executable CLI capability, not successful physical
 boot or installation. Keep `experimental: true` until the workflow has completed
 its hardware qualification, and record known outcomes in `compatibility_notes`
-instead of hiding them behind a generic warning. The
-`ubuntu-concept-resolute-x1e`, `elementary-os-8-1-20260219` and
-`fedora-workstation-live-44` entries are implemented and experimental. Fedora's
-compressed raw disk image and the Debian and Pop!_OS entries remain catalogue-only.
+instead of hiding them behind a generic warning. The shipped
+`ubuntu-concept-resolute-x1e` and `elementary-os-8-1-20260219` entries are
+implemented and experimental.
+
+Debian, both Fedora entries and Pop!_OS are temporarily withdrawn from the
+shipped catalogue while compatibility work continues. Their complete original
+entries are preserved in [Debian issue #50](https://github.com/ooaklee/lexr.sh/issues/50),
+[Fedora issue #17](https://github.com/ooaklee/lexr.sh/issues/17) and
+[Pop!_OS issue #48](https://github.com/ooaklee/lexr.sh/issues/48). Contributors
+can save a preserved catalogue document and select it with `--catalog` for
+investigation; catalogue-only entries still cannot be created. Before restoring
+an entry, recheck its source metadata and record the working workflow, exact
+test pairing and remaining limitations in its issue and compatibility notes.
 
 ## Userspace catalogue
 
