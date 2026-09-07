@@ -58,7 +58,7 @@ that do not apply.
   2024-09-02 testing snapshot, with live-boot media identity, a USB EFI partition,
   separate live and installed initramfs images, SP11 firmware preparation and
   retained Lexr support. Keep its Calamares installation and GRUB hand-off
-  explicit; physical qualification remains pending under
+  explicit; live boot remains unresolved and investigation is paused under
   [#50](https://github.com/ooaklee/lexr.sh/issues/50).
 
 - Add the experimental elementary OS 8.1 ARM64 image adapter with separate live

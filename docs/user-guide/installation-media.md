@@ -174,9 +174,16 @@ CDs checksum signature were verified before inspection. This entry is distinct
 from `debian-13-6-0-dvd-1`, which remains a catalogue-only Debian Installer DVD.
 
 This is an experimental implementation under
-[issue #50](https://github.com/ooaklee/lexr.sh/issues/50). Live desktop, Wi-Fi,
-input, installer startup, installation and recovery still require physical
-qualification. Ubuntu and elementary results do not qualify Debian.
+[issue #50](https://github.com/ooaklee/lexr.sh/issues/50), with investigation
+paused on 2026-09-07. The tested X1E/OLED candidate failed to reach a usable
+session: text diagnostics showed SquashFS I/O errors, and a later attempt with
+`toram` still produced a blank screen. The RAM copy could not be confirmed, so
+that result does not establish a failure while running from RAM. USB bytes and
+kernel-mounted filesystem reads passed checks from installed v23; the live-boot
+cause remains unresolved. Live desktop, Wi-Fi, input, installer startup,
+installation and recovery remain unqualified. Ubuntu and elementary results do
+not qualify Debian. The commands below reproduce the development candidate,
+not a proven installation image.
 
 From a clean Lexr source checkout containing Debian support:
 
