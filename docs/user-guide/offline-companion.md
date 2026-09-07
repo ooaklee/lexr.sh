@@ -31,8 +31,11 @@ lexr image create \
 
 The example keeps its output outside the source tree and requests the only userspace component currently accepted for on-media inclusion, as required by the limits above.
 
-For Fedora Workstation Live 44, select the Fedora catalogue entry and a
-patch-line-qualified bundle (7.2.0/sp11v19+ or 7.2.2/sp11v1+). The same
+Fedora Workstation Live 44 is temporarily withdrawn from the shipped catalogue.
+For contributor investigation, prepare `fedora-catalog.json` from the preserved
+entry document as described in the
+[Fedora instructions](installation-media.md#fedora-workstation-live-44), and
+select a patch-line-qualified bundle (7.2.0/sp11v19+ or 7.2.2/sp11v1+). The same
 companion flags activate its native RPM path:
 
 ```sh
@@ -40,6 +43,7 @@ mkdir -p ../lexr-build
 KERNEL_BUNDLE=/path/to/verified-patch-line-kernel-bundle
 
 lexr image create \
+  --catalog fedora-catalog.json \
   --catalog-id fedora-workstation-live-44 \
   --kernel-dir "$KERNEL_BUNDLE" \
   --companion-source-dir . \

@@ -59,11 +59,15 @@ release. Restricted platform firmware is not downloaded or redistributed; it
 must come from an authorised Windows installation on the same device through
 the private hand-off workflow.
 
-The `ubuntu-concept-resolute-x1e`, `elementary-os-8-1-20260219` and
-`fedora-workstation-live-44` entries have implemented image adapters.
-Debian, Pop!_OS, and Fedora's
-compressed raw disk entry are `catalog-only`: they are discoverable metadata,
-not buildable promises. Fedora's custom live and installed path is scoped to
+The shipped `ubuntu-concept-resolute-x1e` and `elementary-os-8-1-20260219`
+entries have implemented image adapters. Debian, both Fedora entries and
+Pop!_OS are temporarily withdrawn pending compatibility work; their original
+entries are preserved in [#50](https://github.com/ooaklee/lexr.sh/issues/50),
+[#17](https://github.com/ooaklee/lexr.sh/issues/17) and
+[#48](https://github.com/ooaklee/lexr.sh/issues/48), respectively.
+
+The experimental Fedora Live adapter remains available to contributors using
+an explicit custom catalogue. Its custom live and installed path is scoped to
 X1E/OLED. Its X1P/LCD entry retains a manifest-bound stock-kernel,
 explicit-DTB live troubleshooting path only and must not be treated as an
 installed-system promise.

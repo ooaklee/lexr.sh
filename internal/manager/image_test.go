@@ -245,6 +245,47 @@ func TestProjectKernelBundleForImageRequiresExplicitExternalProfile(t *testing.T
 	}
 }
 
+// writeCatalogOnlyFixture writes a small explicit catalogue containing one
+// catalog-only entry so refusal tests do not depend on the shipped inventory.
+func writeCatalogOnlyFixture(t *testing.T) string {
+	t.Helper()
+
+	const fixture = `{
+  "schema_version": 2,
+  "description": "Test fixture with one catalog-only entry.",
+  "entries": [
+    {
+      "id": "fixture-catalog-only-iso",
+      "name": "Fixture Catalog-Only ISO",
+      "distribution": "Fixture",
+      "release": "1.0",
+      "filename": "fixture-catalog-only-1.0.iso",
+      "architecture": "arm64",
+      "artifact_kind": "iso",
+      "url": "https://example.com/fixtures/fixture-catalog-only-1.0.iso",
+      "homepage": "https://example.com/fixtures/",
+      "adapter": "none",
+      "support_level": "catalog-only",
+      "experimental": true,
+      "mutable": false,
+      "checksum": {
+        "algorithm": "sha256",
+        "value": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      "compatibility_notes": [
+        "No lexr image adapter is implemented yet for this fixture entry."
+      ],
+      "last_verified": "2026-09-01"
+    }
+  ]
+}`
+	path := filepath.Join(t.TempDir(), "catalog-only-fixture.json")
+	if err := os.WriteFile(path, []byte(fixture), 0o600); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+	return path
+}
+
 // TestImageManagerPlanValidatesCatalogueSelection verifies dry runs reject the
 // same missing, unsupported, and invalid catalogue inputs as real creation.
 func TestImageManagerPlanValidatesCatalogueSelection(t *testing.T) {
@@ -262,7 +303,7 @@ func TestImageManagerPlanValidatesCatalogueSelection(t *testing.T) {
 	t.Run("catalogue-only entry", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := newImagePlanTestManager().Plan(CreateImageRequest{CatalogID: "debian-13-6-0-dvd-1", Output: "/output/result.iso"})
+		_, err := newImagePlanTestManager().Plan(CreateImageRequest{CatalogPath: writeCatalogOnlyFixture(t), CatalogID: "fixture-catalog-only-iso", Output: "/output/result.iso"})
 		if err == nil || !strings.Contains(err.Error(), "catalog-only and cannot yet be created") {
 			t.Fatalf("Plan(catalogue-only entry) error = %v", err)
 		}
@@ -355,14 +396,16 @@ func TestImageManagerPlanRejectsNonPortableISOOutput(t *testing.T) {
 
 // TestImageManagerCreateRejectsCatalogOnlyEntryBeforeExecution verifies an image
 // listed for discovery alone cannot reach download or remaster execution.
+// It uses an explicit fixture because no shipped entry is catalog-only.
 func TestImageManagerCreateRejectsCatalogOnlyEntryBeforeExecution(t *testing.T) {
 	t.Parallel()
 
 	loader := catalog.NewLoader(lexr.CatalogFS(), "supported-isos.json")
 	manager := NewImageManager(loader, io.Discard)
 	_, err := manager.Create(context.Background(), CreateImageRequest{
-		CatalogID: "debian-13-6-0-dvd-1",
-		Output:    filepath.Join(t.TempDir(), "output.iso"),
+		CatalogPath: writeCatalogOnlyFixture(t),
+		CatalogID:   "fixture-catalog-only-iso",
+		Output:      filepath.Join(t.TempDir(), "output.iso"),
 	})
 	if err == nil || !strings.Contains(err.Error(), "catalog-only and cannot yet be created") {
 		t.Fatalf("Create(catalog-only) error = %v", err)

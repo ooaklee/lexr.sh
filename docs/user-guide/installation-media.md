@@ -3,8 +3,9 @@
 Lexr turns a supported upstream image into live media with the selected Surface
 Pro 11 kernel on a structurally validated boot path. It checks that result
 before it can be written to a reviewed removable device. This page covers the
-implemented Ubuntu Concept, elementary OS and Fedora Workstation Live adapters, from image
-creation to a verified USB write and the physical test which must follow.
+shipped Ubuntu Concept and elementary OS entries, from image creation to a
+verified USB write and the physical test which must follow. Fedora contributor
+instructions use a custom catalogue while its shipped entries are withdrawn.
 
 > [!CAUTION]
 > All implemented adapters remain experimental. `implemented` means Lexr can
@@ -32,7 +33,7 @@ described here.
 ## Prerequisites and limits
 
 - The shortest command selects `ubuntu-concept-resolute-x1e` and the latest candidate kernel release. Those packages become trusted only after their publisher checksums and measured contents pass verification.
-- Fedora Workstation Live 44 must be selected explicitly and requires a patch-line-qualified verified Surface kernel bundle: 7.2.0/sp11v19+ or 7.2.2/sp11v1+. Its custom live and installed-system path is limited to X1E/OLED; X1P/LCD has a stock-kernel live troubleshooting entry only and must not be installed from this adapter.
+- Fedora Workstation Live 44 requires an explicit custom catalogue and a patch-line-qualified verified Surface kernel bundle: 7.2.0/sp11v19+ or 7.2.2/sp11v1+. Its custom live and installed-system path is limited to X1E/OLED; X1P/LCD has a stock-kernel live troubleshooting entry only and must not be installed from this adapter.
 - Structural validation is a publication gate, not a substitute for booting the media on a Surface Pro 11. Disable Secure Boot before using the unsigned custom kernel, and treat an actual device boot as the final compatibility gate.
 - Every current catalogue entry still needs complete end-to-end testing. Ubuntu's tested X1E/OLED live desktop and Wi-Fi result does not qualify installation, other models or other kernel versions. The implemented entries remain runnable so contributors can reproduce and improve them.
 - The pre-write router accepts only the implemented Lexr Ubuntu Casper, elementary Casper and Fedora Live outputs after their adapter-owned structural validators pass. Compressed raw disk images use a different partition and boot model and need a separate adapter.
@@ -167,13 +168,21 @@ after installation. Avoid restarting the audio DSP while using a live USB root.
 
 ### Fedora Workstation Live 44
 
-Select Fedora's implemented ARM64 Live ISO explicitly and provide either a
-local patch-line-qualified bundle or a corresponding verified release:
+Both Fedora entries are temporarily withdrawn from the shipped catalogue while
+the boot failure in [issue #17](https://github.com/ooaklee/lexr.sh/issues/17)
+remains unresolved. The adapter is retained for contributor investigation.
+Save the complete preserved JSON catalogue document from that issue as
+`fedora-catalog.json`, review its historical source metadata, and validate it
+before selecting the Live ISO. The raw disk entry has no image adapter.
+Provide either a local patch-line-qualified bundle or a corresponding verified
+release:
 
 ```sh
 KERNEL_BUNDLE=/path/to/verified-patch-line-kernel-bundle
 
+lexr catalog validate fedora-catalog.json
 lexr image create \
+  --catalog fedora-catalog.json \
   --catalog-id fedora-workstation-live-44 \
   --kernel-dir "$KERNEL_BUNDLE" \
   --output lexr-fedora-44-sp11-7.2.2-v1.iso
@@ -187,7 +196,7 @@ Without either flag, Lexr selects the latest candidate release; the Fedora
 adapter still rejects an unknown patch line, a generation below that line's
 floor, or an incomplete bundle.
 
-The catalogue supplies Fedora's publisher SHA-256. The adapter accepts the
+The preserved catalogue supplies Fedora's recorded publisher SHA-256. The adapter accepts the
 explicit 7.2.0/sp11v19 and 7.2.2/sp11v1 lines, applies each line's generation
 floor, and rejects unknown, mixed, or incomplete ABIs. Secure Boot must be
 disabled for the unsigned custom Stubble kernel. X1P custom Stubble auto-DTB selection and
