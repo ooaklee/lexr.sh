@@ -1,9 +1,10 @@
 # Arch Linux ARM implementation status
 
 Arch work is tracked in [issue #52](https://github.com/ooaklee/lexr.sh/issues/52).
-The source catalogue and boot configuration foundation are implemented. The
-complete image builder, installer and independent image validator remain in
-development; the catalogue entry deliberately rejects `image create`.
+The experimental adapter builds a terminal live ISO from a signed, pinned Arch
+Linux ARM rootfs and a fixed package set. It uses native pacman registration,
+separate mkinitcpio configurations and direct ARM64 GRUB. No desktop is selected.
+The reviewed installer and hardware qualification remain in development.
 
 ## Reuse and distribution boundaries
 
@@ -43,13 +44,27 @@ installing them into the isolated test root.
 | `mkinitcpio-archiso` | `73-1` | `d0d933fd5815c4a6e48d210f5a489e76d5a8391c0c00ea447de1615cc4de42eb` | Bootstrap |
 | `linux-firmware-qcom` | `20260810-2` | `5cf7ac0a7150f6674ba2b9d041693a3c12d1ba9fd0b83abf2b2331ea6da543ed` | Bootstrap |
 | `archinstall` | `4.4-1` | `c92806ea459cf705e4b06f2fcbc1b3bf3f71ecb6e70b9c0ed0da735538b87a88` | Inspection only |
-| `arch-install-scripts` | `31-2` | `9f346dfa37925779f228855ef05742749ffdb0753be4c43ad87b2659576a46de` | Inspection only |
+| `arch-install-scripts` | `31-2` | `9f346dfa37925779f228855ef05742749ffdb0753be4c43ad87b2659576a46de` | Terminal live image |
 
-These records describe the investigated inputs, not a complete package lock for
-a distributable desktop image. Additional packages require the same version,
-digest, signature and retention evidence. Keep native package licences and
-corresponding source obligations with published images; third-party hook code
-is supplied by its package, not copied into Lexr's Go source.
+The complete terminal package set is recorded in
+`internal/image/archlinux/packages.lock.json`. Each archive was checked against
+its repository SHA-256 and independently verified with the Arch Linux ARM
+signing fingerprint before intake. The builder verifies the locked digest,
+size and detached signature again. An unavailable pinned version is an error;
+a newer package is not substituted. Mirror repository metadata is not treated
+as a signed authority. Native package licences remain in the filesystem.
+
+The root is extracted with libarchive ownership, ACL and xattr preservation in
+a Linux filesystem. Build chroots have no network or host disks. The coherent
+Debian kernel payload is repackaged as `lexr-kernel-sp11` and registered by native
+pacman, replacing the generic kernel only inside this disposable build root.
+Its scriptlet rebuilds the installed-system initramfs, without changing GRUB or
+NVRAM. A cross-ABI upgrade is deliberately unsupported until retention is ready.
+
+The terminal account is `arch`, with tty1 autologin and passwordless sudo.
+NetworkManager is enabled; SSH is disabled, stock credentials are removed and
+private signing keys, machine IDs and host keys are not shipped. The setup menu
+provides networking, inspection and the guide; it has no disk installation action.
 
 ## GRUB and installed-system direction
 
@@ -92,9 +107,13 @@ Linux filesystem. It checks both generated initrds, required module objects and
 firmware, live-hook separation, GRUB syntax and the EFI machine type. Container
 results do not establish Surface boot or installation success.
 
-Before making the catalogue entry usable, finish the builder and independent
-validator, preserve archive ownership/capabilities, register the kernel with
-pacman, implement updates with a retained verified ABI for recovery, assemble
-the desktop and companion, and implement the reviewed installation hand-off.
-Then create the ISO with Lexr, validate and write/read back the USB with Lexr,
-and qualify live boot and installation alongside existing OSes on hardware.
+The independent validator reads a private completed-ISO snapshot with trusted
+container tools and never chroots into the inspected image. It checks the actual
+GPT/El Torito extent, EFI machine type and embedded GRUB bootstrap, media label,
+final squashfs checksum, exact kernel/module/DTB bytes, early dependency closures,
+firmware, terminal configuration, native pacman inventory and retained companion.
+
+Next qualify the USB terminal, keyboard and Wi-Fi on the Surface. The installer
+must then add explicit partition selection, shared-ESP preservation, a reachable
+GRUB entry and recoverable kernel updates. Live boot success must not be reported
+as installed-system or multi-boot qualification.

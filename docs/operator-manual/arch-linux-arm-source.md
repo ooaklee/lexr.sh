@@ -1,9 +1,52 @@
 # Pin an Arch Linux ARM source
 
 The Arch Linux ARM entry records an authenticated root filesystem snapshot.
-It is currently **catalogue-only**: `image create` does not yet turn it into
-bootable installation media. Follow [issue #52](https://github.com/ooaklee/lexr.sh/issues/52)
-for the live-image adapter and GRUB installation alongside existing OSes.
+The experimental Arch adapter turns it into a **terminal live ISO** with the
+custom Surface kernel, public Wi-Fi firmware, networking tools and optional
+Lexr companion. No desktop is preselected. Physical boot qualification and the
+reviewed installation flow alongside existing OSes remain tracked in
+[issue #52](https://github.com/ooaklee/lexr.sh/issues/52).
+
+## Create and boot the terminal image
+
+Use a local coherent kernel bundle and select the Surface variant explicitly:
+
+```sh
+lexr image create \
+  --catalog-id arch-linux-arm-aarch64-20260805 \
+  --source ./ArchLinuxARM-aarch64-latest.tar.gz \
+  --kernel-dir ./kernel-v23 \
+  --kernel-profile surface-pro-11-x1e-oled \
+  --companion-source-dir ./lexr.sh \
+  --output ./lexr-arch-terminal-v23.iso
+
+lexr image validate ./lexr-arch-terminal-v23.iso
+```
+
+Docker and the host Go toolchain are needed when building with the companion.
+The source tree must match the Lexr binary's clean revision. Image creation
+installs a fixed package snapshot in an offline build container and publishes
+only after independent validation. Retain the source and package cache if you
+need to rebuild after the rolling mirror removes those versions.
+
+Write the validated output using Lexr's [USB workflow](../user-guide/installation-media.md).
+Disable Secure Boot for the unsigned custom kernel and external DTB, then
+select the GRUB entry matching your X1E/OLED or X1P/LCD device. The local live
+account `arch` has passwordless sudo. From the terminal run:
+
+```sh
+lexr-arch-setup
+```
+
+The menu offers hardware checks, NetworkManager's `nmtui`, package signing key
+initialisation, the getting-started guide and the bundled Lexr. Exit to the shell
+to customise your experience. The guide is also in the live account's home
+folder. Changes are in a temporary RAM overlay and disappear after reboot.
+
+This first image provides a boot qualification and customisation environment.
+It does not yet provide a reviewed disk installation command. No setup menu
+option partitions a disk or selects a desktop. Multi-boot installation and
+kernel updates retaining a previous verified ABI require further qualification.
 
 ## Inspect the accepted snapshot
 
@@ -43,14 +86,12 @@ The inspected archive identifies itself as `archarm`, includes AArch64 ELF
 executables, mkinitcpio 41-4, pacman and 165 installed package records. Its
 WCN7850 Wi-Fi firmware database is present, and Lexr's existing SP11 parser
 successfully extracted its board record. This is source evidence, not a Wi-Fi
-hardware test. GRUB, a live filesystem discovery
-mechanism, desktop/installer packages and the custom-kernel installation
-lifecycle still need to be prepared and tested. The kernel alone does not
-supply firmware files.
+hardware test. The adapter adds GRUB, live filesystem discovery and the locked
+terminal packages. The kernel alone does not supply firmware files.
 
 The [Arch implementation status](../developer-guide/arch-linux-arm.md) records
 the signed GRUB/live-hook package audit and the separate boot configurations
-being tested with v23. Those bootstrap checks do not enable image creation.
+used with v23, plus the completed-image checks required before publication.
 
 ## Verify a retained copy
 
@@ -92,9 +133,9 @@ or update the expected hash. Existing older ISO/raw cache files are copied to
 the digest-specific location only when they match the selected pin, allowing
 offline reuse. Their original files are retained for older Lexr versions.
 
-Keep the versions, signatures and digests of packages added through pacman in
-the future image build's provenance. A fixed rootfs with an unconstrained
-`pacman -Syu` does not describe a reproducible final package set.
+The adapter embeds a reviewed package lock with versions, SHA-256, sizes and
+detached signatures. It uses native pacman to verify those local signed archives
+in the build container. It does not query rolling repositories during assembly.
 
 See [catalogue maintenance](../developer-guide/catalogues.md) for schema and
 support-state rules. This source audit establishes no Surface live boot,

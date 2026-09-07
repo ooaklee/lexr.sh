@@ -163,8 +163,8 @@
       "artifact_kind": "rootfs-tar-gz",
       "url": "https://ca.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
       "homepage": "https://archlinuxarm.org/about/downloads",
-      "adapter": "none",
-      "support_level": "catalog-only",
+      "adapter": "archlinux-arm-live",
+      "support_level": "implemented",
       "experimental": true,
       "mutable": true,
       "checksum": {
@@ -172,7 +172,7 @@
         "value": "42a4eeaa038994ffd31fa173256ef2f0ef511358eeb41b9ea1f8626391b9b319"
       },
       "compatibility_notes": [
-        "Root filesystem archive, not a bootable ISO or disk image. Arch live-media creation and GRUB installation alongside other OSes are tracked in Lexr issue #52.",
+        "Source is a root filesystem archive. The Arch adapter builds an experimental terminal live ISO with the Surface kernel, networking and Lexr; no desktop is selected. The reviewed installation flow alongside existing OSes remains tracked in issue #52.",
         "The URL is rolling; this entry accepts only the SHA-256-pinned 2026-08-05 snapshot. If latest changes, verification must fail until a separately authenticated snapshot is deliberately selected.",
         "Maintainer authenticated the archive signature on 2026-09-06 against Arch Linux ARM build key 68B3537F39A313B3E574D06777193F152BDBE6A6 before recording this SHA-256.",
         "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."

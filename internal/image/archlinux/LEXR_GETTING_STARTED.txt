@@ -1,0 +1,107 @@
+LEXR GETTING STARTED — ARCH LINUX ARM ON SURFACE PRO 11
+
+This experimental USB boots a terminal using the custom Surface kernel. Choose
+X1E/OLED or X1P/LCD in GRUB to match your device. Disable Secure Boot for this
+unsigned kernel and external device tree. Hardware qualification is pending.
+
+The local live account is arch, with passwordless sudo. Nothing in this guide
+installs Arch or erases a disk. Changes to the live session disappear at reboot.
+No desktop or window manager is preselected: you choose your own environment.
+
+1. START THE TERMINAL SETUP FLOW
+
+  lexr-arch-setup
+
+The menu offers kernel/network/storage checks, networking, package signing key
+initialisation, this guide and the included Lexr. Return to the shell at any time.
+For inspection without interactive prompts:
+
+  lexr-arch-setup --status
+
+2. CONNECT TO YOUR NETWORK
+
+Public Surface Wi-Fi board data is prepared before boot. Use NetworkManager's
+terminal interface to choose a network; enter its password in the prompt:
+
+  sudo nmtui
+
+Or inspect the connection with:
+
+  nmcli device status
+  nmcli device wifi list
+
+USB phone tethering is another option. If no wireless interface appears, collect:
+
+  uname -r
+  sudo dmesg | grep -Ei 'ath12k|firmware|wcn7850'
+
+The kernel should report the custom ABI, for example 7.2.0-jg-0sp11v23-qcom-x1e.
+Report the selected GRUB entry and output at https://github.com/ooaklee/lexr.sh/issues/52
+
+3. USE THE LEXR INCLUDED ON THIS USB
+
+  COMPANION_ROOT=/run/archiso/bootmnt/sp11/companion
+  mkdir -p "$HOME/.local/bin"
+  install -m 0755 "$COMPANION_ROOT/bin/linux-arm64/lexr" "$HOME/.local/bin/lexr"
+  "$HOME/.local/bin/lexr" --help
+
+The same bundle is retained at /usr/share/lexr/arch-media/sp11/companion.
+Copy to your home directory before running it; temporary mounts can be noexec.
+The bundle includes matching source, catalogues, notices and any selected
+redistribution-eligible userspaces. Arch-specific userspace installation remains
+under qualification; do not run Debian package installation commands on Arch.
+
+To install the latest released Lexr when connected to the internet:
+
+  curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh
+
+The release installer verifies its checksum and puts Lexr on your PATH. A released
+version can be older than the development companion included on this test image.
+
+4. CUSTOMISE YOUR LIVE SESSION
+
+The image contains normal Arch Linux ARM package tools. Initialise signing keys
+before installing packages in a fresh live session:
+
+  sudo pacman-key --init
+  sudo pacman-key --populate archlinuxarm
+
+Review a full repository update when adding packages:
+
+  sudo pacman -Syu
+
+Choose your own editor, terminal tools, window manager or desktop afterwards.
+The custom kernel is registered as lexr-kernel-sp11; keep it and its matching
+modules/DTBs. The generic linux-aarch64 package is not a substitute for this
+Surface kernel. A repository update in the RAM overlay does not change the
+kernel that GRUB loads from the USB. Reboot returns to the original image.
+
+5. INSTALLATION STATUS
+
+This first image is a terminal live environment for boot qualification and
+customisation. It includes arch-install-scripts, filesystem tools and ARM64
+GRUB, but the reviewed Lexr installation flow for existing multi-boot machines
+is still being implemented. Do not run an unattended whole-disk installer.
+Upstream archinstall has not been qualified for this Surface kernel/DTB flow.
+
+The planned install flow uses a root partition selected by you and preserves
+the shared EFI System Partition and other operating systems. The kernel,
+modules, matching DTB and installed-system initramfs must stay paired. The
+installed system must use arm64-efi GRUB and its own boot entry; the live archiso
+boot arguments do not belong in the installed system. These are qualification
+requirements, not completed installation instructions.
+
+References:
+  https://archlinuxarm.org/about/downloads
+  https://github.com/ooaklee/lexr.sh/issues/52
+
+6. BOOT DIAGNOSTICS
+
+The normal entry boots the terminal. The text diagnostics entry adds early
+console messages. The firmware display diagnostics entry disables the msm
+module for that boot to help investigate a display handover failure.
+
+  journalctl -b -p warning
+  sudo dmesg
+
+The live image has no SSH server enabled or personal authorisation keys.

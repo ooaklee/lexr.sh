@@ -907,7 +907,7 @@ func TestShippedCatalogContract(t *testing.T) {
 		}
 	}
 
-	if want := []string{"elementary-os-8-1-20260219", "fedora-workstation-live-44", "ubuntu-concept-resolute-x1e"}; !reflect.DeepEqual(implementedIDs, want) {
+	if want := []string{"arch-linux-arm-aarch64-20260805", "elementary-os-8-1-20260219", "fedora-workstation-live-44", "ubuntu-concept-resolute-x1e"}; !reflect.DeepEqual(implementedIDs, want) {
 		t.Fatalf("implemented IDs = %v, want %v", implementedIDs, want)
 	}
 	ubuntu, ok := loaded.Get("ubuntu-concept-resolute-x1e")

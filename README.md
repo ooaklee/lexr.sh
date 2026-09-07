@@ -45,7 +45,8 @@ redistribute restricted firmware. You can also use
 ## What works today
 
 Dedicated image adapters support the experimental Ubuntu Concept Resolute
-Desktop image, elementary OS 8.1 ARM64 and Fedora Workstation Live 44 ARM64.
+Desktop image, elementary OS 8.1 ARM64, Fedora Workstation Live 44 ARM64 and
+an Arch Linux ARM terminal live ISO.
 The custom live and installed Fedora path is limited to the Surface Pro 11 Qualcomm Snapdragon X Elite model; its X Plus
 entry is a stock-kernel, explicit-DTB live troubleshooting path only. Debian,
 Pop!_OS and Fedora's compressed raw disk image remain
@@ -64,6 +65,12 @@ test reached the emergency boot path and then a persistent black screen. That
 failure is tracked in [issue #17](https://github.com/ooaklee/lexr.sh/issues/17),
 while [issue #16](https://github.com/ooaklee/lexr.sh/issues/16) tracks the
 separate Ubuntu end-to-end qualification.
+
+The experimental [Arch terminal image](docs/operator-manual/arch-linux-arm-source.md)
+includes the custom kernel, networking tools and a terminal setup menu. Users
+choose their own desktop or window manager. Structural checks are implemented;
+Surface boot qualification and a reviewed installation flow alongside existing
+OSes remain tracked in [issue #52](https://github.com/ooaklee/lexr.sh/issues/52).
 
 Lexr can help you:
 

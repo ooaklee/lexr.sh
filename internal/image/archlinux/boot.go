@@ -1,10 +1,10 @@
-// Package archlinux defines Arch Linux ARM boot contracts. Image creation remains
-// unavailable until the complete builder and independent validator are wired in.
+// Package archlinux builds and validates terminal Arch Linux ARM live media.
 package archlinux
 
 import (
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 // abiPattern limits kernel identities used in paths and GRUB commands.
@@ -40,7 +40,7 @@ func (boot LiveBoot) Label() (string, error) {
 	if err := boot.Validate(); err != nil {
 		return "", err
 	}
-	return "LEXR_ARCH_" + boot.ImageID[:20], nil
+	return "LEXR_ARCH_" + strings.ToUpper(boot.ImageID[:20]), nil
 }
 
 // Marker returns the full-identity marker used by the GRUB bootstrap.

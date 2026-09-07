@@ -295,3 +295,29 @@ func TestDockerWorkVolumeIntegration(t *testing.T) {
 	}
 	removed = true
 }
+
+// TestOfflineArchChrootHasNoNetworkOrHostDisks confines package scriptlets to
+// a disposable filesystem while allowing their container-local mount checks.
+func TestOfflineArchChrootHasNoNetworkOrHostDisks(t *testing.T) {
+	runner := &volumeRunner{}
+	docker := NewDocker(runner)
+	volume := workVolumePrefix + "0123456789abcdef01234567"
+	if err := docker.RunOfflineChrootWorkspace(context.Background(), "arch-builder:test", t.TempDir(), volume, "bash", "-ceu", "true"); err != nil {
+		t.Fatal(err)
+	}
+	args := runner.commands[0].Args
+	joined := strings.Join(args, "\n")
+	for _, required := range []string{"--network\nnone", "--cap-add\nSYS_ADMIN", volume + ":/linux-work", "--platform\nlinux/arm64"} {
+		if !strings.Contains(joined, required) {
+			t.Errorf("missing %q: %v", required, args)
+		}
+	}
+	for _, forbidden := range []string{"--privileged", "--device\n", "/dev:/", "/var/run/docker.sock"} {
+		if strings.Contains(joined, forbidden) {
+			t.Errorf("unsafe build boundary: %q", joined)
+		}
+	}
+	if err := docker.RunOfflineChrootWorkspace(context.Background(), "image", t.TempDir(), "unrelated-volume", "true"); err == nil {
+		t.Fatal("accepted unrecognised volume")
+	}
+}

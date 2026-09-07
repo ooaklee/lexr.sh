@@ -17,6 +17,7 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/artifact"
 	"github.com/ooaklee/lexr.sh/internal/catalog"
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/image/archlinux"
 	"github.com/ooaklee/lexr.sh/internal/image/companion"
 	"github.com/ooaklee/lexr.sh/internal/image/elementary"
 	"github.com/ooaklee/lexr.sh/internal/image/fedora"
@@ -110,6 +111,8 @@ type ImageManager struct {
 	FedoraRemaster *fedora.Remasterer
 	// ElementaryRemaster performs elementary OS's Casper and GRUB transformation.
 	ElementaryRemaster *elementary.Remasterer
+	// ArchRemaster creates terminal live media from the Arch Linux ARM rootfs.
+	ArchRemaster *archlinux.Remasterer
 	// Userspace resolves optional verified offline companion releases.
 	Userspace *userspacemanager.Manager
 	// CompanionRunner probes the host Go toolchain needed only when the caller
@@ -129,6 +132,8 @@ type imageAdapter interface {
 // imageAdapterRequest carries common image inputs across the manager-to-adapter
 // boundary without exposing catalogue lookup policy to an adapter.
 type imageAdapterRequest struct {
+	// CacheDirectory selects the immutable supplemental package cache.
+	CacheDirectory string
 	// Source is a catalogue selector, override, or resolved local artefact path.
 	Source string
 	// SourceSHA256 is the effective caller or publisher SHA-256 pin.
@@ -248,6 +253,7 @@ func NewImageManager(loader catalog.Loader, out io.Writer) *ImageManager {
 		Remaster:           ubuntu.NewRemasterer(platform.NewDocker(runner), out),
 		FedoraRemaster:     fedora.NewRemasterer(platform.NewDocker(runner), out),
 		ElementaryRemaster: elementary.NewRemasterer(platform.NewDocker(runner), out),
+		ArchRemaster:       archlinux.NewRemasterer(platform.NewDocker(runner), out),
 		CompanionRunner:    runner,
 	}
 	// Companion compilation is a separate process boundary from Docker. Give
@@ -255,6 +261,7 @@ func NewImageManager(loader catalog.Loader, out io.Writer) *ImageManager {
 	manager.Remaster.Companions = companion.NewBuilder(runner)
 	manager.FedoraRemaster.Companions = companion.NewBuilder(runner)
 	manager.ElementaryRemaster.Companions = companion.NewBuilder(runner)
+	manager.ArchRemaster.Companions = companion.NewBuilder(runner)
 	return manager
 }
 
@@ -371,6 +378,7 @@ func (m *ImageManager) prepareImageOperation(request CreateImageRequest) (imageO
 		entry:   entry,
 		adapter: adapter,
 		adapterRequest: imageAdapterRequest{
+			CacheDirectory:     request.CacheDirectory,
 			Source:             sourceInput,
 			SourceSHA256:       effectiveSourceSHA256(request, entry),
 			Output:             request.Output,
@@ -459,6 +467,8 @@ func (m *ImageManager) adapterForEntry(entry catalog.Entry) (imageAdapter, error
 		return fedoraLiveImageAdapter{remasterer: m.FedoraRemaster}, nil
 	case catalog.AdapterElementaryCasper:
 		return elementaryCasperImageAdapter{remasterer: m.ElementaryRemaster}, nil
+	case catalog.AdapterArchLinuxARM:
+		return archLinuxARMImageAdapter{remasterer: m.ArchRemaster}, nil
 	default:
 		return nil, fmt.Errorf("catalog entry %q selects unavailable adapter %q", entry.ID, entry.Adapter)
 	}
