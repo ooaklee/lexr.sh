@@ -1,6 +1,6 @@
 # Install Arch Linux ARM on Surface Pro 11
 
-For a guided path from a prepared USB through the tested partition example,
+For a guided path from a prepared USB through partition selection,
 first boot and persistent multi-OS menu, start with the
 [Arch installation walkthrough](../user-guide/arch-linux-arm-quickstart.md).
 This reference covers the installation choices and qualification details.
@@ -27,17 +27,19 @@ use a whole-disk erase layout on a disk containing systems you want to keep.
 
 In **Disk configuration → Manual Partitioning**:
 
-1. Select the disk containing the ESP and your prepared Arch space.
+1. Select the disk containing your prepared Arch space.
 2. Create an ext4 partition in the free space, or select only your reserved
    partition for ext4 formatting, and assign `/`.
-3. Assign `/boot/efi` to the existing FAT ESP. Keep its EFI flag and leave
-   formatting disabled.
+3. Assign `/boot/efi` to one FAT ESP on a GPT disk. Reuse an existing ESP without
+   formatting it and keep its EFI flag. If none is available, create a FAT32 ESP
+   in free space and set its EFI flag.
 4. Leave the other OS partitions unchanged.
 5. Keep `/boot` on the root filesystem, and leave encryption and LVM disabled.
 
-The walkthrough includes the test Surface's
-[Testing/EFI/Ubuntu `/boot` partition table](../user-guide/arch-linux-arm-quickstart.md#2-select-only-the-space-reserved-for-arch).
-Its partition numbers are an example to compare against your own disk.
+The walkthrough's
+[partition table](../user-guide/arch-linux-arm-quickstart.md#2-select-only-the-space-reserved-for-arch)
+explains which partitions to create, reuse or leave unchanged. If another Linux
+installation has a separate `/boot` partition, leave that partition unchanged.
 
 Archinstall performs the disk operations you select and confirm. Lexr does not
 add a separate partition-preservation policy. Its Install preview checks
@@ -129,8 +131,9 @@ booted successfully.
 ### Add Arch to the existing GRUB menu
 
 The installer creates a separate firmware entry; it does not automatically
-add Arch to Ubuntu's menu. `BootNext` applies only to the next boot. For a
-persistent choice, select **option 7** in `lexr-arch-setup` after installation.
+add Arch to another OS's GRUB menu. `BootNext` applies only to the next boot.
+If another Linux OS is installed and you want a persistent choice in its GRUB
+menu, select **option 7** in `lexr-arch-setup` after installation.
 Mount the existing OS and its separate `/boot`, if present, before selecting
 that OS's GRUB directory. The menu previews the entry and asks before applying
 it. It does not scan or mount other OS partitions.

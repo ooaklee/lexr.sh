@@ -1,9 +1,9 @@
-# Install Arch alongside Ubuntu and Windows
+# Install Arch Linux ARM
 
 This walkthrough takes a prepared Lexr Arch Linux ARM USB through installation,
-first boot and adding Arch to your usual GRUB menu. It follows the Surface Pro
-11 **X1E/OLED** test with the **v23** kernel. The live image starts in a terminal;
-you choose whether to add a desktop later.
+first boot, with an optional step to add Arch to another OS's GRUB menu. It
+follows the Surface Pro 11 **X1E/OLED** test with the **v23** kernel. The live
+image starts in a terminal; you choose whether to add a desktop later.
 
 Keep the USB available until the installed system boots successfully. The
 [installation reference](../operator-manual/arch-linux-arm-install.md) covers
@@ -44,31 +44,32 @@ sudo archinstall
 ```
 
 Option **6** in `lexr-arch-setup` opens the same installer.
-Choose **Disk configuration → Manual Partitioning**. The table below is the
-example from the test Surface, where space was already reserved for Arch.
-Match each partition's purpose and size on your own device before proceeding;
-partition numbers and labels can differ.
+Choose **Disk configuration → Manual Partitioning**. Select partitions by their
+purpose and size on your own disk. You can install Arch on its own or alongside
+other operating systems; an existing Linux installation is not required.
 
-| Partition on the test Surface | Mount point | Format? |
+| Partition | Mount point | Format? |
 | --- | --- | --- |
-| `/dev/nvme0n1p7` — reserved **Testing** partition, about 65 GB / 60.6 GiB | `/` | **Yes, ext4 — erases this partition** |
-| `/dev/nvme0n1p1` — existing FAT EFI System Partition | `/boot/efi` | **No** |
-| `/dev/nvme0n1p6` — Ubuntu's separate `/boot` | Leave unassigned | **No** |
-| All other partitions, including Ubuntu and Windows | Leave unassigned | **No** |
+| New partition in free space, or a partition you have reserved for Arch | `/` | **Yes, ext4 — erases this partition** |
+| Existing EFI System Partition (ESP), if present | `/boot/efi` | **No — reuse it** |
+| New ESP, only if you do not already have one to use | `/boot/efi` | **Yes, FAT32** |
+| Other partitions you want to keep, if any | Leave unassigned | **No** |
 
-The **Testing** label may disappear after formatting. Use the inspected device
-identity and size to recognise it. If you have not prepared space yet, follow
+Use one ESP on a GPT disk: reuse the existing one or create one in free space
+if needed. Keep or set its EFI flag. It needs at least 32 MiB free for Lexr's
+boot files. If you have not prepared space yet, follow
 [Prepare space and select the layout](../operator-manual/arch-linux-arm-install.md#prepare-space-and-select-the-layout)
 before installing.
 
-Keep Arch's `/boot` inside its new ext4 root. **Do not assign Ubuntu's `p6` to
-Arch's `/boot`.** Reuse the existing ESP without formatting it or removing its
-EFI flag. Leave encryption and LVM disabled for this Surface boot flow.
+Keep Arch's `/boot` inside its new ext4 root. If another Linux installation has
+a separate `/boot` partition, leave that partition unassigned and unchanged.
+Leave encryption and LVM disabled for this Surface boot flow.
 
-Before confirming installation, check that **only the partition reserved for
-Arch will be formatted**. Do not select a whole-disk erase layout. Archinstall
-executes the layout you confirm; Lexr does not protect other partitions from an
-incorrect formatting choice.
+Before confirming installation, check that **only the Arch root and any newly
+created ESP will be formatted**. Do not format an existing ESP. If you want to
+keep any existing data or operating systems, do not select a whole-disk erase
+layout. Archinstall executes the layout you confirm; Lexr does not protect
+other partitions from an incorrect formatting choice.
 
 ## 3. Keep the Surface defaults and choose your account
 
@@ -122,16 +123,18 @@ Check that `BootNext` now shows the number you selected, then reboot:
 sudo reboot
 ```
 
-This selects Arch for **one boot** without changing your normal Ubuntu/Windows
+This selects Arch for **one boot** without changing your existing firmware
 BootOrder. The firmware consumes `BootNext` after use; it does not add an entry
-to Ubuntu's GRUB menu. See the [efibootmgr documentation](https://github.com/rhboot/efibootmgr)
+to another OS's GRUB menu. See the [efibootmgr documentation](https://github.com/rhboot/efibootmgr)
 and the persistent-menu step below.
 
 If **Lexr Arch Linux ARM** is missing, do not guess a boot number. Keep the USB
-available and use [Add Arch to your usual GRUB menu](#6-add-arch-to-your-usual-grub-menu)
-from the existing Linux OS, or option **7** on a newer live image with the required
-filesystems mounted. A missing menu entry alone does not mean Arch needs
-reinstalling.
+available. If another installed Linux OS has a GRUB menu, use
+[optional GRUB registration](#6-optionally-add-arch-to-another-grub-menu)
+from that OS, or option **7** on a newer live image with the required filesystems
+mounted. Otherwise, report the firmware-entry output in
+[issue #52](https://github.com/ooaklee/lexr.sh/issues/52) for help. A missing menu
+entry alone does not mean Arch needs reinstalling.
 
 ## 5. Check the installed system
 
@@ -154,7 +157,7 @@ For the tested v23 image, check these results:
 | Check | Expected result |
 | --- | --- |
 | `uname -r` | `7.2.0-jg-0sp11v23-qcom-x1e` |
-| Root filesystem | Your installed Arch partition with `ext4`; `/dev/nvme0n1p7` on the test Surface |
+| Root filesystem | The partition you selected for Arch, with `ext4` |
 | Kernel package | `lexr-kernel-sp11 7.2.0_jg_0sp11v23-1` |
 | Network | Reconnect through NetworkManager; live Wi-Fi credentials are not copied |
 
@@ -164,11 +167,11 @@ Include the relevant results when reporting a problem in
 [issue #52](https://github.com/ooaklee/lexr.sh/issues/52). If a later image uses a
 different custom ABI, compare against that image's kernel version.
 
-## 6. Add Arch to your usual GRUB menu
+## 6. Optionally add Arch to another GRUB menu
 
-Do this once for persistent selection alongside the existing Ubuntu and Windows
-entries. The command also works with an already installed Lexr Arch candidate;
-it does not require reinstalling Arch.
+This step is optional. Use it if another installed Linux OS owns the GRUB menu
+you normally use and you want Arch listed there. The command also works with an
+already installed Lexr Arch candidate; it does not require reinstalling Arch.
 
 Boot the existing Linux OS that owns your usual GRUB menu. Use an updated Lexr
 with `kernel boot register-arch` (introduced in [PR #55](https://github.com/ooaklee/lexr.sh/pull/55));

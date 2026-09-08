@@ -18,7 +18,7 @@ verification, reconnect the ejected USB and boot the entry for your device.
 The tested X1E/OLED route is: connect with sudo nmtui, run sudo archinstall,
 review Manual Partitioning, then choose Exit archinstall after completion.
 Section 4 covers the partition choices, first boot and a persistent GRUB entry.
-The partition example and complete online walkthrough are at:
+The partition guidance and complete online walkthrough are at:
   https://github.com/ooaklee/lexr.sh/blob/main/docs/user-guide/arch-linux-arm-quickstart.md
 Until these changes merge, use that path on the branch in PR #55 instead:
   https://github.com/ooaklee/lexr.sh/pull/55
@@ -102,11 +102,12 @@ In the menus:
 
   - Set your language, keyboard layout, locale, hostname and timezone.
   - Open Disk configuration and select Manual Partitioning.
-  - Select the disk containing your existing ESP and prepared Arch space.
+  - Select the disk containing your prepared Arch space.
   - Create one ext4 partition in the free space, or format only your reserved
     partition as ext4, and mount it at /.
-  - Assign /boot/efi to the existing FAT EFI System Partition on a GPT disk. Keep its
-    existing status and EFI flag. Do NOT mark it for formatting.
+  - Assign /boot/efi to one FAT EFI System Partition on a GPT disk. If an ESP
+    already exists, keep its EFI flag and do NOT mark it for formatting. If
+    none is available, create a FAT32 ESP in free space and set its EFI flag.
   - Leave every other existing partition unchanged and without a mountpoint.
   - Keep /boot on the ext4 root, and leave LVM and encryption disabled.
     These are requirements of the current Surface boot payload.
@@ -129,22 +130,21 @@ In the menus:
     power-profiles-daemon. This is optional and can also be installed later.
   - Review the complete configuration, select Install and confirm it.
 
-Example from the test Surface, with about 65 GB / 60.6 GiB reserved for Arch:
+Select partitions by purpose and size on your own disk. An existing Linux
+installation is optional; Arch can be installed on its own or alongside others.
 
   Partition                         Mount point        Format?
-  /dev/nvme0n1p7 — Testing           /                  YES, ext4
-  /dev/nvme0n1p1 — existing FAT ESP  /boot/efi           NO
-  /dev/nvme0n1p6 — Ubuntu /boot      Leave unassigned    NO
-  Every other partition             Leave unassigned    NO
+  New or reserved Arch root         /                  YES, ext4
+  Existing ESP, if present           /boot/efi           NO
+  New ESP, only if one is needed     /boot/efi           YES, FAT32
+  Other partitions to keep, if any   Leave unassigned    NO
 
-These device numbers are an example. Check your own disk before selecting them:
-
-  lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINTS
-
-Formatting Testing erases its contents; its label may disappear afterwards.
-Do not use Ubuntu's separate /boot partition (p6 in this example) for Arch.
-Before the final confirmation, check that ONLY your reserved Arch partition
-will be formatted. Keep GRUB, the Surface kernel and NetworkManager; leave
+Use one ESP: either reuse an existing one or create a new one. Formatting the
+Arch root erases its contents. If another Linux installation has a separate
+/boot partition, leave it unassigned and unchanged; Arch's /boot stays on its root.
+Before the final confirmation, check that ONLY the Arch root and any newly
+created ESP will be formatted. Never format an existing ESP you are reusing.
+Keep GRUB, the Surface kernel and NetworkManager; leave
 Profile unset or choose Minimal if you want to customise from a terminal.
 
 If Install reports an incompatible Surface boot layout, correct the highlighted
@@ -202,10 +202,11 @@ BootNext selects one boot only and preserves your normal BootOrder:
 
 ADD ARCH TO AN EXISTING GRUB MENU (OPTIONAL)
 
-The firmware entry above does not add Arch to Ubuntu's existing GRUB menu.
-BootNext selects Arch for one boot only. For a persistent menu choice, use
-option 7 in lexr-arch-setup after installation, or run the commands below from
-the existing Linux OS. This needs a Lexr build containing register-arch; the
+The firmware entry above does not add Arch to another OS's GRUB menu.
+BootNext selects Arch for one boot only. If another Linux OS is installed and
+you want a persistent choice in its GRUB menu, use option 7 in lexr-arch-setup
+after installation, or run the commands below from that OS.
+This needs a Lexr build containing register-arch; the
 older candidate USB's companion does not have this command.
 
 From the existing OS, inspect lsblk -f and mount the installed Arch partition
@@ -231,7 +232,7 @@ automatically mount other OS partitions.
 
 Lexr verifies Arch's receipt, mounted partition identities and ARM64 EFI loader,
 then previews and adds a custom.cfg entry that opens Arch's own GRUB menu.
-Ubuntu/Windows entries, EFI files and BootOrder are unchanged. No update-grub
+Existing menu entries, EFI files and BootOrder are unchanged. No update-grub
 is needed for the supported 41_custom layout; repeating the command is a no-op.
 Do not run registration during another GRUB update. An unknown custom.cfg
 loading layout or a loader changed since installation requires review first.
@@ -250,7 +251,7 @@ After booting the installed system:
 
 For the tested v23 image, expect:
   Kernel: 7.2.0-jg-0sp11v23-qcom-x1e
-  Root: your installed ext4 partition (/dev/nvme0n1p7 on the test Surface)
+  Root: the partition you selected for Arch, with ext4
   Package: lexr-kernel-sp11 7.2.0_jg_0sp11v23-1
 An overlay root means you are still on the live USB. For a different image ABI,
 compare these results with that image's kernel version and keep the results
