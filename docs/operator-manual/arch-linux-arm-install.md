@@ -213,6 +213,14 @@ The installed v23 test already had PipeWire and WirePlumber running: its missing
 audio support was the Surface firmware and FullIO configuration, not an x86
 sound-server selection. Audio remains optional for terminal installations.
 
+Include `rtkit` and `alsa-utils` when completing the PipeWire setup. The
+[PipeWire realtime module](https://docs.pipewire.org/page_module_rt.html) can use
+RTKit to request realtime scheduling when the session lacks direct permission.
+After installing it, log out and back in, or restart the user audio services
+as shown in the retained guide. KDE users can add `plasma-pa` for sound settings
+and volume controls. These packages complement the Surface firmware and UCM;
+they do not replace them or establish that playback is free of static or pops.
+
 The retained `/usr/share/lexr/LEXR_GETTING_STARTED.txt` contains the full
 copy-and-run commands, dry-runs and post-install checks. Open it in your editor
 or run `cat /usr/share/lexr/LEXR_GETTING_STARTED.txt`. On the live USB, the guide
@@ -277,7 +285,9 @@ NVMe disk. The reported command output confirms:
 | Touchscreen | Maintainer confirmed working in the installed system |
 | Pen | Maintainer confirmed pen input after Lexr installed the paired IPTSD portable userspace |
 | Audio userspace files | Native `bf617c5` build passed dry-run and installed FullIO, preserving the original selector link in backup and the shared Qualcomm profile unchanged |
-| Audio early firmware | Six existing same-device aDSP files and FullIO topology verified by hash in the rebuilt installed initramfs; GRUB unchanged; playback/microphone testing pending reboot |
+| Audio early firmware | Six existing same-device aDSP files and FullIO topology verified by hash in the rebuilt installed initramfs; GRUB unchanged; audio DSP and ALSA card present after reboot |
+| Stereo playback | Maintainer heard both channel tests, but reported static/pops; clean playback and microphone testing remain pending |
+| Audio scheduling and controls | Missing `rtkit`, `alsa-utils` and `plasma-pa` installed; restarted PipeWire uses realtime data threads; sampled error counters were zero before and after; audible-quality retest pending |
 | Wi-Fi | Maintainer confirmed connected after reconnecting |
 | Power profiles | Standard daemon enabled; power-saver, balanced and performance each verified against kernel readback; original low-power setting restored |
 | Persistent entry in Ubuntu GRUB | Native `241f119` preview/apply/repeat passed; existing EFI files, both generated menus, Arch initramfs and firmware variables unchanged; selecting the new entry on hardware pending |

@@ -100,6 +100,9 @@ that do not apply.
   with explicit private firmware prerequisites. Include locally installed Surface
   firmware and topology in the installed initramfs before early probing, keeping
   the live configuration separate ([#52](https://github.com/ooaklee/lexr.sh/issues/52)).
+  Document RTKit, ALSA diagnostics and optional Plasma sound controls for the
+  installed audio session, with audible quality recorded separately from
+  device detection and playback error counters.
 
 - Restrict the Arch Surface installer to Adreno Mesa/Freedreno graphics and
   effective AArch64 repositories, check selected profile packages before

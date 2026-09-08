@@ -353,13 +353,24 @@ was confirmed on installed X1E/OLED v23 after this command. IPTSD's log may say
 
 Audio (FullIO topology and ALSA UCM)
 
-Archinstall's PipeWire option is suitable. For a system where it was not selected,
-install the audio server and diagnostic tools, then log out and back in:
+Archinstall's PipeWire option is suitable. Install any missing audio components,
+including realtime scheduling and diagnostic tools, then log out and back in:
 
-  sudo pacman -Syu --needed pipewire pipewire-alsa pipewire-pulse wireplumber alsa-utils
+  sudo pacman -Syu --needed pipewire pipewire-alsa pipewire-pulse wireplumber rtkit alsa-utils
 
-KDE users can optionally install plasma-pa for a volume widget. A widget does
-not supply the Surface firmware or configuration. Install the paired audio set:
+rtkit lets PipeWire request realtime scheduling through the system bus. If the
+audio services were already running, logging out and back in lets them use it.
+To use it immediately without logging out (this interrupts current audio), run
+as your normal user:
+
+  systemctl --user restart pipewire.service pipewire-pulse.service wireplumber.service
+
+KDE users can optionally install the sound settings and volume widget:
+
+  sudo pacman -Syu --needed plasma-pa
+
+A widget does not supply the Surface firmware or configuration. Install the
+paired audio set:
 
   "$LEXR" userspace pull audio --cache-dir "$USERSPACE_CACHE"
   sudo "$LEXR" userspace install audio --from "$USERSPACE_CACHE/audio-fullio-v19c/sp11-audio-v19c" --dry-run
@@ -397,6 +408,16 @@ After reboot, check the ALSA card and PipeWire devices, then test speakers and m
   "$LEXR" userspace status --feature audio --feature firmware
   cat /proc/asound/cards
   wpctl status
+
+If there are pops or dropouts, note whether they occur at the start/end of a
+sound or during playback. Inspect scheduling warnings and error counters while
+playing audio:
+
+  journalctl --user -b -u pipewire -u pipewire-pulse -u wireplumber
+  pw-top
+
+Zero error counters do not establish clean sound; include what you heard when
+reporting the problem. Do not change speaker protection controls to suppress it.
 
 The older audio status check may recommend the retired
 soundwire_qcom.sp11_feedback_active_offset2_zero=1 flag. Do not regenerate this
