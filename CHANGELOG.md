@@ -68,6 +68,10 @@ that do not apply.
   Further hardware and recovery checks remain in
   [#52](https://github.com/ooaklee/lexr.sh/issues/52).
 
+- Document the Arch USB-to-installed-system walkthrough, including a clearly
+  labelled partition example, one-time boot selection, persistent GRUB setup
+  and first-login checks, with matching offline getting-started instructions.
+
 - Add the authenticated Arch Linux ARM AArch64 rootfs snapshot to catalogue
   version 3 as catalogue-only input; retain version-2 ISO/raw catalogue support.
   Pinned source downloads keep separate digest identities, and failed refreshes

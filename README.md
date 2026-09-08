@@ -47,7 +47,7 @@ redistribute restricted firmware. You can also use
 Dedicated image adapters support the experimental Ubuntu Concept Resolute
 Desktop image, elementary OS 8.1 ARM64, Fedora Workstation Live 44 ARM64 and
 an Arch Linux ARM terminal live ISO. Arch includes a
-[guided installation flow](docs/operator-manual/arch-linux-arm-install.md)
+[step-by-step installation guide](docs/user-guide/arch-linux-arm-quickstart.md)
 with the Surface kernel and GRUB; no desktop is preselected. On 2026-09-08,
 the maintainer confirmed installation and boot from the internal ext4 partition
 on X1E/OLED using v23, with touchscreen input and Wi-Fi after reconnecting.

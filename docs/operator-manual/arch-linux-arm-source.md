@@ -39,14 +39,19 @@ lexr-arch-setup
 ```
 
 The menu offers hardware checks, NetworkManager's `nmtui`, package signing key
-initialisation, the getting-started guide and the bundled Lexr. Exit to the shell
+initialisation, the getting-started guide, the bundled Lexr and guided installation.
+Newer builds also include optional registration with an existing GRUB menu.
+Exit to the shell
 to customise your experience. The guide is also in the live account's home
 folder. Changes are in a temporary RAM overlay and disappear after reboot.
 
-This first image provides a boot qualification and customisation environment.
-It does not yet provide a reviewed disk installation command. No setup menu
-option partitions a disk or selects a desktop. Multi-boot installation and
-kernel updates retaining a previous verified ABI require further qualification.
+For installation alongside existing operating systems, follow the
+[Arch installation walkthrough](../user-guide/arch-linux-arm-quickstart.md).
+The bundled `sudo archinstall` flow supplies the Surface kernel and ARM64 boot
+integration while retaining upstream's disk and account choices. No desktop is
+preselected. The [hardware test record](arch-linux-arm-install.md#hardware-test-record)
+records the first installed X1E/OLED boot and the remaining checks, including
+repeated boot selection and kernel upgrades retaining a previous verified ABI.
 
 ## Inspect the accepted snapshot
 

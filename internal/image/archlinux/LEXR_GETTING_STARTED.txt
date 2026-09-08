@@ -1,7 +1,7 @@
 LEXR GETTING STARTED — ARCH LINUX ARM ON SURFACE PRO 11
 
 This experimental USB boots a terminal using the custom Surface kernel. Choose
-X1E/OLED or X1P/LCD in GRUB to match your device. Disable Secure Boot for this
+X1E/OLED or X1P/LCD in the live USB's GRUB menu to match your device. Disable Secure Boot for this
 unsigned kernel and external device tree. X1E/OLED live and installed boot with
 v23, installed touchscreen input, Wi-Fi after reconnecting and pen input after
 Lexr IPTSD setup were confirmed on 2026-09-08. Recovery, cross-ABI upgrades and X1P/LCD remain unqualified.
@@ -10,6 +10,18 @@ The local live account is arch, with passwordless sudo. The installation section
 writes only after you select and confirm a supported layout in Archinstall.
 Other changes to the live session disappear at reboot.
 No desktop or window manager is preselected: you choose your own environment.
+
+INSTALLATION WALKTHROUGH
+
+After Lexr reports image validation and a completed USB write with full read-back
+verification, reconnect the ejected USB and boot the entry for your device.
+The tested X1E/OLED route is: connect with sudo nmtui, run sudo archinstall,
+review Manual Partitioning, then choose Exit archinstall after completion.
+Section 4 covers the partition choices, first boot and a persistent GRUB entry.
+The partition example and complete online walkthrough are at:
+  https://github.com/ooaklee/lexr.sh/blob/main/docs/user-guide/arch-linux-arm-quickstart.md
+Until these changes merge, use that path on the branch in PR #55 instead:
+  https://github.com/ooaklee/lexr.sh/pull/55
 
 1. START THE TERMINAL SETUP FLOW
 
@@ -71,8 +83,9 @@ version can be older than the development companion included on this test image.
 
 4. INSTALL ARCH WITH THE GUIDED INSTALLER
 
-Connect to the internet first, then run:
+Connect to the internet first, inspect your disk layout, then start the installer:
 
+  lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINTS
   sudo archinstall
 
 Or choose option 6 in lexr-arch-setup. This launches the bundled Archinstall 4.4
@@ -80,7 +93,8 @@ menus with Lexr's Surface integration. Run it before upgrading the live system:
 a different Archinstall version must be reviewed before using this adapter.
 
 For installation alongside other operating systems, prepare unallocated space
-first. Allow at least 16 GiB for an ext4 root and more for additional software.
+or reserve a partition whose contents you intend to erase. Allow at least
+16 GiB for an ext4 root and more for additional software.
 Archinstall owns disk selection, formatting and confirmation. Lexr does not add
 a separate partition-preservation policy; review those choices before Install.
 
@@ -88,8 +102,9 @@ In the menus:
 
   - Set your language, keyboard layout, locale, hostname and timezone.
   - Open Disk configuration and select Manual Partitioning.
-  - Select the disk containing your existing ESP and the unallocated space.
-  - In the free space, create one ext4 partition mounted at /.
+  - Select the disk containing your existing ESP and prepared Arch space.
+  - Create one ext4 partition in the free space, or format only your reserved
+    partition as ext4, and mount it at /.
   - Assign /boot/efi to the existing FAT EFI System Partition on a GPT disk. Keep its
     existing status and EFI flag. Do NOT mark it for formatting.
   - Leave every other existing partition unchanged and without a mountpoint.
@@ -113,6 +128,24 @@ In the menus:
   - For selectable power modes, choose Applications > Power management >
     power-profiles-daemon. This is optional and can also be installed later.
   - Review the complete configuration, select Install and confirm it.
+
+Example from the test Surface, with about 65 GB / 60.6 GiB reserved for Arch:
+
+  Partition                         Mount point        Format?
+  /dev/nvme0n1p7 — Testing           /                  YES, ext4
+  /dev/nvme0n1p1 — existing FAT ESP  /boot/efi           NO
+  /dev/nvme0n1p6 — Ubuntu /boot      Leave unassigned    NO
+  Every other partition             Leave unassigned    NO
+
+These device numbers are an example. Check your own disk before selecting them:
+
+  lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINTS
+
+Formatting Testing erases its contents; its label may disappear afterwards.
+Do not use Ubuntu's separate /boot partition (p6 in this example) for Arch.
+Before the final confirmation, check that ONLY your reserved Arch partition
+will be formatted. Keep GRUB, the Surface kernel and NetworkManager; leave
+Profile unset or choose Minimal if you want to customise from a terminal.
 
 If Install reports an incompatible Surface boot layout, correct the highlighted
 selection. For an alongside installation, do not select whole-disk erase or
@@ -141,12 +174,31 @@ Lexr companion and source at /usr/share/lexr/arch-media/sp11/companion. Your new
 system uses your chosen account; it does not inherit the live autologin or sudo
 policy. Install optional Surface userspaces as described in section 6.
 
-After successful installation, choose Exit so you can read the boot information.
+After successful installation, choose Exit archinstall to read the boot information.
 GRUB is installed in EFI/LexrArch. Its hook preserves the EFI files present when
 it starts and the existing firmware BootOrder. This does not undo formatting
 selected earlier in Archinstall. Select "Lexr Arch Linux ARM" in firmware, or use the exact
 one-time efibootmgr --bootnext command printed by the installer before rebooting.
 Keep the USB available until the installed system has booted successfully.
+
+If the printed BootNext command has scrolled away, list firmware entries:
+
+  sudo efibootmgr
+
+Find "Lexr Arch Linux ARM" and replace XXXX with its four-digit BootXXXX number:
+
+  sudo efibootmgr --bootnext XXXX
+  sudo efibootmgr
+
+Check that BootNext matches the selected Arch entry, then reboot:
+
+  sudo reboot
+
+If the Arch entry is missing, do not guess a number or reinstall. Keep the USB
+and use the persistent-menu option below from your existing Linux OS, or use
+option 7 on a newer live image with the required filesystems mounted.
+BootNext selects one boot only and preserves your normal BootOrder:
+  https://github.com/rhboot/efibootmgr
 
 ADD ARCH TO AN EXISTING GRUB MENU (OPTIONAL)
 
@@ -163,7 +215,11 @@ read-only at /mnt/arch. Select its UUID rather than copying a partition number:
   sudo mkdir -p /mnt/arch
   sudo mount -o ro,noload /dev/disk/by-uuid/ARCH_ROOT_UUID /mnt/arch
   sudo lexr kernel boot register-arch --arch-root /mnt/arch --grub-directory /boot/grub --dry-run
+
+Review the preview before applying, then unmount Arch when finished:
+
   sudo lexr kernel boot register-arch --arch-root /mnt/arch --grub-directory /boot/grub --yes
+  sudo umount /mnt/arch
 
 Replace ARCH_ROOT_UUID with your installed Arch root UUID. Use the absolute
 path to your updated Lexr binary if it is not on PATH. Select
@@ -182,12 +238,23 @@ loading layout or a loader changed since installation requires review first.
 An existing custom.cfg is backed up before appending; the command prints its
 backup path. Do not regenerate the Surface menu just to bypass a refusal.
 
+In Arch's own GRUB menu, choose the normal "Arch Linux ARM for Surface Pro 11"
+kernel entry, then log in with the account you created. The live USB's X1E/OLED
+label is not used for the installed menu; its device tree is already selected.
 After booting the installed system:
 
   uname -r
   findmnt -no SOURCE,FSTYPE /
   pacman -Q lexr-kernel-sp11
   sudo nmtui
+
+For the tested v23 image, expect:
+  Kernel: 7.2.0-jg-0sp11v23-qcom-x1e
+  Root: your installed ext4 partition (/dev/nvme0n1p7 on the test Surface)
+  Package: lexr-kernel-sp11 7.2.0_jg_0sp11v23-1
+An overlay root means you are still on the live USB. For a different image ABI,
+compare these results with that image's kernel version and keep the results
+with your image validation and USB write receipts.
 
 In nmtui, choose Activate a connection and enter your Wi-Fi password again;
 live connection credentials are not copied. If your desktop has no accessible
@@ -224,9 +291,11 @@ Following the video "How to Install Arch Linux Step-by-Step Guide (archinstall)"
   https://www.youtube.com/watch?v=LiG2wMkcrFE
 
 The account, locale, profile, timezone and confirmation steps are familiar.
-Use this ARM64 USB instead of its x86_64 download; use nmtui instead of iwctl;
-use Manual Partitioning instead of its whole-disk default; keep Lexr's Surface
-kernel and GRUB instead of the video's stock kernel/systemd-boot choices.
+For this Surface flow:
+  - Use this ARM64 USB instead of the video's x86_64 download.
+  - Connect with nmtui instead of iwctl.
+  - Use Manual Partitioning instead of its whole-disk default.
+  - Keep Lexr's Surface kernel and GRUB instead of the stock kernel/systemd-boot.
 
 5. CUSTOMISE ARCH
 

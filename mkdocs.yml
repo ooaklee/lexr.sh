@@ -41,6 +41,7 @@ nav:
   - User guide:
       - Overview: user-guide/index.md
       - Installation media: user-guide/installation-media.md
+      - Install Arch alongside other OSes: user-guide/arch-linux-arm-quickstart.md
       - Offline companion: user-guide/offline-companion.md
       - Released kernel and userspace: user-guide/install-released-kernel-and-userspace.md
       - Userspace support: user-guide/userspace-support.md

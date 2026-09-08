@@ -1,5 +1,10 @@
 # Install Arch Linux ARM on Surface Pro 11
 
+For a guided path from a prepared USB through the tested partition example,
+first boot and persistent multi-OS menu, start with the
+[Arch installation walkthrough](../user-guide/arch-linux-arm-quickstart.md).
+This reference covers the installation choices and qualification details.
+
 Boot the Lexr Arch Linux ARM USB, connect with `sudo nmtui`, then run:
 
 ```bash
@@ -16,17 +21,23 @@ installation and boot from an internal ext4 root are confirmed with v23. See the
 ## Prepare space and select the layout
 
 For an installation alongside other operating systems, prepare unallocated
-space first; allow at least 16 GiB and more for your intended software. Do not
+space or reserve an existing partition whose contents you intend to erase;
+allow at least 16 GiB and more for your intended software. Do not
 use a whole-disk erase layout on a disk containing systems you want to keep.
 
 In **Disk configuration → Manual Partitioning**:
 
-1. Select the disk containing the ESP and your unallocated space.
-2. Create an ext4 partition in the free space and assign `/`.
+1. Select the disk containing the ESP and your prepared Arch space.
+2. Create an ext4 partition in the free space, or select only your reserved
+   partition for ext4 formatting, and assign `/`.
 3. Assign `/boot/efi` to the existing FAT ESP. Keep its EFI flag and leave
    formatting disabled.
 4. Leave the other OS partitions unchanged.
 5. Keep `/boot` on the root filesystem, and leave encryption and LVM disabled.
+
+The walkthrough includes the test Surface's
+[Testing/EFI/Ubuntu `/boot` partition table](../user-guide/arch-linux-arm-quickstart.md#2-select-only-the-space-reserved-for-arch).
+Its partition numbers are an example to compare against your own disk.
 
 Archinstall performs the disk operations you select and confirm. Lexr does not
 add a separate partition-preservation policy. Its Install preview checks
