@@ -127,6 +127,16 @@ GRUB uses `arm64-efi`, `EFI/LexrArch` and `--no-nvram`. The installer then uses
 `efibootmgr --create-only` and verifies that the original BootOrder and EFI files
 are unchanged during that hook. This does not cover formatting selected earlier in
 Archinstall. It prints the new entry and an optional one-time BootNext command.
+
+`internal/bootmenu` implements optional persistent registration through
+`lexr kernel boot register-arch`. It accepts an existing installation receipt,
+checks mounted ext4/FAT identities and the recorded ARM64 EFI loader, and
+appends to another OS's `custom.cfg` only when its generated menu contains the
+supported `41_custom` loader. Live setup option 7 supplies a preview and explicit
+confirmation; it does not scan or mount partitions. Tests cover exact-byte
+preservation/backups, repeat application, dry-run purity, wrong mounts, changed
+loaders, unsupported menus, symlinks and concurrent changes at command boundaries.
+No new Archinstall hooks, Python files or GRUB regeneration are involved.
 Kernel, initramfs and DTBs remain on the root filesystem. An existing conflicting
 Lexr installation is refused rather than overwritten. The first installed boot
 has been confirmed on X1E/OLED; repeated boot selection and recovery still need

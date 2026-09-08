@@ -115,6 +115,41 @@ in firmware, or use the exact one-time `efibootmgr --bootnext` command printed
 by the installer before rebooting. Keep the USB until the installed system has
 booted successfully.
 
+### Add Arch to the existing GRUB menu
+
+The installer creates a separate firmware entry; it does not automatically
+add Arch to Ubuntu's menu. `BootNext` applies only to the next boot. For a
+persistent choice, select **option 7** in `lexr-arch-setup` after installation.
+Mount the existing OS and its separate `/boot`, if present, before selecting
+that OS's GRUB directory. The menu previews the entry and asks before applying
+it. It does not scan or mount other OS partitions.
+
+Alternatively, boot the existing Linux OS, mount the installed Arch root
+read-only, and run a Lexr build containing the new command:
+
+```bash
+sudo lexr kernel boot register-arch --arch-root /mnt/arch --grub-directory /boot/grub --dry-run
+sudo lexr kernel boot register-arch --arch-root /mnt/arch --grub-directory /boot/grub --yes
+```
+
+Select that OS's `/boot/grub` explicitly; the mounted ESP defaults to `/boot/efi`.
+For explicitly mounted paths on the live USB, add
+`--grub-directory /mnt/existing/boot/grub --esp /mnt/boot/efi`.
+See the getting-started guide for selecting the Arch root UUID and mounting
+it. Older candidate companions need an updated Lexr binary for this command.
+
+Registration checks the installation receipt, mounted root/ESP identities and
+the ARM64 loader's recorded digest. It appends an EFI chainloader entry to
+`custom.cfg`, leaving kernel/DTB selection to Arch's own GRUB. The existing
+`grub.cfg` must contain the `41_custom` loading block verified on Ubuntu; unknown layouts
+are refused. Existing menu contents are backed up and preserved, repeat runs
+do not add duplicates, and no GRUB regeneration or firmware-variable change
+occurs. Do not run concurrently with another GRUB update. A legitimate later
+replacement of Arch's EFI loader also needs receipt review; there is no digest
+bypass. Keep the existing OS's custom-file loading enabled on later GRUB updates.
+
+### Check the installed system
+
 After boot:
 
 ```bash

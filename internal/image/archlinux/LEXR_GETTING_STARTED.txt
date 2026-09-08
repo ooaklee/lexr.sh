@@ -148,6 +148,40 @@ selected earlier in Archinstall. Select "Lexr Arch Linux ARM" in firmware, or us
 one-time efibootmgr --bootnext command printed by the installer before rebooting.
 Keep the USB available until the installed system has booted successfully.
 
+ADD ARCH TO AN EXISTING GRUB MENU (OPTIONAL)
+
+The firmware entry above does not add Arch to Ubuntu's existing GRUB menu.
+BootNext selects Arch for one boot only. For a persistent menu choice, use
+option 7 in lexr-arch-setup after installation, or run the commands below from
+the existing Linux OS. This needs a Lexr build containing register-arch; the
+older candidate USB's companion does not have this command.
+
+From the existing OS, inspect lsblk -f and mount the installed Arch partition
+read-only at /mnt/arch. Select its UUID rather than copying a partition number:
+
+  lsblk -f
+  sudo mkdir -p /mnt/arch
+  sudo mount -o ro,noload /dev/disk/by-uuid/ARCH_ROOT_UUID /mnt/arch
+  sudo lexr kernel boot register-arch --arch-root /mnt/arch --grub-directory /boot/grub --dry-run
+  sudo lexr kernel boot register-arch --arch-root /mnt/arch --grub-directory /boot/grub --yes
+
+Replace ARCH_ROOT_UUID with your installed Arch root UUID. Use the absolute
+path to your updated Lexr binary if it is not on PATH. Select
+the running OS's /boot/grub explicitly; the shared ESP defaults to /boot/efi. From the live USB,
+mount the existing OS and its separate /boot if it has one, then select its
+actual GRUB directory and the shared ESP in option 7. The equivalent flags are
+--grub-directory /mnt/existing/boot/grub --esp /mnt/boot/efi. Lexr does not
+automatically mount other OS partitions.
+
+Lexr verifies Arch's receipt, mounted partition identities and ARM64 EFI loader,
+then previews and adds a custom.cfg entry that opens Arch's own GRUB menu.
+Ubuntu/Windows entries, EFI files and BootOrder are unchanged. No update-grub
+is needed for the supported 41_custom layout; repeating the command is a no-op.
+Do not run registration during another GRUB update. An unknown custom.cfg
+loading layout or a loader changed since installation requires review first.
+An existing custom.cfg is backed up before appending; the command prints its
+backup path. Do not regenerate the Surface menu just to bypass a refusal.
+
 After booting the installed system:
 
   uname -r

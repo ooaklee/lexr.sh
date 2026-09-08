@@ -79,6 +79,16 @@ hook starts and the existing BootOrder. Verify the kernel, DTBs, initramfs,
 GRUB and UUID-based fstab before the normal completion dialog. This boot-hook
 verification does not undo partition formatting selected earlier by the user.
 
+Persistent selection from another OS's GRUB is a separate, optional post-install
+action in the native Lexr binary. `kernel boot register-arch` also accepts
+previously installed candidates with valid receipts. It verifies mounted
+identities and the recorded ARM64 loader, then appends a chainloader to the
+existing menu's supported `custom.cfg` loading path. The setup menu exposes a
+preview and confirmation. It does not mount another OS, regenerate its menu,
+change BootOrder or duplicate Arch's kernel/DTB entries. This closes the gap
+between a successful one-time boot and a persistent multi-OS menu without
+adding another Archinstall callback or runtime Python file.
+
 ## Consequences
 
 - The user gets the standard guided setup with Surface defaults and a terminal

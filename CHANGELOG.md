@@ -58,6 +58,10 @@ that do not apply.
   with the Surface kernel, matching DTBs, installed initramfs and ARM64 GRUB.
   Surface plugin hooks retain Archinstall's normal disk, account, profile and
   network setup, with an alongside-install guide and no desktop preselected.
+- Add optional post-install registration with an existing GRUB menu through
+  `lexr kernel boot register-arch` and live setup option 7. Preview and verify
+  the installed ARM64 loader before appending a persistent custom menu entry,
+  preserving other entries, EFI files and firmware boot order.
   X1E/OLED live boot and installation to an internal ext4 root are confirmed
   by the maintainer with v23, including installed touchscreen input and Wi-Fi
   after reconnecting.

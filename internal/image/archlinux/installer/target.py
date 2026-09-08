@@ -309,6 +309,9 @@ def install_boot(target, payload, profile):
     (target / "etc/lexr/install-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
     print(f"GRUB installed. Other EFI files and BootOrder are unchanged. Select '{BOOT_LABEL}' in firmware.")
     print(f"For a one-time test after leaving the installer: sudo efibootmgr --bootnext {boot_number}")
+    print("BootNext lasts for one boot. To use another OS's existing GRUB menu persistently,")
+    print("choose option 7 in lexr-arch-setup, or run lexr kernel boot register-arch")
+    print("from that OS with --arch-root pointing to this mounted installation; see the guide.")
 
 
 def verify_install(target, payload, profile):
