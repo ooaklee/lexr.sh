@@ -164,8 +164,10 @@ The installed v23 test already had PipeWire and WirePlumber running: its missing
 audio support was the Surface firmware and FullIO configuration, not an x86
 sound-server selection. Audio remains optional for terminal installations.
 
-The retained `LEXR_GETTING_STARTED.txt`, available through `lexr-arch-setup`,
-contains the full copy-and-run commands, dry-runs and post-install checks.
+The retained `/usr/share/lexr/LEXR_GETTING_STARTED.txt` contains the full
+copy-and-run commands, dry-runs and post-install checks. Open it in your editor
+or run `cat /usr/share/lexr/LEXR_GETTING_STARTED.txt`. On the live USB, the guide
+is also available through `lexr-arch-setup`.
 Lexr's existing portable IPTSD and FullIO releases are shared across distributions;
 there is no separate Arch firmware release. Install pen independently with
 `userspace pull iptsd` and `userspace install iptsd`, or select `recommended`
@@ -192,6 +194,26 @@ private set. Rebuild the installed initramfs after firmware changes and reboot
 before checking ALSA cards, PipeWire devices, speakers and microphone. Updating
 Lexr alone does not replace the older preset on an already-installed candidate.
 
+## Power profiles
+
+Select **Applications > Power management > power-profiles-daemon** in
+Archinstall if you want selectable power modes, or install it afterwards:
+
+```bash
+lexr userspace status --feature power
+sudo pacman -Syu --needed power-profiles-daemon python-gobject
+sudo systemctl enable --now power-profiles-daemon.service
+powerprofilesctl list
+```
+
+Use the absolute user-local Lexr path from the getting-started guide if it is
+not on your PATH. Lexr provides inspection for power support; installation is
+owned by Arch's package manager. The [AArch64 package](https://archlinuxarm.org/packages/aarch64/power-profiles-daemon) lists `python-gobject` as
+the optional dependency needed by `powerprofilesctl`. Do not enable competing
+power managers together. The installed test had the kernel's **Surface Platform
+Profile** interface but no power-profile daemon, so it needed the distribution
+package rather than another kernel or OE userspace bundle.
+
 ## Hardware test record
 
 On 2026-09-08, the maintainer completed the bundled `sudo archinstall` flow on a
@@ -205,8 +227,10 @@ NVMe disk. The reported command output confirms:
 | Native kernel package (`pacman -Q lexr-kernel-sp11`) | `lexr-kernel-sp11 7.2.0_jg_0sp11v23-1` |
 | Touchscreen | Maintainer confirmed working in the installed system |
 | Pen | Maintainer confirmed pen input after Lexr installed the paired IPTSD portable userspace |
-| Audio userspace files | Native `bf617c5` build passed dry-run and installed FullIO, preserving the original selector link in backup and the shared Qualcomm profile unchanged; playback/microphone testing pending |
+| Audio userspace files | Native `bf617c5` build passed dry-run and installed FullIO, preserving the original selector link in backup and the shared Qualcomm profile unchanged |
+| Audio early firmware | Six existing same-device aDSP files and FullIO topology verified by hash in the rebuilt installed initramfs; GRUB unchanged; playback/microphone testing pending reboot |
 | Wi-Fi | Maintainer confirmed connected after reconnecting |
+| Power profiles | Standard daemon enabled; power-saver, balanced and performance each verified against kernel readback; original low-power setting restored |
 | KDE terminal | Maintainer confirmed Konsole works after installing its package |
 | Network widget | Missing `plasma-nm` installed; widget registered after refreshing Plasma, visual check pending |
 | File manager | Missing Dolphin installed; process and directory handler verified, visual check pending |

@@ -13,6 +13,8 @@ No desktop or window manager is preselected: you choose your own environment.
 
 1. START THE TERMINAL SETUP FLOW
 
+On the live USB:
+
   lexr-arch-setup
 
 The menu offers kernel/network/storage checks, networking, package signing key
@@ -108,6 +110,8 @@ In the menus:
   - For sound, choose Applications > Audio > PipeWire. This supplies the audio
     server; Surface firmware and FullIO configuration are separate (section 6).
     Leave audio unset or choose No audio server if you do not want it.
+  - For selectable power modes, choose Applications > Power management >
+    power-profiles-daemon. This is optional and can also be installed later.
   - Review the complete configuration, select Install and confirm it.
 
 If Install reports an incompatible Surface boot layout, correct the highlighted
@@ -316,7 +320,37 @@ If the installed system is missing board data, inspect and repair it with:
 
 Reboot after a board-data change. Avoid --activate for an unqualified driver
 layout; the regular install does not restart your radio or network connection.
-Power profiles use the distribution's optional power-profiles-daemon package.
+
+Power profiles
+
+Lexr can inspect power support; it does not install the distribution service:
+
+  "$LEXR" userspace status --feature power
+
+Do not run competing power-management services such as TLP or tuned alongside
+power-profiles-daemon. If one is already selected, use its controls or decide
+which service to keep before enabling another.
+
+If the kernel interface is present but the daemon is missing, install Arch's
+package and the Python bindings required by powerprofilesctl, then start it:
+
+  cat /sys/firmware/acpi/platform_profile_choices
+  sudo pacman -Syu --needed power-profiles-daemon python-gobject
+  sudo systemctl enable --now power-profiles-daemon.service
+  powerprofilesctl list
+  "$LEXR" userspace status --feature power
+
+To select your preferred mode:
+
+  powerprofilesctl set balanced
+  powerprofilesctl get
+
+The daemon normally offers power-saver, balanced and performance. The kernel
+can list additional underlying modes; they need not appear as separate desktop
+choices. Lexr's package check may say dpkg is unavailable on Arch; use pacman -Q
+power-profiles-daemon to inspect the native package. The file check still runs.
+If the desktop controls have not appeared, save work and log out and back in.
+
 Bluetooth needs same-device address evidence from the private hand-off above.
 The released camera packages target Debian/Ubuntu; do not install them on Arch.
 
