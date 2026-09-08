@@ -18,7 +18,7 @@ func TestTerminalPackageLock(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, entry := range entries {
-		if strings.Contains(entry.Name, "gnome") || entry.Name == "gdm" || entry.Name == "archinstall" {
+		if strings.Contains(entry.Name, "gnome") || entry.Name == "gdm" {
 			t.Fatalf("unexpected package in terminal lock: %s", entry.Name)
 		}
 	}

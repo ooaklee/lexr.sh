@@ -46,7 +46,11 @@ redistribute restricted firmware. You can also use
 
 Dedicated image adapters support the experimental Ubuntu Concept Resolute
 Desktop image, elementary OS 8.1 ARM64, Fedora Workstation Live 44 ARM64 and
-an Arch Linux ARM terminal live ISO.
+an Arch Linux ARM terminal live ISO. Arch includes a
+[guided installation flow](docs/operator-manual/arch-linux-arm-install.md)
+with the Surface kernel and GRUB; no desktop is preselected. Its live terminal
+and Wi-Fi have been tested on X1E/OLED, while installed-system reboot
+qualification remains pending.
 The custom live and installed Fedora path is limited to the Surface Pro 11 Qualcomm Snapdragon X Elite model; its X Plus
 entry is a stock-kernel, explicit-DTB live troubleshooting path only. Debian,
 Pop!_OS and Fedora's compressed raw disk image remain

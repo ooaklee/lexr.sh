@@ -41,6 +41,10 @@ func (v *Validator) validateRoot(ctx context.Context, toolsImage, workspace, vol
 		{"etc/initcpio/install/lexr_sp11", EarlySupportHook()},
 		{"usr/local/bin/lexr-arch-setup", setupScript},
 		{"usr/share/lexr/LEXR_GETTING_STARTED.txt", gettingStarted},
+		{"usr/local/bin/archinstall", installerLauncher},
+		{"usr/share/lexr/archinstall/guided.py", installerGuided},
+		{"usr/share/lexr/archinstall/policy.py", installerPolicy},
+		{"usr/share/lexr/archinstall/target.py", installerTarget},
 	} {
 		actual, err := v.Docker.CaptureInWorkspaceVolume(ctx, toolsImage, workspace, volume, "cat", "/linux-work/rootfs/"+pair.path)
 		if err != nil {
@@ -49,6 +53,9 @@ func (v *Validator) validateRoot(ctx context.Context, toolsImage, workspace, vol
 		if string(actual) != pair.text {
 			return fmt.Errorf("Arch terminal setup differs at %s", pair.path)
 		}
+	}
+	if err := v.validateInstaller(ctx, toolsImage, workspace, volume, abi); err != nil {
+		return err
 	}
 	for _, record := range companionArtifacts(m.CompanionBundle) {
 		if err := v.Docker.RunInWorkspaceVolume(ctx, toolsImage, workspace, volume, "bash", "-ceu", `root=/linux-work/rootfs/usr/share/lexr/arch-media
@@ -149,8 +156,9 @@ for desc in (root/'var/lib/pacman/local').glob('*/desc'):
 assert 'lexr-kernel-sp11' in packages
 assert 'linux-aarch64' not in packages
 assert not {'gdm','gnome-shell','plasma-desktop','xfce4-session'}.intersection(packages)
-for name in ('networkmanager','grub','mkinitcpio-archiso','linux-firmware-qcom','arch-install-scripts','wireless-regdb'):
+for name in ('archinstall','networkmanager','grub','mkinitcpio-archiso','linux-firmware-qcom','arch-install-scripts','wireless-regdb'):
  assert name in packages,name
+assert packages['archinstall']=='4.4-1','unsupported Archinstall API'
 published=dict(line.split(' ',1) for line in pathlib.Path('/work/sp11/packages.installed').read_text().splitlines())
 assert published==packages,'package inventory mismatch'
 users=dict((line.split(':')[0],line.split(':')) for line in (root/'etc/passwd').read_text().splitlines())

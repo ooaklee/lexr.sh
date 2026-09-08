@@ -63,8 +63,10 @@ hand-off is not permission to modify a system.
 
 Rolling root filesystem source intake and catalogue version-3 compatibility are
 recorded in [ADR034](../adr/adr-034-pinned-rolling-rootfs-sources.md).
+The guided Surface installation contract is recorded in
+[ADR035](../adr/adr-035-arch-guided-surface-installation.md).
 The [Arch implementation status](arch-linux-arm.md) records the tested bootstrap
-contracts and the remaining live-image and installation work.
+and installation contracts and the remaining hardware qualification.
 
 Architecture decision records explain why lasting boundaries exist. Start with
 the decision closest to the question you are asking:

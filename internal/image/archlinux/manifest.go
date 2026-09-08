@@ -15,7 +15,7 @@ import (
 )
 
 // evidenceFiles binds every fixed boot/discovery payload to its on-media path.
-var evidenceFiles = []struct{ role, file, path string }{
+var evidenceFiles = append([]struct{ role, file, path string }{
 	{"live-filesystem", "airootfs.sfs", "arch/aarch64/airootfs.sfs"},
 	{"live-checksum", "airootfs.sha512", "arch/aarch64/airootfs.sha512"},
 	{"efi-bootloader", "BOOTAA64.EFI", "EFI/BOOT/BOOTAA64.EFI"},
@@ -25,6 +25,17 @@ var evidenceFiles = []struct{ role, file, path string }{
 	{"package-inventory", "packages.installed", "sp11/packages.installed"},
 	{"native-kernel-package", "sp11/lexr-kernel-sp11.pkg.tar.gz", "sp11/lexr-kernel-sp11.pkg.tar.gz"},
 	{"getting-started", "LEXR_GETTING_STARTED.txt", "LEXR_GETTING_STARTED.txt"},
+}, installerEvidenceFiles()...)
+
+// installerEvidenceFiles makes every offline installer input independently verifiable.
+func installerEvidenceFiles() []struct{ role, file, path string } {
+	var entries []struct{ role, file, path string }
+	paths := append(installerAssetPaths()[1:], "installer/payload.json", "installer/guided.py", "installer/policy.py", "installer/target.py")
+	for index, name := range paths {
+		path := "sp11/" + name
+		entries = append(entries, struct{ role, file, path string }{fmt.Sprintf("installer-asset-%d", index), path, path})
+	}
+	return entries
 }
 
 // buildManifest records immutable Arch boot inputs and full kernel provenance.

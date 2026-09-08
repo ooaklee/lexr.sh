@@ -4,7 +4,9 @@ Arch work is tracked in [issue #52](https://github.com/ooaklee/lexr.sh/issues/52
 The experimental adapter builds a terminal live ISO from a signed, pinned Arch
 Linux ARM rootfs and a fixed package set. It uses native pacman registration,
 separate mkinitcpio configurations and direct ARM64 GRUB. No desktop is selected.
-The reviewed installer and hardware qualification remain in development.
+The X1E/OLED terminal and Wi-Fi have been tested on a Surface Pro 11. The
+[guided installer](../operator-manual/arch-linux-arm-install.md) is implemented;
+installed-system reboot qualification remains pending.
 
 ## Reuse and distribution boundaries
 
@@ -43,7 +45,7 @@ installing them into the isolated test root.
 | `grub` | `2:2.14-1.1` | `cf8470867afde66260a1e59d32ea186cd3493513c785a18a3b0f8b8aacab269c` | Bootstrap |
 | `mkinitcpio-archiso` | `73-1` | `d0d933fd5815c4a6e48d210f5a489e76d5a8391c0c00ea447de1615cc4de42eb` | Bootstrap |
 | `linux-firmware-qcom` | `20260810-2` | `5cf7ac0a7150f6674ba2b9d041693a3c12d1ba9fd0b83abf2b2331ea6da543ed` | Bootstrap |
-| `archinstall` | `4.4-1` | `c92806ea459cf705e4b06f2fcbc1b3bf3f71ecb6e70b9c0ed0da735538b87a88` | Inspection only |
+| `archinstall` | `4.4-1` | `c92806ea459cf705e4b06f2fcbc1b3bf3f71ecb6e70b9c0ed0da735538b87a88` | Guided installer |
 | `arch-install-scripts` | `31-2` | `9f346dfa37925779f228855ef05742749ffdb0753be4c43ad87b2659576a46de` | Terminal live image |
 
 The complete terminal package set is recorded in
@@ -64,7 +66,7 @@ NVRAM. A cross-ABI upgrade is deliberately unsupported until retention is ready.
 The terminal account is `arch`, with tty1 autologin and passwordless sudo.
 NetworkManager is enabled; SSH is disabled, stock credentials are removed and
 private signing keys, machine IDs and host keys are not shipped. The setup menu
-provides networking, inspection and the guide; it has no disk installation action.
+provides networking, inspection, the guide and a guided installation action.
 
 ## GRUB and installed-system direction
 
@@ -82,20 +84,42 @@ companion; `checksum=y` requires `airootfs.sha512` to be calculated after the
 final squashfs is closed. This checksum detects corruption, not publisher
 authenticity. `BOOTAA64.EFI` belongs to a newly created ISO ESP.
 
-The initial installed boot renderer is limited to a selected ext4 filesystem
-UUID and Surface variant. `/boot` belongs on that root filesystem. The intended
-installer will require explicitly selected, revalidated root and ESP identities,
-preserve existing partitions and EFI directories, and refuse an occupied target
-root or an existing conflicting Lexr bootloader directory. It will not format
-the shared ESP or write its removable-media fallback path.
+The installed boot renderer uses the new ext4 root's UUID and the actual Surface
+variant. `/boot` stays on that root; the existing ESP is mounted at `/boot/efi`.
+The external Python adapter reuses Archinstall 4.4's guided menus and installer
+stages. Its kernel, ARM mirror and GRUB defaults are fixed; profiles remain
+optional and no desktop is preselected. The upstream Python package is unmodified
+and retains its distribution licence and source files.
 
-Installed GRUB is intended for `EFI/LexrArch` with target `arm64-efi`. Merely
-using `--no-nvram` does not make a new loader reachable. The installer still
-needs a tested hand-off: an entry created without changing the existing
-BootOrder, followed by an explicit boot selection, or a chainloader entry in
-the user's existing GRUB. Surface firmware behaviour must be qualified before
-promising either route. Kernels, initrds and DTBs stay off the shared ESP;
-space checks must cover the actual staged files on both filesystems.
+Before the confirmation and again before partition changes, the adapter checks
+the actual GPT table and mount state. It accepts only a manual plan creating one
+ext4 root in unallocated space while retaining every existing partition, with
+one existing FAT ESP. Whole-disk wipe, deletion, existing-partition formatting,
+foreign mounts, active devices, encryption and LVM are refused. The original GPT
+records are checked again after root creation. ESP space and a conflicting Lexr
+loader are checked before formatting the new root.
+
+Pacstrap builds a fresh target using ARM signing keys. The locally generated
+`lexr-kernel-sp11` archive is digest-verified and installed in a separate,
+no-repository pacman transaction; persistent signature verification is retained.
+Firmware and the installed mkinitcpio hook precede that transaction. An explicit
+`lexr-sp11` preset supports rebuilding this ABI without live-media hooks. The live
+account, autologin and passwordless sudo configuration are never copied. Copy ISO
+networking copies NetworkManager connections only when the user selects it.
+
+GRUB uses `arm64-efi`, `EFI/LexrArch` and `--no-nvram`. The installer then uses
+`efibootmgr --create-only` and verifies that the original BootOrder and EFI files
+are unchanged. It prints the new entry and an optional one-time BootNext command.
+Kernel, initramfs and DTBs remain on the root filesystem. An existing conflicting
+Lexr installation is refused rather than overwritten. Reaching the new loader
+through Surface firmware still requires physical installation qualification.
+
+The image retains a fixed installer payload manifest, the native kernel package,
+public firmware, exact kernel/DTB identities and GRUB templates. The independent
+ISO validator reads these as data and compares the retained root copies and
+compiled adapter code. The installer rechecks them before target writes and
+verifies kernel, DTBs, initramfs, GRUB, firmware variables and fstab before the
+upstream completion dialog.
 
 ## Validation and remaining work
 
@@ -107,13 +131,21 @@ Linux filesystem. It checks both generated initrds, required module objects and
 firmware, live-hook separation, GRUB syntax and the EFI machine type. Container
 results do not establish Surface boot or installation success.
 
+A native ARM64 test also runs the pinned guided installation stages against a
+fresh ext4 root in an isolated GPT loop image. Real pacstrap, local kernel
+installation, mkinitcpio, GRUB, user creation, NetworkManager and fstab generation
+complete, with the existing ESP sentinel file and all partition records
+preserved. Firmware variables are simulated; the container supplies test udev
+records and uses ordinary arch-chroot because its PID 1 is not systemd. Those
+test accommodations are not part of the live-image installer.
+
 The independent validator reads a private completed-ISO snapshot with trusted
 container tools and never chroots into the inspected image. It checks the actual
 GPT/El Torito extent, EFI machine type and embedded GRUB bootstrap, media label,
 final squashfs checksum, exact kernel/module/DTB bytes, early dependency closures,
 firmware, terminal configuration, native pacman inventory and retained companion.
 
-Next qualify the USB terminal, keyboard and Wi-Fi on the Surface. The installer
-must then add explicit partition selection, shared-ESP preservation, a reachable
-GRUB entry and recoverable kernel updates. Live boot success must not be reported
-as installed-system or multi-boot qualification.
+The remaining hardware milestone is installation into user-selected space and
+reboot through the new GRUB entry, with the other operating systems preserved.
+Cross-ABI kernel updates and rollback remain a separate qualification step.
+Live boot success must not be reported as installed-system qualification.

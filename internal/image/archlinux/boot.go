@@ -153,13 +153,20 @@ insmod ext2
 insmod search_fs_uuid
 insmod fdt
 search --no-floppy --fs-uuid --set=root %[1]s
+set gfxmode=auto
+loadfont /boot/grub/fonts/unicode.pf2
+insmod all_video
+insmod gfxterm
+terminal_output gfxterm
 
 menuentry "Arch Linux ARM for Surface Pro 11 (%[2]s)" {
+    set gfxpayload=keep
     linux /boot/vmlinuz-%[2]s root=UUID=%[1]s rootfstype=ext4 rw %[3]s console=tty0
     devicetree /boot/dtb-%[2]s/%[4]s
     initrd /boot/initramfs-%[2]s.img
 }
 menuentry "Arch Linux ARM for Surface Pro 11 (%[2]s, text diagnostics)" {
+    set gfxpayload=keep
     linux /boot/vmlinuz-%[2]s root=UUID=%[1]s rootfstype=ext4 rw %[3]s systemd.unit=multi-user.target console=tty0
     devicetree /boot/dtb-%[2]s/%[4]s
     initrd /boot/initramfs-%[2]s.img

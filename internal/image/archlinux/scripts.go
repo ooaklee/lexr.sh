@@ -22,7 +22,25 @@ var buildBootScript string
 //go:embed LEXR_GETTING_STARTED.txt
 var gettingStarted string
 
-// setupScript presents terminal networking and customisation choices without disk writes.
+// setupScript presents networking, customisation and the explicitly confirmed installer.
 //
 //go:embed scripts/setup.sh
 var setupScript string
+
+// installerGuided retains Archinstall menus with Surface-specific boundaries.
+//
+//go:embed installer/guided.py
+var installerGuided string
+
+// installerPolicy validates partition plans before the first disk mutation.
+//
+//go:embed installer/policy.py
+var installerPolicy string
+
+// installerTarget installs verified kernel and boot assets into the selected root.
+//
+//go:embed installer/target.py
+var installerTarget string
+
+// installerLauncher invokes the bundled, version-bound Archinstall integration.
+const installerLauncher = "#!/bin/sh\nexec /usr/bin/python /usr/share/lexr/archinstall/guided.py \"$@\"\n"

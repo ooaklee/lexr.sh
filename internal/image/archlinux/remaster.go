@@ -187,6 +187,18 @@ rm -rf /linux-work/rootfs/work
 	if err = os.Rename(filepath.Join(workspace, "lexr-kernel-sp11.pkg.tar.gz"), filepath.Join(workspace, "sp11/lexr-kernel-sp11.pkg.tar.gz")); err != nil {
 		return result, err
 	}
+	if err = stageInstallerScripts(workspace, request.Bundle.ABI); err != nil {
+		return result, err
+	}
+	if err = run(installerExportScript, request.Bundle.ABI); err != nil {
+		return result, err
+	}
+	if err = writeInstallerManifest(workspace, request.Bundle.ABI); err != nil {
+		return result, err
+	}
+	if err = os.WriteFile(filepath.Join(workspace, "archinstall"), []byte(installerLauncher), 0644); err != nil {
+		return result, err
+	}
 	progress("Configuring terminal login, NetworkManager and the setup guide")
 	if err = run(liveSessionScript); err != nil {
 		return result, err

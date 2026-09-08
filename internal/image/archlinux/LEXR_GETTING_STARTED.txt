@@ -2,10 +2,12 @@ LEXR GETTING STARTED — ARCH LINUX ARM ON SURFACE PRO 11
 
 This experimental USB boots a terminal using the custom Surface kernel. Choose
 X1E/OLED or X1P/LCD in GRUB to match your device. Disable Secure Boot for this
-unsigned kernel and external device tree. Hardware qualification is pending.
+unsigned kernel and external device tree. X1E/OLED terminal boot and Wi-Fi have
+been tested; installed-system boot and X1P/LCD qualification remain pending.
 
-The local live account is arch, with passwordless sudo. Nothing in this guide
-installs Arch or erases a disk. Changes to the live session disappear at reboot.
+The local live account is arch, with passwordless sudo. The installation section
+writes only after you select and confirm a supported layout in Archinstall.
+Other changes to the live session disappear at reboot.
 No desktop or window manager is preselected: you choose your own environment.
 
 1. START THE TERMINAL SETUP FLOW
@@ -13,7 +15,8 @@ No desktop or window manager is preselected: you choose your own environment.
   lexr-arch-setup
 
 The menu offers kernel/network/storage checks, networking, package signing key
-initialisation, this guide and the included Lexr. Return to the shell at any time.
+initialisation, this guide, the included Lexr and the guided installer. Return
+to the shell at any time.
 For inspection without interactive prompts:
 
   lexr-arch-setup --status
@@ -58,38 +61,104 @@ To install the latest released Lexr when connected to the internet:
 The release installer verifies its checksum and puts Lexr on your PATH. A released
 version can be older than the development companion included on this test image.
 
-4. CUSTOMISE YOUR LIVE SESSION
+4. INSTALL ARCH WITH THE GUIDED INSTALLER
 
-The image contains normal Arch Linux ARM package tools. Initialise signing keys
-before installing packages in a fresh live session:
+Connect to the internet first, then run:
+
+  sudo archinstall
+
+Or choose option 6 in lexr-arch-setup. This launches the bundled Archinstall 4.4
+menus with Lexr's Surface integration. Run it before upgrading the live system:
+a different Archinstall version must be reviewed before using this adapter.
+
+Prepare unallocated space on the internal disk before installation. This first
+flow supports an existing GPT disk with one existing EFI System Partition and
+at least 16 GiB of unallocated space for a NEW ext4 root. Allow more space for
+additional software. It does not shrink or replace an existing OS partition.
+
+In the menus:
+
+  - Set your language, keyboard layout, locale, hostname and timezone.
+  - Open Disk configuration and select Manual Partitioning.
+  - Select the disk containing your existing ESP and the unallocated space.
+  - In the free space, create one ext4 partition mounted at /.
+  - Assign /boot/efi to the existing FAT EFI System Partition. Keep its
+    existing status and EFI flag. Do NOT mark it for formatting.
+  - Leave every other existing partition unchanged and without a mountpoint.
+  - Leave encryption disabled. Separate /boot, LVM, encryption and reformatting
+    existing partitions are not supported by this first installation flow.
+  - Lexr fixes the bootloader to GRUB, the kernel to lexr-kernel-sp11 and the
+    repositories to Arch Linux ARM. No stock kernel or UKI is needed.
+  - Under Authentication, create your own user and password with sudo access.
+  - Leave Profile unset or select Minimal for a terminal installation. You may
+    choose an optional environment instead; no desktop is preselected. If you
+    choose graphics, the Surface integration uses Adreno/Mesa.
+  - Keep NetworkManager under Network configuration. Reconnect with nmtui after
+    first boot. Choosing Copy ISO configuration explicitly copies your saved
+    NetworkManager connections, including Wi-Fi credentials, to the new system.
+  - Review the complete configuration, select Install and confirm it.
+
+If Install reports an invalid layout, correct the highlighted selection. The
+installer refuses a whole-disk wipe, changes to existing partitions, a mounted
+target disk, a reformatted ESP and a conflicting EFI/LexrArch directory.
+
+To inspect a configuration without partitioning or installing:
+
+  sudo archinstall --dry-run
+
+You can also pass --config and --creds with files saved by this installer.
+--silent is accepted only with --dry-run; installation retains the confirmation.
+
+Lexr installs a fresh Arch root, the custom kernel/modules, matching DTBs, public
+Wi-Fi/GPU firmware, an installed-system initramfs and ARM64 GRUB. It retains the
+Lexr companion and source at /usr/share/lexr/arch-media/sp11/companion. Your new
+system uses your chosen account; it does not inherit the live autologin or sudo
+policy. Audio and other optional userspaces need separate Arch qualification.
+
+After successful installation, choose Exit so you can read the boot information.
+GRUB is installed in EFI/LexrArch. The existing EFI files and firmware BootOrder
+are preserved. Select "Lexr Arch Linux ARM" in firmware, or use the exact
+one-time efibootmgr --bootnext command printed by the installer before rebooting.
+Keep the USB available until the installed system has booted successfully.
+
+After booting the installed system:
+
+  uname -r
+  pacman -Q lexr-kernel-sp11
+  sudo nmtui
+
+The kernel should report the same custom ABI as the live image. To rebuild its
+installed initramfs after a deliberate configuration change:
+
+  sudo mkinitcpio -p lexr-sp11
+
+The GRUB menu and DTBs are bound to that ABI. Cross-ABI kernel upgrades and
+rollback are not yet qualified; retain the existing Surface package. Do not
+replace it with linux-aarch64 or regenerate this GRUB menu with generic entries.
+
+Following the video "How to Install Arch Linux Step-by-Step Guide (archinstall)":
+  https://www.youtube.com/watch?v=LiG2wMkcrFE
+
+The account, locale, profile, timezone and confirmation steps are familiar.
+Use this ARM64 USB instead of its x86_64 download; use nmtui instead of iwctl;
+use Manual Partitioning instead of its whole-disk default; keep Lexr's Surface
+kernel and GRUB instead of the video's stock kernel/systemd-boot choices.
+
+5. CUSTOMISE ARCH
+
+The installed system uses the normal Arch Linux ARM package manager. Review a
+full repository update when adding software:
+
+  sudo pacman -Syu
+
+Choose your editor, terminal tools, window manager or desktop. In a fresh live
+session, initialise keys before using pacman (the guided installer does this):
 
   sudo pacman-key --init
   sudo pacman-key --populate archlinuxarm
 
-Review a full repository update when adding packages:
-
-  sudo pacman -Syu
-
-Choose your own editor, terminal tools, window manager or desktop afterwards.
-The custom kernel is registered as lexr-kernel-sp11; keep it and its matching
-modules/DTBs. The generic linux-aarch64 package is not a substitute for this
-Surface kernel. A repository update in the RAM overlay does not change the
-kernel that GRUB loads from the USB. Reboot returns to the original image.
-
-5. INSTALLATION STATUS
-
-This first image is a terminal live environment for boot qualification and
-customisation. It includes arch-install-scripts, filesystem tools and ARM64
-GRUB, but the reviewed Lexr installation flow for existing multi-boot machines
-is still being implemented. Do not run an unattended whole-disk installer.
-Upstream archinstall has not been qualified for this Surface kernel/DTB flow.
-
-The planned install flow uses a root partition selected by you and preserves
-the shared EFI System Partition and other operating systems. The kernel,
-modules, matching DTB and installed-system initramfs must stay paired. The
-installed system must use arm64-efi GRUB and its own boot entry; the live archiso
-boot arguments do not belong in the installed system. These are qualification
-requirements, not completed installation instructions.
+Live-session package changes live in RAM and disappear after reboot. Avoid
+upgrading Archinstall before using the bundled installation flow.
 
 References:
   https://archlinuxarm.org/about/downloads

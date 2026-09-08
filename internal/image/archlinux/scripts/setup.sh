@@ -33,11 +33,13 @@ Arch Linux ARM — Surface Pro 11 live setup
   1. Check kernel, network and storage
   2. Connect to Wi-Fi or configure networking
   3. Initialise package signing keys for this session
-  4. Read the getting-started and installation status guide
+  4. Read the getting-started and installation guide
   5. Open the Lexr included on this USB
+  6. Install Arch with the guided Surface installer
   0. Return to the shell and customise Arch
 
-This session is temporary. The menu does not partition or install to a disk.
+The live session is temporary. Option 6 opens Archinstall and requires you to
+select and confirm a supported partition layout before installation.
 MENU
     read -r -p 'Select an option: ' choice || exit 0
     case "$choice" in
@@ -55,6 +57,7 @@ MENU
                 "$HOME/.local/bin/lexr" --help
             fi ;;
         0) exit 0 ;;
+        6) sudo /usr/local/bin/archinstall ;;
         *) printf 'Choose one of the listed options.\n' ;;
     esac
 done

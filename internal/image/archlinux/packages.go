@@ -62,8 +62,11 @@ func lockedPackages() ([]lockedPackage, error) {
 			return nil, fmt.Errorf("invalid or repeated locked Arch package %q", entry.Name)
 		}
 		seen[entry.Name] = true
+		if entry.Name == "archinstall" && entry.Version != "4.4-1" {
+			return nil, errors.New("Arch installer integration requires the reviewed archinstall 4.4-1 package")
+		}
 	}
-	for _, name := range []string{"grub", "mkinitcpio-archiso", "linux-firmware-qcom", "networkmanager", "wireless-regdb"} {
+	for _, name := range []string{"archinstall", "grub", "mkinitcpio-archiso", "linux-firmware-qcom", "networkmanager", "wireless-regdb"} {
 		if !seen[name] {
 			return nil, fmt.Errorf("Arch package lock is missing %s", name)
 		}
