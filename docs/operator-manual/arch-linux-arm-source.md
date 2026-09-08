@@ -84,7 +84,7 @@ selected explicitly. The fingerprint was checked against the official
 The [upstream keyring](https://github.com/archlinuxarm/archlinuxarm-keyring)
 used for signature checking had SHA-256
 `50a08f82ce3cd524a552da4bfa37f3e04b2c9da468e2fce5783474b58a34c518`.
-The maintainer recorded the archive's SHA-256 after verifying the signature;
+Ooaklee recorded the archive's SHA-256 after verifying the signature;
 this is not a publisher-provided SHA-256 sidecar.
 
 The inspected archive identifies itself as `archarm`, includes AArch64 ELF

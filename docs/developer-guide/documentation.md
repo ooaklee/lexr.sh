@@ -47,10 +47,16 @@ evidence establish exactly what that means.
 Describe Lexr itself as a Qualcomm Snapdragon X project. Describe a capability
 at the narrowest scope established by its evidence: name the catalogue entry,
 processor variant, device model or physical test where it matters. Most current
-implementation and qualification evidence comes from the maintainer's Surface
+implementation and qualification evidence comes from Ooaklee's Surface
 Pro 11; do not turn that practical focus into either a project-wide limit or an
 unsupported claim about other Snapdragon X devices. Preserve SP11 names in
 commands, paths, schemas, release tags and compatibility contracts.
+
+Attribute Leon Silcott's personal decisions and hardware test results to
+**Ooaklee** (GitHub [`ooaklee`](https://github.com/ooaklee)). Use that name
+consistently across guides, catalogue notes and test records. Generic project
+roles and technical terms such as package maintainer scripts keep their usual
+meaning.
 
 ## Keep safety close to the action
 

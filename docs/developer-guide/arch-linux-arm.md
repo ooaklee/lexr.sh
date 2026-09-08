@@ -5,7 +5,7 @@ The experimental adapter builds a terminal live ISO from a signed, pinned Arch
 Linux ARM rootfs and a fixed package set. It uses native pacman registration,
 separate mkinitcpio configurations and direct ARM64 GRUB. No desktop is selected.
 The X1E/OLED live terminal and Wi-Fi have been tested on a Surface Pro 11.
-On 2026-09-08, the maintainer also confirmed the
+On 2026-09-08, Ooaklee also confirmed the
 [guided installer](../operator-manual/arch-linux-arm-install.md#hardware-test-record)
 completed and booted the internal ext4 root with v23, working touchscreen input
 and Wi-Fi after reconnecting.
@@ -173,7 +173,7 @@ GPT/El Torito extent, EFI machine type and embedded GRUB bootstrap, media label,
 final squashfs checksum, exact kernel/module/DTB bytes, early dependency closures,
 firmware, terminal configuration, native pacman inventory and retained companion.
 
-The maintainer's physical test confirms the internal ext4 root, the running v23
+Ooaklee's physical test confirms the internal ext4 root, the running v23
 kernel and native `lexr-kernel-sp11` package, with touchscreen input and Wi-Fi.
 The [hardware test record](../operator-manual/arch-linux-arm-install.md#hardware-test-record)
 binds that result to candidate 4 from `2e0d384`. This is distinct from the

@@ -95,7 +95,7 @@ lexr image create \
 ### elementary OS 8.1 ARM64
 
 The `elementary-os-8-1-20260219` entry pins the ARM64 image and publisher checksum.
-Its `elementary-casper` adapter remains experimental. On 2026-09-06, the maintainer
+Its `elementary-casper` adapter remains experimental. On 2026-09-06, Ooaklee
 confirmed that the image built with Lexr `927d00e` and v23 reached the Surface Pro
 11 X1E/OLED desktop from the default GRUB entry. Wi-Fi, browsing a website and the
 language/try/install chooser worked. Boot showed the elementary logo and spinner,

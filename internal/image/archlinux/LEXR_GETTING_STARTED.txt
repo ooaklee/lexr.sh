@@ -502,7 +502,7 @@ PipeWire's video sources. Open a preview from your desktop terminal:
 Close the preview before using the camera in another application. Browser
 camera access also depends on that browser's PipeWire support and permissions.
 
-On installed X1E/OLED v23, the maintainer confirmed a usable qcam picture and
+On installed X1E/OLED v23, Ooaklee confirmed a usable qcam picture and
 that the privacy light was on during the preview. Arch libcamera 0.7.2-4 streamed
 ten processed frames; PipeWire 1.6.8 exposed the front-camera source. The stock
 packages still warn about missing IMX681 properties, gain helper and tuning,

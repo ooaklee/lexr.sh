@@ -9,8 +9,8 @@ what the CLI generates, and which evidence must remain private.
 Lexr is a Qualcomm Snapdragon X project, not a promise that every Snapdragon X
 device shares one boot path or support level. The current image adapters,
 kernel and userspace contracts, and most physical test evidence were developed
-around the Microsoft Surface Pro 11 because it is the hardware available to the
-maintainer for daily use and repeated testing.
+around the Microsoft Surface Pro 11 because it is the hardware available to
+Ooaklee for daily use and repeated testing.
 
 Project-level descriptions may invite work across the Snapdragon X family.
 Capability claims must name the catalogue entry, processor variant, device

@@ -7,7 +7,7 @@ description: Represent authenticated root filesystem snapshots without weakening
 ## Status
 
 Accepted on 2026-09-06 for the source-intake portion of
-[issue #52](https://github.com/ooaklee/lexr.sh/issues/52), following the maintainer's
+[issue #52](https://github.com/ooaklee/lexr.sh/issues/52), following Ooaklee's
 Arch Linux ARM source selection and OpenCode design review. The live-image
 adapter and installation design remain separate, unfinished work.
 

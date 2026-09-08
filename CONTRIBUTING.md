@@ -89,7 +89,7 @@ subjects, such as `fix: reject an incomplete bundle` or
 `docs: explain the recovery path`. Those subjects become part of release notes,
 so describe the useful result rather than the mechanics of the edit.
 
-This is a small, single-maintainer project, so replies may take time. A quiet
+Ooaklee maintains this small project alone, so replies may take time. A quiet
 period is not a rejection, and a polite follow-up is welcome.
 
 ## Licence and contribution terms

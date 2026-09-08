@@ -40,7 +40,7 @@ or context that may help.
 
 I will keep a report as private as I reasonably can, consider the context, and
 tell the reporter what action I take when it is safe and appropriate to do so.
-This is a single-maintainer project, so there is not yet an independent
+I run this project on my own, so there is not yet an independent
 in-project escalation path. If a report concerns me, or reporting to me does
 not feel safe, please use the safety or abuse-reporting route provided by the
 platform where the conduct happened. That limitation is real, and I would

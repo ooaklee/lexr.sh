@@ -278,7 +278,7 @@ browser's PipeWire support and permissions.
 The installed X1E/OLED v23 test used Arch `libcamera`, `libcamera-ipa` and
 `libcamera-tools` **0.7.2-4**, with `pipewire-libcamera` **1:1.6.8-1**.
 A bounded `cam -c 1 --capture=10` completed ten processed frames without saving
-images. The maintainer confirmed a usable `qcam` picture and the privacy light
+images. Ooaklee confirmed a usable `qcam` picture and the privacy light
 on during preview; PipeWire exposed the front-camera source after discovery
 was refreshed with the preview closed.
 
@@ -335,7 +335,7 @@ package rather than another kernel or OE userspace bundle.
 
 ## Hardware test record
 
-On 2026-09-08, the maintainer completed the bundled `sudo archinstall` flow on a
+On 2026-09-08, Ooaklee completed the bundled `sudo archinstall` flow on a
 Surface Pro 11 X1E/OLED and booted the resulting installation from the internal
 NVMe disk. The reported command output confirms:
 
@@ -344,18 +344,18 @@ NVMe disk. The reported command output confirms:
 | Running kernel (`uname -r`) | `7.2.0-jg-0sp11v23-qcom-x1e` |
 | Root (`findmnt -no SOURCE,FSTYPE /`) | Internal NVMe partition, `ext4` |
 | Native kernel package (`pacman -Q lexr-kernel-sp11`) | `lexr-kernel-sp11 7.2.0_jg_0sp11v23-1` |
-| Touchscreen | Maintainer confirmed working in the installed system |
-| Pen | Maintainer confirmed pen input after Lexr installed the paired IPTSD portable userspace |
+| Touchscreen | Ooaklee confirmed working in the installed system |
+| Pen | Ooaklee confirmed pen input after Lexr installed the paired IPTSD portable userspace |
 | Audio userspace files | Native `bf617c5` build passed dry-run and installed FullIO, preserving the original selector link in backup and the shared Qualcomm profile unchanged |
 | Audio early firmware | Six existing same-device aDSP files and FullIO topology verified by hash in the rebuilt installed initramfs; GRUB unchanged; audio DSP and ALSA card present after reboot |
-| Stereo playback | Maintainer confirmed both stereo channels work cleanly with no static or pops after completing the installed audio setup |
+| Stereo playback | Ooaklee confirmed both stereo channels work cleanly with no static or pops after completing the installed audio setup |
 | Audio scheduling and controls | Missing `rtkit`, `alsa-utils` and `plasma-pa` installed; restarted PipeWire uses realtime data threads; sampled error counters were zero before and after; clean playback independently confirmed by listening |
-| Microphone | Maintainer confirmed working very well in the installed system |
-| Front camera | Native Arch packages stream processed frames; maintainer confirmed qcam picture and privacy light on; PipeWire source present; sensor tuning and further lifecycle tests pending |
-| Wi-Fi | Maintainer confirmed connected after reconnecting |
+| Microphone | Ooaklee confirmed working very well in the installed system |
+| Front camera | Native Arch packages stream processed frames; Ooaklee confirmed qcam picture and privacy light on; PipeWire source present; sensor tuning and further lifecycle tests pending |
+| Wi-Fi | Ooaklee confirmed connected after reconnecting |
 | Power profiles | Standard daemon enabled; power-saver, balanced and performance each verified against kernel readback; original low-power setting restored |
 | Persistent entry in Ubuntu GRUB | Native `241f119` preview/apply/repeat passed; existing EFI files, both generated menus, Arch initramfs and firmware variables unchanged; selecting the new entry on hardware pending |
-| KDE terminal | Maintainer confirmed Konsole works after installing its package |
+| KDE terminal | Ooaklee confirmed Konsole works after installing its package |
 | Network widget | Missing `plasma-nm` installed; widget registered after refreshing Plasma, visual check pending |
 | File manager | Missing Dolphin installed; process and directory handler verified, visual check pending |
 | GPU acceleration | KWin uses `llvmpipe`; kernel reports missing private Surface GPU firmware |

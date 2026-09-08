@@ -7,7 +7,7 @@ description: Architecture Decision Record for separating Lexr's Qualcomm Snapdra
 ## Context
 
 Lexr grew from the work required to run ARM64 Linux on a Microsoft Surface Pro
-11. That device remains the maintainer's daily driver and therefore supplies
+11. That device remains Ooaklee's daily driver and therefore supplies
 most of the project's repeatable development and physical test evidence.
 Existing image adapters, device trees, kernel ABIs, release names, private
 Windows hand-offs and userspace policies contain intentional SP11-specific

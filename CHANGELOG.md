@@ -63,7 +63,7 @@ that do not apply.
   the installed ARM64 loader before appending a persistent custom menu entry,
   preserving other entries, EFI files and firmware boot order.
   X1E/OLED live boot and installation to an internal ext4 root are confirmed
-  by the maintainer with v23, including installed touchscreen input and Wi-Fi
+  by Ooaklee with v23, including installed touchscreen input and Wi-Fi
   after reconnecting.
   Further hardware and recovery checks remain in
   [#52](https://github.com/ooaklee/lexr.sh/issues/52).
@@ -102,7 +102,7 @@ that do not apply.
   the live configuration separate ([#52](https://github.com/ooaklee/lexr.sh/issues/52)).
   Document RTKit, ALSA diagnostics and optional Plasma sound controls for the
   installed audio session, with audible quality recorded separately from
-  device detection and playback error counters. The maintainer confirmed clean
+  device detection and playback error counters. Ooaklee confirmed clean
   stereo playback and microphone input on installed X1E/OLED v23.
 
 - Accept current `media-ctl` uppercase pad directions and empty disabled-link
@@ -119,7 +119,7 @@ that do not apply.
   initramfs images, including the device-tree panel drivers and QRTR service
   dependencies that are absent from the graphics driver's ELF dependency closure.
   Validate their dependency bytes and add a firmware-display text diagnostic entry.
-  The maintainer confirmed the corrected `927d00e`/v23 image reaches the X1E/OLED
+  Ooaklee confirmed the corrected `927d00e`/v23 image reaches the X1E/OLED
   live desktop with Wi-Fi, web browsing and the language/try/install chooser.
   Installation, recovery and other hardware checks remain pending
   ([#49](https://github.com/ooaklee/lexr.sh/issues/49)).
@@ -431,7 +431,7 @@ that do not apply.
 - An exact Lexr release allow-list for six raw Linux, macOS and Windows executables, three legal documents, and one versioned checksum manifest, with no hardware-support or unrelated documentation payloads.
 - A Go-native source builder which injects explicit Lexr version, revision and build-time metadata without relying on ambiguous automatic VCS discovery.
 - Explicit `Apache-2.0` project terms, a project notice, and an audited third-party inventory covering every linked release dependency, the Go runtime, and embedded Unicode data.
-- Human contribution and conduct guides plus a single-maintainer record for people who want to report a problem or help the project.
+- Human contribution and conduct guides plus a project contact record for people who want to report a problem or help the project.
 - Structured bug and feature issue forms, a contribution-aware pull-request template, and grouped weekly dependency updates for Go modules and GitHub Actions.
 
 ### Changed

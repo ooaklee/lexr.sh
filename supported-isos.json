@@ -48,7 +48,7 @@
       "compatibility_notes": [
         "Experimental SP11 adapter preserves elementary's single Casper filesystem and pairs the custom kernel with external device trees.",
         "Elementary's Distinst installer uses GRUB, and its update-grub patches both /boot/grub/grub.cfg and /boot/efi/EFI/ubuntu/grub/grub.cfg; no systemd-boot or automatic Pop-style recovery partition is involved.",
-        "The maintainer confirmed X1E/OLED live desktop boot, Wi-Fi, web browsing and the language/try/install chooser with Lexr 927d00e and v23 on 2026-09-06; installation, recovery, other peripherals and X1P/LCD remain unqualified.",
+        "Ooaklee confirmed X1E/OLED live desktop boot, Wi-Fi, web browsing and the language/try/install chooser with Lexr 927d00e and v23 on 2026-09-06; installation, recovery, other peripherals and X1P/LCD remain unqualified.",
         "The mirror download matches the ARM64 SHA-256 published at https://elementary.io/docs/installation.",
         "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],
@@ -174,7 +174,7 @@
       "compatibility_notes": [
         "Source is a root filesystem archive. The Arch adapter builds an experimental terminal live ISO with the Surface kernel, Wi-Fi and Lexr. Bundled Archinstall provides a guarded manual ext4/shared-ESP installation flow with ARM64 GRUB; no desktop is preselected.",
         "The URL is rolling; this entry accepts only the SHA-256-pinned 2026-08-05 snapshot. If latest changes, verification must fail until a separately authenticated snapshot is deliberately selected.",
-        "Maintainer authenticated the archive signature on 2026-09-06 against Arch Linux ARM build key 68B3537F39A313B3E574D06777193F152BDBE6A6 before recording this SHA-256.",
+        "Ooaklee authenticated the archive signature on 2026-09-06 against Arch Linux ARM build key 68B3537F39A313B3E574D06777193F152BDBE6A6 before recording this SHA-256.",
         "X1E/OLED live terminal and Wi-Fi were tested on Surface Pro 11. Installed-system reboot, multi-boot and X1P/LCD qualification remain pending in issue #52.",
         "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],
