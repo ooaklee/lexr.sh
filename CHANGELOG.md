@@ -82,6 +82,11 @@ that do not apply.
 
 ### Fixed
 
+- Restrict the Arch Surface installer to Adreno Mesa/Freedreno graphics and
+  effective AArch64 repositories, check selected profile packages before
+  formatting, and reject unsupported PC packages in later transactions. Use the
+  ARM64 root partition type and reject external profile code before import
+  ([#52](https://github.com/ooaklee/lexr.sh/issues/52)).
 - Include Surface Pro 11 USB/DSP, graphics and keyboard-hub drivers in elementary
   initramfs images, including the device-tree panel drivers and QRTR service
   dependencies that are absent from the graphics driver's ELF dependency closure.

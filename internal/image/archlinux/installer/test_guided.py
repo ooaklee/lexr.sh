@@ -1,11 +1,14 @@
 """Exercise Surface callbacks against the separately packaged Archinstall API."""
 
 import copy
+import asyncio
 import importlib.util
+import json
 from pathlib import Path
 from types import SimpleNamespace
 import tempfile
 import unittest
+from uuid import UUID
 from unittest.mock import patch
 
 import guided as adapter
@@ -18,6 +21,30 @@ class ArgumentTests(unittest.TestCase):
             with self.subTest(arguments=arguments), self.assertRaises(ValueError):
                 adapter.check_arguments(arguments)
         adapter.check_arguments(["--dry-run", "--silent", "--config", "saved.json"])
+
+    def test_external_code_is_rejected_before_profile_parsing(self):
+        for config in ({"profile_config": {"profile": {"path": "/tmp/custom.py"}}},
+                       {"profile_config": {"profile": {"path": "https://example.invalid/profile.py"}}},
+                       {"custom_commands": ["install-something"]}, {"script": "other"}):
+            with self.subTest(config=config), self.assertRaises(ValueError):
+                adapter.validate_raw_config(config)
+        adapter.validate_raw_config({"profile_config": {"profile": {"main": "Minimal"}}})
+
+    def test_effective_repository_and_host_architecture_must_match(self):
+        def query(args, **kwargs):
+            if args[1:] == ["Architecture"]:
+                return "aarch64\n"
+            if args[1:] == ["--repo-list"]:
+                return "core\nextra\nalarm\naur\n"
+            return f"https://ca.us.mirror.archlinuxarm.org/aarch64/{args[2]}\n"
+        with patch.object(adapter.platform, "machine", return_value="aarch64"), \
+                patch.object(adapter.subprocess, "check_output", side_effect=query):
+            adapter.validate_repositories()
+            for output in ("x86_64\n", "aarch64\nmultilib\n"):
+                with patch.object(adapter.subprocess, "check_output", return_value=output), self.assertRaises(ValueError):
+                    adapter.validate_repositories()
+        with patch.object(adapter.platform, "machine", return_value="x86_64"), self.assertRaises(ValueError):
+            adapter.validate_repositories()
 
 
 @unittest.skipUnless(importlib.util.find_spec("archinstall"), "run API tests in the pinned ARM64 test root")
@@ -43,6 +70,9 @@ class ArchinstallAPITests(unittest.TestCase):
             args=SimpleNamespace(dry_run=True, silent=True, offline=True, verbose=False))
         self.guided, _ = adapter.configure_adapter(self.handler, "surface-pro-11-x1e-oled")
         self.plugin = plugins["lexr-surface"]
+        self.repository_check = patch.object(adapter, "validate_repositories").start()
+        self.package_check = patch.object(adapter, "check_packages").start()
+        self.addCleanup(patch.stopall)
 
     def installer(self, directory):
         with patch("archinstall.lib.installer.accessibility_tools_in_use", return_value=False):
@@ -159,6 +189,150 @@ class ArchinstallAPITests(unittest.TestCase):
             self.guided.main(self.handler)
         formatter.assert_not_called()
         install.assert_not_called()
+
+    def test_mesa_round_trip_and_old_pc_graphics_configs_are_rejected(self):
+        from archinstall.lib.models.profile import ProfileConfiguration
+        from archinstall.lib.profile.profiles_handler import profile_handler
+        from archinstall.lib.hardware import GfxDriver
+        desktop = profile_handler.get_profile_by_name("Desktop")
+        config = ProfileConfiguration(desktop, adapter.SurfaceGraphics.Mesa)
+        self.assertEqual(ProfileConfiguration.parse_arg(config.json()).gfx_driver, adapter.SurfaceGraphics.Mesa)
+        for driver in GfxDriver:
+            with self.subTest(driver=driver), self.assertRaises(ValueError):
+                ProfileConfiguration.parse_arg({**config.json(), "gfx_driver": driver.value})
+
+    def test_desktop_providers_are_explicit_in_preflight_and_every_transaction(self):
+        from archinstall.lib.models.profile import ProfileConfiguration
+        from archinstall.lib.profile.profiles_handler import profile_handler
+        desktop = profile_handler.get_profile_by_name("Desktop")
+        desktop.current_selection = [profile_handler.get_profile_by_name("Cosmic")]
+        self.config.profile_config = ProfileConfiguration(desktop, adapter.SurfaceGraphics.Mesa)
+        self.config.packages = ["htop"]
+        self.assertTrue({"cosmic", "mesa", "vulkan-freedreno", "htop"} <= set(adapter.profile_packages(self.config)))
+        for request in (["base"], ["cosmic"], ["pipewire"], ["cosmic-greeter"]):
+            with self.subTest(request=request):
+                result = self.plugin.on_pacstrap(request)
+                self.assertTrue({"mesa", "vulkan-freedreno"} <= set(result))
+                self.package_check.assert_called_with(result)
+
+    def test_profile_menu_uses_mesa_after_each_selection_and_can_reset(self):
+        from archinstall.lib.models.profile import ProfileConfiguration
+        from archinstall.lib.profile import profile_menu
+        from archinstall.lib.profile.profiles_handler import profile_handler
+        menu = self.guided.GlobalMenu(self.config)
+        async def exercise(submenu):
+            item = submenu._item_group.find_by_key("gfx_driver")
+            self.assertTrue(item.read_only)
+            self.assertIsNone(item.action)
+            desktop = profile_handler.get_profile_by_name("Desktop")
+            desktop.current_selection = [profile_handler.get_profile_by_name("Cosmic")]
+            with patch.object(profile_menu, "select_profile", return_value=desktop):
+                await submenu._select_profile(None)
+            self.assertEqual(item.value, adapter.SurfaceGraphics.Mesa)
+            with patch.object(profile_menu, "select_profile", return_value=None):
+                await submenu._select_profile(desktop)
+            self.assertIsNone(item.value)
+            return ProfileConfiguration()
+        with patch.object(profile_menu.ProfileMenu, "show", exercise):
+            asyncio.run(menu._select_profile(None))
+
+    def test_saved_config_is_checked_before_upstream_imports_code(self):
+        from archinstall.lib.args import ArchConfigHandler, ArchConfig
+        raw = {"profile_config": {"profile": {"path": "https://example.invalid/custom.py"}}}
+        with patch.object(ArchConfigHandler, "_parse_config", return_value=raw), \
+                patch.object(ArchConfig, "from_config") as parse, \
+                patch("sys.argv", ["archinstall", "--dry-run"]), self.assertRaises(ValueError):
+            adapter.config_handler_type()()
+        parse.assert_not_called()
+
+    def test_pc_graphics_commands_and_package_errors_stop_before_formatter(self):
+        from archinstall.lib.models.profile import ProfileConfiguration
+        from archinstall.lib.hardware import GfxDriver
+        for change in (lambda c: setattr(c, "custom_commands", ["anything"]),
+                       lambda c: setattr(c, "profile_config", ProfileConfiguration(gfx_driver=GfxDriver.AllOpenSource)),
+                       lambda c: setattr(c, "packages", ["intel-media-driver"]),
+                       lambda c: setattr(c, "packages", ["missing-arm-package"])):
+            with self.subTest(change=change):
+                config = copy.deepcopy(self.config)
+                change(config)
+                self.handler.config = config
+                self.handler.args.dry_run = False
+                self.package_check.side_effect = ValueError("missing ARM package")
+                with patch.object(self.guided, "MirrorListHandler"), \
+                        patch.object(type(config), "write_debug"), patch.object(type(config), "save"), \
+                        patch.object(self.guided, "FilesystemHandler") as formatter, \
+                        patch.object(self.guided, "perform_installation") as install:
+                    self.guided.main(self.handler)
+                formatter.assert_not_called()
+                install.assert_not_called()
+
+    def test_online_install_does_not_fetch_x86_mirrors(self):
+        with patch("archinstall.lib.mirror.mirror_handler.fetch_data_from_url") as fetch:
+            mirrors = self.guided.MirrorListHandler(offline=False)
+            mirrors.get_mirror_regions()
+        self.assertTrue(mirrors.offline)
+        fetch.assert_not_called()
+
+    def test_gpt_root_type_is_arm64_without_replacing_formatter(self):
+        from archinstall.lib.disk import device_handler
+        from archinstall.lib.models.device import PartitionGUID
+        root = self.config.disk_config.device_modifications[0].partitions[1]
+        disk = SimpleNamespace(type="gpt", device=SimpleNamespace(optimalAlignedConstraint=None), addPartition=lambda **kw: None)
+        block = SimpleNamespace(disk=disk, device_info=SimpleNamespace(sector_size=root.start.sector_size))
+        with patch.object(device_handler, "Geometry"), patch.object(device_handler, "FileSystem"), \
+                patch.object(device_handler, "Partition") as partition:
+            partition.return_value.path = "/dev/loop0p2"
+            device_handler.DeviceHandler._setup_partition(SimpleNamespace(), root, block, disk, False)
+        self.assertEqual(partition.return_value.type_uuid, UUID(adapter.ARM64_ROOT_GUID).bytes)
+        self.assertEqual(str(UUID(PartitionGUID.LINUX_ROOT_X86_64.value)), "4f68bce3-e8cd-4db1-96e7-fbcaf984b709")
+
+    def test_native_parted_creates_arm64_root_and_preserves_other_partition(self):
+        import parted
+        from archinstall.lib.disk.device_handler import DeviceHandler
+        from archinstall.lib.models.device import Size, SectorSize, Unit
+        # libparted accepts a sparse regular file. No host block device, mount,
+        # firmware variable or filesystem formatting is involved in this test.
+        with tempfile.TemporaryDirectory() as directory:
+            image = Path(directory) / "gpt.img"
+            with image.open("wb") as stream:
+                stream.truncate(128 * 1024 * 1024)
+            device = parted.getDevice(str(image))
+            disk = parted.freshDisk(device, "gpt")
+            geometry = parted.Geometry(device=device, start=2048, length=16384)
+            other = parted.Partition(disk=disk, type=parted.PARTITION_NORMAL, geometry=geometry)
+            disk.addPartition(other, constraint=parted.Constraint(exactGeom=geometry))
+            before = (other.geometry.start, other.geometry.length, other.type_uuid)
+            root = self.config.disk_config.device_modifications[0].partitions[1]
+            root.start = Size(16, Unit.MiB, SectorSize(512, Unit.B))
+            root.length = Size(32, Unit.MiB, SectorSize(512, Unit.B))
+            block = SimpleNamespace(disk=disk, device_info=SimpleNamespace(sector_size=root.start.sector_size))
+            DeviceHandler._setup_partition(SimpleNamespace(), root, block, disk, False)
+            disk.commitToDevice()
+            self.assertEqual((other.geometry.start, other.geometry.length, other.type_uuid), before)
+            records = json.loads(adapter.subprocess.check_output(["sfdisk", "--json", str(image)], text=True))["partitiontable"]["partitions"]
+            self.assertEqual(records[1]["type"].lower(), adapter.ARM64_ROOT_GUID)
+            self.assertEqual(records[0]["start"], 2048)
+            self.assertEqual(records[0]["size"], 16384)
+
+    def test_package_policy_rejects_pc_hardware_generic_kernels_and_argument_overrides(self):
+        for name in ("intel-media-driver", "xf86-video-ati", "amd-ucode", "linux", "linux-aarch64", "lib32-mesa", "--config", "custom/mesa", "/tmp/pkg.tar.zst"):
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                adapter.validate_package_names([name])
+        adapter.validate_package_names(["mesa", "vulkan-freedreno", "cosmic", "archlinuxarm-keyring"])
+
+    def test_package_resolver_rejects_x86_dependency_and_group_members(self):
+        # Restore the real checker; every record emitted by pacman's group and
+        # dependency resolution is checked, not only the requested package name.
+        patch.stopall()
+        for output in ("mesa x86_64\n", "intel-media-driver aarch64\n", "bad metadata record\n"):
+            with self.subTest(output=output), patch.object(adapter.subprocess, "run", return_value=SimpleNamespace(
+                    returncode=0, stdout=output, stderr="")), self.assertRaises(ValueError):
+                adapter.check_packages(["desktop-group"])
+        with patch.object(adapter.subprocess, "run", return_value=SimpleNamespace(
+                returncode=0, stdout="mesa aarch64\nxorgproto any\n", stderr="")) as resolve:
+            adapter.check_packages(["mesa"])
+        self.assertIn("--print", resolve.call_args.args[0])
+        self.assertNotIn("--refresh", resolve.call_args.args[0])
 
 
 if __name__ == "__main__":

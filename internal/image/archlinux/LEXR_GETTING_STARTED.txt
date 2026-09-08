@@ -93,7 +93,9 @@ In the menus:
   - Under Authentication, create your own user and password with sudo access.
   - Leave Profile unset or select Minimal for a terminal installation. You may
     choose an optional environment instead; no desktop is preselected. Profile
-    packages must be available for ARM. You can also customise after installation.
+    graphics use Qualcomm Adreno (Mesa), including vulkan-freedreno. Old saved
+    PC graphics choices are rejected; start a new configuration in that case.
+    You can also customise after installation.
   - Keep NetworkManager under Network configuration. Reconnect with nmtui after
     first boot. Upstream's Copy ISO configuration handles iwd/networkd; it does
     not copy this image's NetworkManager Wi-Fi profiles.
@@ -105,12 +107,20 @@ format the existing ESP or other OS partitions. Archinstall executes your
 confirmed disk choices. The boot hook needs 32 MiB free on the ESP and refuses
 to overwrite an existing EFI/LexrArch directory.
 
+Before formatting, Lexr checks the ARM repositories and resolves your profile
+and additional packages, including dependencies. If those checks fail, correct
+the selection first. Later package transactions are also checked for architecture
+and Surface compatibility. This does not check every later transaction in advance
+or guarantee network downloads or optional desktop support.
+
 To inspect a configuration without partitioning or installing:
 
   sudo archinstall --dry-run
 
 You can also pass --config and --creds with files saved by this installer.
 --silent is accepted only with --dry-run; installation retains the confirmation.
+Use bundled profiles without custom commands or external profile files/URLs.
+The dry-run uses available package databases; normal installation refreshes them.
 
 Lexr installs a fresh Arch root, the custom kernel/modules, matching DTBs, public
 Wi-Fi/GPU firmware, an installed-system initramfs and ARM64 GRUB. It retains the

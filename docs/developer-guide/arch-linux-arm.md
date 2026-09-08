@@ -88,9 +88,11 @@ The installed boot renderer uses the ext4 root's UUID and actual Surface variant
 `/boot` stays on that root; the FAT ESP is mounted at `/boot/efi`. The external
 Python adapter registers Archinstall's `on_pacstrap`, `on_mkinitcpio`,
 `on_add_bootloader` and `on_genfstab` callbacks. Kernel and ARM mirror fields
-are fixed; the normal GRUB menu remains available. No desktop is preselected.
-The upstream package, formatter, accounts, profile and network handlers remain
-unmodified and retain their distribution licence and source files.
+are fixed; graphics use Mesa and the Adreno Vulkan provider. The normal GRUB
+menu remains available. No desktop is preselected. The upstream package files,
+accounts, profile and network handlers remain unmodified. A module-local
+constant adaptation makes the existing formatter assign the ARM64 root type;
+it does not replace partitioning or formatting code.
 
 A small compatibility check runs in the Install preview and guided saved-config
 path before formatting. It rejects boot layouts the Surface payload cannot use:
@@ -99,6 +101,16 @@ other bootloaders. It does not inspect partition geometry, compare GPT snapshots
 or prohibit formatting selected by the user. Archinstall owns those actions
 and their confirmation. Alongside-install instructions explain preservation of
 the existing ESP and other OS partitions.
+
+The same check validates effective ARM repositories and resolves selected
+profile/additional packages, including dependencies and groups, before formatting.
+Every later pacstrap request checks package architecture and rejects unsupported
+PC platform packages too. Application/network/greeter recipes stay upstream;
+their later transactions and network downloads may still fail. External profile
+code is rejected before upstream imports it. Custom commands and replacement
+scripts/plugins are outside this reviewed flow. See
+[ADR035](../adr/adr-035-arch-guided-surface-installation.md) for the pinned API
+adaptations and the limits of the package checks.
 
 The package callback removes the local kernel placeholder from repository
 requests and retains the ARM signing keyring. The first initramfs callback

@@ -28,7 +28,7 @@ In **Disk configuration → Manual Partitioning**:
 5. Keep `/boot` on the root filesystem, and leave encryption and LVM disabled.
 
 Archinstall performs the disk operations you select and confirm. Lexr does not
-add a separate partition-preservation policy. Its Install preview checks only
+add a separate partition-preservation policy. Its Install preview checks
 the Surface boot requirements: an ext4 root, a FAT ESP on GPT at `/boot/efi`,
 and GRUB
 without UKI, removable fallback or Plymouth. Other layouts need further Surface
@@ -40,8 +40,18 @@ replace an existing `EFI/LexrArch` installation.
 Set your language, keyboard, locale, hostname, timezone and user account in the
 normal menus. Create a user with sudo access. Leave **Profile** unset or select
 **Minimal** for a terminal installation. Optional environments remain available;
-no desktop is preselected. Profile packages must be available for Arch Linux ARM;
-you can also add your preferred environment after the terminal installation.
+no desktop is preselected. Graphics are fixed to **Qualcomm Adreno (Mesa)**,
+including `vulkan-freedreno` so Vulkan dependencies select the Adreno provider.
+PC GPU choices from older saved configurations are rejected; start a new
+configuration to select the supported graphics option.
+
+Before formatting, Lexr checks the effective ARM repositories and resolves the
+selected profile and additional packages, including dependencies, with pacman.
+An unavailable or incompatible package stops that attempt before disk changes.
+Later application, network and greeter package transactions also check architecture
+and Surface compatibility. This does not preflight every later transaction or
+guarantee download success or that an optional desktop works on the Surface.
+You can also add your preferred environment after the terminal installation.
 
 Keep **NetworkManager** for networking. You can reconnect with `sudo nmtui` after
 installation. Lexr uses Archinstall's normal network setup and does not add a
@@ -64,7 +74,11 @@ sudo archinstall --dry-run
 ```
 
 Saved `--config` and `--creds` files are supported. `--silent` is accepted only
-with `--dry-run`; real installation retains the confirmation screen.
+with `--dry-run`; real installation retains the confirmation screen. Saved
+configurations may use bundled profiles, but external profile files/URLs,
+replacement scripts/plugins and custom commands are outside this reviewed flow.
+The dry-run resolves packages against the available live package databases;
+normal installation refreshes those databases before showing the menus.
 
 ## First boot
 

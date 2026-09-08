@@ -27,9 +27,29 @@ required. Its generic bootloader invocation also changes firmware boot order.
 Bundle the signed, unmodified Archinstall package with its dependencies pinned
 in the image lock. Use its plugin callbacks for package requests, initramfs,
 bootloader installation and final boot verification. Keep only small adaptations
-for the ARM keyring, kernel/mirror menu fields and boot compatibility feedback;
+for the ARM keyring, platform menu fields and boot compatibility feedback;
 there is no upstream configuration-validation hook. Test these against the
 bundled API before updating its version.
+
+The first desktop installation attempt exposed another x86 assumption: the
+All open-source graphics choice requested Intel/ATI packages unavailable in the
+ARM repositories. Fix graphics to Mesa plus `vulkan-freedreno` for Adreno.
+Without the explicit Vulkan provider, pacman can select ARM64 NVIDIA utilities
+for a desktop's virtual `vulkan-driver` dependency. CPU architecture alone does
+not establish Surface hardware compatibility.
+
+Keep effective pacman architecture and repositories restricted to the image's
+ARM configuration. Resolve selected profile/additional packages before formatting,
+and check each later pacstrap request and its resolved package metadata. This
+consumes upstream profile data and pacman's resolver; it does not duplicate
+application, greeter or networking recipes. Later transactions and downloads
+can still fail. Block external profile code before deserialization and reject
+custom commands, since arbitrary extensions fall outside the reviewed flow.
+
+Disable the upstream x86 mirror-status lookup. Adapt the formatter's module-local
+root-type constant to the [ARM64 root GUID](https://uapi-group.org/specifications/specs/discoverable_partitions_specification/).
+The upstream formatter still owns partition creation and geometry. Test the
+GUID with real libparted and sfdisk on a disposable file, preserving a neighbour.
 
 Archinstall owns disk actions and the confirmation screen. Lexr does not compare
 GPT geometry, replace the formatter, enforce a new-partition-only policy, or
