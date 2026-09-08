@@ -353,6 +353,9 @@ was confirmed on installed X1E/OLED v23 after this command. IPTSD's log may say
 
 Audio (FullIO topology and ALSA UCM)
 
+Stereo playback without static or pops and microphone input were confirmed on
+installed Surface Pro 11 X1E/OLED v23 with the setup below.
+
 Archinstall's PipeWire option is suitable. Install any missing audio components,
 including realtime scheduling and diagnostic tools, then log out and back in:
 
@@ -421,8 +424,8 @@ reporting the problem. Do not change speaker protection controls to suppress it.
 
 The older audio status check may recommend the retired
 soundwire_qcom.sp11_feedback_active_offset2_zero=1 flag. Do not regenerate this
-Surface GRUB menu or add that workaround solely to clear the check. Audio on
-Arch remains under qualification; report the output in issue #52.
+Surface GRUB menu or add that workaround solely to clear the check. Report any
+remaining audio issues in issue #52 with the exact installed setup.
 
 To download and install both paired components together, the equivalent is:
 
@@ -477,7 +480,61 @@ power-profiles-daemon to inspect the native package. The file check still runs.
 If the desktop controls have not appeared, save work and log out and back in.
 
 Bluetooth needs same-device address evidence from the private hand-off above.
-The released camera packages target Debian/Ubuntu; do not install them on Arch.
+
+Front camera
+
+Install Arch's native camera runtime and its PipeWire integration:
+
+  sudo pacman -Syu --needed libcamera libcamera-tools pipewire-libcamera v4l-utils
+
+Close camera applications, then log out and back in. Alternatively, run this
+as your normal user to refresh device discovery (briefly interrupts audio):
+
+  systemctl --user restart wireplumber.service
+  cam -l
+  wpctl status
+
+Look for "Internal front camera" in cam and "Built-in Front Camera" under
+PipeWire's video sources. Open a preview from your desktop terminal:
+
+  qcam
+
+Close the preview before using the camera in another application. Browser
+camera access also depends on that browser's PipeWire support and permissions.
+
+On installed X1E/OLED v23, the maintainer confirmed a usable qcam picture and
+that the privacy light was on during the preview. Arch libcamera 0.7.2-4 streamed
+ten processed frames; PipeWire 1.6.8 exposed the front-camera source. The stock
+packages still warn about missing IMX681 properties, gain helper and tuning,
+and use uncalibrated defaults. Exposure/gain accuracy, colour, privacy-light
+turn-off, repeated starts, browser capture and suspend/resume remain unqualified.
+No OE camera package or kernel change was needed for this preview.
+
+Lexr provides camera diagnostics; the released `userspace install camera`
+bundle and camera package status checks currently target Debian/Ubuntu. Do not
+install those .deb files on Arch or treat the dpkg/path failures as proof that
+Arch's camera cannot work. Use pacman -Q libcamera libcamera-ipa libcamera-tools
+pipewire-libcamera to inspect its native runtime.
+
+Optional Lexr route check (does not stream or change the media graph):
+
+  sudo "$LEXR" userspace camera capture --dry-run
+
+Use an updated Lexr containing PR #55's media-ctl parser fix; older binaries
+can report "malformed topology" with v4l-utils 1.32. If the device is busy, close
+camera clients first. WirePlumber can also hold the device open while idle.
+For this diagnostic only, pause it and guarantee its restart when the check ends:
+
+  (
+    trap 'systemctl --user start wireplumber.service' EXIT
+    systemctl --user stop wireplumber.service || exit
+    sudo "$LEXR" userspace camera capture --dry-run
+  )
+
+Run the block as your normal user. It briefly interrupts audio and camera
+routing. A successful dry run proves route discovery, not a working picture.
+The optional capture/render commands in the userspace guide record private
+imagery; keep those files out of issues and releases.
 
 7. BOOT DIAGNOSTICS
 

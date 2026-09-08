@@ -102,7 +102,13 @@ that do not apply.
   the live configuration separate ([#52](https://github.com/ooaklee/lexr.sh/issues/52)).
   Document RTKit, ALSA diagnostics and optional Plasma sound controls for the
   installed audio session, with audible quality recorded separately from
-  device detection and playback error counters.
+  device detection and playback error counters. The maintainer confirmed clean
+  stereo playback and microphone input on installed X1E/OLED v23.
+
+- Accept current `media-ctl` uppercase pad directions and empty disabled-link
+  flags in the exact IMX681 camera route validator. Document the native Arch
+  camera packages, confirmed front-camera preview and remaining tuning and
+  lifecycle limits ([#52](https://github.com/ooaklee/lexr.sh/issues/52)).
 
 - Restrict the Arch Surface installer to Adreno Mesa/Freedreno graphics and
   effective AArch64 repositories, check selected profile packages before

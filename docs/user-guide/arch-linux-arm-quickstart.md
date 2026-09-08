@@ -214,7 +214,7 @@ EFI files and BootOrder. Repeating registration does not add duplicates.
 
 ## 7. Set up hardware and customise Arch
 
-Open the retained instructions for pen, audio, Wi-Fi and power profiles:
+Open the retained instructions for pen, audio, camera, Wi-Fi and power profiles:
 
 ```bash
 cat /usr/share/lexr/LEXR_GETTING_STARTED.txt
@@ -222,6 +222,8 @@ cat /usr/share/lexr/LEXR_GETTING_STARTED.txt
 
 The guide includes copying the retained Lexr binary, installing IPTSD for the
 pen, checking audio prerequisites and configuring power-profiles-daemon.
+The [front-camera setup](../operator-manual/arch-linux-arm-install.md#front-camera-after-installation)
+uses Arch's native libcamera packages and includes a preview check.
 PipeWire alone does not supply Surface audio firmware. The
 [hardware setup and test record](../operator-manual/arch-linux-arm-install.md#pen-and-audio-after-installation)
 distinguishes confirmed features from pending tests.

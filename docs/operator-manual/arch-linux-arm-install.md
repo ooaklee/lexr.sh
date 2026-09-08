@@ -251,6 +251,68 @@ private set. Rebuild the installed initramfs after firmware changes and reboot
 before checking ALSA cards, PipeWire devices, speakers and microphone. Updating
 Lexr alone does not replace the older preset on an already-installed candidate.
 
+## Front camera after installation
+
+Install the native Arch Linux ARM runtime and PipeWire camera plugin:
+
+```bash
+sudo pacman -Syu --needed libcamera libcamera-tools pipewire-libcamera v4l-utils
+```
+
+Close camera applications, then log out and back in. To refresh discovery
+immediately, run the following as your normal desktop user; restarting
+WirePlumber briefly interrupts audio and camera routing:
+
+```bash
+systemctl --user restart wireplumber.service
+cam -l
+wpctl status
+qcam
+```
+
+`cam` should list **Internal front camera**, and PipeWire should expose
+**Built-in Front Camera** under video sources. Close `qcam` before opening
+another camera application. Browser capture additionally depends on the
+browser's PipeWire support and permissions.
+
+The installed X1E/OLED v23 test used Arch `libcamera`, `libcamera-ipa` and
+`libcamera-tools` **0.7.2-4**, with `pipewire-libcamera` **1:1.6.8-1**.
+A bounded `cam -c 1 --capture=10` completed ten processed frames without saving
+images. The maintainer confirmed a usable `qcam` picture and the privacy light
+on during preview; PipeWire exposed the front-camera source after discovery
+was refreshed with the preview closed.
+
+This path uses [Arch's native libcamera package](https://archlinuxarm.org/packages/aarch64/libcamera).
+No OE camera package or kernel change was needed for the preview. The stock
+runtime warns that IMX681 properties, gain helper and tuning are missing and
+uses uncalibrated defaults. Exposure/gain accuracy, colour, privacy-light
+turn-off, repeated starts, browser capture and suspend/resume remain unqualified.
+The separate OE sensor patch addresses metadata, gain mapping and tuning; it
+has not been packaged or qualified on Arch by this change.
+
+Lexr's released `userspace install camera` bundle and static camera package
+checks currently target Debian/Ubuntu. Do not install its `.deb` files on Arch.
+Use `pacman -Q libcamera libcamera-ipa libcamera-tools pipewire-libcamera` for
+native package inspection; a Debian package/path failure from Lexr does not
+establish that the native camera is broken.
+
+For an optional route diagnostic, use a Lexr build containing this PR's
+`media-ctl` parser fix:
+
+```bash
+sudo lexr userspace camera capture --dry-run
+```
+
+The check does not stream or change the media graph. It accepts the uppercase
+pad directions and empty disabled-link flags emitted by `v4l-utils` 1.32,
+while retaining the exact IMX681 route checks. The corrected command passed
+on the device. Close camera clients first. If WirePlumber holds the camera
+open while idle, the retained getting-started file includes a temporary
+stop/check/restart block that restores it even when the diagnostic fails.
+Use the [userspace camera guide](../user-guide/userspace-support.md#6-inspect-the-experimental-camera)
+for optional private RAW capture and rendering; do not publish captured images
+or infer picture quality from a successful dry run.
+
 ## Power profiles
 
 Select **Applications > Power management > power-profiles-daemon** in
@@ -286,8 +348,10 @@ NVMe disk. The reported command output confirms:
 | Pen | Maintainer confirmed pen input after Lexr installed the paired IPTSD portable userspace |
 | Audio userspace files | Native `bf617c5` build passed dry-run and installed FullIO, preserving the original selector link in backup and the shared Qualcomm profile unchanged |
 | Audio early firmware | Six existing same-device aDSP files and FullIO topology verified by hash in the rebuilt installed initramfs; GRUB unchanged; audio DSP and ALSA card present after reboot |
-| Stereo playback | Maintainer heard both channel tests, but reported static/pops; clean playback and microphone testing remain pending |
-| Audio scheduling and controls | Missing `rtkit`, `alsa-utils` and `plasma-pa` installed; restarted PipeWire uses realtime data threads; sampled error counters were zero before and after; audible-quality retest pending |
+| Stereo playback | Maintainer confirmed both stereo channels work cleanly with no static or pops after completing the installed audio setup |
+| Audio scheduling and controls | Missing `rtkit`, `alsa-utils` and `plasma-pa` installed; restarted PipeWire uses realtime data threads; sampled error counters were zero before and after; clean playback independently confirmed by listening |
+| Microphone | Maintainer confirmed working very well in the installed system |
+| Front camera | Native Arch packages stream processed frames; maintainer confirmed qcam picture and privacy light on; PipeWire source present; sensor tuning and further lifecycle tests pending |
 | Wi-Fi | Maintainer confirmed connected after reconnecting |
 | Power profiles | Standard daemon enabled; power-saver, balanced and performance each verified against kernel readback; original low-power setting restored |
 | Persistent entry in Ubuntu GRUB | Native `241f119` preview/apply/repeat passed; existing EFI files, both generated menus, Arch initramfs and firmware variables unchanged; selecting the new entry on hardware pending |
@@ -303,7 +367,7 @@ read-back. Its SHA-256 is
 Later documentation updates do not change or requalify those image bytes.
 
 This confirms the first installed boot and the features listed above. Repeated
-boot selection, returning to Ubuntu/Windows after this installation, audio,
+boot selection, returning to Ubuntu/Windows after this installation, further camera checks,
 broader desktop behaviour, recovery, cross-ABI upgrades and X1P/LCD still require
 testing. The image remains experimental; this record is not a published ISO release.
 
