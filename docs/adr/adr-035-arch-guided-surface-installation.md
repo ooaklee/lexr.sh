@@ -7,8 +7,11 @@ description: Use Archinstall plugin hooks for the Surface kernel and ARM64 boot 
 ## Status
 
 Accepted on 2026-09-08 for the initial implementation in
-[issue #52](https://github.com/ooaklee/lexr.sh/issues/52). Installed-system hardware
-qualification is pending.
+[issue #52](https://github.com/ooaklee/lexr.sh/issues/52). The maintainer confirmed
+X1E/OLED installation and boot from an internal ext4 root with v23, touchscreen
+input and Wi-Fi on the same date. The
+[hardware test record](../operator-manual/arch-linux-arm-install.md#hardware-test-record)
+identifies the candidate and remaining qualification work.
 
 ## Context
 

@@ -57,8 +57,12 @@ that do not apply.
 - Add a terminal Arch Linux ARM live image and a bundled Archinstall 4.4 flow
   with the Surface kernel, matching DTBs, installed initramfs and ARM64 GRUB.
   Surface plugin hooks retain Archinstall's normal disk, account, profile and
-  network setup, with an alongside-install guide and no desktop preselected. X1E/OLED live boot and Wi-Fi are confirmed; installed-system
-  hardware qualification remains in [#52](https://github.com/ooaklee/lexr.sh/issues/52).
+  network setup, with an alongside-install guide and no desktop preselected.
+  X1E/OLED live boot and installation to an internal ext4 root are confirmed
+  by the maintainer with v23, including installed touchscreen input and Wi-Fi
+  after reconnecting.
+  Further hardware and recovery checks remain in
+  [#52](https://github.com/ooaklee/lexr.sh/issues/52).
 
 - Add the authenticated Arch Linux ARM AArch64 rootfs snapshot to catalogue
   version 3 as catalogue-only input; retain version-2 ISO/raw catalogue support.

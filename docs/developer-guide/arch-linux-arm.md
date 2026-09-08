@@ -4,9 +4,11 @@ Arch work is tracked in [issue #52](https://github.com/ooaklee/lexr.sh/issues/52
 The experimental adapter builds a terminal live ISO from a signed, pinned Arch
 Linux ARM rootfs and a fixed package set. It uses native pacman registration,
 separate mkinitcpio configurations and direct ARM64 GRUB. No desktop is selected.
-The X1E/OLED terminal and Wi-Fi have been tested on a Surface Pro 11. The
-[guided installer](../operator-manual/arch-linux-arm-install.md) is implemented;
-installed-system reboot qualification remains pending.
+The X1E/OLED live terminal and Wi-Fi have been tested on a Surface Pro 11.
+On 2026-09-08, the maintainer also confirmed the
+[guided installer](../operator-manual/arch-linux-arm-install.md#hardware-test-record)
+completed and booted the internal ext4 root with v23, working touchscreen input
+and Wi-Fi after reconnecting.
 
 ## Reuse and distribution boundaries
 
@@ -126,8 +128,9 @@ GRUB uses `arm64-efi`, `EFI/LexrArch` and `--no-nvram`. The installer then uses
 are unchanged during that hook. This does not cover formatting selected earlier in
 Archinstall. It prints the new entry and an optional one-time BootNext command.
 Kernel, initramfs and DTBs remain on the root filesystem. An existing conflicting
-Lexr installation is refused rather than overwritten. Reaching the new loader
-through Surface firmware still requires physical installation qualification.
+Lexr installation is refused rather than overwritten. The first installed boot
+has been confirmed on X1E/OLED; repeated boot selection and recovery still need
+hardware testing.
 
 The image retains a fixed installer payload manifest, the native kernel package,
 public firmware, exact kernel/DTB identities and GRUB templates. The independent
@@ -160,7 +163,11 @@ GPT/El Torito extent, EFI machine type and embedded GRUB bootstrap, media label,
 final squashfs checksum, exact kernel/module/DTB bytes, early dependency closures,
 firmware, terminal configuration, native pacman inventory and retained companion.
 
-The remaining hardware milestone is installation into user-selected space and
-reboot through the new GRUB entry, with the other operating systems preserved.
-Cross-ABI kernel updates and rollback remain a separate qualification step.
-Live boot success must not be reported as installed-system qualification.
+The maintainer's physical test confirms the internal ext4 root, the running v23
+kernel and native `lexr-kernel-sp11` package, with touchscreen input and Wi-Fi.
+The [hardware test record](../operator-manual/arch-linux-arm-install.md#hardware-test-record)
+binds that result to candidate 4 from `2e0d384`. This is distinct from the
+container checks above. Repeated boot selection, returning to the other installed
+operating systems, audio, broader desktop behaviour, recovery and X1P/LCD remain
+untested after this installation. Cross-ABI kernel updates and rollback remain
+separate qualification steps.

@@ -8,9 +8,10 @@ sudo archinstall
 
 Option 6 in `lexr-arch-setup` opens the same installer. The USB includes the
 reviewed Archinstall 4.4 package and Lexr's Surface integration. Use the bundled
-version before updating packages in the live session. The live terminal and
-Wi-Fi have been tested on X1E/OLED; installed-system reboot qualification is
-still pending in [issue #52](https://github.com/ooaklee/lexr.sh/issues/52).
+version before updating packages in the live session. X1E/OLED live boot,
+installation and boot from an internal ext4 root are confirmed with v23. See the
+[hardware test record](#hardware-test-record) below and
+[issue #52](https://github.com/ooaklee/lexr.sh/issues/52) for the remaining checks.
 
 ## Prepare space and select the layout
 
@@ -53,6 +54,20 @@ and Surface compatibility. This does not preflight every later transaction or
 guarantee download success or that an optional desktop works on the Surface.
 You can also add your preferred environment after the terminal installation.
 
+For KDE Plasma, add `konsole` under **Additional packages** if you want its
+terminal application. The bundled upstream Plasma profile selects the desktop
+packages; it does not explicitly request Konsole. If Plasma reports
+"Terminal konsole not found" when opening Vim or another terminal application,
+log in on **Ctrl+Alt+F3** and run:
+
+```bash
+sudo pacman -Syu --needed konsole
+```
+
+Return to your graphical session with **Ctrl+Alt+F1** or **Ctrl+Alt+F2** and retry
+the application. [Konsole is available for AArch64](https://archlinuxarm.org/packages/aarch64/konsole).
+This is an optional desktop package choice, not a Surface kernel change.
+
 Keep **NetworkManager** for networking. You can reconnect with `sudo nmtui` after
 installation. Lexr uses Archinstall's normal network setup and does not add a
 Wi-Fi credential-copying helper. **Copy ISO configuration** is upstream's
@@ -93,11 +108,18 @@ After boot:
 
 ```bash
 uname -r
+findmnt -no SOURCE,FSTYPE /
 pacman -Q lexr-kernel-sp11
 sudo nmtui
 ```
 
-The kernel must match the USB's custom ABI. The matching Lexr companion and
+The kernel must match the USB's custom ABI, and `/` must be the installed ext4
+partition rather than the live overlay. In `nmtui`, choose **Activate a connection**
+and enter your Wi-Fi password again; live connection credentials are not copied.
+If you cannot find a terminal in your chosen desktop, press **Ctrl+Alt+F3**
+(with **Fn** if your keyboard requires it) and log in to the text console.
+
+The matching Lexr companion and
 source remain at `/usr/share/lexr/arch-media/sp11/companion`. Copy its binary to
 your home directory as described in `LEXR_GETTING_STARTED.txt` before running it.
 
@@ -110,6 +132,33 @@ sudo mkinitcpio -p lexr-sp11
 The GRUB entries and DTBs are bound to that ABI. Cross-ABI upgrades and rollback
 remain unqualified. Retain the Surface kernel package; a generic `linux-aarch64`
 package or generic regenerated GRUB entries do not replace this boot integration.
+
+## Hardware test record
+
+On 2026-09-08, the maintainer completed the bundled `sudo archinstall` flow on a
+Surface Pro 11 X1E/OLED and booted the resulting installation from the internal
+NVMe disk. The reported command output confirms:
+
+| Check | Result |
+| --- | --- |
+| Running kernel (`uname -r`) | `7.2.0-jg-0sp11v23-qcom-x1e` |
+| Root (`findmnt -no SOURCE,FSTYPE /`) | Internal NVMe partition, `ext4` |
+| Native kernel package (`pacman -Q lexr-kernel-sp11`) | `lexr-kernel-sp11 7.2.0_jg_0sp11v23-1` |
+| Touchscreen | Maintainer confirmed working in the installed system |
+| Wi-Fi | Maintainer confirmed connected after reconnecting |
+| KDE application launch | Plasma reports a missing Konsole when launching Vim; installation instructions above, retest pending |
+| Other desktop notification | "Unknown application folder" reported; cause not yet diagnosed |
+
+The tested image was candidate 4, created with Lexr `2e0d384`, independently
+validated and written by the matching native Lexr binary with a complete USB
+read-back. Its SHA-256 is
+`bd60290edeab9fd4b183b00b8ff361751c32898f56e723c9ef99c8aa0d0aac41`.
+Later documentation updates do not change or requalify those image bytes.
+
+This confirms the first installed boot and the features listed above. Repeated
+boot selection, returning to Ubuntu/Windows after this installation, audio,
+broader desktop behaviour, recovery, cross-ABI upgrades and X1P/LCD still require
+testing. The image remains experimental; this record is not a published ISO release.
 
 ## Following the Archinstall video
 

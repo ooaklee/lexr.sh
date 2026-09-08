@@ -2,8 +2,9 @@ LEXR GETTING STARTED — ARCH LINUX ARM ON SURFACE PRO 11
 
 This experimental USB boots a terminal using the custom Surface kernel. Choose
 X1E/OLED or X1P/LCD in GRUB to match your device. Disable Secure Boot for this
-unsigned kernel and external device tree. X1E/OLED terminal boot and Wi-Fi have
-been tested; installed-system boot and X1P/LCD qualification remain pending.
+unsigned kernel and external device tree. X1E/OLED live and installed boot with
+v23, installed touchscreen input and Wi-Fi after reconnecting were confirmed on
+2026-09-08. Recovery, cross-ABI upgrades and X1P/LCD remain unqualified.
 
 The local live account is arch, with passwordless sudo. The installation section
 writes only after you select and confirm a supported layout in Archinstall.
@@ -138,10 +139,24 @@ Keep the USB available until the installed system has booted successfully.
 After booting the installed system:
 
   uname -r
+  findmnt -no SOURCE,FSTYPE /
   pacman -Q lexr-kernel-sp11
   sudo nmtui
 
-The kernel should report the same custom ABI as the live image. To rebuild its
+In nmtui, choose Activate a connection and enter your Wi-Fi password again;
+live connection credentials are not copied. If your desktop has no accessible
+terminal, press Ctrl+Alt+F3 (with Fn if needed) and log in to the text console.
+
+If KDE Plasma reports "Terminal konsole not found" when opening Vim or another
+terminal application, install its optional terminal package from that console:
+
+  sudo pacman -Syu --needed konsole
+
+Return to the graphical session with Ctrl+Alt+F1 or Ctrl+Alt+F2 and retry. For a
+new KDE installation, you can select konsole under Additional packages instead.
+
+The kernel should report the same custom ABI as the live image, and / should
+be your installed ext4 partition rather than the live overlay. To rebuild its
 installed initramfs after a deliberate configuration change:
 
   sudo mkinitcpio -p lexr-sp11
