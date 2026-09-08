@@ -266,6 +266,7 @@ NVMe disk. The reported command output confirms:
 | Audio early firmware | Six existing same-device aDSP files and FullIO topology verified by hash in the rebuilt installed initramfs; GRUB unchanged; playback/microphone testing pending reboot |
 | Wi-Fi | Maintainer confirmed connected after reconnecting |
 | Power profiles | Standard daemon enabled; power-saver, balanced and performance each verified against kernel readback; original low-power setting restored |
+| Persistent entry in Ubuntu GRUB | Native `241f119` preview/apply/repeat passed; existing EFI files, both generated menus, Arch initramfs and firmware variables unchanged; selecting the new entry on hardware pending |
 | KDE terminal | Maintainer confirmed Konsole works after installing its package |
 | Network widget | Missing `plasma-nm` installed; widget registered after refreshing Plasma, visual check pending |
 | File manager | Missing Dolphin installed; process and directory handler verified, visual check pending |
