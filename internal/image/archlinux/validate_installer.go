@@ -10,7 +10,7 @@ import (
 
 // validateInstaller reads payload data without executing code from the ISO.
 func (v *Validator) validateInstaller(ctx context.Context, image, workspace, volume, abi string) error {
-	expected := map[string]string{"installed.conf": InstalledInitramfsConfig(), "lexr_sp11": EarlySupportHook(), "guided.py": installerGuided, "policy.py": installerPolicy, "target.py": installerTarget}
+	expected := map[string]string{"installed.conf": InstalledInitramfsConfig(), "lexr_sp11": EarlySupportHook(), "guided.py": installerGuided, "target.py": installerTarget}
 	for profile := range installerProfiles {
 		config, err := (InstalledBoot{ABI: abi, RootUUID: "00000000-0000-0000-0000-000000000000", Device: profile}).GRUBConfig()
 		if err != nil {
@@ -51,7 +51,7 @@ for name in paths:
  assert identity(retained/name)==identity(path),name
  if name.startswith('installer/firmware/'):
   assert identity(root/'usr/lib/firmware'/name.removeprefix('installer/firmware/'))==identity(path),name
-for name in ('payload.json','guided.py','policy.py','target.py'):
+for name in ('payload.json','guided.py','target.py'):
  assert identity(media/'installer'/name)==identity(retained/'installer'/name),name
 runtime=json.loads((media/'installer/runtime.json').read_text())
 expected={'boot/vmlinuz-'+abi}|{'usr/lib/firmware/'+abi+'/device-tree/qcom/'+tree for tree in profiles.values()}

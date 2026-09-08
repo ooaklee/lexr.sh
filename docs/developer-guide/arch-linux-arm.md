@@ -84,32 +84,35 @@ companion; `checksum=y` requires `airootfs.sha512` to be calculated after the
 final squashfs is closed. This checksum detects corruption, not publisher
 authenticity. `BOOTAA64.EFI` belongs to a newly created ISO ESP.
 
-The installed boot renderer uses the new ext4 root's UUID and the actual Surface
-variant. `/boot` stays on that root; the existing ESP is mounted at `/boot/efi`.
-The external Python adapter reuses Archinstall 4.4's guided menus and installer
-stages. Its kernel, ARM mirror and GRUB defaults are fixed; profiles remain
-optional and no desktop is preselected. The upstream Python package is unmodified
-and retains its distribution licence and source files.
+The installed boot renderer uses the ext4 root's UUID and actual Surface variant.
+`/boot` stays on that root; the FAT ESP is mounted at `/boot/efi`. The external
+Python adapter registers Archinstall's `on_pacstrap`, `on_mkinitcpio`,
+`on_add_bootloader` and `on_genfstab` callbacks. Kernel and ARM mirror fields
+are fixed; the normal GRUB menu remains available. No desktop is preselected.
+The upstream package, formatter, accounts, profile and network handlers remain
+unmodified and retain their distribution licence and source files.
 
-Before the confirmation and again before partition changes, the adapter checks
-the actual GPT table and mount state. It accepts only a manual plan creating one
-ext4 root in unallocated space while retaining every existing partition, with
-one existing FAT ESP. Whole-disk wipe, deletion, existing-partition formatting,
-foreign mounts, active devices, encryption and LVM are refused. The original GPT
-records are checked again after root creation. ESP space and a conflicting Lexr
-loader are checked before formatting the new root.
+A small compatibility check runs in the Install preview and guided saved-config
+path before formatting. It rejects boot layouts the Surface payload cannot use:
+non-ext4 root, a separate `/boot`, an ESP elsewhere, encryption, LVM, UKI and
+other bootloaders. It does not inspect partition geometry, compare GPT snapshots
+or prohibit formatting selected by the user. Archinstall owns those actions
+and their confirmation. Alongside-install instructions explain preservation of
+the existing ESP and other OS partitions.
 
-Pacstrap builds a fresh target using ARM signing keys. The locally generated
-`lexr-kernel-sp11` archive is digest-verified and installed in a separate,
-no-repository pacman transaction; persistent signature verification is retained.
-Firmware and the installed mkinitcpio hook precede that transaction. An explicit
-`lexr-sp11` preset supports rebuilding this ABI without live-media hooks. The live
-account, autologin and passwordless sudo configuration are never copied. Copy ISO
-networking copies NetworkManager connections only when the user selects it.
+The package callback removes the local kernel placeholder from repository
+requests and retains the ARM signing keyring. The first initramfs callback
+installs the digest-verified kernel archive and creates its installed initramfs;
+later callbacks rebuild the `lexr-sp11` preset. The local unsigned transaction
+uses a temporary repository-free configuration, preserving normal package trust.
+The platform helper has no Archinstall imports and consumes the Go-rendered
+GRUB templates. Live accounts and login policy are never copied. Networking and
+profiles use upstream handlers; users reconnect with NetworkManager after boot.
 
 GRUB uses `arm64-efi`, `EFI/LexrArch` and `--no-nvram`. The installer then uses
 `efibootmgr --create-only` and verifies that the original BootOrder and EFI files
-are unchanged. It prints the new entry and an optional one-time BootNext command.
+are unchanged during that hook. This does not cover formatting selected earlier in
+Archinstall. It prints the new entry and an optional one-time BootNext command.
 Kernel, initramfs and DTBs remain on the root filesystem. An existing conflicting
 Lexr installation is refused rather than overwritten. Reaching the new loader
 through Surface firmware still requires physical installation qualification.

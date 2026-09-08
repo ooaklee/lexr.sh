@@ -1,67 +1,69 @@
 ---
 id: adrs-adr035
 title: "ADR035: Arch guided Surface installation"
-description: Reuse Archinstall's guided choices while retaining the Surface kernel and shared-ESP boot contract.
+description: Use Archinstall plugin hooks for the Surface kernel and ARM64 boot while retaining its normal installation flow.
 ---
 
 ## Status
 
-Accepted on 2026-09-08 for the initial installation implementation in
-[issue #52](https://github.com/ooaklee/lexr.sh/issues/52), following the
-maintainer's request for Archinstall, a terminal default and GRUB alongside
-existing operating systems. Installed-system hardware qualification is pending.
+Accepted on 2026-09-08 for the initial implementation in
+[issue #52](https://github.com/ooaklee/lexr.sh/issues/52). Installed-system hardware
+qualification is pending.
 
 ## Context
 
-The Arch Linux ARM source is a root filesystem, not an installer ISO. Lexr now
-produces a terminal live image with the coherent Surface kernel and firmware.
-Upstream Archinstall offers useful account, locale, profile and network menus,
-but its stock kernel packages and bootloader paths do not implement this ARM64
-Surface boot chain. Its whole-disk defaults also conflict with retaining other
-operating systems on the test device.
+The Arch Linux ARM source supplies a root filesystem, not an installer ISO.
+Lexr creates a terminal live image with the Surface kernel and firmware.
+Archinstall already owns partitioning, formatting, accounts, profiles and
+network setup. Duplicating those features adds a second installer to maintain.
+
+The bundled Archinstall 4.4 does need platform integration: it cannot download
+Lexr's local kernel archive from the ARM repositories, does not supply the
+matching Surface DTB, and derives `aarch64-efi` for GRUB where `arm64-efi` is
+required. Its generic bootloader invocation also changes firmware boot order.
 
 ## Decision
 
-Bundle the signed Archinstall 4.4 package as a separate, unmodified dependency.
-An external Python adapter uses its guided flow and replaces kernel, bootloader
-and storage-validation stages. Pin the package and dependency bytes in the
-image lock and require the reviewed API version at runtime. Do not silently
-upgrade the installer in the live session.
+Bundle the signed, unmodified Archinstall package with its dependencies pinned
+in the image lock. Use its plugin callbacks for package requests, initramfs,
+bootloader installation and final boot verification. Keep only small adaptations
+for the ARM keyring, kernel/mirror menu fields and boot compatibility feedback;
+there is no upstream configuration-validation hook. Test these against the
+bundled API before updating its version.
 
-Keep account, locale, network and optional profile choices. Preselect no desktop.
-Fix platform choices to Arch Linux ARM repositories, the local Surface kernel,
-Adreno/Mesa and ARM64 GRUB. The first supported storage plan creates one ext4
-root in unallocated space on an existing GPT disk and reuses its FAT ESP at
-`/boot/efi`. Preserve every existing partition record. Reject wiping, formatting
-existing partitions, encryption, LVM and separate boot partitions in this first
-implementation. Re-read the actual disk after confirmation and before mutation.
+Archinstall owns disk actions and the confirmation screen. Lexr does not compare
+GPT geometry, replace the formatter, enforce a new-partition-only policy, or
+replace account, networking and profile handlers. No desktop is preselected.
+The alongside-install guide instructs users to prepare free space, reuse the
+existing ESP without formatting and preserve other OS partitions. Those are
+choices the user reviews in Archinstall, not guarantees supplied by a Lexr
+partitioning policy.
 
-Bind the native kernel archive, installed mkinitcpio configuration, firmware,
-DTB identities and GRUB templates in a closed payload manifest. Verify these
-bytes independently from the completed ISO and again before target writes.
-Install the local unsigned kernel through a temporary, repository-free pacman
-configuration; do not weaken the installed repository trust policy. Retain a
-separate `lexr-sp11` initramfs preset and the offline companion on the target.
+The current Surface boot payload supports a plain ext4 root containing `/boot`
+and a FAT ESP at `/boot/efi`, with GRUB and no UKI, encryption or LVM. Check that
+compatibility in the normal Install preview and saved-config path before
+formatting. The limitation belongs to the Surface boot payload, not Archinstall.
 
-Install GRUB only under `EFI/LexrArch`, with `--no-nvram`; create its dedicated
-firmware entry using `efibootmgr --create-only`. Preserve other EFI files and
-BootOrder, refuse an existing Lexr installation, and print an optional one-time
-BootNext command. Verify the kernel, DTBs, initramfs, GRUB, firmware entry and
-UUID-based fstab before the guided flow reports success.
+Keep the offline kernel/boot helper independent of Archinstall. It verifies the
+kernel archive, firmware, DTB identities and Go-rendered GRUB templates, installs
+the local package without weakening repository signature policy, and retains
+the `lexr-sp11` initramfs preset and offline companion. Moving this helper to a
+new language would not remove duplicated installer behaviour.
+
+Install GRUB under `EFI/LexrArch` with `--no-nvram`, then create its firmware
+entry using `efibootmgr --create-only`. Preserve the EFI files present when this
+hook starts and the existing BootOrder. Verify the kernel, DTBs, initramfs,
+GRUB and UUID-based fstab before the normal completion dialog. This boot-hook
+verification does not undo partition formatting selected earlier by the user.
 
 ## Consequences
 
-- Familiar guided choices remain available with explicit Surface constraints.
-  The operator prepares unallocated space and confirms the final installation.
-- Saved configurations receive the same validation; dry runs cannot reach the
-  filesystem mutation stage. Executable extensions and unattended real installs
-  are outside this adapter's initial contract.
-- The installed system receives fresh account configuration. Live autologin and
-  passwordless sudo do not transfer. Copying saved Wi-Fi connections requires
-  selecting Archinstall's Copy ISO networking option.
-- The wrapper depends on reviewed Archinstall interfaces. An upstream version
-  change requires API tests and native installation validation before updating
-  the pin. Keep upstream licensing separate from Lexr-authored integration code.
-- Loop-image tests can check package installation and EFI file preservation;
-  simulated firmware variables cannot qualify a physical installed boot.
-  Cross-ABI upgrades, recovery and other storage layouts need further work.
+- The user gets the standard guided setup with Surface defaults and a terminal
+  starting point. Most future installer changes remain upstream's responsibility.
+- Dry-run and confirmation remain upstream-owned. Real unattended installation
+  and replacement entry-point scripts/plugins are outside this initial flow.
+- Live autologin and passwordless sudo do not transfer. Use NetworkManager and
+  reconnect after installation; Lexr does not add a connection-copying feature.
+- API tests and native loop-image installation test the hooks without maintaining
+  a second disk-policy test suite. Simulated firmware variables cannot qualify
+  physical installed boot, cross-ABI kernel upgrades or recovery.

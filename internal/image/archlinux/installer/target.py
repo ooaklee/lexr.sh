@@ -1,7 +1,7 @@
 """Install the verified Surface payload into an Archinstall-created target.
 
 This module never partitions or formats a device. Archinstall supplies the fresh
-mounted root after its reviewed storage plan. All commands use argument arrays.
+mounted root after its normal storage flow. All commands use argument arrays.
 """
 
 import hashlib
@@ -111,14 +111,14 @@ def mount_record(path):
 
 
 def target_mounts(target):
-    """Require a writable ext4 root and separately mounted, existing FAT ESP."""
+    """Require the filesystems expected by the Surface boot payload."""
     target = Path(target)
     if not target.is_absolute() or target.resolve() != target or target in (Path("/"), Path("/boot"), Path("/home")):
         raise ValueError("Unsafe installation target")
     root = mount_record(target)
     esp = mount_record(target / "boot/efi")
     if root["fstype"] != "ext4" or esp["fstype"] != "vfat" or root["source"] == esp["source"]:
-        raise ValueError("Require ext4 root and separate existing FAT ESP")
+        raise ValueError("Require ext4 root and separate FAT ESP")
     for record in (root, esp):
         if "rw" not in record["options"].split(",") or not re.fullmatch(r"/dev/[A-Za-z0-9_/-]+", record["source"]):
             raise ValueError("Invalid or read-only target device")

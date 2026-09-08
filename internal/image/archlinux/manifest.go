@@ -30,7 +30,7 @@ var evidenceFiles = append([]struct{ role, file, path string }{
 // installerEvidenceFiles makes every offline installer input independently verifiable.
 func installerEvidenceFiles() []struct{ role, file, path string } {
 	var entries []struct{ role, file, path string }
-	paths := append(installerAssetPaths()[1:], "installer/payload.json", "installer/guided.py", "installer/policy.py", "installer/target.py")
+	paths := append(installerAssetPaths()[1:], "installer/payload.json", "installer/guided.py", "installer/target.py")
 	for index, name := range paths {
 		path := "sp11/" + name
 		entries = append(entries, struct{ role, file, path string }{fmt.Sprintf("installer-asset-%d", index), path, path})

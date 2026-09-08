@@ -39,7 +39,7 @@ func stageInstallerScripts(workspace, abi string) error {
 		return err
 	}
 	for name, text := range map[string]string{
-		"guided.py": installerGuided, "policy.py": installerPolicy, "target.py": installerTarget,
+		"guided.py": installerGuided, "target.py": installerTarget,
 		"installed.conf": InstalledInitramfsConfig(), "lexr_sp11": EarlySupportHook(),
 	} {
 		if err := os.WriteFile(filepath.Join(directory, name), []byte(text), 0644); err != nil {

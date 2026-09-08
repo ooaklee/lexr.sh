@@ -56,9 +56,8 @@ that do not apply.
 
 - Add a terminal Arch Linux ARM live image and a bundled Archinstall 4.4 flow
   with the Surface kernel, matching DTBs, installed initramfs and ARM64 GRUB.
-  The guided flow preserves an existing shared ESP and other OS partitions,
-  creates one new ext4 root in unallocated space, and leaves desktop selection
-  to the user. X1E/OLED live boot and Wi-Fi are confirmed; installed-system
+  Surface plugin hooks retain Archinstall's normal disk, account, profile and
+  network setup, with an alongside-install guide and no desktop preselected. X1E/OLED live boot and Wi-Fi are confirmed; installed-system
   hardware qualification remains in [#52](https://github.com/ooaklee/lexr.sh/issues/52).
 
 - Add the authenticated Arch Linux ARM AArch64 rootfs snapshot to catalogue

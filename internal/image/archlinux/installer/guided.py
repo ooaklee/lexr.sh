@@ -1,313 +1,164 @@
-"""Archinstall 4.4 guided flow with the Lexr Surface Pro 11 integration.
+"""Archinstall's guided flow with hooks for the Surface kernel and ARM64 boot.
 
-Upstream Archinstall remains a separately packaged, unmodified dependency.
-The storage policy is checked again immediately before its first mutation.
+Archinstall owns partitioning, formatting, accounts, profiles and networking.
+This adapter only supplies platform defaults and the Surface boot hand-off.
 """
 
 import importlib.metadata
-import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
-import tempfile
 from types import SimpleNamespace
 
-import policy
 import target as surface
 
 PAYLOAD = Path("/usr/share/lexr/arch-media/sp11")
 MIRRORLIST = "Server = https://ca.us.mirror.archlinuxarm.org/$arch/$repo\n"
+KERNEL = "lexr-kernel-sp11"
 
 
 def check_arguments(arguments):
-    """Reject executable extensions before Archinstall parses or imports them."""
-    rejected = {"--plugin", "--plugin-url", "--script", "--config-url", "--creds-url", "--skip-boot", "share-log"}
+    """Keep the guided entry point and its Surface hooks when parsing options."""
     for argument in arguments:
-        if argument.split("=", 1)[0] in rejected:
-            raise ValueError("Use the bundled guided installer without external plugins, scripts or remote configuration")
-    for index, argument in enumerate(arguments):
-        if argument == "--config" or argument.startswith("--config="):
-            name = argument.split("=", 1)[1] if "=" in argument else arguments[index + 1]
-            config = json.loads(Path(name).read_text())
-            if config.get("script") or config.get("custom_commands") or ((config.get("profile_config") or {}).get("profile") or {}).get("path"):
-                raise ValueError("External installer code and custom post-install commands are not supported")
-            if config.get("kernels") != ["lexr-kernel-sp11"]:
-                raise ValueError("Saved configuration must select the Lexr Surface kernel")
+        if argument.split("=", 1)[0] in {"--plugin", "--plugin-url", "--script", "--skip-boot"}:
+            raise ValueError("Use the bundled guided entry point without replacement scripts or plugins")
 
 
-def disk_state(device):
-    """Read the real GPT and mount state without modifying the selected disk."""
-    if not policy.DEVICE.fullmatch(device):
-        raise ValueError("Invalid installation device")
-    table = json.loads(surface.run("sfdisk", "--json", device, capture=True))["partitiontable"]
-    devices = json.loads(surface.run("lsblk", "--json", "--paths", "--output",
-                                     "PATH,TYPE,FSTYPE,MOUNTPOINTS,RO", device, capture=True))["blockdevices"]
-    return table, devices
+def validate_platform(config):
+    """Check boot compatibility, without implementing a partitioning policy."""
+    from archinstall.lib.models.bootloader import Bootloader
+    from archinstall.lib.models.device import DiskLayoutType, EncryptionType, FilesystemType, ModificationStatus
+
+    boot, disk = config.bootloader_config, config.disk_config
+    if not boot or boot.bootloader != Bootloader.Grub or boot.uki or boot.removable or boot.plymouth:
+        raise ValueError("Select GRUB without UKI, removable fallback or Plymouth for this Surface image")
+    if config.kernels != [KERNEL] or config.mirror_config:
+        raise ValueError("Keep the Surface kernel and the image's Arch Linux ARM repositories")
+    if config.script:
+        raise ValueError("Use the guided installation entry point")
+    if not disk or disk.config_type == DiskLayoutType.Pre_mount:
+        raise ValueError("Select the installation partitions in Archinstall")
+    if disk.lvm_config or (disk.disk_encryption and disk.disk_encryption.encryption_type != EncryptionType.NO_ENCRYPTION):
+        raise ValueError("The Surface boot payload currently supports plain ext4 without LVM or encryption")
+    parts = [p for m in disk.device_modifications for p in m.partitions if p.status != ModificationStatus.DELETE]
+    roots = [p for p in parts if p.mountpoint == Path("/")]
+    esps = [p for p in parts if p.mountpoint == Path("/boot/efi")]
+    if len(roots) != 1 or roots[0].fs_type != FilesystemType.EXT4:
+        raise ValueError("Select an ext4 root mounted at /")
+    if len(esps) != 1 or not esps[0].is_efi() or not esps[0].fs_type or not esps[0].fs_type.is_fat():
+        raise ValueError("Mount the FAT EFI System Partition at /boot/efi")
+    esp_disk = next(m for m in disk.device_modifications if esps[0] in m.partitions)
+    if not esp_disk.wipe and esp_disk.device.disk.type != "gpt":
+        raise ValueError("The Surface firmware entry requires an ESP on a GPT disk")
+    if any(p.mountpoint == Path("/boot") for p in parts):
+        raise ValueError("Keep /boot on the ext4 root for the Surface kernel and DTBs")
 
 
-def require_boot_environment():
-    """Fail before partitioning when the Surface UEFI path cannot be installed."""
-    surface.require_uefi()
-    _, entries = surface.efi_entries(surface.run("efibootmgr", "--verbose", capture=True))
-    if any(surface.BOOT_LABEL in entry or surface.BOOT_LOADER.lower() in entry.lower() for entry in entries.values()):
-        raise ValueError("A Lexr Arch firmware entry already exists; review it before creating another installation")
+class SurfacePlugin:
+    """Use upstream plugin callbacks instead of replacing installer classes."""
 
+    def __init__(self, profile):
+        self.profile = profile
+        self.installed_targets = set()
 
-def inspect_esp(device):
-    """Check space and name collisions on the existing ESP using a read-only mount."""
-    with tempfile.TemporaryDirectory(prefix="lexr-esp-") as directory:
-        surface.run("mount", "-t", "vfat", "-o", "ro,nosuid,nodev,noexec", device, directory)
-        try:
-            esp = Path(directory)
-            if shutil.disk_usage(esp).free < 32 << 20:
-                raise ValueError("The existing EFI partition needs at least 32 MiB free")
-            if (esp / "EFI").exists() and any(p.name.lower() == "lexrarch" for p in (esp / "EFI").iterdir()):
-                raise ValueError("EFI/LexrArch already exists; this installer creates a new installation")
-        finally:
-            surface.run("umount", directory)
+    def on_pacstrap(self, packages):
+        """Install the local kernel separately; keep ARM repository signing keys."""
+        # Upstream ignores an empty replacement list, so retain a real package
+        # even if the only request was the offline Surface kernel placeholder.
+        return list(dict.fromkeys([p for p in packages if p not in (KERNEL, "archlinux-keyring")] + ["archlinuxarm-keyring"]))
 
+    def on_mkinitcpio(self, installation):
+        """Install the kernel before the first initramfs, then rebuild its preset."""
+        if installation.target not in self.installed_targets:
+            surface.install_kernel(installation.target, PAYLOAD)
+            self.installed_targets.add(installation.target)
+        else:
+            surface.run("arch-chroot", installation.target, "mkinitcpio", "-p", "lexr-sp11")
+        return True
 
-def check_mountpoint(mountpoint):
-    """Keep target mounting away from the live system or another mounted disk."""
-    path = Path(mountpoint)
-    if path != Path("/mnt") or path.resolve() != path:
-        raise ValueError("Use the standard /mnt installation mountpoint")
-    mounts = json.loads(surface.run("findmnt", "--json", "--list", "--output", "TARGET", capture=True))["filesystems"]
-    if any(row["target"] == "/mnt" or row["target"].startswith("/mnt/") for row in mounts):
-        raise ValueError("Unmount filesystems at or beneath /mnt before installing")
-    if path.exists() and (not path.is_dir() or any(path.iterdir())):
-        raise ValueError("The /mnt installation directory must be empty")
+    def on_add_bootloader(self, installation):
+        """Supply the arm64-efi target, matching DTB and dedicated Surface entry."""
+        if installation.target not in self.installed_targets:
+            raise ValueError("The Surface kernel must be installed before GRUB")
+        installation.add_additional_packages(["grub", "efibootmgr"])
+        surface.install_boot(installation.target, PAYLOAD, self.profile)
+        installation._helper_flags["bootloader"] = "grub"
+        return True
+
+    def on_genfstab(self, installation):
+        """Check the Surface hand-off before the normal completion dialog."""
+        surface.verify_install(installation.target, PAYLOAD, self.profile)
 
 
 def configure_adapter(handler, profile):
-    """Bind the reviewed Archinstall interfaces to the Surface implementation."""
+    """Register Surface hooks and add compatibility feedback to the stock menu."""
     from archinstall.scripts import guided
     from archinstall.lib.global_menu import GlobalMenu
-    from archinstall.lib.installer import Installer
-    from archinstall.lib.disk.filesystem import FilesystemHandler
-    from archinstall.lib.models.device import Unit, EncryptionType
-    from archinstall.lib.models.bootloader import Bootloader
-    from archinstall.lib.models.network import NicType
+    from archinstall.lib.bootloader.utils import validate_bootloader_layout
     from archinstall.lib.pacman.pacman import Pacman
-    from archinstall.lib.hardware import GfxDriver, GfxPackage
     from archinstall.lib.plugins import plugins
-    from archinstall.lib.profile.profile_menu import ProfileMenu
-    from archinstall.lib.profile.profiles_handler import profile_handler
-    from archinstall.lib.profile import profile_menu
-
-    accepted = {}
-
-    def plan_from_config(disk):
-        """Convert the real 4.4 models into the independently tested policy data."""
-        if not disk or len(disk.device_modifications) != 1:
-            raise ValueError("Choose one GPT disk containing the existing ESP and unallocated root space")
-        if disk.mountpoint is not None:
-            raise ValueError("Use Manual Partitioning with the standard /mnt target")
-        mod = disk.device_modifications[0]
-        return {"layout": disk.config_type.value, "device": str(mod.device_path), "wipe": mod.wipe,
-                "encrypted": bool(disk.disk_encryption and disk.disk_encryption.encryption_type != EncryptionType.NO_ENCRYPTION),
-                "lvm": bool(disk.lvm_config),
-                "partitions": [{"status": p.status.value, "start": p.start.convert(Unit.B).value,
-                                "size": p.length.convert(Unit.B).value, "mount": str(p.mountpoint) if p.mountpoint else None,
-                                "fs": p.fs_type.value if p.fs_type else None, "path": str(p.dev_path) if p.dev_path else None,
-                                "partuuid": p.partuuid, "efi": p.is_efi(), "flags": [f.name for f in p.flags],
-                                "options": p.mount_options, "subvolumes": bool(p.btrfs_subvols)} for p in mod.partitions]}
-
-    def validate_config(config):
-        """Apply platform policy to both menu selections and loaded configuration."""
-        boot = config.bootloader_config
-        if not boot or boot.bootloader != Bootloader.Grub or boot.uki or boot.removable or boot.plymouth:
-            raise ValueError("Use Lexr GRUB without UKI, removable fallback or Plymouth")
-        if config.kernels != ["lexr-kernel-sp11"] or config.mirror_config:
-            raise ValueError("Use the bundled Surface kernel and Arch Linux ARM mirror")
-        if config.custom_commands or config.script:
-            raise ValueError("Custom installer commands are not supported")
-        if config.profile_config and config.profile_config.gfx_driver not in (None, GfxDriver.AllOpenSource):
-            raise ValueError("Use the Surface Adreno/Mesa graphics choice")
-        policy.validate_packages(config.packages or [])
-        plan = plan_from_config(config.disk_config)
-        table, devices = disk_state(plan["device"])
-        policy.validate_plan(plan, table, devices)
-        return plan, table
-
-    class SurfaceMenu(GlobalMenu):
-        """Keep normal account/profile choices while fixing platform settings."""
-
-        def _get_menu_options(self):
-            """Make kernel, GRUB and ARM repository choices visible but immutable."""
-            items = super()._get_menu_options()
-            labels = {"kernels": "Kernel (Lexr Surface Pro 11)", "bootloader_config": "Bootloader (Lexr GRUB)",
-                      "mirror_config": "Mirrors (Arch Linux ARM)"}
-            for item in items:
-                if item.key in labels:
-                    item.text, item.action, item.read_only = labels[item.key], None, True
-                    item.value = getattr(self._arch_config, item.key)
-                    if item.key == "mirror_config":
-                        item.preview_action = lambda _: "Arch Linux ARM HTTPS mirror; x86 repositories are not used."
-            return items
-
-        def _validate_bootloader(self):
-            """Show a concrete storage/platform error in the normal Install preview."""
-            self.sync_all_to_config()
-            try:
-                validate_config(self._arch_config)
-            except (ValueError, KeyError, OSError, subprocess.CalledProcessError) as error:
-                return str(error)
-            return None
-
-    class SurfaceProfiles(ProfileMenu):
-        """Keep optional environments while using the device's Mesa graphics stack."""
-
-        def _define_menu_options(self):
-            """Disable irrelevant GPU vendor selection on this Surface image."""
-            items = super()._define_menu_options()
-            for item in items:
-                if item.key == "gfx_driver":
-                    item.text, item.action, item.read_only = "Graphics (Surface Adreno/Mesa)", None, True
-            return items
-
-    class SurfacePacman(Pacman):
-        """Use ARM signing keys and reject incompatible package selections."""
-
-        @staticmethod
-        def _reinit_keyring():
-            """Initialise only the Arch Linux ARM trust database."""
-            surface.run("pacman-key", "--init")
-            surface.run("pacman-key", "--populate", "archlinuxarm")
-
-        def strap(self, packages):
-            """Check every package request, including those generated by profiles."""
-            policy.validate_packages([packages] if isinstance(packages, str) else packages)
-            if plugins:
-                raise ValueError("External Archinstall plugins are not supported by this integration")
-            return super().strap(packages)
-
-    class SurfaceFilesystem(FilesystemHandler):
-        """Recheck the selected disk after confirmation and before partitioning."""
-
-        def perform_filesystem_operations(self):
-            """Permit only one new root; verify all existing records afterwards."""
-            if handler.args.dry_run:
-                raise ValueError("Dry run cannot modify filesystems")
-            surface.verify_payload(PAYLOAD)
-            if surface.detect_profile() != profile:
-                raise ValueError("Surface identity changed")
-            require_boot_environment()
-            check_mountpoint(handler.args.mountpoint)
-            plan, before = validate_config(handler.config)
-            if accepted.get("table") != before or accepted.get("plan") != plan:
-                raise ValueError("The disk layout changed after review; restart the installer")
-            _, esp = policy.validate_plan(plan, *disk_state(plan["device"]))
-            inspect_esp(esp["path"])
-            # Nothing remains mounted on this disk; upstream cannot unmount
-            # another running OS. It can format only the new CREATE partition.
-            super().perform_filesystem_operations()
-            after, _ = disk_state(plan["device"])
-            policy.preserved_partitions(before, after)
-
-    class SurfaceInstaller(Installer):
-        """Replace only the target kernel and bootloader stages of Archinstall."""
-
-        def __init__(self, *args, **kwargs):
-            """Strip every kernel from pacstrap; the local package is installed later."""
-            super().__init__(*args, **kwargs)
-            self._base_packages = [p for p in self._base_packages if p not in self.kernels]
-            self._base_packages.append("archlinuxarm-keyring")
-            # The pinned 4.4 guided flow passes silent as a keyword argument.
-            self.pacman = SurfacePacman(self.target, kwargs.get("silent", False))
-
-        def minimal_installation(self, *args, **kwargs):
-            """Strap a fresh root, then install the coherent offline Surface payload."""
-            kwargs["mkinitcpio"] = False
-            super().minimal_installation(*args, **kwargs)
-            surface.install_kernel(self.target, PAYLOAD)
-
-        def mkinitcpio(self, flags):
-            """Keep the installed Surface hook/config when profiles request a rebuild."""
-            abi = surface.verify_payload(PAYLOAD)["abi"]
-            surface.run("arch-chroot", self.target, "mkinitcpio", "-c", "/etc/lexr/mkinitcpio-installed.conf",
-                        "-k", abi, "-g", f"/boot/initramfs-{abi}.img")
-            return True
-
-        def add_bootloader(self, bootloader, uki_enabled=False, removable=False, plymouth=None):
-            """Install only the dedicated ARM64 GRUB path, never upstream x86 defaults."""
-            if bootloader != Bootloader.Grub or uki_enabled or removable or plymouth:
-                raise ValueError("Only the Lexr GRUB boot configuration is supported")
-            self.pacman.strap(["grub", "efibootmgr"])
-            surface.install_boot(self.target, PAYLOAD, profile)
-            self._helper_flags["bootloader"] = "grub"
-
-        def copy_iso_network_config(self, enable_services=False):
-            """Honour Copy ISO networking for NetworkManager when explicitly selected."""
-            self.pacman.strap(["networkmanager", "wpa_supplicant"])
-            source = Path("/etc/NetworkManager/system-connections")
-            destination = self.target / "etc/NetworkManager/system-connections"
-            destination.mkdir(parents=True, exist_ok=True)
-            for path in source.glob("*.nmconnection"):
-                if path.is_file() and not path.is_symlink():
-                    shutil.copyfile(path, destination / path.name)
-                    (destination / path.name).chmod(0o600)
-            if enable_services:
-                self.enable_service("NetworkManager.service")
-            return True
-
-        def genfstab(self, flags="-pU"):
-            """Complete checks before the normal success/reboot dialog can appear."""
-            network = handler.config.network_config
-            if network and network.type in (NicType.ISO, NicType.NM, NicType.NM_IWD):
-                resolv = self.target / "etc/resolv.conf"
-                resolv.unlink(missing_ok=True)
-                resolv.symlink_to("/run/NetworkManager/resolv.conf")
-            super().genfstab(flags)
-            surface.verify_install(self.target, PAYLOAD, profile)
 
     def checked_layout(boot, disk):
-        """Check the final plan before dry-run exit or the confirmation screen."""
+        """Use the same pre-confirmation check for interactive and saved configs."""
+        failure = validate_bootloader_layout(boot, disk)
+        if failure:
+            return failure
         try:
-            plan, table = validate_config(handler.config)
-            accepted.update(plan=plan, table=table)
-        except (ValueError, KeyError, OSError, subprocess.CalledProcessError) as error:
+            validate_platform(handler.config)
+        except ValueError as error:
             return SimpleNamespace(description=str(error))
         return None
 
-    def surface_gfx(session, driver):
-        """Install Mesa for Adreno when a user chooses an optional graphical profile."""
-        if driver != GfxDriver.AllOpenSource:
-            raise ValueError("Select Surface Adreno/Mesa graphics")
-        session.add_additional_packages(["mesa"])
+    class SurfaceMenu(GlobalMenu):
+        """Only kernel and mirror selection differ from the standard guided menu."""
 
-    original_gfx = GfxDriver.gfx_packages
+        def _get_menu_options(self):
+            items = super()._get_menu_options()
+            for item in items:
+                if item.key in {"kernels", "mirror_config"}:
+                    item.text = "Kernel (Lexr Surface Pro 11)" if item.key == "kernels" else "Mirrors (Arch Linux ARM)"
+                    item.action, item.read_only = None, True
+                    item.value = getattr(self._arch_config, item.key)
+            return items
 
-    def gfx_packages(driver):
-        """Make the generic open-source preview reflect the actual ARM package set."""
-        return [GfxPackage.Mesa] if driver == GfxDriver.AllOpenSource else original_gfx(driver)
+        def _validate_bootloader(self):
+            self.sync_all_to_config()
+            if failure := super()._validate_bootloader():
+                return failure
+            if failure := checked_layout(self._arch_config.bootloader_config, self._arch_config.disk_config):
+                return failure.description
+            return None
 
+    def arm_keyring():
+        """The upstream error recovery hard-codes the x86 Arch signing keyring."""
+        surface.run("pacman-key", "--init")
+        surface.run("pacman-key", "--populate", "archlinuxarm")
+
+    plugins["lexr-surface"] = SurfacePlugin(profile)
+    # There is no upstream configuration-validation or keyring-recovery hook.
+    # Keep these small version-tested adaptations; the formatter and Installer
+    # classes, account, network and profile handlers remain upstream-owned.
+    Pacman._reinit_keyring = staticmethod(arm_keyring)
     guided.GlobalMenu = SurfaceMenu
-    profile_menu.ProfileMenu = SurfaceProfiles
-    guided.Installer = SurfaceInstaller
-    guided.FilesystemHandler = SurfaceFilesystem
     guided.validate_bootloader_layout = checked_layout
     guided.check_version_upgrade = lambda: None
-    profile_handler.install_gfx_driver = surface_gfx
-    GfxDriver.gfx_packages = gfx_packages
-    return guided, validate_config
+    return guided, validate_platform
 
 
 def main():
-    """Start the familiar guided flow, leaving dry-run free of device writes."""
+    """Start Archinstall with Surface defaults and no preselected desktop."""
     check_arguments(sys.argv[1:])
     if importlib.metadata.version("archinstall") != "4.4":
-        raise ValueError("This image requires its bundled Archinstall 4.4; rebuild Lexr before upgrading the installer")
+        raise ValueError("Use this image's bundled Archinstall 4.4; rebuild Lexr to update its reviewed dependency")
     from archinstall.lib.args import ArchConfigHandler
     from archinstall.lib.models.bootloader import Bootloader, BootloaderConfiguration
     from archinstall.lib.models.network import NetworkConfiguration, NicType
+
     class SurfaceConfigHandler(ArchConfigHandler):
-        """Do not let abbreviated options bypass the extension preflight."""
+        """Require exact option names for the entry-point check above."""
 
         def _define_arguments(self):
-            """Use exact upstream option names, including in saved-config flows."""
             parser = super()._define_arguments()
             parser.allow_abbrev = False
             return parser
@@ -318,26 +169,26 @@ def main():
     args, config = handler.args, handler.config
     if (args.silent and not args.dry_run) or args.skip_boot or args.offline or args.command:
         raise ValueError("Use the interactive online guided flow; --dry-run may use a saved configuration")
-    check_mountpoint(args.mountpoint)
     if not args.config:
-        config.kernels = ["lexr-kernel-sp11"]
+        config.kernels = [KERNEL]
         config.bootloader_config = BootloaderConfiguration(Bootloader.Grub, uki=False, removable=False)
     if config.network_config is None:
         config.network_config = NetworkConfiguration(NicType.NM)
-    if Path("/etc/pacman.d/mirrorlist").read_text() != MIRRORLIST:
+    servers = [line.strip() for line in Path("/etc/pacman.d/mirrorlist").read_text().splitlines()
+               if line.strip() and not line.lstrip().startswith("#")]
+    if servers != [MIRRORLIST.strip()]:
         raise ValueError("Restore the image's Arch Linux ARM mirror configuration before installing")
     surface.verify_payload(PAYLOAD)
     profile = surface.detect_profile()
-    require_boot_environment()
+    surface.require_uefi()
     args.skip_wkd, args.skip_version_check, args.skip_wifi_check = True, True, True
     if args.dry_run:
         args.no_pkg_lookups = True
     else:
         surface.run("pacman-key", "--init")
         surface.run("pacman-key", "--populate", "archlinuxarm")
-        surface.run("pacman", "-Sy", "--noconfirm")
     guided, _ = configure_adapter(handler, profile)
-    print("Lexr Surface installer: manual ext4 root + existing ESP, ARM64 GRUB, custom kernel. No desktop is preselected.")
+    print("Lexr Surface kernel and GRUB integration. Archinstall controls disk changes; review its confirmation carefully.")
     guided.main(handler)
 
 

@@ -14,39 +14,43 @@ still pending in [issue #52](https://github.com/ooaklee/lexr.sh/issues/52).
 
 ## Prepare space and select the layout
 
-The first supported layout uses an existing GPT disk with an existing FAT EFI
-System Partition (ESP) and at least 16 GiB of **unallocated space**. Allow more
-space for your intended software. Prepare that space before opening the
-installer; this flow does not shrink or replace an existing OS partition.
+For an installation alongside other operating systems, prepare unallocated
+space first; allow at least 16 GiB and more for your intended software. Do not
+use a whole-disk erase layout on a disk containing systems you want to keep.
 
 In **Disk configuration → Manual Partitioning**:
 
 1. Select the disk containing the ESP and your unallocated space.
-2. Create one ext4 partition in the free space and assign `/`.
-3. Assign `/boot/efi` to the existing FAT ESP. Retain its existing status and
-   EFI flag; leave formatting disabled.
-4. Leave all other existing partitions unchanged and without a mountpoint.
-5. Leave encryption disabled. Separate `/boot`, LVM, encryption and formatting
-   existing partitions are outside this first supported layout.
+2. Create an ext4 partition in the free space and assign `/`.
+3. Assign `/boot/efi` to the existing FAT ESP. Keep its EFI flag and leave
+   formatting disabled.
+4. Leave the other OS partitions unchanged.
+5. Keep `/boot` on the root filesystem, and leave encryption and LVM disabled.
 
-The Install preview explains invalid selections. Lexr checks the real partition
-table and active mounts again before modifying the disk. It refuses whole-disk
-wiping, changes to existing partitions, overlapping space and an existing
-`EFI/LexrArch` directory. The shared ESP needs at least 32 MiB free.
+Archinstall performs the disk operations you select and confirm. Lexr does not
+add a separate partition-preservation policy. Its Install preview checks only
+the Surface boot requirements: an ext4 root, a FAT ESP on GPT at `/boot/efi`,
+and GRUB
+without UKI, removable fallback or Plymouth. Other layouts need further Surface
+boot integration. The boot hook needs 32 MiB free on the ESP and refuses to
+replace an existing `EFI/LexrArch` installation.
 
 ## Choose the rest of your system
 
 Set your language, keyboard, locale, hostname, timezone and user account in the
 normal menus. Create a user with sudo access. Leave **Profile** unset or select
 **Minimal** for a terminal installation. Optional environments remain available;
-no desktop is preselected. Graphical profiles use Surface Adreno/Mesa.
+no desktop is preselected. Profile packages must be available for Arch Linux ARM;
+you can also add your preferred environment after the terminal installation.
 
 Keep **NetworkManager** for networking. You can reconnect with `sudo nmtui` after
-installation. Selecting **Copy ISO configuration** explicitly copies the live
-NetworkManager connections, including saved Wi-Fi credentials, to the new root.
+installation. Lexr uses Archinstall's normal network setup and does not add a
+Wi-Fi credential-copying helper. **Copy ISO configuration** is upstream's
+iwd/networkd flow and does not copy this image's NetworkManager Wi-Fi profiles.
 
-Lexr fixes the kernel to `lexr-kernel-sp11`, the bootloader to GRUB and the
-repositories to Arch Linux ARM. It installs matching modules, DTBs, public
+Lexr fixes the kernel to `lexr-kernel-sp11` and repositories to Arch Linux ARM.
+GRUB is preselected in the normal bootloader menu; retain it for Surface boot.
+Lexr installs matching modules, DTBs, public
 Wi-Fi/GPU firmware and an initramfs for the installed system. The fresh root
 receives your selected account; it does not inherit live autologin or
 passwordless sudo. Audio and other optional userspaces need separate Arch
@@ -65,8 +69,8 @@ with `--dry-run`; real installation retains the confirmation screen.
 ## First boot
 
 Choose **Exit** after installation to read the boot information. Lexr installs
-ARM64 GRUB at `EFI/LexrArch`, preserves the existing EFI files and BootOrder,
-and creates a separate **Lexr Arch Linux ARM** firmware entry. Select that entry
+ARM64 GRUB at `EFI/LexrArch`, preserves the EFI files present when its boot hook
+starts and the existing BootOrder, and creates a separate **Lexr Arch Linux ARM** firmware entry. Select that entry
 in firmware, or use the exact one-time `efibootmgr --bootnext` command printed
 by the installer before rebooting. Keep the USB until the installed system has
 booted successfully.
@@ -106,4 +110,4 @@ Surface-specific choices where its example differs:
 | Choose an x86 mirror region | Keep the Arch Linux ARM mirror |
 | Use the best-effort whole-disk layout | Select Manual Partitioning and preserve the existing ESP/OSes |
 | Select stock kernel or systemd-boot | Keep Lexr's Surface kernel and GRUB |
-| Choose a desktop/GPU vendor | Leave the profile unset for a terminal; optional graphics use Adreno/Mesa |
+| Choose a desktop/GPU vendor | Leave the profile unset for a terminal; customise your environment after installing |

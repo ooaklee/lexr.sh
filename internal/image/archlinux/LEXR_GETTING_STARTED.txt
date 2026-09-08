@@ -71,10 +71,10 @@ Or choose option 6 in lexr-arch-setup. This launches the bundled Archinstall 4.4
 menus with Lexr's Surface integration. Run it before upgrading the live system:
 a different Archinstall version must be reviewed before using this adapter.
 
-Prepare unallocated space on the internal disk before installation. This first
-flow supports an existing GPT disk with one existing EFI System Partition and
-at least 16 GiB of unallocated space for a NEW ext4 root. Allow more space for
-additional software. It does not shrink or replace an existing OS partition.
+For installation alongside other operating systems, prepare unallocated space
+first. Allow at least 16 GiB for an ext4 root and more for additional software.
+Archinstall owns disk selection, formatting and confirmation. Lexr does not add
+a separate partition-preservation policy; review those choices before Install.
 
 In the menus:
 
@@ -82,25 +82,28 @@ In the menus:
   - Open Disk configuration and select Manual Partitioning.
   - Select the disk containing your existing ESP and the unallocated space.
   - In the free space, create one ext4 partition mounted at /.
-  - Assign /boot/efi to the existing FAT EFI System Partition. Keep its
+  - Assign /boot/efi to the existing FAT EFI System Partition on a GPT disk. Keep its
     existing status and EFI flag. Do NOT mark it for formatting.
   - Leave every other existing partition unchanged and without a mountpoint.
-  - Leave encryption disabled. Separate /boot, LVM, encryption and reformatting
-    existing partitions are not supported by this first installation flow.
-  - Lexr fixes the bootloader to GRUB, the kernel to lexr-kernel-sp11 and the
-    repositories to Arch Linux ARM. No stock kernel or UKI is needed.
+  - Keep /boot on the ext4 root, and leave LVM and encryption disabled.
+    These are requirements of the current Surface boot payload.
+  - Keep the preselected GRUB bootloader without UKI, removable fallback or
+    Plymouth. Lexr fixes the kernel to lexr-kernel-sp11 and repositories to
+    Arch Linux ARM.
   - Under Authentication, create your own user and password with sudo access.
   - Leave Profile unset or select Minimal for a terminal installation. You may
-    choose an optional environment instead; no desktop is preselected. If you
-    choose graphics, the Surface integration uses Adreno/Mesa.
+    choose an optional environment instead; no desktop is preselected. Profile
+    packages must be available for ARM. You can also customise after installation.
   - Keep NetworkManager under Network configuration. Reconnect with nmtui after
-    first boot. Choosing Copy ISO configuration explicitly copies your saved
-    NetworkManager connections, including Wi-Fi credentials, to the new system.
+    first boot. Upstream's Copy ISO configuration handles iwd/networkd; it does
+    not copy this image's NetworkManager Wi-Fi profiles.
   - Review the complete configuration, select Install and confirm it.
 
-If Install reports an invalid layout, correct the highlighted selection. The
-installer refuses a whole-disk wipe, changes to existing partitions, a mounted
-target disk, a reformatted ESP and a conflicting EFI/LexrArch directory.
+If Install reports an incompatible Surface boot layout, correct the highlighted
+selection. For an alongside installation, do not select whole-disk erase or
+format the existing ESP or other OS partitions. Archinstall executes your
+confirmed disk choices. The boot hook needs 32 MiB free on the ESP and refuses
+to overwrite an existing EFI/LexrArch directory.
 
 To inspect a configuration without partitioning or installing:
 
@@ -116,8 +119,9 @@ system uses your chosen account; it does not inherit the live autologin or sudo
 policy. Audio and other optional userspaces need separate Arch qualification.
 
 After successful installation, choose Exit so you can read the boot information.
-GRUB is installed in EFI/LexrArch. The existing EFI files and firmware BootOrder
-are preserved. Select "Lexr Arch Linux ARM" in firmware, or use the exact
+GRUB is installed in EFI/LexrArch. Its hook preserves the EFI files present when
+it starts and the existing firmware BootOrder. This does not undo formatting
+selected earlier in Archinstall. Select "Lexr Arch Linux ARM" in firmware, or use the exact
 one-time efibootmgr --bootnext command printed by the installer before rebooting.
 Keep the USB available until the installed system has booted successfully.
 

@@ -32,11 +32,6 @@ var setupScript string
 //go:embed installer/guided.py
 var installerGuided string
 
-// installerPolicy validates partition plans before the first disk mutation.
-//
-//go:embed installer/policy.py
-var installerPolicy string
-
 // installerTarget installs verified kernel and boot assets into the selected root.
 //
 //go:embed installer/target.py

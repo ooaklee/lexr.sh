@@ -51,10 +51,8 @@ var (
 		"internal/image/archlinux/scripts/build-boot.sh":    true,
 		"internal/image/archlinux/scripts/setup.sh":         true,
 		"internal/image/archlinux/installer/guided.py":      true,
-		"internal/image/archlinux/installer/policy.py":      true,
 		"internal/image/archlinux/installer/target.py":      true,
 		"internal/image/archlinux/installer/test_guided.py": true,
-		"internal/image/archlinux/installer/test_policy.py": true,
 		"internal/image/archlinux/installer/test_target.py": true,
 
 		"internal/image/ubuntu/LEXR_GETTING_STARTED.txt":     true,

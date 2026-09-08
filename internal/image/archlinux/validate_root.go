@@ -43,7 +43,6 @@ func (v *Validator) validateRoot(ctx context.Context, toolsImage, workspace, vol
 		{"usr/share/lexr/LEXR_GETTING_STARTED.txt", gettingStarted},
 		{"usr/local/bin/archinstall", installerLauncher},
 		{"usr/share/lexr/archinstall/guided.py", installerGuided},
-		{"usr/share/lexr/archinstall/policy.py", installerPolicy},
 		{"usr/share/lexr/archinstall/target.py", installerTarget},
 	} {
 		actual, err := v.Docker.CaptureInWorkspaceVolume(ctx, toolsImage, workspace, volume, "cat", "/linux-work/rootfs/"+pair.path)

@@ -25,7 +25,7 @@ printf 'LANG=en_GB.UTF-8\n' > "$root/etc/locale.conf"
 install -m 0644 /work/LEXR_GETTING_STARTED.txt "$root/home/arch/LEXR_GETTING_STARTED.txt"
 install -m 0755 /work/lexr-arch-setup "$root/usr/local/bin/lexr-arch-setup"
 mkdir -p "$root/usr/share/lexr/archinstall"
-install -m 0644 /work/sp11/installer/{guided,policy,target}.py "$root/usr/share/lexr/archinstall/"
+install -m 0644 /work/sp11/installer/{guided,target}.py "$root/usr/share/lexr/archinstall/"
 install -m 0755 /work/archinstall "$root/usr/local/bin/archinstall"
 chroot "$root" chown -R arch:arch /home/arch
 mkdir -p "$root/etc/systemd/system/getty@tty1.service.d"
