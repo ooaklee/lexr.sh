@@ -20,6 +20,30 @@ BINARIES=()
 FILES=()
 HOOKS=(base udev modconf keyboard block lexr_sp11 filesystems fsck)
 COMPRESSION="gzip"
+
+# Only the installed system may carry private same-device firmware. Include
+# locally installed files before udev probes the early DSP/GPU modules; these
+# DT-requested names are absent from modinfo's automatic firmware dependencies.
+# This configuration never downloads firmware and is not the live USB config.
+for lexr_firmware in \
+    qcom/x1e80100/X1E80100-Microsoft-Surface-Pro-11-tplg.bin \
+    qcom/x1e80100/microsoft/qcdxkmsuc8380.mbn \
+    qcom/x1e80100/microsoft/qcdxkmsucpurwa.mbn \
+    qcom/x1e80100/microsoft/Denali/qcdxkmsuc8380.mbn \
+    qcom/x1e80100/microsoft/Denali/adsp_dtb.mbn \
+    qcom/x1e80100/microsoft/Denali/qcadsp8380.mbn \
+    qcom/x1e80100/microsoft/Denali/adspr.jsn \
+    qcom/x1e80100/microsoft/Denali/adsps.jsn \
+    qcom/x1e80100/microsoft/Denali/adspua.jsn \
+    qcom/x1e80100/microsoft/Denali/battmgr.jsn \
+    qcom/x1e80100/microsoft/Denali/cdsp_dtb.mbn \
+    qcom/x1e80100/microsoft/Denali/qccdsp8380.mbn \
+    qcom/x1e80100/microsoft/Denali/cdspr.jsn; do
+    if [[ -f "/usr/lib/firmware/$lexr_firmware" ]]; then
+        FILES+=("/usr/lib/firmware/$lexr_firmware")
+    fi
+done
+unset lexr_firmware
 `
 }
 

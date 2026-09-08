@@ -71,3 +71,51 @@ func TestInitramfsRuntimeSeparation(t *testing.T) {
 		})
 	}
 }
+
+// TestInstalledFirmwareAfterImport checks the evaluated config after a local
+// firmware import. Missing files remain optional, unrelated files are excluded,
+// and the live config never acquires the private installed-system inputs.
+func TestInstalledFirmwareAfterImport(t *testing.T) {
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash is required to evaluate mkinitcpio configuration")
+	}
+	root := t.TempDir()
+	firmwareRoot := filepath.Join(root, "firmware")
+	denali := filepath.Join(firmwareRoot, "qcom/x1e80100/microsoft/Denali")
+	if err := os.MkdirAll(denali, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"qcadsp8380.mbn", "unrelated.bin"} {
+		if err := os.WriteFile(filepath.Join(denali, name), []byte("fixture"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	topology := filepath.Join(firmwareRoot, "qcom/x1e80100/X1E80100-Microsoft-Surface-Pro-11-tplg.bin")
+	if err := os.WriteFile(topology, []byte("topology fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, live := range []bool{false, true} {
+		config := InstalledInitramfsConfig()
+		if live {
+			config = LiveInitramfsConfig()
+		}
+		// Redirect only the absolute firmware directory into this test fixture.
+		config = strings.ReplaceAll(config, "/usr/lib/firmware/", firmwareRoot+"/")
+		path := filepath.Join(root, "config")
+		if err := os.WriteFile(path, []byte(config), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		output, err := exec.Command(bash, "-c", `source "$1"; printf '%s\n' "${FILES[@]}"`, "lexr-config-test", path).CombinedOutput()
+		if err != nil {
+			t.Fatalf("evaluate firmware config: %v: %s", err, output)
+		}
+		want := topology + "\n" + filepath.Join(denali, "qcadsp8380.mbn")
+		if live {
+			want = ""
+		}
+		if strings.TrimSpace(string(output)) != want {
+			t.Fatalf("live=%v firmware=%q, want %q", live, output, want)
+		}
+	}
+}

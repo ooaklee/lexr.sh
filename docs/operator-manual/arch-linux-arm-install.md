@@ -157,6 +157,41 @@ collecting authorised firmware from the same physical Surface. Its application
 and the resulting hardware acceleration still need qualification on Arch;
 do not treat a working desktop as proof of accelerated graphics.
 
+## Pen and audio after installation
+
+Choose **Applications > Audio > PipeWire** in Archinstall if you want sound.
+The installed v23 test already had PipeWire and WirePlumber running: its missing
+audio support was the Surface firmware and FullIO configuration, not an x86
+sound-server selection. Audio remains optional for terminal installations.
+
+The retained `LEXR_GETTING_STARTED.txt`, available through `lexr-arch-setup`,
+contains the full copy-and-run commands, dry-runs and post-install checks.
+Lexr's existing portable IPTSD and FullIO releases are shared across distributions;
+there is no separate Arch firmware release. Install pen independently with
+`userspace pull iptsd` and `userspace install iptsd`, or select `recommended`
+for audio plus IPTSD. The guide gives the exact paired cache directories.
+
+The Arch ALSA selector fix in this PR permits only the distribution's exact
+`../../Qualcomm/x1e80100/x1e80100.conf` link at
+`/usr/share/alsa/ucm2/conf.d/x1e80100/x1e80100.conf`. It preserves the link in the
+backup and replaces only that selector, leaving the shared Qualcomm profile
+unchanged. Other target links remain rejected. A package update can replace the
+selector again, so check audio support after upgrading `alsa-ucm-conf`.
+
+The public audio release does not include private aDSP firmware. Follow the
+[Windows hand-off guide](../user-guide/windows-handoff.md) for same-device
+collection and reviewed application; Arch application remains under qualification.
+A working Ubuntu installation on the same Surface can also hold the device's
+existing firmware, but copying it locally is a separate recovery operation,
+not an input accepted by `lexr handoff import`. Never manufacture a Windows
+hand-off manifest from Linux files or put private firmware into the public ISO.
+The updated installed Surface preset includes only its fixed list of locally
+present DSP/GPU firmware files and the audio topology before early driver
+probing. Missing files remain optional; the live preset does not include this
+private set. Rebuild the installed initramfs after firmware changes and reboot
+before checking ALSA cards, PipeWire devices, speakers and microphone. Updating
+Lexr alone does not replace the older preset on an already-installed candidate.
+
 ## Hardware test record
 
 On 2026-09-08, the maintainer completed the bundled `sudo archinstall` flow on a
@@ -169,6 +204,7 @@ NVMe disk. The reported command output confirms:
 | Root (`findmnt -no SOURCE,FSTYPE /`) | Internal NVMe partition, `ext4` |
 | Native kernel package (`pacman -Q lexr-kernel-sp11`) | `lexr-kernel-sp11 7.2.0_jg_0sp11v23-1` |
 | Touchscreen | Maintainer confirmed working in the installed system |
+| Pen | Maintainer confirmed pen input after Lexr installed the paired IPTSD portable userspace |
 | Wi-Fi | Maintainer confirmed connected after reconnecting |
 | KDE terminal | Maintainer confirmed Konsole works after installing its package |
 | Network widget | Missing `plasma-nm` installed; widget registered after refreshing Plasma, visual check pending |

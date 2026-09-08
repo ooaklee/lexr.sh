@@ -25,12 +25,15 @@ var audioTargets = []audioTarget{
 // audioChangePlan retains enough original metadata for safe rollback.
 type audioChangePlan struct {
 	change       FileChange
+	relative     string
 	sourceDigest string
 	sourceSize   int64
 	mode         os.FileMode
 	originalMode os.FileMode
 	originalSize int64
 	originalHash string
+	originalLink string
+	originalInfo os.FileInfo
 }
 
 // Audio atomically installs the exact four-file v19c topology and UCM set.
@@ -63,19 +66,27 @@ func (installer *Installer) Audio(_ context.Context, options Options) (Result, e
 	}
 	plans := make([]audioChangePlan, 0, len(audioTargets))
 	for _, target := range audioTargets {
-		destination, err := resolveTarget(options.Root, target.relative)
+		destination, err := resolveAudioTarget(options.Root, target.relative)
 		if err != nil {
 			return Result{}, err
 		}
 		immutable := immutableByName[target.source]
 		plan := audioChangePlan{
 			change:       FileChange{Source: bundle.paths[target.source], Target: destination},
+			relative:     target.relative,
 			sourceDigest: immutable.sha256,
 			sourceSize:   immutable.size,
 			mode:         0o644,
 		}
 		if info, err := os.Lstat(destination); err == nil {
-			if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			if info.Mode()&os.ModeSymlink != 0 {
+				plan.originalLink, err = os.Readlink(destination)
+				if err != nil || target.relative != audioSelectorPath || plan.originalLink != audioSelectorLink {
+					return Result{}, fmt.Errorf("refusing unexpected audio selector link %s", destination)
+				}
+				plan.originalInfo = info
+				plan.change.Action = "replace-link"
+			} else if !info.Mode().IsRegular() {
 				return Result{}, fmt.Errorf("refusing to replace non-regular audio target %s", destination)
 			}
 			backupTarget, err := resolveTarget(options.Root, filepath.ToSlash(filepath.Join(backupRelative, target.relative)))
@@ -86,9 +97,11 @@ func (installer *Installer) Audio(_ context.Context, options Options) (Result, e
 			plan.change.Backup = backupTarget
 			plan.originalMode = info.Mode().Perm()
 			plan.originalSize = info.Size()
-			plan.originalHash, _, err = hashRegularNoFollow(destination)
-			if err != nil {
-				return Result{}, fmt.Errorf("hash existing audio target %s: %w", destination, err)
+			if plan.originalLink == "" {
+				plan.originalHash, _, err = hashRegularNoFollow(destination)
+				if err != nil {
+					return Result{}, fmt.Errorf("hash existing audio target %s: %w", destination, err)
+				}
 			}
 			result.BackupDirectory = backupDirectory
 		} else if !errors.Is(err, os.ErrNotExist) {
@@ -114,6 +127,12 @@ func (installer *Installer) Audio(_ context.Context, options Options) (Result, e
 			if !plan.change.Replaced {
 				continue
 			}
+			if plan.originalLink != "" {
+				if err := backupAudioSelector(plan); err != nil {
+					return Result{}, err
+				}
+				continue
+			}
 			if err := atomicCopyVerified(plan.change.Target, plan.change.Backup, plan.originalMode, plan.originalHash, plan.originalSize); err != nil {
 				return Result{}, fmt.Errorf("back up audio target %s: %w", plan.change.Target, err)
 			}
@@ -124,12 +143,17 @@ func (installer *Installer) Audio(_ context.Context, options Options) (Result, e
 	for _, plan := range plans {
 		// Re-resolve immediately before mutation so a changed parent symlink
 		// cannot redirect a previously-reviewed target.
-		revalidated, err := resolveTarget(options.Root, relativeToRoot(options.Root, plan.change.Target))
+		revalidated, err := resolveAudioTarget(options.Root, plan.relative)
 		if err != nil || revalidated != plan.change.Target {
 			installErr := fmt.Errorf("audio target changed after planning: %s", plan.change.Target)
 			return Result{}, errors.Join(installErr, rollbackAudio(applied))
 		}
-		if err := atomicCopyVerified(plan.change.Source, plan.change.Target, plan.mode, plan.sourceDigest, plan.sourceSize); err != nil {
+		if err := publishAudioTarget(plan); err != nil {
+			// Publication can succeed before a directory sync fails. Include
+			// this member in rollback only if it contains our verified bytes.
+			if digest, info, inspectErr := hashRegularNoFollow(plan.change.Target); inspectErr == nil && digest == plan.sourceDigest && info.Size() == plan.sourceSize {
+				applied = append(applied, plan)
+			}
 			return Result{}, errors.Join(err, rollbackAudio(applied))
 		}
 		applied = append(applied, plan)
@@ -152,6 +176,10 @@ func rollbackAudio(applied []audioChangePlan) error {
 	var rollbackErr error
 	for index := len(applied) - 1; index >= 0; index-- {
 		plan := applied[index]
+		if plan.originalLink != "" {
+			rollbackErr = errors.Join(rollbackErr, restoreAudioSelector(plan))
+			continue
+		}
 		if plan.change.Replaced {
 			if err := atomicCopyVerified(plan.change.Backup, plan.change.Target, plan.originalMode, plan.originalHash, plan.originalSize); err != nil {
 				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore %s: %w", plan.change.Target, err))

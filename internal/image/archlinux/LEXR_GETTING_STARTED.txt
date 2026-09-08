@@ -3,8 +3,8 @@ LEXR GETTING STARTED — ARCH LINUX ARM ON SURFACE PRO 11
 This experimental USB boots a terminal using the custom Surface kernel. Choose
 X1E/OLED or X1P/LCD in GRUB to match your device. Disable Secure Boot for this
 unsigned kernel and external device tree. X1E/OLED live and installed boot with
-v23, installed touchscreen input and Wi-Fi after reconnecting were confirmed on
-2026-09-08. Recovery, cross-ABI upgrades and X1P/LCD remain unqualified.
+v23, installed touchscreen input, Wi-Fi after reconnecting and pen input after
+Lexr IPTSD setup were confirmed on 2026-09-08. Recovery, cross-ABI upgrades and X1P/LCD remain unqualified.
 
 The local live account is arch, with passwordless sudo. The installation section
 writes only after you select and confirm a supported layout in Archinstall.
@@ -49,11 +49,16 @@ Report the selected GRUB entry and output at https://github.com/ooaklee/lexr.sh/
   install -m 0755 "$COMPANION_ROOT/bin/linux-arm64/lexr" "$HOME/.local/bin/lexr"
   "$HOME/.local/bin/lexr" --help
 
-The same bundle is retained at /usr/share/lexr/arch-media/sp11/companion.
+After installation, use the retained bundle instead of the USB mount:
+
+  COMPANION_ROOT=/usr/share/lexr/arch-media/sp11/companion
+  mkdir -p "$HOME/.local/bin"
+  install -m 0755 "$COMPANION_ROOT/bin/linux-arm64/lexr" "$HOME/.local/bin/lexr"
+
 Copy to your home directory before running it; temporary mounts can be noexec.
 The bundle includes matching source, catalogues, notices and any selected
-redistribution-eligible userspaces. Arch-specific userspace installation remains
-under qualification; do not run Debian package installation commands on Arch.
+redistribution-eligible userspaces. Section 6 covers native pen and audio setup.
+Do not run Debian package installation commands on Arch.
 
 To install the latest released Lexr when connected to the internet:
 
@@ -100,6 +105,9 @@ In the menus:
   - Keep NetworkManager under Network configuration. Reconnect with nmtui after
     first boot. Upstream's Copy ISO configuration handles iwd/networkd; it does
     not copy this image's NetworkManager Wi-Fi profiles.
+  - For sound, choose Applications > Audio > PipeWire. This supplies the audio
+    server; Surface firmware and FullIO configuration are separate (section 6).
+    Leave audio unset or choose No audio server if you do not want it.
   - Review the complete configuration, select Install and confirm it.
 
 If Install reports an incompatible Surface boot layout, correct the highlighted
@@ -127,7 +135,7 @@ Lexr installs a fresh Arch root, the custom kernel/modules, matching DTBs, publi
 Wi-Fi/GPU firmware, an installed-system initramfs and ARM64 GRUB. It retains the
 Lexr companion and source at /usr/share/lexr/arch-media/sp11/companion. Your new
 system uses your chosen account; it does not inherit the live autologin or sudo
-policy. Audio and other optional userspaces need separate Arch qualification.
+policy. Install optional Surface userspaces as described in section 6.
 
 After successful installation, choose Exit so you can read the boot information.
 GRUB is installed in EFI/LexrArch. Its hook preserves the EFI files present when
@@ -202,7 +210,114 @@ References:
   https://archlinuxarm.org/about/downloads
   https://github.com/ooaklee/lexr.sh/issues/52
 
-6. BOOT DIAGNOSTICS
+6. SET UP SURFACE PEN, AUDIO AND OTHER SUPPORT
+
+Run these commands from your installed Arch system after connecting to the
+internet. Live-session changes disappear on reboot. Start with section 3 to
+copy the companion, or use a current Lexr build supplied with this guide:
+
+  LEXR="$HOME/.local/bin/lexr"
+  USERSPACE_CACHE="$HOME/.cache/lexr/userspace"
+  "$LEXR" version
+  "$LEXR" userspace status --feature iptsd --feature audio --feature firmware
+
+A failing status can mean missing optional support; read each check. Status
+inspects files and dependencies, so physical pen and audio tests are still needed.
+
+Pen (IPTSD)
+
+The v23 kernel supplies touch and the pen transport. Install the paired IPTSD
+userspace for stylus events, then test cursor movement and drawing:
+
+  "$LEXR" userspace pull iptsd --cache-dir "$USERSPACE_CACHE"
+  "$LEXR" userspace install iptsd --from "$USERSPACE_CACHE/iptsd-v1/sp11-iptsd-v2" --dry-run
+  sudo "$LEXR" userspace install iptsd --from "$USERSPACE_CACHE/iptsd-v1/sp11-iptsd-v2" --yes
+  "$LEXR" userspace status --feature iptsd --feature g6-pen
+  systemctl list-units 'sp11-iptsd@*'
+
+The installer configures the portable AArch64 binaries and service, masks the
+conflicting generic IPTSD unit and stops the obsolete g6-pen service. Pen input
+was confirmed on installed X1E/OLED v23 after this command. IPTSD's log may say
+"Touchscreen is disabled!": the kernel owns touch while IPTSD handles the pen.
+
+Audio (FullIO topology and ALSA UCM)
+
+Archinstall's PipeWire option is suitable. For a system where it was not selected,
+install the audio server and diagnostic tools, then log out and back in:
+
+  sudo pacman -Syu --needed pipewire pipewire-alsa pipewire-pulse wireplumber alsa-utils
+
+KDE users can optionally install plasma-pa for a volume widget. A widget does
+not supply the Surface firmware or configuration. Install the paired audio set:
+
+  "$LEXR" userspace pull audio --cache-dir "$USERSPACE_CACHE"
+  "$LEXR" userspace install audio --from "$USERSPACE_CACHE/audio-fullio-v19c/sp11-audio-v19c" --dry-run
+  sudo "$LEXR" userspace install audio --from "$USERSPACE_CACHE/audio-fullio-v19c/sp11-audio-v19c" --yes
+
+Use a Lexr build containing the Arch ALSA selector fix in PR #55. Older companions
+can report "refusing symlinked userspace target" for the packaged x1e80100.conf
+selector. Update Lexr instead of deleting the link yourself. The fix backs up
+that exact link and replaces only the selector, keeping the shared Qualcomm
+profile unchanged. An alsa-ucm-conf package update can restore the distribution
+selector; rerun the audio status check afterwards and reinstall if needed.
+
+Sound also requires private Surface aDSP firmware. The public image and the
+FullIO download do not contain that firmware. See the same-device hand-off:
+
+  https://github.com/ooaklee/lexr.sh/blob/main/docs/user-guide/windows-handoff.md
+
+Use that guide's collection, import and reviewed apply commands with --target-root /
+and --adsp-policy enabled on installed internal storage. Firmware application
+on Arch still needs qualification. Do not enable the full aDSP on the live USB
+just to test sound: DSP startup can disrupt its USB root. Do not share firmware
+or hand-off data in an ISO, issue, or release.
+
+After firmware and audio configuration are installed, rebuild the installed
+initramfs using its Surface preset, then reboot when ready. Use the installed
+preset from PR #55, which includes locally present DSP/GPU firmware and topology
+before early device probing. Older candidate presets lack this addition: updating
+only the Lexr binary does not replace an already-installed preset.
+
+  sudo mkinitcpio -p lexr-sp11
+  sudo reboot
+
+After reboot, check the ALSA card and PipeWire devices, then test speakers and mic:
+
+  "$LEXR" userspace status --feature audio --feature firmware
+  cat /proc/asound/cards
+  wpctl status
+
+The older audio status check may recommend the retired
+soundwire_qcom.sp11_feedback_active_offset2_zero=1 flag. Do not regenerate this
+Surface GRUB menu or add that workaround solely to clear the check. Audio on
+Arch remains under qualification; report the output in issue #52.
+
+To download and install both paired components together, the equivalent is:
+
+  "$LEXR" userspace pull recommended --cache-dir "$USERSPACE_CACHE"
+  "$LEXR" userspace install recommended --from "$USERSPACE_CACHE" --dry-run
+  sudo "$LEXR" userspace install recommended --from "$USERSPACE_CACHE" --yes
+
+"recommended" includes audio and IPTSD; it does not include private firmware.
+The individual commands above let you set up pen independently of audio.
+
+Other support
+
+Wi-Fi board data is already prepared by the image. Use sudo nmtui to reconnect.
+If the installed system is missing board data, inspect and repair it with:
+
+  "$LEXR" userspace status --feature wifi
+  "$LEXR" userspace install wifi --dry-run
+  sudo "$LEXR" userspace install wifi --yes
+  sudo mkinitcpio -p lexr-sp11
+
+Reboot after a board-data change. Avoid --activate for an unqualified driver
+layout; the regular install does not restart your radio or network connection.
+Power profiles use the distribution's optional power-profiles-daemon package.
+Bluetooth needs same-device address evidence from the private hand-off above.
+The released camera packages target Debian/Ubuntu; do not install them on Arch.
+
+7. BOOT DIAGNOSTICS
 
 The normal entry boots the terminal. The text diagnostics entry adds early
 console messages. The firmware display diagnostics entry disables the msm

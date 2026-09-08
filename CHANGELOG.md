@@ -86,6 +86,13 @@ that do not apply.
 
 ### Fixed
 
+- Allow the audio userspace installer to replace Arch's exact packaged ALSA
+  selector symlink, preserving the link in its backup and the shared Qualcomm
+  profile. Add Arch getting-started commands for pen, audio and Wi-Fi recovery
+  with explicit private firmware prerequisites. Include locally installed Surface
+  firmware and topology in the installed initramfs before early probing, keeping
+  the live configuration separate ([#52](https://github.com/ooaklee/lexr.sh/issues/52)).
+
 - Restrict the Arch Surface installer to Adreno Mesa/Freedreno graphics and
   effective AArch64 repositories, check selected profile packages before
   formatting, and reject unsupported PC packages in later transactions. Use the
