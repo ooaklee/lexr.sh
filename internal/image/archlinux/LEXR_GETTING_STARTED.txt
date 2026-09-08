@@ -221,6 +221,9 @@ copy the companion, or use a current Lexr build supplied with this guide:
   "$LEXR" version
   "$LEXR" userspace status --feature iptsd --feature audio --feature firmware
 
+Use sudo for the install previews too: existing private backup directories can
+require root access to inspect. --dry-run still makes no target changes.
+
 A failing status can mean missing optional support; read each check. Status
 inspects files and dependencies, so physical pen and audio tests are still needed.
 
@@ -230,7 +233,7 @@ The v23 kernel supplies touch and the pen transport. Install the paired IPTSD
 userspace for stylus events, then test cursor movement and drawing:
 
   "$LEXR" userspace pull iptsd --cache-dir "$USERSPACE_CACHE"
-  "$LEXR" userspace install iptsd --from "$USERSPACE_CACHE/iptsd-v1/sp11-iptsd-v2" --dry-run
+  sudo "$LEXR" userspace install iptsd --from "$USERSPACE_CACHE/iptsd-v1/sp11-iptsd-v2" --dry-run
   sudo "$LEXR" userspace install iptsd --from "$USERSPACE_CACHE/iptsd-v1/sp11-iptsd-v2" --yes
   "$LEXR" userspace status --feature iptsd --feature g6-pen
   systemctl list-units 'sp11-iptsd@*'
@@ -251,7 +254,7 @@ KDE users can optionally install plasma-pa for a volume widget. A widget does
 not supply the Surface firmware or configuration. Install the paired audio set:
 
   "$LEXR" userspace pull audio --cache-dir "$USERSPACE_CACHE"
-  "$LEXR" userspace install audio --from "$USERSPACE_CACHE/audio-fullio-v19c/sp11-audio-v19c" --dry-run
+  sudo "$LEXR" userspace install audio --from "$USERSPACE_CACHE/audio-fullio-v19c/sp11-audio-v19c" --dry-run
   sudo "$LEXR" userspace install audio --from "$USERSPACE_CACHE/audio-fullio-v19c/sp11-audio-v19c" --yes
 
 Use a Lexr build containing the Arch ALSA selector fix in PR #55. Older companions
@@ -295,7 +298,7 @@ Arch remains under qualification; report the output in issue #52.
 To download and install both paired components together, the equivalent is:
 
   "$LEXR" userspace pull recommended --cache-dir "$USERSPACE_CACHE"
-  "$LEXR" userspace install recommended --from "$USERSPACE_CACHE" --dry-run
+  sudo "$LEXR" userspace install recommended --from "$USERSPACE_CACHE" --dry-run
   sudo "$LEXR" userspace install recommended --from "$USERSPACE_CACHE" --yes
 
 "recommended" includes audio and IPTSD; it does not include private firmware.
@@ -307,7 +310,7 @@ Wi-Fi board data is already prepared by the image. Use sudo nmtui to reconnect.
 If the installed system is missing board data, inspect and repair it with:
 
   "$LEXR" userspace status --feature wifi
-  "$LEXR" userspace install wifi --dry-run
+  sudo "$LEXR" userspace install wifi --dry-run
   sudo "$LEXR" userspace install wifi --yes
   sudo mkinitcpio -p lexr-sp11
 

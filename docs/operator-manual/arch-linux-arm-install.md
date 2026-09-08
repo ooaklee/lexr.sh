@@ -205,6 +205,7 @@ NVMe disk. The reported command output confirms:
 | Native kernel package (`pacman -Q lexr-kernel-sp11`) | `lexr-kernel-sp11 7.2.0_jg_0sp11v23-1` |
 | Touchscreen | Maintainer confirmed working in the installed system |
 | Pen | Maintainer confirmed pen input after Lexr installed the paired IPTSD portable userspace |
+| Audio userspace files | Native `bf617c5` build passed dry-run and installed FullIO, preserving the original selector link in backup and the shared Qualcomm profile unchanged; playback/microphone testing pending |
 | Wi-Fi | Maintainer confirmed connected after reconnecting |
 | KDE terminal | Maintainer confirmed Konsole works after installing its package |
 | Network widget | Missing `plasma-nm` installed; widget registered after refreshing Plasma, visual check pending |
