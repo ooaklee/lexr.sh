@@ -147,13 +147,22 @@ In nmtui, choose Activate a connection and enter your Wi-Fi password again;
 live connection credentials are not copied. If your desktop has no accessible
 terminal, press Ctrl+Alt+F3 (with Fn if needed) and log in to the text console.
 
-If KDE Plasma reports "Terminal konsole not found" when opening Vim or another
-terminal application, install its optional terminal package from that console:
+For KDE Plasma, you can add the terminal, file manager and network widget from
+that console. A minimal plasma-desktop selection does not include every app:
 
-  sudo pacman -Syu --needed konsole
+  sudo pacman -Syu --needed konsole dolphin plasma-nm
 
-Return to the graphical session with Ctrl+Alt+F1 or Ctrl+Alt+F2 and retry. For a
-new KDE installation, you can select konsole under Additional packages instead.
+Konsole resolves "Terminal konsole not found" when launching Vim; Dolphin opens
+folders; plasma-nm adds the network controls even when Wi-Fi already works.
+Return to the graphical session with Ctrl+Alt+F1 or Ctrl+Alt+F2 and retry. If the
+new widget does not appear, save work and log out and back in. For a new KDE
+installation, select these under Additional packages instead. plasma-pa is an
+optional volume widget, but it does not configure Surface audio support.
+
+A desktop can use software rendering. The public image does not contain the
+private Surface GPU firmware qcdxkmsuc8380.mbn. The installed KDE test reported
+llvmpipe with that file missing; hardware acceleration and the private firmware
+handoff still need Arch qualification. See the operator guide for this boundary.
 
 The kernel should report the same custom ABI as the live image, and / should
 be your installed ext4 partition rather than the live overlay. To rebuild its

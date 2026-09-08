@@ -171,3 +171,17 @@ container checks above. Repeated boot selection, returning to the other installe
 operating systems, audio, broader desktop behaviour, recovery and X1P/LCD remain
 untested after this installation. Cross-ABI kernel updates and rollback remain
 separate qualification steps.
+
+The first KDE session used a minimal desktop selection: Konsole, Dolphin and
+`plasma-nm` were missing. Installing the requested AArch64 packages restored the
+terminal and registered the file manager and network widget. These are documented
+as user-selected packages, without adding another desktop recipe to the wrapper.
+The same session used `llvmpipe` because the private Surface GPU firmware was
+absent; accelerated graphics remain separate from first-boot qualification.
+
+A manual installation guide is a possible second path, tracked with the Arch
+work in #52. It must use Arch Linux ARM repositories and the same verified
+Surface kernel, DTBs, installed initramfs and separate GRUB entry. The current
+platform helper is independent of Archinstall, but a standalone manual workflow
+has not been documented or qualified. Generic x86 installation instructions and
+an in-place ARM first-boot wizard are not drop-in replacements for this flow.

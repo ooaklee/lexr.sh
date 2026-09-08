@@ -54,19 +54,30 @@ and Surface compatibility. This does not preflight every later transaction or
 guarantee download success or that an optional desktop works on the Surface.
 You can also add your preferred environment after the terminal installation.
 
-For KDE Plasma, add `konsole` under **Additional packages** if you want its
-terminal application. The bundled upstream Plasma profile selects the desktop
-packages; it does not explicitly request Konsole. If Plasma reports
-"Terminal konsole not found" when opening Vim or another terminal application,
+For KDE Plasma, choose the applications you want under **Additional packages**:
+
+| Package | Purpose |
+| --- | --- |
+| `konsole` | Terminal window; also needed to launch terminal applications such as Vim from Plasma |
+| `dolphin` | File manager and directory-opening handler |
+| `plasma-nm` | NetworkManager controls in Plasma's system tray |
+| `plasma-pa` | Optional volume controls; installing the widget does not configure Surface audio firmware/userspace |
+
+The bundled upstream Plasma profile selects the desktop packages; it does not
+explicitly request Konsole or Dolphin. A minimal `plasma-desktop` installation
+can also lack the network widget even when NetworkManager is connected.
+To add the terminal, file manager and network controls after installation,
 log in on **Ctrl+Alt+F3** and run:
 
 ```bash
-sudo pacman -Syu --needed konsole
+sudo pacman -Syu --needed konsole dolphin plasma-nm
 ```
 
 Return to your graphical session with **Ctrl+Alt+F1** or **Ctrl+Alt+F2** and retry
-the application. [Konsole is available for AArch64](https://archlinuxarm.org/packages/aarch64/konsole).
-This is an optional desktop package choice, not a Surface kernel change.
+the application. If the newly installed network widget does not appear, save
+your work and log out and back into Plasma. These are optional desktop package
+choices available in the ARM repositories; Lexr does not force a desktop or
+replace upstream profile recipes.
 
 Keep **NetworkManager** for networking. You can reconnect with `sudo nmtui` after
 installation. Lexr uses Archinstall's normal network setup and does not add a
@@ -133,6 +144,19 @@ The GRUB entries and DTBs are bound to that ABI. Cross-ABI upgrades and rollback
 remain unqualified. Retain the Surface kernel package; a generic `linux-aarch64`
 package or generic regenerated GRUB entries do not replace this boot integration.
 
+### GPU firmware and software rendering
+
+The image includes public GPU firmware but does not redistribute the private
+Surface GPU firmware `qcdxkmsuc8380.mbn`. During the installed KDE test, KWin
+reported `llvmpipe` software rendering and the kernel reported that
+`qcom/x1e80100/microsoft/Denali/qcdxkmsuc8380.mbn` could not be loaded.
+Installing Mesa or choosing another installer does not supply that file.
+
+The [Windows firmware hand-off](../user-guide/windows-handoff.md) describes
+collecting authorised firmware from the same physical Surface. Its application
+and the resulting hardware acceleration still need qualification on Arch;
+do not treat a working desktop as proof of accelerated graphics.
+
 ## Hardware test record
 
 On 2026-09-08, the maintainer completed the bundled `sudo archinstall` flow on a
@@ -146,8 +170,10 @@ NVMe disk. The reported command output confirms:
 | Native kernel package (`pacman -Q lexr-kernel-sp11`) | `lexr-kernel-sp11 7.2.0_jg_0sp11v23-1` |
 | Touchscreen | Maintainer confirmed working in the installed system |
 | Wi-Fi | Maintainer confirmed connected after reconnecting |
-| KDE application launch | Plasma reports a missing Konsole when launching Vim; installation instructions above, retest pending |
-| Other desktop notification | "Unknown application folder" reported; cause not yet diagnosed |
+| KDE terminal | Maintainer confirmed Konsole works after installing its package |
+| Network widget | Missing `plasma-nm` installed; widget registered after refreshing Plasma, visual check pending |
+| File manager | Missing Dolphin installed; process and directory handler verified, visual check pending |
+| GPU acceleration | KWin uses `llvmpipe`; kernel reports missing private Surface GPU firmware |
 
 The tested image was candidate 4, created with Lexr `2e0d384`, independently
 validated and written by the matching native Lexr binary with a complete USB
