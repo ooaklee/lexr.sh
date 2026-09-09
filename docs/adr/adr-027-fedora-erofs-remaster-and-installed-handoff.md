@@ -80,6 +80,18 @@ binding follows either a separate `/boot` filesystem or `/boot` on the root
 filesystem, without a global `GRUB_DEVICETREE` setting. Stock restoration uses
 the same binding helper after verifying and rebuilding its exact ABI.
 
+Fedora's `51-dracut-rescue.install` copies that BLS entry and replaces its ABI
+with the rescue identity, including the DTB path, without copying the DTB.
+For external-required kernels, a post-51 hook first compares the rescue EFI
+bytes with the selected RPM-owned kernel and checks the BLS kernel/initramfs
+references. It then copies the matching RPM-owned DTB into a rescue-specific
+directory and binds its GRUB-relative path. This directory survives removal of
+the ordinary kernel ABI. Existing rescue images with different EFI bytes are
+left untouched; they cannot inherit a DTB solely from a matching filename.
+This binding covers the flat rescue files produced by the selected
+`layout=other` lifecycle on shared or separate `/boot`. Alternative
+machine-id-directory rescue layouts are rejected before changing the entry.
+
 The adapter will extract the EROFS live root into a Linux-native Docker volume,
 apply Fedora's SELinux file contexts, and recreate it with LZMA compression and
 extended attributes intact. Its tool image pins the Fedora base digest and the

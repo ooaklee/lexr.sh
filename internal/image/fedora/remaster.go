@@ -428,6 +428,8 @@ func stageFedoraSupport(workspace string, bundle kernel.Bundle) error {
 		{"dracut.conf", 0o644, []byte(dracutConfiguration(bundle.ABI))},
 		{"bind-installed-dtb", 0o755, []byte(bindInstalledDTBScript(bundle.ABI))},
 		{"21-lexr-sp11-dtb.install", 0o755, []byte(installedDTBHook(bundle))},
+		{"bind-rescue-dtb", 0o755, []byte(bindRescueDTBScript(bundle.ABI))},
+		{"52-lexr-sp11-rescue-dtb.install", 0o755, []byte(rescueDTBHook(bundle))},
 	}
 	for _, file := range files {
 		if err := os.WriteFile(filepath.Join(support, file.name), file.data, file.mode); err != nil {
@@ -503,6 +505,8 @@ install -D -m 0644 "$support/dracut.conf" "$payload/usr/lib/dracut/dracut.conf.d
 install -m 0755 "$support/finalize-installed" "$payload/usr/lib/lexr/sp11/finalize-installed"
 install -m 0755 "$support/bind-installed-dtb" "$payload/usr/lib/lexr/sp11/bind-installed-dtb"
 install -D -m 0755 "$support/21-lexr-sp11-dtb.install" "$payload/usr/lib/kernel/install.d/21-lexr-sp11-dtb.install"
+install -m 0755 "$support/bind-rescue-dtb" "$payload/usr/lib/lexr/sp11/bind-rescue-dtb"
+install -D -m 0755 "$support/52-lexr-sp11-rescue-dtb.install" "$payload/usr/lib/kernel/install.d/52-lexr-sp11-rescue-dtb.install"
 install -m 0644 "$support/kernel-abi" "$payload/usr/lib/lexr/sp11/kernel-abi"
 install -m 0644 "$support/boot-policy.json" "$payload/usr/lib/lexr/sp11/boot-policy.json"
 install -m 0644 "$support/grub-defaults" "$payload/usr/lib/lexr/sp11/grub-defaults"

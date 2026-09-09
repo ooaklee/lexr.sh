@@ -401,6 +401,8 @@ func (v *Validator) validateLiveRoot(ctx context.Context, image, workspace, volu
 		{"dracut.conf", "usr/lib/dracut/dracut.conf.d/91-lexr-sp11.conf", dracutConfiguration(manifest.KernelBundle.ABI)},
 		{"bind-installed-dtb", "usr/lib/lexr/sp11/bind-installed-dtb", bindInstalledDTBScript(manifest.KernelBundle.ABI)},
 		{"21-lexr-sp11-dtb.install", "usr/lib/kernel/install.d/21-lexr-sp11-dtb.install", installedDTBHook(manifest.KernelBundle)},
+		{"bind-rescue-dtb", "usr/lib/lexr/sp11/bind-rescue-dtb", bindRescueDTBScript(manifest.KernelBundle.ABI)},
+		{"52-lexr-sp11-rescue-dtb.install", "usr/lib/kernel/install.d/52-lexr-sp11-rescue-dtb.install", rescueDTBHook(manifest.KernelBundle)},
 	} {
 		name := "expected-" + expected.name
 		writeErr := os.WriteFile(filepath.Join(workspace, name), []byte(expected.content), 0600)

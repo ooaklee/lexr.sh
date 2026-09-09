@@ -66,6 +66,7 @@ cp -a /linux-work/rpm-payload/. %%{buildroot}/
 /etc/kernel/install.conf
 /usr/lib/dracut/dracut.conf.d/91-lexr-sp11.conf
 /usr/lib/kernel/install.d/21-lexr-sp11-dtb.install
+/usr/lib/kernel/install.d/52-lexr-sp11-rescue-dtb.install
 
 %%posttrans
 /usr/sbin/depmod -a %s || exit 1

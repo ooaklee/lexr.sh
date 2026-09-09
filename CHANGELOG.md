@@ -114,6 +114,9 @@ that do not apply.
 - Preserve every declared Surface boot argument through Anaconda's own GRUB
   default generation, so the first installed boot retains the TPM-wait and
   soundwire arguments before the one-shot finalizer runs.
+- Bind Fedora's generated rescue entry to a durable external DTB after proving
+  that its EFI bytes match the selected RPM-owned Surface kernel. Preserve
+  unrelated rescue images and reject unsupported rescue layouts.
 
 - Enable `lexr image release prepare` and `lexr image release validate` for
   Arch Linux ARM split ISO releases. Accept Arch's complete native creation
