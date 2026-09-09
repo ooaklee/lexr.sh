@@ -66,7 +66,7 @@ remastered with Lexr `927d00e` and v23 reached the same X1E/OLED live desktop;
 Wi-Fi, web browsing and the language/try/install chooser were confirmed on
 2026-09-06 ([issue #49](https://github.com/ooaklee/lexr.sh/issues/49)). Installation,
 recovery and remaining hardware checks still need qualification for both images.
-The current Fedora candidate passed structural validation and USB read-back, but a physical Surface Pro 11
+The earlier Fedora candidate passed structural validation and USB read-back, but a physical Surface Pro 11
 test reached the emergency boot path and then a persistent black screen. That
 failure is tracked in [issue #17](https://github.com/ooaklee/lexr.sh/issues/17),
 while [issue #16](https://github.com/ooaklee/lexr.sh/issues/16) tracks the
@@ -178,7 +178,8 @@ that the image will boot or install on physical hardware.
 
 Fedora requires the explicit `fedora-workstation-live-44` catalogue ID and a
 patch-line-qualified verified kernel bundle. The accepted floors are
-7.2.0/sp11v19 and 7.2.2/sp11v1. The
+7.2.0/sp11v19 and 7.2.2/sp11v1. External-DTB bundles, including v23, require
+`--kernel-profile surface-pro-11-x1e-oled`. The
 [installation-media guide](docs/user-guide/installation-media.md) shows the implemented
 distribution paths, the Fedora boot failure already observed, their hardware
 limits, and how to review a USB write safely.

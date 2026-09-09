@@ -23,10 +23,10 @@ func rpmVersion(version string) string {
 
 // kernelRPMSpec returns the native package metadata used by Anaconda and kernel-install.
 func kernelRPMSpec(abi, version string) string {
-	return fmt.Sprintf(`Name:           %s
+	return strings.ReplaceAll(fmt.Sprintf(`Name:           %s
 Version:        %s
-Release:        1.lexr.fc44
-Summary:        Surface Pro 11 Stubble kernel for Fedora Live
+Release:        1.lexr.fc@FEDORA_RELEASE@
+Summary:        Surface Pro 11 kernel for Fedora Live
 License:        GPL-2.0-only
 BuildArch:      aarch64
 AutoReqProv:    no
@@ -41,8 +41,8 @@ Requires:       /usr/bin/dracut
 
 %%description
 Exact digest-verified Surface Pro 11 kernel payload repackaged for Fedora's
-RPM, kernel-install, BLS, and dracut lifecycle. The boot image preserves its
-Stubble PE sections and is unsigned.
+RPM, kernel-install, BLS, and dracut lifecycle. The unsigned EFI boot image retains the verified bundle bytes and its
+declared embedded or external device-tree delivery.
 
 %%prep
 
@@ -57,12 +57,15 @@ cp -a /linux-work/rpm-payload/. %%{buildroot}/
 /boot/vmlinuz-%s
 /boot/System.map-%s
 /boot/config-%s
+/boot/dtb-%s
 /usr/lib/modules/%s
 /usr/lib/firmware/%s/device-tree
 /usr/lib/lexr/sp11
 /usr/lib/systemd/system/lexr-sp11-installed-finalize.service
 /usr/lib/systemd/system/multi-user.target.wants/lexr-sp11-installed-finalize.service
 /etc/kernel/install.conf
+/usr/lib/dracut/dracut.conf.d/91-lexr-sp11.conf
+/usr/lib/kernel/install.d/21-lexr-sp11-dtb.install
 
 %%posttrans
 /usr/sbin/depmod -a %s || exit 1
@@ -75,10 +78,10 @@ if [ "$1" -eq 0 ]; then
 fi
 
 %%changelog
-* Mon Aug 31 2026 Lexr maintainers <maintainers@lexr.sh> - %s-1.lexr.fc44
+* Mon Aug 31 2026 Lexr maintainers <maintainers@lexr.sh> - %s-1.lexr.fc@FEDORA_RELEASE@
 - Preserve the verified Surface kernel while integrating Fedora lifecycle.
 `, fedoraKernelPackageName, rpmVersion(version), rpmVersion(version),
-		abi, abi, abi, abi, abi, abi, abi, abi, abi, abi, abi, rpmVersion(version))
+		abi, abi, abi, abi, abi, abi, abi, abi, abi, abi, abi, abi, rpmVersion(version)), "@FEDORA_RELEASE@", supportedFedoraRelease)
 }
 
 // kernelInstallConfiguration forces Stubble's split kernel/initramfs through
@@ -124,30 +127,16 @@ for module_dir in /usr/lib/modules/*; do
 		/usr/bin/dracut --force "/boot/initramfs-$stock_abi.img" "$stock_abi"
 		stock_dtb="/boot/dtb-$stock_abi/$fallback_dtb"
 		install -D -m 0644 "$fallback_dtb_source" "$stock_dtb"
-		GRUB_DEVICETREE="$fallback_dtb" KERNEL_INSTALL_LAYOUT=other \
-			/usr/bin/kernel-install add "$stock_abi" "$stock_image"
-		# 20-grub.install may copy the stock module DTB directory while adding the
-		# entry. Reassert the manifest-bound Surface DTB and prove BLS names it.
-		install -D -m 0644 "$fallback_dtb_source" "$stock_dtb"
-		[ -f "$stock_dtb" ] && [ ! -L "$stock_dtb" ]
-		cmp "$fallback_dtb_source" "$stock_dtb"
-		bls_entry=
-		for candidate in /boot/loader/entries/*.conf; do
-			[ -f "$candidate" ] || continue
-			grep -Fx "version $stock_abi" "$candidate" >/dev/null || continue
-			[ -z "$bls_entry" ] || exit 1
-			bls_entry=$candidate
-		done
-		[ -n "$bls_entry" ]
-		grep -Fx "devicetree /dtb-$stock_abi/$fallback_dtb" "$bls_entry" >/dev/null
-		command -v restorecon >/dev/null 2>&1 && restorecon -R "/boot/dtb-$stock_abi" "$bls_entry" || :
+		KERNEL_INSTALL_LAYOUT=other /usr/bin/kernel-install add "$stock_abi" "$stock_image"
+		/usr/lib/lexr/sp11/bind-installed-dtb "$stock_abi"
+
 	fi
 done
 
 if command -v grubby >/dev/null 2>&1 && [ -s "/boot/vmlinuz-$abi" ]; then
 	grubby --update-kernel="/boot/vmlinuz-$abi" \
 		--remove-args="modprobe.blacklist=qcom_q6v5_pas rd.driver.blacklist=qcom_q6v5_pas" \
-		--args="clk_ignore_unused pd_ignore_unused systemd.tpm2_wait=0 soundwire_qcom.sp11_feedback_active_offset2_zero=1"
+		--args="clk_ignore_unused pd_ignore_unused arm64.nopauth systemd.tpm2_wait=0 soundwire_qcom.sp11_feedback_active_offset2_zero=1"
 	grubby --set-default="/boot/vmlinuz-$abi"
 fi
 
@@ -179,7 +168,7 @@ func installedGrubDefaults() string {
 	return `GRUB_DEFAULT=saved
 GRUB_DISABLE_SUBMENU=true
 GRUB_DISABLE_RECOVERY=true
-GRUB_CMDLINE_LINUX_DEFAULT="quiet rhgb clk_ignore_unused pd_ignore_unused systemd.tpm2_wait=0 soundwire_qcom.sp11_feedback_active_offset2_zero=1"
+GRUB_CMDLINE_LINUX_DEFAULT="quiet rhgb clk_ignore_unused pd_ignore_unused arm64.nopauth systemd.tpm2_wait=0 soundwire_qcom.sp11_feedback_active_offset2_zero=1"
 GRUB_ENABLE_BLSCFG=true
 GRUB_GFXMODE=auto
 GRUB_TERMINAL_INPUT="console"

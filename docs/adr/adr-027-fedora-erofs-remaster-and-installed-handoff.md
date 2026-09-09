@@ -8,7 +8,7 @@ description: Architecture decision for Fedora Live remastering, Stubble boot int
 
 Accepted on 2026-08-31.
 
-Implementation status on 2026-09-02: the adapter and structural validator are
+Implementation status on 2026-09-09: the adapter and structural validator are
 implemented and remain experimental. A generated candidate passed structural
 validation and USB read-back, but its first physical Surface Pro 11 test reached
 the emergency boot path. With `quiet` removed, early text appeared before the
@@ -33,16 +33,20 @@ copies the selected root and discovers installable kernels through
 `/boot/vmlinuz-*`; it then calls `kernel-install` using the matching module-tree
 boot image.
 
-The custom boot image is a Stubble PE executable with embedded kernel and X1E
+Earlier custom bundles use a Stubble PE executable with embedded kernel and X1E
 auto-DTB data. Its `.osrel` section makes systemd classify it as a unified
 kernel image even though Fedora must keep the initramfs separate. X1P Stubble
 auto-DTB identity is not yet qualified. The unsigned image also cannot satisfy
 Secure Boot.
 
-Fedora live media needs `dracut-live` and a temporary
-`qcom_q6v5_pas` blacklist to prevent the USB-backed root from being disrupted.
-That blacklist is harmful after installation to internal storage, where the
-audio DSP is expected to run, and Anaconda can retain a live-session denylist.
+Fedora's stock Snapdragon kernel guidance uses a `qcom_q6v5_pas` blacklist
+to avoid resetting USB Type-C muxes during a DSP restart. The maintained custom
+kernel has a different contract: the working v23 Ubuntu, elementary and Arch
+paths need DSP/QRTR services available during normal coldplug. Applying the
+stock workaround to the custom Fedora entry blocks those services. The earlier
+Fedora report does not establish which physical boundary failed first, so this
+policy correction still requires a new hardware test. Anaconda can retain a
+live-session denylist, which must be removed after installation.
 
 The optional `sp11-iptsd-v2` companion is a source-required release. Its
 verified archive contains the complete pinned upstream source, Meson fallback
@@ -65,12 +69,29 @@ while `/boot/grub2/grub.cfg` will own the custom X1E entry and stock
 kernel/initramfs fallback entries that explicitly load the manifest-bound X1E
 or X1P Surface device tree.
 
+External-required EFI kernels, including the v23 bundle, are also accepted with
+`--kernel-profile surface-pro-11-x1e-oled`. Every custom normal, basic-graphics
+and diagnostic entry explicitly loads the manifest-bound X1E DTB for this
+mode. Embedded kernels retain their existing Stubble identity checks and omit
+an external override. X1P custom installation remains outside this contract.
+The native RPM owns a post-`20-grub.install` hook which updates only the selected
+custom ABI's BLS entry. It computes the DTB path with `grub2-mkrelpath`, so the
+binding follows either a separate `/boot` filesystem or `/boot` on the root
+filesystem, without a global `GRUB_DEVICETREE` setting. Stock restoration uses
+the same binding helper after verifying and rebuilding its exact ABI.
+
 The adapter will extract the EROFS live root into a Linux-native Docker volume,
 apply Fedora's SELinux file contexts, and recreate it with LZMA compression and
 extended attributes intact. Its tool image pins the Fedora base digest and the
 exact `erofs-utils` release whose `--path=/` traversal avoids the known packed
-fragment prepass failure. The pinned ISO volume label will remain the
-`dracut-live` discovery authority.
+fragment prepass failure. The inspected ISO volume label remains the
+`dracut-live` discovery authority. The adapter parses the complete ESP
+indirection, discovers its bounded marker, checks the outer GRUB kernel,
+initramfs and live-root references, and binds both label and marker into the
+manifest. Fedora release policy is isolated from this layout grammar; unknown
+releases and uninspected boot layouts are rejected. Fixtures cover the actual
+Fedora 44 source, changed markers and line endings, with negative cases for
+contradictory labels, paths, commands and ambiguous evidence.
 
 The adapter will build one native `lexr-kernel-sp11` RPM from the exact
 digest-verified Debian payload. That RPM will own the custom boot image, module
@@ -126,13 +147,31 @@ separate exact-ABI initramfs already produced by Anaconda or the RPM scriptlet.
 The live initramfs will be non-host-only, include `dmsquash-live`, and contain
 the custom modules.
 
-Every live GRUB entry will carry both `modprobe.blacklist=qcom_q6v5_pas` and
-`rd.driver.blacklist=qcom_q6v5_pas`. Installed GRUB defaults will omit both.
-A one-shot service, gated to a non-live boot, will remove Anaconda's live
-denylist, remove either blacklist argument from the selected kernel,
-regenerate dependency and initramfs state, restore the installed stock
-fallback, and reset the custom kernel as the default. Secure Boot must remain
-disabled for the unsigned custom kernel.
+Custom-kernel entries allow `qcom_q6v5_pas`. The native RPM installs a dracut
+configuration that adds the DSP, QRTR, PMIC/USB, panel and Surface hub drivers
+for normal coldplug, without forced loading or a runtime DSP restart. It
+includes the source's public `gen70500_gmu.bin` and `gen70500_sqe.fw`, including
+compressed variants, because the GPU requests these names outside module
+firmware metadata. Generation and validation inspect the actual initramfs:
+module dependency bytes and GPU/Wi-Fi firmware must agree with the prepared root.
+Missing firmware or a lost QRTR dependency fails the build.
+
+Before generating the initramfs, Lexr derives `board.bin` from Fedora's retained
+WCN7850 `board-2.bin` database using the shared Surface selector. Bounded XZ and
+Zstandard inputs are supported. The source database is preserved; validation
+independently derives the expected board again and compares the root and
+initramfs bytes. The selected kernel's PCI transport is included whether it is
+part of `ath12k` or a separate `ath12k_pci` module. Wi-Fi still requires hardware
+qualification on the Fedora candidate.
+
+Only the untouched stock-kernel live troubleshooting entries carry both
+`modprobe.blacklist=qcom_q6v5_pas` and `rd.driver.blacklist=qcom_q6v5_pas`.
+Installed defaults omit both. A one-shot service, gated to a non-live boot,
+removes Anaconda's live denylist and either blacklist argument, regenerates
+dependency and initramfs state, restores the installed stock fallback, and
+resets the custom kernel as the default. Secure Boot remains disabled for the
+unsigned custom kernel. Text and firmware-display diagnostic entries expose
+early failures without changing the normal boot policy.
 
 The structural validator will inspect each boundary independently:
 
@@ -143,7 +182,7 @@ The structural validator will inspect each boundary independently:
   attributes, manifest-bound native RPM bytes, RPM ownership and provides,
   exact Anaconda-visible kernel paths, the exact X1E Stubble `.dtbauto`
   payload, both stock external-DTB live entries, `dracut-live` contents, and
-  the live-versus-installed blacklist split;
+  the custom/stock/installed argument split;
 - an included native IPTSD package: both RPM digests, source-archive inclusion
   in the source RPM, binary ownership and byte identity in the live root,
   AArch64 runtime linkage, service and udev-rule paths, rendered device IDs,
@@ -173,8 +212,8 @@ qualified; its explicit-DTB stock path is live-only.
   while the adapter controls only the outer GRUB policy and remastered payload;
   the physical test result shows that this structure alone does not prove a
   usable Surface Pro 11 boot.
-- The live-only DSP blacklist is absent from installed policy and is removed
-  from state Anaconda may carry across the installation boundary.
+- The stock live-only DSP blacklist is absent from custom and installed policy
+  and is removed from state Anaconda may carry across installation.
 - X1E/OLED custom Stubble identity and installed hand-off are structurally
   validated. X1P/LCD has an explicit-DTB stock live path for investigation,
   but installation is unsupported until the custom first-boot hand-off is
@@ -200,3 +239,15 @@ Those sources informed the boot-argument and recovery baseline; the implemented
 EROFS, RPM, Anaconda, and Stubble contracts are validated against the pinned
 Fedora 44 media and the selected kernel bundle rather than copied as an
 unverified recipe.
+
+The revised early-driver configuration follows dracut's documented
+[`add_drivers` and `install_items` interfaces](https://dracut-ng.github.io/dracut/man/dracut.conf.5.html).
+Fedora 44's inspected source contains dracut `108-6.fc44`, GRUB `2.12-56.fc44`,
+Anaconda `44.30-2.fc44` and stock kernel `6.19.10-300.fc44`. Its public
+`qcom-firmware` package contains both required GPU files in XZ-compressed form.
+The WCN7850 database is also XZ-compressed and contains the already qualified
+Surface fallback selector; no new board selector is introduced.
+The exact source `20-grub.install` creates the BLS entry before the Lexr hook;
+Fedora's [`blscfg` implementation](https://github.com/rhboot/grub2/blob/fedora-44/grub-core/commands/blscfg.c)
+consumes the per-entry `devicetree` field. These observations establish source
+and generated-file contracts, not physical Fedora boot or installation success.

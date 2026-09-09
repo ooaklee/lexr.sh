@@ -90,7 +90,8 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		strings.Contains(string(elTorito), "El Torito boot img :   1  UEFI  y"), strings.TrimSpace(string(elTorito)))
 	pvd, pvdErr := v.Docker.CaptureInWorkspace(ctx, toolsImage, workspace,
 		"xorriso", "-indev", "/work/image.iso", "-pvd_info")
-	volumePassed := pvdErr == nil && strings.Contains(string(pvd), "Volume Id    : "+SourceVolumeID)
+	volumeID, volumeErr := parseVolumeID(string(pvd))
+	volumePassed := pvdErr == nil && volumeErr == nil && volumeID == SourceVolumeID
 	addCheck("dracut-live-volume-label", volumePassed, "expected ISO volume label "+SourceVolumeID)
 
 	extractErr := v.Docker.RunInWorkspace(ctx, toolsImage, workspace,
@@ -105,7 +106,6 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		"-extract", "/boot/aarch64/loader/linux-fedora", "/work/vmlinuz-fedora",
 		"-extract", "/boot/aarch64/loader/initrd-fedora", "/work/initrd-fedora",
 		"-extract", "/boot/grub2/grub.cfg", "/work/grub.cfg",
-		"-extract", "/boot/0x503d6c7e", "/work/media-marker",
 		"-extract", "/EFI/BOOT/grub.cfg", "/work/iso-esp-grub.cfg",
 		"-extract", "/EFI/BOOT/BOOTAA64.EFI", "/work/iso-bootaa64.efi",
 		"-extract", "/EFI/BOOT/grubaa64.efi", "/work/iso-grubaa64.efi",
@@ -114,12 +114,6 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		addCheck("required-iso-members", false, extractErr.Error())
 		return report, errors.New("Fedora ISO validation failed: required members cannot be extracted")
 	}
-	markerInfo, markerErr := os.Lstat(filepath.Join(workspace, "media-marker"))
-	if markerErr != nil || markerInfo.Mode()&os.ModeSymlink != 0 || !markerInfo.Mode().IsRegular() {
-		addCheck("required-iso-members", false, "GRUB search marker is not a regular outer-ISO member")
-		return report, errors.Join(errors.New("Fedora ISO validation failed: invalid GRUB search marker"), markerErr)
-	}
-	addCheck("required-iso-members", true, "custom and fallback boot sets, EROFS root, RPM, DTBs, GRUB, and manifest are present")
 
 	manifestBytes, err := readBoundedRegularFile(filepath.Join(workspace, "manifest.json"), imagecontract.MaximumManifestSize)
 	if err != nil {
@@ -147,6 +141,17 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 	addCheck("embedded-manifest", manifestOK, manifestDetails)
 	if !manifestOK || !safeKernelABIExpression.MatchString(manifest.KernelBundle.ABI) {
 		return report, errors.New("Fedora ISO validation failed: invalid embedded manifest contract")
+	}
+	layout, layoutErr := layoutFromMediaDiscovery(manifest.MediaDiscovery)
+	if layoutErr != nil {
+		return report, layoutErr
+	}
+	if err := v.Docker.RunInWorkspace(ctx, toolsImage, workspace, "xorriso", "-osirrox", "on", "-indev", "/work/image.iso", "-extract", layout.Marker, "/work/media-marker"); err != nil {
+		return report, err
+	}
+	markerInfo, markerErr := os.Lstat(filepath.Join(workspace, "media-marker"))
+	if markerErr != nil || !markerInfo.Mode().IsRegular() || markerInfo.Mode()&os.ModeSymlink != 0 {
+		return report, errors.Join(errors.New("invalid Fedora GRUB marker"), markerErr)
 	}
 	stockKernelRecord, _ := findEvidenceArtifact(manifest.MediaDiscovery, "stock-fallback-kernel")
 	stockInitrdRecord, _ := findEvidenceArtifact(manifest.MediaDiscovery, "stock-fallback-initramfs")
@@ -192,26 +197,32 @@ rpm -qpl /work/kernel.rpm | grep -Fx "/usr/lib/modules/$abi/vmlinuz-dtbloader.ef
 	report.Checks = append(report.Checks, v.validateCompanion(ctx, toolsImage, workspace, manifest.CompanionBundle)...)
 	report.Checks = append(report.Checks, v.validateIPTSDRPM(ctx, toolsImage, workspace, manifest)...)
 
-	sections, sectionErr := v.Docker.CaptureInWorkspace(ctx, toolsImage, workspace, "objdump", "-h", "/work/vmlinuz")
-	sectionText := string(sections)
-	sectionsPassed := sectionErr == nil
-	for _, section := range []string{".linux", ".hwids", ".dtbauto", ".uname", ".sbat"} {
-		sectionsPassed = sectionsPassed && strings.Contains(sectionText, section)
+	if manifest.KernelBundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		externalErr := validateExternalKernel(filepath.Join(workspace, "vmlinuz"))
+		addCheck("external-dtb-efi-kernel", externalErr == nil, "AArch64 EFI kernel uses manifest-bound external device trees")
+	} else {
+		sections, sectionErr := v.Docker.CaptureInWorkspace(ctx, toolsImage, workspace, "objdump", "-h", "/work/vmlinuz")
+		sectionText := string(sections)
+		sectionsPassed := sectionErr == nil
+		for _, section := range []string{".linux", ".hwids", ".dtbauto", ".uname", ".sbat"} {
+			sectionsPassed = sectionsPassed && strings.Contains(sectionText, section)
+		}
+		addCheck("stubble-pe-sections", sectionsPassed, "expected .linux, .hwids, .dtbauto, .uname, and .sbat")
+		identities, identityErr := v.Docker.CaptureInWorkspace(ctx, toolsImage, workspace, "strings", "/work/vmlinuz")
+		identityText := string(identities)
+		identityPassed := identityErr == nil && strings.Contains(identityText, "Microsoft Surface Pro 11th Edition (OLED)") &&
+			strings.Contains(identityText, "microsoft,denali-oled")
+		addCheck("stubble-x1e-auto-dtb", identityPassed, "X1E/OLED SMBIOS model and microsoft,denali-oled are embedded; X1P remains unclaimed")
+		unameMatches, unameSections, unameMatchErr := matchingPESectionValues(
+			filepath.Join(workspace, "vmlinuz"), ".uname", []byte(manifest.KernelBundle.ABI))
+		addCheck("stubble-exact-uname", unameMatchErr == nil && unameMatches == 1 && unameSections == 1,
+			fmt.Sprintf("exact_matches=%d uname_sections=%d", unameMatches, unameSections))
+		x1eMatches, dtbautoSections, x1eMatchErr := matchingPESectionPayloads(
+			filepath.Join(workspace, "vmlinuz"), ".dtbauto", filepath.Join(workspace, "x1e.dtb"))
+		addCheck("stubble-x1e-exact-dtb", x1eMatchErr == nil && x1eMatches == 1,
+			fmt.Sprintf("exact_matches=%d dtbauto_sections=%d", x1eMatches, dtbautoSections))
+
 	}
-	addCheck("stubble-pe-sections", sectionsPassed, "expected .linux, .hwids, .dtbauto, .uname, and .sbat")
-	identities, identityErr := v.Docker.CaptureInWorkspace(ctx, toolsImage, workspace, "strings", "/work/vmlinuz")
-	identityText := string(identities)
-	identityPassed := identityErr == nil && strings.Contains(identityText, "Microsoft Surface Pro 11th Edition (OLED)") &&
-		strings.Contains(identityText, "microsoft,denali-oled")
-	addCheck("stubble-x1e-auto-dtb", identityPassed, "X1E/OLED SMBIOS model and microsoft,denali-oled are embedded; X1P remains unclaimed")
-	unameMatches, unameSections, unameMatchErr := matchingPESectionValues(
-		filepath.Join(workspace, "vmlinuz"), ".uname", []byte(manifest.KernelBundle.ABI))
-	addCheck("stubble-exact-uname", unameMatchErr == nil && unameMatches == 1 && unameSections == 1,
-		fmt.Sprintf("exact_matches=%d uname_sections=%d", unameMatches, unameSections))
-	x1eMatches, dtbautoSections, x1eMatchErr := matchingPESectionPayloads(
-		filepath.Join(workspace, "vmlinuz"), ".dtbauto", filepath.Join(workspace, "x1e.dtb"))
-	addCheck("stubble-x1e-exact-dtb", x1eMatchErr == nil && x1eMatches == 1,
-		fmt.Sprintf("exact_matches=%d dtbauto_sections=%d", x1eMatches, dtbautoSections))
 
 	stockHeaders, stockHeaderErr := v.Docker.CaptureInWorkspace(ctx, toolsImage, workspace,
 		"bash", "-ceu", `objdump -f /work/vmlinuz-fedora
@@ -237,7 +248,7 @@ objdump -h /work/vmlinuz-fedora`, "validate-stock-fallback-pe")
 		return report, err
 	}
 	grubCheckErr := v.Docker.RunInWorkspace(ctx, toolsImage, workspace, "grub2-script-check", "/work/grub.cfg")
-	grubPassed := grubCheckErr == nil && bytes.Equal(grubBytes, []byte(grubConfig(manifest.KernelBundle.ABI)))
+	grubPassed := grubCheckErr == nil && bytes.Equal(grubBytes, []byte(grubConfig(manifest.KernelBundle.ABI, manifest.KernelBundle.EffectiveDTBDelivery, layout)))
 	addCheck("fedora-live-grub-policy", grubPassed, "GRUB exactly matches the custom normal/basic and stock fallback entries with required live arguments")
 	fallbackDTBsPassed := grubPassed &&
 		bytes.Contains(grubBytes, []byte("devicetree ($root)/sp11/dtb/x1e80100-microsoft-denali-oled.dtb")) &&
@@ -249,12 +260,12 @@ objdump -h /work/vmlinuz-fedora`, "validate-stock-fallback-pe")
 	expectedPolicy := expectedBootPolicy(manifest.KernelBundle.ABI)
 	policyPassed := policyErr == nil && policyDecodeErr == nil && policy.SchemaVersion == expectedPolicy.SchemaVersion &&
 		policy.KernelABI == expectedPolicy.KernelABI && slices.Equal(policy.Installed, expectedPolicy.Installed) &&
-		slices.Equal(policy.LiveOnly, expectedPolicy.LiveOnly) && policy.X1PStatus == expectedPolicy.X1PStatus
-	addCheck("live-installed-policy-split", policyPassed, "qcom_q6v5_pas is declared live-only")
+		slices.Equal(policy.LiveOnly, expectedPolicy.LiveOnly) && slices.Equal(policy.StockFallback, expectedPolicy.StockFallback) && policy.X1PStatus == expectedPolicy.X1PStatus
+	addCheck("live-installed-policy-split", policyPassed, "live and installed policy allow DSP-dependent USB discovery")
 
 	espBytes, espErr := os.ReadFile(filepath.Join(workspace, "iso-esp-grub.cfg"))
-	espPassed := espErr == nil && bytes.Contains(espBytes, []byte("search --file --set=root /boot/0x503d6c7e")) &&
-		bytes.Contains(espBytes, []byte("configfile ($root)/boot/grub2/grub.cfg"))
+	espMarker, espMarkerErr := parseESPMarker(string(espBytes))
+	espPassed := espErr == nil && espMarkerErr == nil && espMarker == layout.Marker
 	loaderPassed := false
 	grubLoaderPassed := false
 	if systemErr == nil {
@@ -345,6 +356,11 @@ func (v *Validator) validateKernelPackages(ctx context.Context, image, workspace
 			}
 			return 0
 		}()))
+		if passed && pkg.Role == kernel.RoleImage {
+			payloadErr := v.Docker.RunInWorkspace(ctx, image, workspace, "bash", "-ceu", `set -o pipefail
+dpkg-deb --fsys-tarfile "$1" | tar -xOf - "./boot/vmlinuz-$2" | cmp - /work/vmlinuz`, "lexr-check-kernel-payload", "/work/"+name, manifest.KernelBundle.ABI)
+			add("custom-kernel-package-payload", payloadErr == nil, "booted EFI image equals the exact-ABI kernel from the manifest-bound image package")
+		}
 	}
 	return checks
 }
@@ -380,6 +396,19 @@ func (v *Validator) validateLiveRoot(ctx context.Context, image, workspace, volu
 	var checks []imagecontract.ValidationCheck
 	add := func(name string, passed bool, details string) {
 		checks = append(checks, imagecontract.ValidationCheck{Name: name, Passed: passed, Details: details})
+	}
+	for _, expected := range []struct{ name, installed, content string }{
+		{"dracut.conf", "usr/lib/dracut/dracut.conf.d/91-lexr-sp11.conf", dracutConfiguration(manifest.KernelBundle.ABI)},
+		{"bind-installed-dtb", "usr/lib/lexr/sp11/bind-installed-dtb", bindInstalledDTBScript(manifest.KernelBundle.ABI)},
+		{"21-lexr-sp11-dtb.install", "usr/lib/kernel/install.d/21-lexr-sp11-dtb.install", installedDTBHook(manifest.KernelBundle)},
+	} {
+		name := "expected-" + expected.name
+		writeErr := os.WriteFile(filepath.Join(workspace, name), []byte(expected.content), 0600)
+		var compareErr error
+		if writeErr == nil {
+			compareErr = v.Docker.RunInWorkspaceVolume(ctx, image, workspace, volume, "cmp", "/work/"+name, "/linux-work/rootfs/"+expected.installed)
+		}
+		add("installed-support-"+expected.name, writeErr == nil && compareErr == nil, "installed support matches the adapter's complete generated policy")
 	}
 	abi := manifest.KernelBundle.ABI
 	rpmOutput, rpmErr := v.Docker.CaptureInWorkspaceVolume(ctx, image, workspace, volume,
@@ -425,9 +454,10 @@ cmp "$tmp/outer-uname" "$tmp/module-uname"`, "validate-payload", abi, stockABI)
 	add("stock-fallback-installed-kernel", payloadErr == nil, "outer stock fallback .linux and .uname sections match its RPM-owned installed PE")
 
 	dracutOutput, dracutErr := v.Docker.CaptureInWorkspaceVolume(ctx, image, workspace, volume,
-		"bash", "-ceu", `root=/linux-work/rootfs; abi=$1; chroot "$root" /usr/bin/lsinitrd -m "/boot/initramfs-$abi.img"; chroot "$root" /usr/bin/lsinitrd "/boot/initramfs-$abi.img" | grep -F "usr/lib/modules/$abi/" >/dev/null`, "validate-dracut", abi)
+		"bash", "-ceu", initramfsValidationScript(), "validate-dracut", abi)
 	dracutPassed := dracutErr == nil && strings.Contains(string(dracutOutput), "dmsquash-live")
-	add("dracut-live-initramfs", dracutPassed, "exact-ABI initramfs contains dmsquash-live and custom modules")
+	add("dracut-live-initramfs", dracutPassed, "exact-ABI initramfs contains dmsquash-live, platform module closure and prepared GPU/Wi-Fi firmware")
+	checks = append(checks, v.validateWiFiBoard(ctx, image, workspace, volume))
 
 	stockInitrdOutput, stockInitrdErr := v.Docker.CaptureInWorkspaceVolume(ctx, image, workspace, volume,
 		"bash", "-ceu", `root=/linux-work/rootfs; stock_abi=$1
@@ -442,7 +472,7 @@ chroot "$root" /usr/bin/lsinitrd /tmp/lexr-stock-fallback-initrd.img | grep -F "
 
 	policyOutput, policyErr := v.Docker.CaptureInWorkspaceVolume(ctx, image, workspace, volume,
 		"bash", "-ceu", `root=/linux-work/rootfs; abi=$1
-grep -F 'clk_ignore_unused pd_ignore_unused systemd.tpm2_wait=0 soundwire_qcom.sp11_feedback_active_offset2_zero=1' "$root/etc/default/grub"
+grep -F 'clk_ignore_unused pd_ignore_unused arm64.nopauth systemd.tpm2_wait=0 soundwire_qcom.sp11_feedback_active_offset2_zero=1' "$root/etc/default/grub"
 grep -Fx 'layout=other' "$root/etc/kernel/install.conf"
 ! grep -R -E '(^|[[:space:]])(modprobe|rd.driver).blacklist=qcom_q6v5_pas' "$root/etc/default/grub" "$root/usr/lib/lexr/sp11/grub-defaults"
 test -x "$root/usr/lib/lexr/sp11/finalize-installed"
@@ -453,9 +483,8 @@ grep -F 'rpm -q --whatprovides "$boot_image"' "$root/usr/lib/lexr/sp11/finalize-
 grep -F '/usr/sbin/depmod -a "$stock_abi"' "$root/usr/lib/lexr/sp11/finalize-installed"
 grep -F '/usr/bin/dracut --force "/boot/initramfs-$stock_abi.img" "$stock_abi"' "$root/usr/lib/lexr/sp11/finalize-installed"
 grep -F 'fallback_dtb=qcom/x1e80100-microsoft-denali-oled.dtb' "$root/usr/lib/lexr/sp11/finalize-installed"
-grep -F 'GRUB_DEVICETREE="$fallback_dtb" KERNEL_INSTALL_LAYOUT=other' "$root/usr/lib/lexr/sp11/finalize-installed"
-grep -F 'cmp "$fallback_dtb_source" "$stock_dtb"' "$root/usr/lib/lexr/sp11/finalize-installed"
-grep -F 'grep -Fx "devicetree /dtb-$stock_abi/$fallback_dtb" "$bls_entry"' "$root/usr/lib/lexr/sp11/finalize-installed"
+grep -F '/usr/lib/lexr/sp11/bind-installed-dtb "$stock_abi"' "$root/usr/lib/lexr/sp11/finalize-installed"
+grep -F 'grub2-mkrelpath "$target"' "$root/usr/lib/lexr/sp11/bind-installed-dtb"
 grep -F 'kernel-install add "$stock_abi" "$stock_image"' "$root/usr/lib/lexr/sp11/finalize-installed"
 grep -F 'grubby --set-default="/boot/vmlinuz-$abi"' "$root/usr/lib/lexr/sp11/finalize-installed"`, "validate-policy", abi)
 	add("installed-boot-policy", policyErr == nil, strings.TrimSpace(string(policyOutput)))
@@ -545,15 +574,8 @@ func readBoundedRegularFile(path string, maximum int64) ([]byte, error) {
 
 // validFedoraMediaDiscovery enforces Fedora's exact dracut volume-label contract.
 func validFedoraMediaDiscovery(record imagecontract.MediaDiscoveryRecord) bool {
-	if record.Strategy != "direct-hybrid-iso" || record.Protocol != "dracut-live" {
-		return false
-	}
-	var label, liveRoot bool
-	for _, evidence := range record.Evidence {
-		label = label || evidence.Role == "iso-volume-label" && evidence.Scope == "iso9660-pvd" && evidence.Value == SourceVolumeID
-		liveRoot = liveRoot || evidence.Role == "live-root" && evidence.Scope == "grub" && evidence.Value == "root=live:CDLABEL="+SourceVolumeID+" rd.live.image"
-	}
-	return label && liveRoot
+	_, err := layoutFromMediaDiscovery(record)
+	return err == nil
 }
 
 // decodeBootPolicy accepts exactly one object and rejects silent policy-field drift.
@@ -591,6 +613,9 @@ func validateFedoraManifest(manifest imagecontract.Manifest) error {
 		strings.TrimSpace(bundle.Release) == "" || strings.TrimSpace(bundle.Version) == "" ||
 		requireSupportedKernel(bundle.ABI) != nil {
 		return errors.New("manifest kernel bundle identity is incomplete or unsupported")
+	}
+	if err := validateExternalProfile(bundle); err != nil {
+		return err
 	}
 	expectedPackages := 2
 	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
@@ -705,7 +730,7 @@ func validateFedoraManifest(manifest imagecontract.Manifest) error {
 	} else if hasIPTSDRPM || hasIPTSDSRPM {
 		return errors.New("manifest claims native IPTSD RPMs without the source-bearing companion release")
 	}
-	expectedEvidence := 5
+	expectedEvidence := 6
 	if iptsdIncluded {
 		expectedEvidence += 2
 	}

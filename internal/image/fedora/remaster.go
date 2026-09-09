@@ -18,6 +18,7 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/artifact"
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
 	"github.com/ooaklee/lexr.sh/internal/image/companion"
+	"github.com/ooaklee/lexr.sh/internal/image/sp11"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/plan"
 	"github.com/ooaklee/lexr.sh/internal/platform"
@@ -83,6 +84,13 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	}
 	if !request.KeepWorkspace {
 		defer os.RemoveAll(workspace)
+	}
+	// Containers export boot files as root on Linux. Reserve the directories
+	// needed by later host writes before any container can create their parent.
+	for _, directory := range []string{"sp11/kernel", "sp11/fedora", "sp11/dtb"} {
+		if err := os.MkdirAll(filepath.Join(workspace, directory), 0o755); err != nil {
+			return Result{}, fmt.Errorf("prepare Fedora host workspace: %w", err)
+		}
 	}
 
 	journal := plan.NewJournal(operationPlan.Operation)
@@ -168,23 +176,26 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 		return Result{}, err
 	}
 
-	logf(r.Out, "Extracting Fedora 44 EROFS live root")
+	logf(r.Out, "Extracting Fedora EROFS live root")
 	if err := r.Docker.RunInWorkspace(ctx, toolsImage, workspace,
 		"xorriso", "-osirrox", "on", "-indev", "/work/source.iso",
 		"-extract", "/LiveOS/squashfs.img", "/work/live.erofs",
 		"-extract", "/boot/aarch64/loader/linux", "/work/linux-fedora",
 		"-extract", "/boot/aarch64/loader/initrd", "/work/initrd-fedora",
 		"-extract", "/boot/grub2/grub.cfg", "/work/grub-fedora.cfg",
-		"-extract", "/boot/0x503d6c7e", "/work/media-marker",
 		"-extract", "/EFI/BOOT/grub.cfg", "/work/esp-grub.cfg"); err != nil {
 		return Result{}, fmt.Errorf("extract Fedora ISO inputs: %w", err)
 	}
-	if err := validateSourceLayout(ctx, r.Docker, toolsImage, workspace); err != nil {
+	layout, err := validateSourceLayout(ctx, r.Docker, toolsImage, workspace)
+	if err != nil {
 		return Result{}, err
 	}
 	if err := r.Docker.RunInWorkspaceVolumePreservingXattrs(ctx, toolsImage, workspace, workVolume,
 		erofsExtractionArguments("/work/live.erofs", "/linux-work/rootfs")...); err != nil {
 		return Result{}, fmt.Errorf("extract Fedora EROFS root: %w", err)
+	}
+	if err := validateSourceRoot(ctx, r.Docker, toolsImage, workspace, workVolume); err != nil {
+		return Result{}, err
 	}
 	if err := checkpoint("extract-live-root", nil); err != nil {
 		return Result{}, err
@@ -223,7 +234,12 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err := checkpoint("install-userspace", iptsdDigests); err != nil {
 		return Result{}, err
 	}
-	if err := checkpoint("assemble-initramfs-root", nil); err != nil {
+	logf(r.Out, "Preparing Surface Wi-Fi board data from Fedora's firmware database")
+	boardDigest, err := sp11.PrepareWiFiBoard(ctx, r.Docker, toolsImage, workspace, workVolume, "rootfs")
+	if err != nil {
+		return Result{}, err
+	}
+	if err := checkpoint("assemble-initramfs-root", map[string]string{"wifi-board-sha256": boardDigest}); err != nil {
 		return Result{}, err
 	}
 
@@ -237,10 +253,10 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err := checkpoint("build-initramfs", nil); err != nil {
 		return Result{}, err
 	}
-	if err := checkpoint("bind-live-media", map[string]string{"iso-volume-label": SourceVolumeID}); err != nil {
+	if err := checkpoint("bind-live-media", map[string]string{"iso-volume-label": layout.VolumeID, "grub-search-marker": layout.Marker}); err != nil {
 		return Result{}, err
 	}
-	if err := validateStubbleKernel(ctx, r.Docker, toolsImage, workspace, request.Bundle.ABI); err != nil {
+	if err := validateCustomKernel(ctx, r.Docker, toolsImage, workspace, request.Bundle); err != nil {
 		return Result{}, err
 	}
 	if err := checkpoint("pair-device-trees", nil); err != nil {
@@ -255,7 +271,7 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 		return Result{}, err
 	}
 
-	manifest, err := buildEmbeddedManifest(request, workspace, sourceDigest, companionRecord)
+	manifest, err := buildEmbeddedManifest(request, workspace, sourceDigest, companionRecord, layout)
 	if err != nil {
 		return Result{}, err
 	}
@@ -271,7 +287,7 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	partialName := "output.partial.iso"
 	xorrisoArgs := []string{
 		"xorriso", "-indev", "/work/source.iso", "-outdev", "/work/" + partialName,
-		"-boot_image", "any", "replay", "-volid", SourceVolumeID,
+		"-boot_image", "any", "replay", "-volid", layout.VolumeID,
 		"-map", "/work/remastered.erofs", "/LiveOS/squashfs.img",
 		"-map", "/work/fedora-vmlinuz", "/boot/aarch64/loader/linux",
 		"-map", "/work/fedora-initrd", "/boot/aarch64/loader/initrd",
@@ -351,31 +367,35 @@ func erofsExtractionArguments(source, destination string) []string {
 }
 
 // validateSourceLayout confirms Fedora's EROFS, volume-label, and ESP-stub contracts.
-func validateSourceLayout(ctx context.Context, docker *platform.Docker, image, workspace string) error {
+func validateSourceLayout(ctx context.Context, docker *platform.Docker, image, workspace string) (sourceLayout, error) {
 	filesystem, err := docker.CaptureInWorkspace(ctx, image, workspace, "blkid", "-p", "-s", "TYPE", "-o", "value", "/work/live.erofs")
 	if err != nil || strings.TrimSpace(string(filesystem)) != "erofs" {
-		return errors.Join(errors.New("Fedora LiveOS/squashfs.img is not an EROFS filesystem"), err)
+		return sourceLayout{}, errors.Join(errors.New("Fedora LiveOS/squashfs.img is not an EROFS filesystem"), err)
 	}
 	pvd, err := docker.CaptureInWorkspace(ctx, image, workspace, "xorriso", "-indev", "/work/source.iso", "-pvd_info")
 	if err != nil {
-		return fmt.Errorf("inspect Fedora ISO volume descriptor: %w", err)
+		return sourceLayout{}, fmt.Errorf("inspect Fedora ISO volume descriptor: %w", err)
 	}
-	if !strings.Contains(string(pvd), "Volume Id    : "+SourceVolumeID) {
-		return fmt.Errorf("Fedora ISO volume label is not %q", SourceVolumeID)
-	}
-	esp, err := os.ReadFile(filepath.Join(workspace, "esp-grub.cfg"))
+	esp, err := readBoundedRegularFile(filepath.Join(workspace, "esp-grub.cfg"), 64<<10)
 	if err != nil {
-		return err
+		return sourceLayout{}, err
 	}
-	if !bytes.Contains(esp, []byte("search --file --set=root /boot/0x503d6c7e")) ||
-		!bytes.Contains(esp, []byte("configfile ($root)/boot/grub2/grub.cfg")) {
-		return errors.New("Fedora appended-ESP GRUB stub does not select the outer boot configuration")
+	grub, err := readBoundedRegularFile(filepath.Join(workspace, "grub-fedora.cfg"), 1<<20)
+	if err != nil {
+		return sourceLayout{}, err
+	}
+	layout, err := discoverSourceLayout(string(pvd), string(esp), string(grub))
+	if err != nil {
+		return sourceLayout{}, err
+	}
+	if err := docker.RunInWorkspace(ctx, image, workspace, "xorriso", "-osirrox", "on", "-indev", "/work/source.iso", "-extract", layout.Marker, "/work/media-marker"); err != nil {
+		return sourceLayout{}, err
 	}
 	marker, err := os.Lstat(filepath.Join(workspace, "media-marker"))
-	if err != nil || marker.Mode()&os.ModeSymlink != 0 || !marker.Mode().IsRegular() {
-		return errors.Join(errors.New("Fedora outer ISO is missing the regular GRUB search marker"), err)
+	if err != nil || !marker.Mode().IsRegular() || marker.Mode()&os.ModeSymlink != 0 {
+		return sourceLayout{}, errors.Join(errors.New("Fedora outer ISO is missing the regular GRUB search marker"), err)
 	}
-	return nil
+	return layout, nil
 }
 
 // stageFedoraSupport materialises generated RPM and installed-system policy inputs.
@@ -402,6 +422,9 @@ func stageFedoraSupport(workspace string, bundle kernel.Bundle) error {
 		{"kernel-install.conf", 0o644, []byte(kernelInstallConfiguration())},
 		{"kernel-abi", 0o644, []byte(bundle.ABI + "\n")},
 		{"boot-policy.json", 0o644, policyBytes},
+		{"dracut.conf", 0o644, []byte(dracutConfiguration(bundle.ABI))},
+		{"bind-installed-dtb", 0o755, []byte(bindInstalledDTBScript(bundle.ABI))},
+		{"21-lexr-sp11-dtb.install", 0o755, []byte(installedDTBHook(bundle))},
 	}
 	for _, file := range files {
 		if err := os.WriteFile(filepath.Join(support, file.name), file.data, file.mode); err != nil {
@@ -461,17 +484,22 @@ ln -s vmlinuz-dtbloader.efi "$modules/vmlinuz"
 install -m 0644 "$payload/boot/System.map-$abi" "$modules/System.map"
 install -m 0644 "$payload/boot/config-$abi" "$modules/config"
 install -d -m 0755 "$modules/dtb/qcom"
+install -d -m 0755 "$payload/boot/dtb-$abi/qcom"
 for name in x1e80100-microsoft-denali-oled.dtb x1e80100-microsoft-denali-oled-el2.dtb x1p64100-microsoft-denali.dtb x1p64100-microsoft-denali-el2.dtb; do
 	dtb="$payload/usr/lib/firmware/$abi/device-tree/qcom/$name"
 	[ -s "$dtb" ]
 	install -m 0644 "$dtb" "$modules/dtb/qcom/$name"
+	install -m 0644 "$dtb" "$payload/boot/dtb-$abi/qcom/$name"
 done
 rm -rf -- "$payload/usr/lib/modprobe.d" "$payload/usr/lib/linux" "$payload/usr/share/doc"
 rmdir --ignore-fail-on-non-empty "$payload/usr/share" 2>/dev/null || :
 
 install -d -m 0755 "$payload/etc/kernel" "$payload/usr/lib/lexr/sp11" "$payload/usr/lib/systemd/system/multi-user.target.wants"
 install -m 0644 "$support/kernel-install.conf" "$payload/etc/kernel/install.conf"
+install -D -m 0644 "$support/dracut.conf" "$payload/usr/lib/dracut/dracut.conf.d/91-lexr-sp11.conf"
 install -m 0755 "$support/finalize-installed" "$payload/usr/lib/lexr/sp11/finalize-installed"
+install -m 0755 "$support/bind-installed-dtb" "$payload/usr/lib/lexr/sp11/bind-installed-dtb"
+install -D -m 0755 "$support/21-lexr-sp11-dtb.install" "$payload/usr/lib/kernel/install.d/21-lexr-sp11-dtb.install"
 install -m 0644 "$support/kernel-abi" "$payload/usr/lib/lexr/sp11/kernel-abi"
 install -m 0644 "$support/boot-policy.json" "$payload/usr/lib/lexr/sp11/boot-policy.json"
 install -m 0644 "$support/grub-defaults" "$payload/usr/lib/lexr/sp11/grub-defaults"
@@ -538,6 +566,10 @@ chroot "$root" /usr/bin/lsinitrd "/boot/initramfs-$abi.img" | grep -F "usr/lib/m
 		"bash", "-ceu", script, "lexr-fedora-dracut", abi); err != nil {
 		return fmt.Errorf("generate Fedora dracut-live initramfs: %w", err)
 	}
+	if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume,
+		"bash", "-ceu", initramfsValidationScript(), "lexr-fedora-check-initramfs", abi); err != nil {
+		return fmt.Errorf("verify Fedora early hardware support: %w", err)
+	}
 	return nil
 }
 
@@ -555,6 +587,44 @@ chmod -R a+rX /work/sp11 /work/fedora-vmlinuz /work/fedora-initrd
 `, "lexr-copy-fedora-boot", bundle.ABI}
 	if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume, args...); err != nil {
 		return fmt.Errorf("copy Fedora boot artefacts: %w", err)
+	}
+	return nil
+}
+
+// validateCustomKernel keeps the two kernel delivery modes explicit. An
+// external-required EFI image must not be mistaken for embedded Stubble data.
+func validateCustomKernel(ctx context.Context, docker *platform.Docker, image, workspace string, bundle kernel.Bundle) error {
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		return validateExternalKernel(filepath.Join(workspace, "fedora-vmlinuz"))
+	}
+	if bundle.EffectiveDTBDelivery != kernel.DTBDeliveryEmbedded {
+		return errors.New("Fedora custom kernel has an unknown DTB delivery mode")
+	}
+	return validateStubbleKernel(ctx, docker, image, workspace, bundle.ABI)
+}
+
+// validateExternalKernel requires an unsigned ARM64 EFI application without embedded DTBs.
+func validateExternalKernel(filename string) error {
+	info, err := os.Lstat(filename)
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Size() < 1 || info.Size() > 2<<30 {
+		return errors.Join(errors.New("external-DTB kernel is not a bounded regular image"), err)
+	}
+	executable, err := pe.Open(filename)
+	if err != nil {
+		return fmt.Errorf("inspect external-DTB EFI kernel: %w", err)
+	}
+	defer executable.Close()
+	if executable.Machine != pe.IMAGE_FILE_MACHINE_ARM64 {
+		return errors.New("external-DTB kernel is not an AArch64 EFI image")
+	}
+	header, ok := executable.OptionalHeader.(*pe.OptionalHeader64)
+	if !ok || header.Magic != 0x20b || header.Subsystem != 10 || len(executable.Sections) == 0 {
+		return errors.New("external-DTB kernel lacks a PE32+ EFI application header")
+	}
+	for _, section := range executable.Sections {
+		if section.Name == ".dtbauto" || section.Name == ".dtb" {
+			return errors.New("external-DTB kernel unexpectedly carries embedded device trees")
+		}
 	}
 	return nil
 }
@@ -679,7 +749,7 @@ chmod a+r /work/remastered.erofs
 }
 
 // buildEmbeddedManifest records the complete boot and support payload identity.
-func buildEmbeddedManifest(request Request, workspace, sourceDigest string, companionRecord imagecontract.CompanionBundleRecord) (imagecontract.Manifest, error) {
+func buildEmbeddedManifest(request Request, workspace, sourceDigest string, companionRecord imagecontract.CompanionBundleRecord, layout sourceLayout) (imagecontract.Manifest, error) {
 	sourceInfo, err := os.Stat(filepath.Join(workspace, "source.iso"))
 	if err != nil {
 		return imagecontract.Manifest{}, err
@@ -718,8 +788,9 @@ func buildEmbeddedManifest(request Request, workspace, sourceDigest string, comp
 	bootArguments := append([]string(nil), installedBootArguments...)
 	bootArguments = append(bootArguments, liveOnlyBootArguments...)
 	evidence := []imagecontract.MediaDiscoveryEvidence{
-		{Role: "iso-volume-label", Scope: "iso9660-pvd", Value: SourceVolumeID},
-		{Role: "live-root", Scope: "grub", Path: "boot/grub2/grub.cfg", Value: "root=live:CDLABEL=" + SourceVolumeID + " rd.live.image"},
+		{Role: "iso-volume-label", Scope: "iso9660-pvd", Value: layout.VolumeID},
+		{Role: "grub-search-marker", Scope: "grub", Value: layout.Marker},
+		{Role: "live-root", Scope: "grub", Path: "boot/grub2/grub.cfg", Value: "root=live:CDLABEL=" + layout.VolumeID + " rd.live.image"},
 		{Role: "installed-kernel-rpm", Scope: "iso9660", Path: rpmRecord.Path, Artifact: &rpmRecord},
 		{Role: "stock-fallback-kernel", Scope: "iso9660", Path: stockKernelRecord.Path, Artifact: &stockKernelRecord},
 		{Role: "stock-fallback-initramfs", Scope: "iso9660", Path: stockInitrdRecord.Path, Artifact: &stockInitrdRecord},
@@ -784,7 +855,7 @@ func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manife
 		return err
 	}
 	for _, pkg := range manifest.KernelBundle.Packages {
-		if pkg.Role != kernel.RoleImage && pkg.Role != kernel.RoleModules {
+		if pkg.Role != kernel.RoleImage && pkg.Role != kernel.RoleModules && pkg.Role != kernel.RoleBootSupport {
 			continue
 		}
 		if err := stageFile(filepath.Join(workspace, "kernel", pkg.Name), filepath.Join(sp11, "kernel", pkg.Name)); err != nil {
@@ -819,11 +890,16 @@ func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manife
 			companionNote = "The Linux ARM64 Lexr companion and complete source-bearing IPTSD release are under /sp11/companion. The natively rebuilt, RPM-owned IPTSD runtime is installed in the live root; its binary and source RPMs are staged under /sp11/fedora. Do not run the portable IPTSD installer on Fedora because it would create an unowned /usr/local duplicate."
 		}
 	}
-	readme := fmt.Sprintf("Lexr Fedora 44 for Surface Pro 11\n\nCustom kernel ABI: %s\n\nSecure Boot must be disabled. qcom_q6v5_pas is blacklisted only while the live root is on USB; Anaconda and the first installed boot remove that live-only policy. The Troubleshooting submenu has stock Fedora entries with explicit Surface device trees. Patch-line-qualified Stubble auto-DTB selection and installed-system hand-off are supported only for X1E/OLED. The X1P/LCD stock path is live-only; do not install from it. Proprietary firmware is not redistributed.\n\n%s\n", abi, companionNote)
+	readme := fmt.Sprintf("Lexr Fedora Live for Surface Pro 11\n\nCustom kernel ABI: %s\n\nExperimental: physical Fedora boot and installation are not yet qualified. Disable Secure Boot. The custom X1E/OLED entry uses normal DSP/USB coldplug, with platform modules and public GPU firmware in its initramfs. External-required kernels explicitly load their paired X1E DTB. Troubleshooting includes text and firmware-display diagnostics, plus stock Fedora entries retaining the distribution DSP blacklist. X1P/LCD is a stock-kernel live investigation path only; do not install from it. Proprietary firmware is not redistributed.\n\n%s\n", abi, companionNote)
+
 	if err := os.WriteFile(filepath.Join(sp11, "README.txt"), []byte(readme), 0o644); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(workspace, "grub.cfg"), []byte(grubConfig(abi)), 0o644)
+	layout, err := layoutFromMediaDiscovery(manifest.MediaDiscovery)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(workspace, "grub.cfg"), []byte(grubConfig(abi, manifest.KernelBundle.EffectiveDTBDelivery, layout)), 0o644)
 }
 
 // validateBundlePaths rejects unsafe or incomplete host-side kernel bundle members.
@@ -835,6 +911,9 @@ func validateBundlePaths(bundle kernel.Bundle) error {
 		Packages: bundle.Packages, DeviceTrees: bundle.DeviceTrees,
 	}); err != nil {
 		return fmt.Errorf("kernel bundle delivery contract is invalid: %w", err)
+	}
+	if err := validateExternalProfile(bundle); err != nil {
+		return err
 	}
 	if !safeKernelABIExpression.MatchString(bundle.ABI) {
 		return fmt.Errorf("kernel ABI %q is not a safe path component", bundle.ABI)

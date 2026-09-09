@@ -37,6 +37,11 @@ func TestKernelRPMInstallIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("discover exact local runtime kernel bundle: %v", err)
 	}
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		for index := range bundle.DeviceTrees {
+			bundle.DeviceTrees[index].Required = bundle.DeviceTrees[index].Device == "surface-pro-11-x1e-oled"
+		}
+	}
 	if err := validateBundlePaths(bundle); err != nil {
 		t.Fatalf("validate Fedora kernel bundle boundary: %v", err)
 	}

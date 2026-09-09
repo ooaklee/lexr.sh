@@ -19,10 +19,8 @@ import (
 const (
 	// AdapterID is the stable manifest and catalogue identifier.
 	AdapterID = "fedora-live"
-	// SourceVolumeID is the publisher label used by Fedora 44 dracut-live.
-	SourceVolumeID = "Fedora-WS-Live-44"
 	// secureBootPolicy is embedded verbatim so generators and validators agree.
-	secureBootPolicy = "unsupported; disable Secure Boot for the unsigned custom Stubble kernel"
+	secureBootPolicy = "unsupported; disable Secure Boot for the unsigned custom kernel"
 	// x1pQualificationStatus avoids claiming an unverified custom Stubble identity.
 	x1pQualificationStatus = "live-only stock-kernel path with external DTB; installed-system support not qualified"
 )
@@ -33,16 +31,18 @@ type bootPolicy struct {
 	KernelABI     string   `json:"kernel_abi"`
 	Installed     []string `json:"installed_arguments"`
 	LiveOnly      []string `json:"live_only_arguments"`
+	StockFallback []string `json:"stock_fallback_arguments"`
 	X1PStatus     string   `json:"x1p_status"`
 }
 
 // expectedBootPolicy returns the one policy accepted for a generated Fedora image.
 func expectedBootPolicy(abi string) bootPolicy {
 	return bootPolicy{
-		SchemaVersion: 1,
+		SchemaVersion: 2,
 		KernelABI:     abi,
 		Installed:     append([]string(nil), installedBootArguments...),
 		LiveOnly:      append([]string(nil), liveOnlyBootArguments...),
+		StockFallback: append([]string(nil), stockFallbackArguments...),
 		X1PStatus:     x1pQualificationStatus,
 	}
 }
@@ -115,8 +115,16 @@ func BuildPlan(request Request) (plan.Plan, error) {
 			return plan.Plan{}, err
 		}
 	}
-	if strings.TrimSpace(request.KernelProfile) != "" {
-		return plan.Plan{}, errors.New("Fedora Stubble image creation does not accept --kernel-profile")
+	if request.KernelProfile != "" && request.KernelProfile != "surface-pro-11-x1e-oled" {
+		return plan.Plan{}, errors.New("Fedora image creation supports only --kernel-profile surface-pro-11-x1e-oled")
+	}
+	if request.Bundle.ABI != "resolved-at-execution" {
+		if request.Bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired && request.KernelProfile != "surface-pro-11-x1e-oled" {
+			return plan.Plan{}, errors.New("Fedora external-DTB image creation requires --kernel-profile surface-pro-11-x1e-oled")
+		}
+		if request.Bundle.EffectiveDTBDelivery == kernel.DTBDeliveryEmbedded && request.KernelProfile != "" {
+			return plan.Plan{}, errors.New("Fedora Stubble image creation does not accept --kernel-profile")
+		}
 	}
 	companionSource := "not-requested"
 	if request.Companion.SourceDirectory != "" {
@@ -127,8 +135,8 @@ func BuildPlan(request Request) (plan.Plan, error) {
 		companionUserspace = strings.Join(request.CompanionUserspace, ",")
 	}
 	return plan.New("image.create", []plan.Step{
-		{ID: "verify-source", Kind: "verify", Description: "Verify the Fedora 44 Workstation Live ISO", Inputs: map[string]string{"path": request.SourceISO, "sha256": request.SourceSHA256}},
-		{ID: "verify-kernel", Kind: "verify", Description: "Verify a patch-line-qualified Stubble kernel bundle", Inputs: map[string]string{"release": request.Bundle.Release, "abi": request.Bundle.ABI}},
+		{ID: "verify-source", Kind: "verify", Description: "Verify the Fedora Workstation Live ISO", Inputs: map[string]string{"path": request.SourceISO, "sha256": request.SourceSHA256}},
+		{ID: "verify-kernel", Kind: "verify", Description: "Verify a patch-line-qualified kernel and DTB delivery contract", Inputs: map[string]string{"release": request.Bundle.Release, "abi": request.Bundle.ABI}},
 		{ID: "stage-companion", Kind: "companion", Description: "Stage the optional Linux ARM64 CLI and eligible offline userspace", Inputs: map[string]string{"source": companionSource, "userspace": companionUserspace}},
 		{ID: "prepare-tools", Kind: "prepare", Description: "Prepare ARM64 ISO, EROFS, RPM, and boot inspection tools", Inputs: map[string]string{"adapter": AdapterID}},
 		{ID: "extract-live-root", Kind: "extract", Description: "Validate and extract the Fedora EROFS live root"},
@@ -137,7 +145,7 @@ func BuildPlan(request Request) (plan.Plan, error) {
 		{ID: "assemble-initramfs-root", Kind: "filesystem", Description: "Prepare the Fedora root for exact-ABI dracut generation"},
 		{ID: "build-initramfs", Kind: "initramfs", Description: "Generate a non-host-only dracut-live initramfs for the custom ABI"},
 		{ID: "bind-live-media", Kind: "boot", Description: "Bind every live entry to the pinned Fedora ISO volume label"},
-		{ID: "pair-device-trees", Kind: "device-tree", Description: "Verify Stubble X1E auto-DTB data and retain paired loose X1E/X1P DTBs"},
+		{ID: "pair-device-trees", Kind: "device-tree", Description: "Verify embedded or external X1E DTB delivery and retain paired loose DTBs"},
 		{ID: "repack-live-root", Kind: "filesystem", Description: "Repack the Fedora root as LZMA EROFS with SELinux labels"},
 		{ID: "replay-hybrid-boot", Kind: "boot", Description: "Replay the source GPT/El-Torito layout with custom and fallback kernels"},
 		{ID: "validate-output", Kind: "verify", Description: "Validate GPT, ESP, GRUB, EROFS, RPM, dracut, Stubble, and installed hand-off"},

@@ -18,13 +18,13 @@ func TestGrubConfigPreservesLiveDiscoveryAndFallback(t *testing.T) {
 	t.Parallel()
 
 	abi := "7.2.2-jg-0sp11v1-qcom-x1e"
-	config := grubConfig(abi)
+	config := grubConfig(abi, kernel.DTBDeliveryEmbedded, fedoraLayoutFixture())
 	for _, required := range []string{
 		"search --file --set=root /boot/0x503d6c7e",
 		`set live_root="root=live:CDLABEL=` + SourceVolumeID + ` rd.live.image"`,
 		`menuentry "Fedora 44 for Surface Pro 11 X1E/OLED (` + abi + `)"`,
-		"linux ($root)/boot/aarch64/loader/linux quiet rhgb $live_root $sp11_args $usb_safe_args",
-		"linux ($root)/boot/aarch64/loader/linux-fedora quiet rhgb $live_root $sp11_args $usb_safe_args",
+		"linux ($root)/boot/aarch64/loader/linux quiet rhgb $live_root $sp11_args",
+		"linux ($root)/boot/aarch64/loader/linux-fedora quiet rhgb $live_root $sp11_args $stock_args",
 		"devicetree ($root)/sp11/dtb/x1e80100-microsoft-denali-oled.dtb",
 		"devicetree ($root)/sp11/dtb/x1p64100-microsoft-denali.dtb",
 		"initrd ($root)/boot/aarch64/loader/initrd-fedora",
@@ -33,8 +33,8 @@ func TestGrubConfigPreservesLiveDiscoveryAndFallback(t *testing.T) {
 			t.Errorf("grubConfig() does not contain %q", required)
 		}
 	}
-	if count := strings.Count(config, "menuentry "); count != 4 {
-		t.Fatalf("menuentry count = %d, want 4", count)
+	if count := strings.Count(config, "menuentry "); count != 6 {
+		t.Fatalf("menuentry count = %d, want 6", count)
 	}
 	linuxLines := 0
 	for _, line := range strings.Split(config, "\n") {
@@ -43,12 +43,12 @@ func TestGrubConfigPreservesLiveDiscoveryAndFallback(t *testing.T) {
 			continue
 		}
 		linuxLines++
-		if !strings.Contains(line, "$live_root") || !strings.Contains(line, "$usb_safe_args") {
-			t.Errorf("live kernel line lacks discovery or USB safety policy: %q", line)
+		if !strings.Contains(line, "$live_root") {
+			t.Errorf("live kernel line lacks discovery: %q", line)
 		}
 	}
-	if linuxLines != 4 {
-		t.Fatalf("live kernel line count = %d, want 4", linuxLines)
+	if linuxLines != 6 {
+		t.Fatalf("live kernel line count = %d, want 6", linuxLines)
 	}
 	if count := strings.Count(config, "devicetree ($root)/sp11/dtb/"); count != 2 {
 		t.Fatalf("stock fallback external DTB count = %d, want 2", count)
@@ -63,13 +63,11 @@ func TestBootArgumentPolicySeparatesLiveAndInstalledSystems(t *testing.T) {
 	wantInstalled := []string{
 		"clk_ignore_unused",
 		"pd_ignore_unused",
+		"arm64.nopauth",
 		"systemd.tpm2_wait=0",
 		"soundwire_qcom.sp11_feedback_active_offset2_zero=1",
 	}
-	wantLiveOnly := []string{
-		"modprobe.blacklist=qcom_q6v5_pas",
-		"rd.driver.blacklist=qcom_q6v5_pas",
-	}
+	wantLiveOnly := []string{}
 	if !slices.Equal(installedBootArguments, wantInstalled) {
 		t.Fatalf("installedBootArguments = %q, want %q", installedBootArguments, wantInstalled)
 	}
@@ -77,7 +75,7 @@ func TestBootArgumentPolicySeparatesLiveAndInstalledSystems(t *testing.T) {
 		t.Fatalf("liveOnlyBootArguments = %q, want %q", liveOnlyBootArguments, wantLiveOnly)
 	}
 
-	liveConfig := grubConfig("7.2.2-jg-0sp11v1-qcom-x1e")
+	liveConfig := grubConfig("7.2.2-jg-0sp11v1-qcom-x1e", kernel.DTBDeliveryEmbedded, fedoraLayoutFixture())
 	installedDefaults := installedGrubDefaults()
 	finalizer := installedFinalizeScript("7.2.2-jg-0sp11v1-qcom-x1e")
 	for _, argument := range wantInstalled {
@@ -184,10 +182,9 @@ func TestInstalledFinalizerIsGuardedAndRebuildsTheExactABI(t *testing.T) {
 		`/usr/bin/dracut --force "/boot/initramfs-$stock_abi.img" "$stock_abi"`,
 		`fallback_dtb=qcom/x1e80100-microsoft-denali-oled.dtb`,
 		`install -D -m 0644 "$fallback_dtb_source" "$stock_dtb"`,
-		`GRUB_DEVICETREE="$fallback_dtb" KERNEL_INSTALL_LAYOUT=other`,
+		`KERNEL_INSTALL_LAYOUT=other /usr/bin/kernel-install add "$stock_abi" "$stock_image"`,
 		`/usr/bin/kernel-install add "$stock_abi" "$stock_image"`,
-		`cmp "$fallback_dtb_source" "$stock_dtb"`,
-		`grep -Fx "devicetree /dtb-$stock_abi/$fallback_dtb" "$bls_entry"`,
+		`/usr/lib/lexr/sp11/bind-installed-dtb "$stock_abi"`,
 		finish,
 	} {
 		if !strings.Contains(script, required) {
@@ -229,6 +226,7 @@ func TestFedoraMediaDiscoveryRequiresLabelAndLiveRootEvidence(t *testing.T) {
 		Protocol: "dracut-live",
 		Evidence: []imagecontract.MediaDiscoveryEvidence{
 			{Role: "iso-volume-label", Scope: "iso9660-pvd", Value: SourceVolumeID},
+			{Role: "grub-search-marker", Scope: "grub", Value: fedoraLayoutFixture().Marker},
 			{Role: "live-root", Scope: "grub", Value: "root=live:CDLABEL=" + SourceVolumeID + " rd.live.image"},
 		},
 	}
@@ -242,7 +240,7 @@ func TestFedoraMediaDiscoveryRequiresLabelAndLiveRootEvidence(t *testing.T) {
 		{name: "strategy", mutate: func(record *imagecontract.MediaDiscoveryRecord) { record.Strategy = "partition-copy" }},
 		{name: "protocol", mutate: func(record *imagecontract.MediaDiscoveryRecord) { record.Protocol = "casper" }},
 		{name: "missing label", mutate: func(record *imagecontract.MediaDiscoveryRecord) { record.Evidence = record.Evidence[1:] }},
-		{name: "wrong live root", mutate: func(record *imagecontract.MediaDiscoveryRecord) { record.Evidence[1].Value += " rd.live.check" }},
+		{name: "wrong live root", mutate: func(record *imagecontract.MediaDiscoveryRecord) { record.Evidence[2].Value += " rd.live.check" }},
 	} {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
@@ -402,6 +400,7 @@ func completeFedoraManifestFixture() imagecontract.Manifest {
 			Strategy: "direct-hybrid-iso", Protocol: "dracut-live",
 			Evidence: []imagecontract.MediaDiscoveryEvidence{
 				{Role: "iso-volume-label", Scope: "iso9660-pvd", Value: SourceVolumeID},
+				{Role: "grub-search-marker", Scope: "grub", Value: fedoraLayoutFixture().Marker},
 				{Role: "live-root", Scope: "grub", Value: "root=live:CDLABEL=" + SourceVolumeID + " rd.live.image"},
 				{Role: "installed-kernel-rpm", Scope: "iso9660", Path: rpmRecord.Path, Artifact: &rpmRecord},
 				{Role: "stock-fallback-kernel", Scope: "iso9660", Path: stockKernelRecord.Path, Artifact: &stockKernelRecord},
@@ -519,4 +518,9 @@ func TestValidPortableISOOutputRestrictsThePublishedBasename(t *testing.T) {
 			t.Errorf("validPortableISOOutput(%q) = %t, want %t", name, got, want)
 		}
 	}
+}
+
+// fedoraLayoutFixture records the publisher marker observed on the Fedora 44 ISO.
+func fedoraLayoutFixture() sourceLayout {
+	return sourceLayout{VolumeID: SourceVolumeID, Marker: "/boot/0x503d6c7e"}
 }

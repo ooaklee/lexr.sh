@@ -99,6 +99,17 @@ that do not apply.
 
 ### Fixed
 
+- Prepare Fedora custom live images with early DSP/QRTR, USB, panel and public
+  GPU-firmware dependencies, prepare Wi-Fi board data from Fedora's compressed
+  source database, and preserve the stock kernel's separate DSP
+  workaround. Add explicit external-DTB X1E boot support, diagnostic entries
+  and an exact-ABI installed BLS DTB binding for both `/boot` layouts. Validate
+  actual initramfs payload bytes and publisher marker/volume agreement. Keep
+  Fedora experimental while physical boot and installation qualification remain
+  open ([#17](https://github.com/ooaklee/lexr.sh/issues/17)).
+- Reserve Fedora exchange directories with host ownership before container
+  exports and allow the isolated EROFS/dracut mount operations on AppArmor hosts.
+
 - Enable `lexr image release prepare` and `lexr image release validate` for
   Arch Linux ARM split ISO releases. Accept Arch's complete native creation
   journal while retaining its exact step order and output digest checks
