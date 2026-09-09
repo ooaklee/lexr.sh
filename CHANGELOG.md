@@ -109,6 +109,8 @@ that do not apply.
   open ([#17](https://github.com/ooaklee/lexr.sh/issues/17)).
 - Reserve Fedora exchange directories with host ownership before container
   exports and allow the isolated EROFS/dracut mount operations on AppArmor hosts.
+- Fetch the pinned Fedora EROFS extractor from its signed, digest-verified Koji
+  archive after newer repository updates replace that exact package version.
 
 - Enable `lexr image release prepare` and `lexr image release validate` for
   Arch Linux ARM split ISO releases. Accept Arch's complete native creation

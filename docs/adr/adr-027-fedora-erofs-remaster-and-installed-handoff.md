@@ -84,7 +84,10 @@ The adapter will extract the EROFS live root into a Linux-native Docker volume,
 apply Fedora's SELinux file contexts, and recreate it with LZMA compression and
 extended attributes intact. Its tool image pins the Fedora base digest and the
 exact `erofs-utils` release whose `--path=/` traversal avoids the known packed
-fragment prepass failure. The inspected ISO volume label remains the
+fragment prepass failure. Its Fedora-signed RPM is fetched from the versioned
+Koji archive with a fixed SHA-256 and checked against the base image's signing
+key, so repository update rotation cannot remove that extractor from new
+builds. The inspected ISO volume label remains the
 `dracut-live` discovery authority. The adapter parses the complete ESP
 indirection, discovers its bounded marker, checks the outer GRUB kernel,
 initramfs and live-root references, and binds both label and marker into the

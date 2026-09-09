@@ -31,13 +31,16 @@ RUN apt-get update \
 // 24.04's version cannot preserve the capabilities and SELinux xattrs carried
 // by Fedora 44 live roots.
 const fedoraToolsDockerfile = `FROM fedora@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
-RUN dnf install -y --setopt=install_weak_deps=False \
-	  attr binutils bzip2 coreutils cpio diffutils dpkg erofs-utils-1.9.2-2.fc44 file findutils gawk gcc-c++ grep \
+ADD --checksum=sha256:95d431f64effb920eb06764ad3418c5ce731929005e1ea22c862f0a0f1da2c6d https://kojipkgs.fedoraproject.org/packages/erofs-utils/1.9.2/2.fc44/data/signed/6d9f90a6/aarch64/erofs-utils-1.9.2-2.fc44.aarch64.rpm /tmp/lexr-erofs.rpm
+RUN rpm --checksig /tmp/lexr-erofs.rpm \
+ && dnf install -y --setopt=install_weak_deps=False --setopt=localpkg_gpgcheck=True \
+	  /tmp/lexr-erofs.rpm attr binutils bzip2 coreutils cpio diffutils dpkg file findutils gawk gcc-c++ grep \
 	  grub2-tools grub2-tools-extra gzip kmod meson mtools ninja-build pkgconf-pkg-config python3 rpm-build sed \
 	  systemd systemd-devel systemd-rpm-macros tar unzip util-linux-core xorriso xz zstd \
  && test "$(rpm -q --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}' erofs-utils)" = \
 	  erofs-utils-1.9.2-2.fc44.aarch64 \
  && fsck.erofs --help 2>&1 | grep -F -- '--path=X' \
+ && rm /tmp/lexr-erofs.rpm \
  && dnf clean all
 `
 
