@@ -54,29 +54,6 @@ that do not apply.
 
 ### Added
 
-- Add a terminal Arch Linux ARM live image and a bundled Archinstall 4.4 flow
-  with the Surface kernel, matching DTBs, installed initramfs and ARM64 GRUB.
-  Surface plugin hooks retain Archinstall's normal disk, account, profile and
-  network setup, with an alongside-install guide and no desktop preselected.
-- Add optional post-install registration with an existing GRUB menu through
-  `lexr kernel boot register-arch` and live setup option 7. Preview and verify
-  the installed ARM64 loader before appending a persistent custom menu entry,
-  preserving other entries, EFI files and firmware boot order.
-  X1E/OLED live boot and installation to an internal ext4 root are confirmed
-  by Ooaklee with v23, including installed touchscreen input and Wi-Fi
-  after reconnecting.
-  Further hardware and recovery checks remain in
-  [#52](https://github.com/ooaklee/lexr.sh/issues/52).
-
-- Document the Arch USB-to-installed-system walkthrough, including general
-  partition choices, one-time boot selection, optional persistent GRUB setup
-  and first-login checks, with matching offline getting-started instructions.
-
-- Add the authenticated Arch Linux ARM AArch64 rootfs snapshot to catalogue
-  version 3 as catalogue-only input; retain version-2 ISO/raw catalogue support.
-  Pinned source downloads keep separate digest identities, and failed refreshes
-  preserve the previous accepted bytes.
-
 - Add the experimental elementary OS 8.1 ARM64 image adapter with separate live
   and installed initramfs images, matching Surface device trees, first-boot Wi-Fi
   board preparation, pinned public GPU firmware and retained offline Lexr support.
@@ -94,36 +71,11 @@ that do not apply.
 
 ### Fixed
 
-- Accept Arch Linux ARM's complete native creation journal when preparing and
-  validating split ISO release assets, retaining the producer's exact step order
-  and output digest checks ([#52](https://github.com/ooaklee/lexr.sh/issues/52)).
-
-- Allow the audio userspace installer to replace Arch's exact packaged ALSA
-  selector symlink, preserving the link in its backup and the shared Qualcomm
-  profile. Add Arch getting-started commands for pen, audio and Wi-Fi recovery
-  with explicit private firmware prerequisites. Include locally installed Surface
-  firmware and topology in the installed initramfs before early probing, keeping
-  the live configuration separate ([#52](https://github.com/ooaklee/lexr.sh/issues/52)).
-  Document RTKit, ALSA diagnostics and optional Plasma sound controls for the
-  installed audio session, with audible quality recorded separately from
-  device detection and playback error counters. Ooaklee confirmed clean
-  stereo playback and microphone input on installed X1E/OLED v23.
-
-- Accept current `media-ctl` uppercase pad directions and empty disabled-link
-  flags in the exact IMX681 camera route validator. Document the native Arch
-  camera packages, confirmed front-camera preview and remaining tuning and
-  lifecycle limits ([#52](https://github.com/ooaklee/lexr.sh/issues/52)).
-
-- Restrict the Arch Surface installer to Adreno Mesa/Freedreno graphics and
-  effective AArch64 repositories, check selected profile packages before
-  formatting, and reject unsupported PC packages in later transactions. Use the
-  ARM64 root partition type and reject external profile code before import
-  ([#52](https://github.com/ooaklee/lexr.sh/issues/52)).
 - Include Surface Pro 11 USB/DSP, graphics and keyboard-hub drivers in elementary
   initramfs images, including the device-tree panel drivers and QRTR service
   dependencies that are absent from the graphics driver's ELF dependency closure.
   Validate their dependency bytes and add a firmware-display text diagnostic entry.
-  Ooaklee confirmed the corrected `927d00e`/v23 image reaches the X1E/OLED
+  The maintainer confirmed the corrected `927d00e`/v23 image reaches the X1E/OLED
   live desktop with Wi-Fi, web browsing and the language/try/install chooser.
   Installation, recovery and other hardware checks remain pending
   ([#49](https://github.com/ooaklee/lexr.sh/issues/49)).
@@ -435,7 +387,7 @@ that do not apply.
 - An exact Lexr release allow-list for six raw Linux, macOS and Windows executables, three legal documents, and one versioned checksum manifest, with no hardware-support or unrelated documentation payloads.
 - A Go-native source builder which injects explicit Lexr version, revision and build-time metadata without relying on ambiguous automatic VCS discovery.
 - Explicit `Apache-2.0` project terms, a project notice, and an audited third-party inventory covering every linked release dependency, the Go runtime, and embedded Unicode data.
-- Human contribution and conduct guides plus a project contact record for people who want to report a problem or help the project.
+- Human contribution and conduct guides plus a single-maintainer record for people who want to report a problem or help the project.
 - Structured bug and feature issue forms, a contribution-aware pull-request template, and grouped weekly dependency updates for Go modules and GitHub Actions.
 
 ### Changed
