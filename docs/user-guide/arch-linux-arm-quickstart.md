@@ -12,8 +12,9 @@ other choices, troubleshooting and the current hardware test results.
 ## 1. Boot the prepared USB and connect
 
 Start after Lexr reports successful image validation and a completed USB write
-with full read-back verification. If you still need to prepare the USB, follow
-the [Arch image preparation instructions](../operator-manual/arch-linux-arm-source.md).
+with full read-back verification. If you still need to prepare the USB, use the
+[prebuilt image's download and write instructions](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-arch-linux-arm-terminal-v23-20260909)
+or follow the [Arch image preparation instructions](../operator-manual/arch-linux-arm-source.md).
 A previous build's successful write does not verify a newly created image.
 
 Unplug and reconnect the USB after Lexr ejects it, then reboot from USB. Disable

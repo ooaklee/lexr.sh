@@ -94,6 +94,10 @@ that do not apply.
 
 ### Fixed
 
+- Accept Arch Linux ARM's complete native creation journal when preparing and
+  validating split ISO release assets, retaining the producer's exact step order
+  and output digest checks ([#52](https://github.com/ooaklee/lexr.sh/issues/52)).
+
 - Allow the audio userspace installer to replace Arch's exact packaged ALSA
   selector symlink, preserving the link in its backup and the shared Qualcomm
   profile. Add Arch getting-started commands for pen, audio and Wi-Fi recovery

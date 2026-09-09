@@ -167,8 +167,15 @@ after installation. Avoid restarting the audio DSP while using a live USB root.
 
 ### Arch Linux ARM terminal image
 
+Download the [experimental Arch terminal image with v23](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-arch-linux-arm-terminal-v23-20260909)
+and follow its **Download, verify and write with Lexr** instructions. The release
+links the installation quickstart at its exact producer commit, so it remains
+available while [PR #55](https://github.com/ooaklee/lexr.sh/pull/55) is under review
+and after merging. The rebuilt image's structural checks and earlier physical
+tests are recorded separately in the release notes.
+
 Follow [Arch source intake and image preparation](../operator-manual/arch-linux-arm-source.md)
-to build from the pinned AArch64 root filesystem. Validate the resulting ISO,
+to build your own image from the pinned AArch64 root filesystem. Validate the resulting ISO,
 then use the shared USB review/write steps below with your Arch ISO filename.
 After a completed write and read-back, follow the
 [Arch installation walkthrough](arch-linux-arm-quickstart.md) for manual

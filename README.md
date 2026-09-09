@@ -144,14 +144,19 @@ You can start with a prebuilt Linux image from the OE repository:
 
 - [Ubuntu Concept 26.04 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-ubuntu-concept-26.04-v23-20260905).
 - [elementary OS 8.1 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-elementary-os-8.1-v23-20260906).
+- [Arch Linux ARM terminal image with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-arch-linux-arm-terminal-v23-20260909).
 
-These experimental ARM64 images include Lexr, prepared Wi-Fi board data, the
-IPTSD bundle and a desktop getting-started guide. Follow each release's
+These experimental ARM64 images include Lexr and a getting-started guide.
+Ubuntu and elementary include prepared Wi-Fi board data and the IPTSD bundle.
+Arch starts in a terminal with networking and a guided installer; follow its
+[installation walkthrough](docs/user-guide/arch-linux-arm-quickstart.md) to
+choose your partitions and optional desktop. Follow each release's
 **Download, verify and write with Lexr** instructions to install the latest Lexr,
 download and reconstruct the split ISO, verify its checksum and write it to USB.
-The elementary release also provides a pinned source build for use until its
-adapter is available in a stable Lexr release; v0.3.0 cannot validate or write
-that image. The notes record the exact tested hardware and remaining limitations.
+The elementary and Arch releases also provide pinned source builds for use until
+their adapters are available in a stable Lexr release; v0.3.0 cannot validate or
+write these images. The notes distinguish each published image's validation from
+earlier hardware tests and record remaining limitations.
 
 To create your own experimental Ubuntu image, you need Docker with a running daemon
 and Linux ARM64 container support, at least 24 GiB of free workspace storage,
