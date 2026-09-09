@@ -30,6 +30,18 @@ provenance record under `sp11/firmware` on the medium and
 `/usr/share/lexr/firmware` in its filesystem. The licence restricts use to
 Qualcomm platforms and requires the accompanying terms and notices.
 
+## Arch Linux ARM installation images
+
+Generated Arch images carry distribution packages with their own licence terms;
+these packages are not linked into the Lexr executable. The installer dependency
+is [Archinstall 4.4](https://github.com/archlinux/archinstall/tree/4.4), distributed
+as the unmodified Arch Linux ARM `archinstall` package under `GPL-3.0-only`.
+Its Python source and `archinstall-4.4.dist-info/licenses/LICENSE` remain in the
+image. Lexr's external Surface adapter
+uses its guided interfaces; it does not replace upstream copyright notices or
+relicense that dependency. Package versions, archive digests and signing
+identities are recorded in the Arch image package lock and build manifest.
+
 ## Components in every release target
 
 | Component | Version | Licence | Copyright notice |

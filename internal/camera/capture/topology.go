@@ -12,10 +12,10 @@ import (
 // device-node, format, and outgoing-link lines while ignoring extra fields.
 var (
 	entityLinePattern = regexp.MustCompile(`^- entity [0-9]+: (.+?)(?: \([^)]*\))?$`)
-	padLinePattern    = regexp.MustCompile(`^\s*pad([0-9]+):\s*(Source|Sink)\b`)
+	padLinePattern    = regexp.MustCompile(`^\s*pad([0-9]+):\s*(Source|Sink|SOURCE|SINK)\b`)
 	deviceLinePattern = regexp.MustCompile(`^\s*device node name\s+(\S+)\s*$`)
 	formatLinePattern = regexp.MustCompile(`fmt:([^/\s\]]+)/([0-9]+)x([0-9]+)`)
-	linkLinePattern   = regexp.MustCompile(`->\s+"([^"]+)":([0-9]+)\s+\[([^]]+)\]`)
+	linkLinePattern   = regexp.MustCompile(`->\s+"([^"]+)":([0-9]+)\s+\[([^]]*)\]`)
 )
 
 // mediaTopology is the parsed subset of one bounded media-controller report.
@@ -101,7 +101,11 @@ func parseTopology(content string) (mediaTopology, error) {
 			if _, exists := currentEntity.pads[number]; exists {
 				return mediaTopology{}, fmt.Errorf("media entity %q repeats pad %d", currentEntity.name, number)
 			}
-			currentPad = &mediaPad{number: number, direction: match[2]}
+			direction := "Sink"
+			if strings.EqualFold(match[2], "Source") {
+				direction = "Source"
+			}
+			currentPad = &mediaPad{number: number, direction: direction}
 			currentEntity.pads[number] = currentPad
 			continue
 		}

@@ -28,6 +28,12 @@ If preparation fails, do not assemble a release by copying part of its staging d
 
 `image release prepare` starts from one completed Lexr ISO. It proves that the manifest bytes embedded in the ISO equal the adjacent `*.iso.manifest.json`, then produces deterministic split zstd parts, checksums, release notes, and a path-free release manifest in a fresh directory.
 
+Ubuntu, elementary OS, Fedora and Arch Linux ARM use this same release path.
+Each image must retain its own producer's complete creation journal; another
+distribution's journal cannot substitute for it. For Arch, build the terminal
+ISO from the [pinned rootfs snapshot](arch-linux-arm-source.md) first, then pass
+the resulting `.iso` and its adjacent sidecars to release preparation.
+
 The ISO's existing manifest remains the single image inventory, including its `companion_bundle` attribute. Preparation does not introduce a second companion authority. The original path-bearing creation journal is not published; the release manifest carries its path-free evidence instead.
 
 Review the plan and validate the resulting closed directory:

@@ -44,6 +44,17 @@ var (
 	// maintainedEmbeddedSourceFiles admits exact non-Go compiler inputs without
 	// including neighbouring text files or private development artefacts.
 	maintainedEmbeddedSourceFiles = map[string]bool{
+		"internal/image/archlinux/LEXR_GETTING_STARTED.txt": true,
+		"internal/image/archlinux/packages.lock.json":       true,
+		"internal/image/archlinux/scripts/prepare-root.sh":  true,
+		"internal/image/archlinux/scripts/live-session.sh":  true,
+		"internal/image/archlinux/scripts/build-boot.sh":    true,
+		"internal/image/archlinux/scripts/setup.sh":         true,
+		"internal/image/archlinux/installer/guided.py":      true,
+		"internal/image/archlinux/installer/target.py":      true,
+		"internal/image/archlinux/installer/test_guided.py": true,
+		"internal/image/archlinux/installer/test_target.py": true,
+
 		"internal/image/ubuntu/LEXR_GETTING_STARTED.txt":     true,
 		"internal/image/elementary/LEXR_GETTING_STARTED.txt": true,
 	}

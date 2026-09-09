@@ -69,8 +69,8 @@ func TestLoadNormalizesAndProvidesDeterministicDefensiveHelpers(t *testing.T) {
 		t.Fatalf("LoadBytes() error = %v", err)
 	}
 
-	if loaded.SchemaVersion != CurrentSchemaVersion {
-		t.Fatalf("SchemaVersion = %d, want %d", loaded.SchemaVersion, CurrentSchemaVersion)
+	if loaded.SchemaVersion != LegacySchemaVersion {
+		t.Fatalf("SchemaVersion = %d, want preserved version %d", loaded.SchemaVersion, LegacySchemaVersion)
 	}
 	if loaded.Description != "Test catalogue" {
 		t.Fatalf("Description = %q, want %q", loaded.Description, "Test catalogue")
@@ -179,10 +179,10 @@ func TestSemanticValidationRules(t *testing.T) {
 		{
 			name: "schema version",
 			mutate: func(document map[string]any) {
-				document["schema_version"] = float64(3)
+				document["schema_version"] = float64(4)
 			},
 			wantField: "schema_version",
-			wantText:  "must be 2",
+			wantText:  "must be 2 or 3",
 		},
 		{
 			name: "description",
@@ -833,28 +833,31 @@ func TestShippedCatalogContract(t *testing.T) {
 	}
 
 	wantURLs := map[string]string{
-		"debian-13-6-0-dvd-1":          "https://cdimage.debian.org/debian-cd/13.6.0/arm64/iso-dvd/debian-13.6.0-arm64-DVD-1.iso",
-		"elementary-os-8-1-20260219":   "https://dl.sda1.eu/linux/elementary/elementaryos-8.1-stable-arm64.20260219.iso",
-		"fedora-workstation-44-raw":    "https://download.fedoraproject.org/pub/fedora/linux/releases/44/Workstation/aarch64/images/Fedora-Workstation-Disk-44-1.7.aarch64.raw.xz",
-		"fedora-workstation-live-44":   "https://download.fedoraproject.org/pub/fedora/linux/releases/44/Workstation/aarch64/iso/Fedora-Workstation-Live-44-1.7.aarch64.iso",
-		"pop-os-24-04-arm64-generic-3": "https://iso.pop-os.org/24.04/arm64/generic/3/pop-os_24.04_arm64_generic_3.iso",
-		"ubuntu-concept-resolute-x1e":  "https://people.canonical.com/~platform/images/ubuntu-concept/resolute-desktop-arm64+x1e-20260326.iso",
+		"arch-linux-arm-aarch64-20260805": "https://ca.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
+		"debian-13-6-0-dvd-1":             "https://cdimage.debian.org/debian-cd/13.6.0/arm64/iso-dvd/debian-13.6.0-arm64-DVD-1.iso",
+		"elementary-os-8-1-20260219":      "https://dl.sda1.eu/linux/elementary/elementaryos-8.1-stable-arm64.20260219.iso",
+		"fedora-workstation-44-raw":       "https://download.fedoraproject.org/pub/fedora/linux/releases/44/Workstation/aarch64/images/Fedora-Workstation-Disk-44-1.7.aarch64.raw.xz",
+		"fedora-workstation-live-44":      "https://download.fedoraproject.org/pub/fedora/linux/releases/44/Workstation/aarch64/iso/Fedora-Workstation-Live-44-1.7.aarch64.iso",
+		"pop-os-24-04-arm64-generic-3":    "https://iso.pop-os.org/24.04/arm64/generic/3/pop-os_24.04_arm64_generic_3.iso",
+		"ubuntu-concept-resolute-x1e":     "https://people.canonical.com/~platform/images/ubuntu-concept/resolute-desktop-arm64+x1e-20260326.iso",
 	}
 	wantFilenames := map[string]string{
-		"debian-13-6-0-dvd-1":          "debian-13.6.0-arm64-DVD-1.iso",
-		"elementary-os-8-1-20260219":   "elementaryos-8.1-stable-arm64.20260219.iso",
-		"fedora-workstation-44-raw":    "Fedora-Workstation-Disk-44-1.7.aarch64.raw.xz",
-		"fedora-workstation-live-44":   "Fedora-Workstation-Live-44-1.7.aarch64.iso",
-		"pop-os-24-04-arm64-generic-3": "pop-os_24.04_arm64_generic_3.iso",
-		"ubuntu-concept-resolute-x1e":  "resolute-desktop-arm64+x1e-20260326.iso",
+		"arch-linux-arm-aarch64-20260805": "ArchLinuxARM-aarch64-latest.tar.gz",
+		"debian-13-6-0-dvd-1":             "debian-13.6.0-arm64-DVD-1.iso",
+		"elementary-os-8-1-20260219":      "elementaryos-8.1-stable-arm64.20260219.iso",
+		"fedora-workstation-44-raw":       "Fedora-Workstation-Disk-44-1.7.aarch64.raw.xz",
+		"fedora-workstation-live-44":      "Fedora-Workstation-Live-44-1.7.aarch64.iso",
+		"pop-os-24-04-arm64-generic-3":    "pop-os_24.04_arm64_generic_3.iso",
+		"ubuntu-concept-resolute-x1e":     "resolute-desktop-arm64+x1e-20260326.iso",
 	}
 	wantChecksums := map[string]string{
-		"debian-13-6-0-dvd-1":          "0e170d9ff0c53f7b59c8d35793b8ce308ceffd519f8370b949995634e22f5b09",
-		"elementary-os-8-1-20260219":   "85116d48c406ae7cd60c936050a099d4b8610321273f6f0a694796db4d4e86ba",
-		"fedora-workstation-44-raw":    "0361c13141e6f57e24d6ee5227066c33a45f7f92a95f41d0bbd343e4fd05da18",
-		"fedora-workstation-live-44":   "162ba3c552a2d241c7c63ec26777af0255ee1b5a135adc0be986ceed999933ef",
-		"pop-os-24-04-arm64-generic-3": "7b4cce0e92dc5c903464e7e7c33760c4417f1400165e9ecfcd064fbceb68ef22",
-		"ubuntu-concept-resolute-x1e":  "",
+		"arch-linux-arm-aarch64-20260805": "42a4eeaa038994ffd31fa173256ef2f0ef511358eeb41b9ea1f8626391b9b319",
+		"debian-13-6-0-dvd-1":             "0e170d9ff0c53f7b59c8d35793b8ce308ceffd519f8370b949995634e22f5b09",
+		"elementary-os-8-1-20260219":      "85116d48c406ae7cd60c936050a099d4b8610321273f6f0a694796db4d4e86ba",
+		"fedora-workstation-44-raw":       "0361c13141e6f57e24d6ee5227066c33a45f7f92a95f41d0bbd343e4fd05da18",
+		"fedora-workstation-live-44":      "162ba3c552a2d241c7c63ec26777af0255ee1b5a135adc0be986ceed999933ef",
+		"pop-os-24-04-arm64-generic-3":    "7b4cce0e92dc5c903464e7e7c33760c4417f1400165e9ecfcd064fbceb68ef22",
+		"ubuntu-concept-resolute-x1e":     "",
 	}
 	if loaded.Len() != len(wantURLs) {
 		t.Fatalf("shipped catalog Len() = %d, want %d", loaded.Len(), len(wantURLs))
@@ -881,8 +884,8 @@ func TestShippedCatalogContract(t *testing.T) {
 		if wantChecksum != "" && (entry.Checksum == nil || entry.Checksum.Algorithm != "sha256" || entry.Checksum.Value != wantChecksum) {
 			t.Errorf("entry %q checksum = %#v, want SHA-256 %q", entry.ID, entry.Checksum, wantChecksum)
 		}
-		if entry.Mutable {
-			t.Errorf("entry %q is unexpectedly marked mutable", entry.ID)
+		if entry.Mutable != (entry.ID == "arch-linux-arm-aarch64-20260805") {
+			t.Errorf("entry %q has unexpected mutable flag %v", entry.ID, entry.Mutable)
 		}
 		if entry.Architecture != ArchitectureARM64 {
 			t.Errorf("entry %q architecture = %q, want normalized %q", entry.ID, entry.Architecture, ArchitectureARM64)
@@ -904,7 +907,7 @@ func TestShippedCatalogContract(t *testing.T) {
 		}
 	}
 
-	if want := []string{"elementary-os-8-1-20260219", "fedora-workstation-live-44", "ubuntu-concept-resolute-x1e"}; !reflect.DeepEqual(implementedIDs, want) {
+	if want := []string{"arch-linux-arm-aarch64-20260805", "elementary-os-8-1-20260219", "fedora-workstation-live-44", "ubuntu-concept-resolute-x1e"}; !reflect.DeepEqual(implementedIDs, want) {
 		t.Fatalf("implemented IDs = %v, want %v", implementedIDs, want)
 	}
 	ubuntu, ok := loaded.Get("ubuntu-concept-resolute-x1e")

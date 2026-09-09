@@ -14,6 +14,7 @@ import (
 	"strconv"
 
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/image/archlinux"
 	"github.com/ooaklee/lexr.sh/internal/image/elementary"
 	"github.com/ooaklee/lexr.sh/internal/image/fedora"
 	"github.com/ooaklee/lexr.sh/internal/image/ubuntu"
@@ -59,6 +60,7 @@ type Validator struct {
 	ubuntuFactory     adapterFactory
 	fedoraFactory     adapterFactory
 	elementaryFactory adapterFactory
+	archFactory       adapterFactory
 }
 
 // NewValidator creates a generated-image validator and supplies the standard
@@ -77,6 +79,7 @@ func NewValidator(docker *platform.Docker) *Validator {
 			return fedora.NewValidator(docker)
 		},
 		elementaryFactory: func(docker *platform.Docker) adapterValidator { return elementary.NewValidator(docker) },
+		archFactory:       func(docker *platform.Docker) adapterValidator { return archlinux.NewValidator(docker) },
 	}
 }
 
@@ -128,6 +131,8 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		factory = v.fedoraFactory
 	case elementary.AdapterID:
 		factory = v.elementaryFactory
+	case archlinux.AdapterID:
+		factory = v.archFactory
 	default:
 		return routingReport, fmt.Errorf("unsupported generated-image adapter %q", routed.Manifest.Adapter)
 	}

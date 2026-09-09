@@ -11,6 +11,11 @@ records stable IDs, user-facing metadata, exact upstream filenames, artefact
 formats, HTTPS download and homepage links, support state, adapter, mutability,
 compatibility notes and verification dates.
 
+Version 3 adds `rootfs-tar-gz` for gzip-compressed root filesystem archives. These
+entries require a `.tar.gz` filename and a pinned SHA-256. Version-2 catalogues
+remain readable with their original ISO/raw formats; version 2 cannot label a
+rootfs archive. Older Lexr binaries reject version-3 catalogues.
+
 `last_verified` records the last check of the upstream catalogue metadata, URL,
 and publisher checksum where present. A newer compatibility test may be added to
 the notes without pretending that the upstream bytes were re-verified on the
@@ -20,7 +25,9 @@ The filename must be a portable basename, match the final URL segment exactly,
 and use the extension declared by `artifact_kind`. An optional catalogue
 checksum may use SHA-256 or SHA-512. Image creation currently consumes SHA-256
 source digests; users can supply `--source-sha256` when an implemented entry has
-no publisher digest.
+no catalogue digest. A maintainer may also record SHA-256 after authenticating
+a publisher-signed snapshot; document that provenance rather than calling the
+computed value a publisher-supplied sidecar.
 
 Validate every edit:
 
@@ -44,6 +51,10 @@ instead of hiding them behind a generic warning. The
 `ubuntu-concept-resolute-x1e`, `elementary-os-8-1-20260219` and
 `fedora-workstation-live-44` entries are implemented and experimental. Fedora's
 compressed raw disk image and the Debian and Pop!_OS entries remain catalogue-only.
+The Arch Linux ARM rootfs entry is implemented and experimental. Its rolling URL is marked
+mutable while its dated snapshot and SHA-256 remain fixed. See
+[Arch source intake](../operator-manual/arch-linux-arm-source.md) before accepting
+a later snapshot or attempting to reuse cached bytes.
 
 ## Userspace catalogue
 

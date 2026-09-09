@@ -1,0 +1,922 @@
+[
+  {
+    "name": "arch-install-scripts",
+    "version": "31-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/arch-install-scripts-31-2-any.pkg.tar.xz",
+    "sha256": "9f346dfa37925779f228855ef05742749ffdb0753be4c43ad87b2659576a46de",
+    "size_bytes": 16560,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp6EpUACgkQdxk/FSvb5qY/txAAtL8wpgpZVacJsQZ1uKxe61eYWP1CugZw59QFL39o0Vc3I4ioXW1oY2Nt9rRH5gLH8M2B9RzeldrV5pG6SaFKckXxCs4BCK2Y18qAkwl4DobFY5Le4DmY/2XtqXz3cGcmFgt0I8xl8j0JuxeBI5z/DNN4WdkoNLvOqBH4cFAVCCumlueCuCUdALVeH0oeP6KgzONIspEi4nmzYdGr9BeoU0K8Ukvw13klUrHUb8w5byfOgWEMoASnxY3bg/E/pYedh5cNrQzD8fDZzNfrk8K5k01quDivjI0S5B+eN59uezmeRcbIEljjuvAd0HYMrPzI8Opusd37dsqsD/VxZ+vTEKR5m7Zb+bjq2zW172NfPu2wDu/xlBhmISMHtx3Orp9kKP8WAvi1B+b06iOvoAsbHsnVasTQdliV8rSuCeDQ+xjMMjwj9X2wHcyhIZd3CCpF6k6jS2Qsqd5BgaPOOvDOOkXvwsBl60045jrTtQ+DxB7CKQkLf5Ms3px9Nf+m+pMap5tHVGZdT/osEJAt6+TjN6b6vxrQQAJXsT69y7bZFYw9s5FgmN2NCag14fh701fc5KOEXeK2AKf5bD7MpIS8VfimquWSmId0rOLE/ndpS+uOJ4UkcwkItlTM+F7DZ1fgETBuilWg2VYyBJusJfZm66om6AV6BHdUN3Vl3rJStBY="
+  },
+  {
+    "name": "archinstall",
+    "version": "4.4-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/archinstall-4.4-1-any.pkg.tar.xz",
+    "sha256": "c92806ea459cf705e4b06f2fcbc1b3bf3f71ecb6e70b9c0ed0da735538b87a88",
+    "size_bytes": 1001840,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmpBjWIACgkQdxk/FSvb5qaOlQ/7BrUJdbxnJbhSP5A8FoU4jHx3J0iwwdoVf5IpMdzM3GTE61YAtJ4SFzaKUc07O6WkTp1A4cuQJ0sGBYQW4FI2bqy3fHUI/ueCjDhK1R4g1qO270CpsnEKh5AHDCMCvQv9zR2atun1BgO7ZCd66UnTJr2TPQen5fJ/gnziBCG2KVRY5TLeiOCnr9hrJ8DsSCNw8iYEXaBJ3GiEvy0FjYrG1f6i6pp/SneHssQg/aHZikT5djNIAemB2P2xwhEMqwlghxnmaUDSwgTBvuIDGj8BPhr9z/PkVRM1E1NYcX2xVxwsfKlfSL137Bpqb7fC+9CfOhiNEIulQj66wBl3NVuLzq10mcGHNeXc+Ot56JiVMrnK+UjqhNUquju+T6LOTt1rXjad9auLJSiURdr1zMAr+OkoQ1I2kdF1QAfePXCFciSER7nB+dl2zQaV1gCssKBYVnn3VljI+pVnY4XfaY/FOh4a+P7ETbrMvpJyOosavvazTXBDOSDeYwWu3PfEfV9j185oY4x/qs+Ux86mh9otu9WRAUfgndiY186Ycm5A7r9bP6LaVzGtmPv6YyKJh/ZTctgifwK61ySH+5EpEkC9v7loT2DhAJF5iErrWfpJDssGLncYn708OEOH9h39mvtQzPlBnajVJY63Xzqemxi8ElDXdmDmfzPuG6rp2hIVfgA="
+  },
+  {
+    "name": "archlinux-keyring",
+    "version": "20260902-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/archlinux-keyring-20260902-1-any.pkg.tar.xz",
+    "sha256": "63d394fabcf7e3a69863aa937a55431f8cce774847b4409deea7ac838ffd124a",
+    "size_bytes": 1279972,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqZQvAACgkQdxk/FSvb5qY6xA//fenolGWux+PFey+yuJ7GBzKvpL0wxKF6sZLqcyRhC6u1lgItUSneceDmUWIRBg15l6wadPEczvmIDQX/8u2gyFjycwyXeLHseZenqCa/OQacHlFBfrGK+l6/5CxqdiEbSYFvDeuIKodNaex20bXzqwSvkZXuN1R2qZVCP0hlRGtYWLdT91clT3H7Gr3Zn4Kn9EJmRQn2L/fhD63e7AZJ9Ghj7Xx9iXKcceBASZvR4JlIJk/axfY45e0/5fYMkyk8yfGF7kfBTgovQMh8SDS1vuYtzQJa3StYRf3vMDcQm+6iZKBAQiIx/+91NcPmGkM9HVxy5txUaenp3KA5S9PBTmpX7Uz2Ac9OyUULeRyLFpZJ+DShiE6C9AqEhKtykKU/hgOPLjSrfQuGWb1lU/FCPPvnrqYB79EdjCq+D0wOAn4aJMREGHrrZuwsTx/olNjq11eOFX6FAuTMHLE9GuVT1ndVQwjo/V8G3mmnJE26ECGw2BtEljv7GFcMW1nwvS1UqF4hFn/BlXa2Ei/FNUMQegtKA39o+byENOeUDu2J2LXhkxCEhUbFH+RcN95HWl14pDQgDyxY0nBAINZTbhYKqnq0d39P1a/UxR9zXBqNhM2BHZQS/YMxTE62pOhLIwCrCynk08rpNSHtqrhIzTaNxQtY3KAJrXeREkC3TW5nWSg="
+  },
+  {
+    "name": "btrfs-progs",
+    "version": "7.1-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/btrfs-progs-7.1-1-aarch64.pkg.tar.xz",
+    "sha256": "059eae37c827cdcfe5830926af389794b2dcbdb72dcef8144d4b31884c3a7174",
+    "size_bytes": 1016384,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmpXvvcACgkQdxk/FSvb5qZw1g/9GA/HE44oImY7o7NRoOSpzdnl4jGtN6qYaa/SubvV9cDgKUpiFwfElU9e/4GEaT6UjRE5sRSlLa85gEH1Tz/dJzC+nZXWxp51XXJ2QLSdOevAZeSGMlenIuDUcGWG2LiIGZA4gyRg1tZIr7Ibkj/VWBWSyi8NyO3Fu+6lazpbF+IUtjIzG4MdP2m0QSHxOTCetu9Glgg9L09k2W3IHF0+YP3iiik10VxYfN1qCvk1BRYLq6XP8pLa0EvWXNFGzCK7YhQdVaSt3dwReRhgXYF/Rf2guZWuZ3MuSeZ7Ar1FjfHci1f51cn/DcYhZeJQDIH0ALuAsn9NW/PRgsG/jP8+W5q2xIGNUMavXTzflAcb7WK8c9QqRdGSu2DU/m32+o205sHCnWX9NA088dRvoWjCQcgFi0dZCCpRjTd4RzAOpadw5ocjVeQUpebtTc+2THJ6/Wi+YG0yLe1RiZ8Dzzf/IaQ6S06oDCvOmSRCTjKwwZzbBv56AlHmdAeFTJVW9wtQsFsjSQoIIAbLRzDEVsQ8YYNfe0hs0wwtegX2TkVJ27QIFEAsqsotcl+YnpGTVUjvnZfjtEtAsednkBYD+tu7XNHy8+GdS5s7eDZR/QcTT8H8Ex796LK69frq79YMIEerJsPZwSoEFTwPBHpeT0adr2gpYy0c/rKJ/w/NwxKZUtM="
+  },
+  {
+    "name": "ca-certificates-mozilla",
+    "version": "3.128-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/ca-certificates-mozilla-3.128-1-aarch64.pkg.tar.xz",
+    "sha256": "300baad4b51576f72c9f7c0de01f82f62c195edb78be29562447c7e372873b87",
+    "size_bytes": 380080,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqQmc4ACgkQdxk/FSvb5qYRhQ//cJGR6ktndoWoNJF2EEg02v/ykDW0hH5gxdzMXmX4/hdP4ytYQWg+rD8hJ3ayxSXXXM/xThYpwx4OYMjDf/69XLJfWxM+vhXbIZyz+3Ias2w1YRAaFjhHw/ds+PUpd0fCyWSYuYHTlhHWa/cvgXdVEVd/9Xwqk3aTr/0Y7DH9s02r0yqbz95mXjaOAXU2wz4FEaqjQm8YqZXMHlRsUSnZUfHcBMfcMyiy36Bv0yf8fnJWaQRJ+vrrSzHoKS0i5qZOSFIY2ebvf3dIa3J81XqIuxK6t5QJ1t8jWDrwIy15962uUGaNYQRD+ZxPZe7hcGkX9lOBKdfAoqNoVsgMjw0Mdvwixh+jvlV60F/iC0MMVbtHzvrP7k2NiFxQggyWh4DFjduogoELFhXURtT4Hy2IEXuNn1MCGNPfM9roywngAxVloI1Cb6FaIOoS6zlfhtdHKx4a8yDMztddO1c4IbiY7p35RVi8pmpxqamlZq5Jum++31PtwsHXB6b20VXINW97/uTDIulXmXnZRU8JhP33qGYSmJguxp92e7MkXi8uPaA1ZwiT+ZaerU1PIXYuGAnhO4dubReqhwypKruYdfl3iKD3/BfH6T4ZHM6/nFVwfmmzw+YIBeIUkpesNBWrdQx2ZY1RRz0XMlAr4nk8E03T0zH3WlyHdt5L9vn4Uv2ceVY="
+  },
+  {
+    "name": "curl",
+    "version": "8.22.0-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/curl-8.22.0-1-aarch64.pkg.tar.xz",
+    "sha256": "5461bb97fca88b237d17db833622789eedca390634a6d2fb2e3b71287e52acb2",
+    "size_bytes": 1281188,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqZQ/8ACgkQdxk/FSvb5qZEtA/+LC7TBOOOr029X/DbN/8S30pgtk2jeR9VVqyFO+eEJI1Z7pt4oqFhCI/Fow3iZvDuq3wvKwXneBdxWAVcW06nBvjb/JTTvYoQbVYNstBEvCo0cHskgzCjBXOAl1Oc6TkHWkujorcIMqsxvF59f1sLgiB7gPTZiW8ujcxh2Vlk2fr3sC6f7BRfiGNC3KVrucCcrpmUg0kZIbvLzr6FjYrK87bx/ClDrwKt0V6Uoc1kQ901UZnpnbaLYEVcIwOX0LyGL6ceQo8Dk9ePOtj3h/uDpcoMI+Et5xE1q7aXWvERIicjEa0QPr8DapW2xDSiNh+Yx7aZnQfQXzhq2sp7olpvVAfnfYSI1zehn63GKDg7gsBitcmCHSnEPZfaxLzuU8vOHihFQfx5/CHs52cpY+HhRAzpwLxyIaamccapoJZ0iMsce0Sm25bdM9v6nAoGXYKQshMaQR+8h5VfVLxN37PfioqcOSJ9W9XXbSIH+L2LTlvfEC7al+1ef1jDglHSUgpzoE33dfElDBrryMSvYoSG/ZMWC69BndrWMnC3Fb7k1hfqu6nYFcugAZv2tiXx3QKSGsMnbChv9/2b2F79N342lcHzbyBc8Lf/VTIIWhYT++dYDRkLmTPyHBTctKcFHF3oCtOBUXCcXYg1r3pt2F7+aPYuxdJRZvQxM/0YkQ4V5Bo="
+  },
+  {
+    "name": "device-mapper",
+    "version": "2.03.42-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/device-mapper-2.03.42-1-aarch64.pkg.tar.xz",
+    "sha256": "c6599c126834b8600ef4faa3ccc1622fa37267dc7733ae376ce102c7245e1c0d",
+    "size_bytes": 282236,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp3T5EACgkQdxk/FSvb5qYw/BAAqiVEPL07CRhqSem0KDHDwynQR2lfaUMSpeAtHChSuqX8KB2+gr61pR9Jy6zH8vijn8ISqQfGQyx/u+zf/5gITN0s/8TjSibl4AVHl9yaQt1LBsAtnkPEgUwn/km2DA7mAk6/ncjMTLjKO4rdkqcJ+8sMi2JG2Q08Qa16+IloS0GN+hGZzXDly18BHu4HFOU1WE5lVmIOCGe8YuMchNSj8sppyPM7OaNWn6ciPiI0iwuP1lvW3Lle8KeFCp8mEtrIshoWsOWbtCtFis7XVAX/B9ha4v/cEO12dTGdMHKjbIXBLY2df3y3wxod+10vkkz40G88/UIa/g2A2M43Y3H5pVvUHeSudwda2Xx8PbQbFfxXTaYTNmvsoRLumTctehyhzUdiOswbLzcXmBih5yKdkDOo1oi1XE5XrzwFoDIWDShJGYtTxUEIGYkMeSx/HH/1hyXQag+GpO11Mvir+xUiPxAzbwWfKbZjp7bews2QRW9bwrgCRA30dLnY3sUQdWNkczTWz8mhQcX62AK/UKn2+uyuOoUyi6aNhV2UPMMDV3sVsvgbZrNea/pzni8hULPRUgecqFdz1qE1dKsJA/JpY3GG9TDW4V0xCCYQmnF2SjO0V6+RcrArw7dYzdEtU88UylU8ZNbasiCjQ4fcZF3noAP7Um+Hpqg8OqMU10LD/Aw="
+  },
+  {
+    "name": "dhcpcd",
+    "version": "10.5.2-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/dhcpcd-10.5.2-1-aarch64.pkg.tar.xz",
+    "sha256": "8ebc266d7b3798d92fc4f0924384aa793baaa567178761d4229b4c42cdad34b2",
+    "size_bytes": 194608,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqOGGQACgkQdxk/FSvb5qYyFQ/+JUo2cm6yinpe3EmWqDUI6WJnRDytgEn9oIgHtaSSRljvFpdgjWYg4vJ65WVlytRUD7LogdsK8yVwdb8x/hrffj8qRgR95EvAuYuumVDJar1+Wc1yVkQWMdxR/w7BYH2Z7GD5QvnQieV4LjQa5HTY258U3ldChlKhL+BxwMMpoFjfoppzJhgRHUM/FTaZ0hCPO4i6KRlsc5lmacT9X+Shfx6NgGxuficpCfZoZLAReSBTWH/2MEeT4n/o0bX7B3x77vSMG8OhxnIT/0364olz6+a1utWi9/z4zqmHdxya+bIIPvHK4e3yxhHk04m/nvQQPMsGE7vR0fujQsLKfoC43EmlNrgpAjulfvrgCZoIQa14E6LVaKLk29vOqB95c7iFaghtpgO+d04nSQ/BjdxRbwgWd43FcZx3KTFX3pi/CAoTxn/klC+GFPtblyvK+e/MN5y/BCL+c4vKTRfd72cVC8bAbOTMtFwROpNWBC2+L13R41EMdeXPM0REWqsMF5UyxqoaoznIWG9kZb8x5o0v/xxDk4rCh+pSp/M6acl0w8+NrOoZoRzoJC0NRMPKzW13dB7FHcsGVDRvtpRMWigsk/BdPkiIcwlvMvw1CwT52RFKwowWR0vISWTD2PBs/Hcvorrt1X5Sd/ZfKcabul48W9rErpzlBw1BYEJgc5HYb1M="
+  },
+  {
+    "name": "dosfstools",
+    "version": "4.2-5",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/dosfstools-4.2-5-aarch64.pkg.tar.xz",
+    "sha256": "c41120c6c89469f259d5248ea2ed0a7bea19f8a38d493682f7ff82037a862c21",
+    "size_bytes": 133092,
+    "signature_base64": "iQIzBAABCAAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmbLPHgACgkQdxk/FSvb5qYe3hAAiNFqRuuVD86nBxxw3JcAjf4m7614pgB2wQ1ub740S9MK6h/kq/jAsAog0Ntfuv5fvla2fGcMtNKxSXceX3mCpMSQo3xoHuKxih0a6YB5PhDi0KJJEvUDv/pjuhlBiPzPtt/+JEpHvH0Lc6nTfNVRqTowTKdHB53SqWYnB0CWWsaQ3+xy5ZqtqpDdIVPNA16yYNb8+KR8jXbIfDs9SSo/FS7Os1VZU87JWIA7fZ/pBf8PX+o0DnBifPe4waozLqJ4bexv5lUiintEU54x/XLzWz4gbW5pSHkBWrBbt3bArjvjwISVZ3aFE/BY/VJ1J7v6CoAkSZ2sJtuSrDd8nRF7UcGaiiuf6oTnFW4uP0MIGe2rlV9DwtxC1vGJ+G1LdTKSrCKgbTd1njN7nyZlMkFpzyg64HK2qDfd2SERwpdPiu9GUyf/w/WRWZNRdTMtngHeS1kFDr4iIZ+2G6Qypf3ej/4Js/ddeAl48pbS0FTFsvtTsK4hqEQeRJh+R0gBFpZLniJvtQxItMosNwc8jdefCiPLXMksuil2/B2r77W8vx9je5C+t+FjcOJC6XXthlEnQrhO0Jp4apBcKMonZbkazK5MQ0CNFfuab4klOW/xJuMBUudGUfDiTajjbwFgFwbBzEb2YxThDaAFpct/3lT8TttocVlHG48xXbompSASzEY="
+  },
+  {
+    "name": "duktape",
+    "version": "2.7.0-7",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/duktape-2.7.0-7-aarch64.pkg.tar.xz",
+    "sha256": "1e3c597a3290017cfef0aec1300fc9a4212a5af3680857807431bf881f3cf64d",
+    "size_bytes": 163804,
+    "signature_base64": "iQIzBAABCAAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmaRK2MACgkQdxk/FSvb5qbnOxAAouKGDK8Nc05w1vGA7K1+as9Hx0o2YsgrYHrjoaLXDwSsPb+4e1JhOtq3wT9cXfG9RwcvW3zWyiUxe1f+wS8ekrGfzSjc17E59QFhjkyc6E+6qMT3MaVFe2AcTf1kCHy0FurRZTi7wTLk/lKiAWY+990+WaKkxOF2WtauC+sRbZyOGQfNrFw3UkUJTAOlNmctmmfZbTXtXUbqt6RFbGT+6sf8xWLacTt2MrxszR+1JB5qFgTEkNoNh0r0hiAsfqVNRVmSyCSbN5HeTa5EWGn0tfTFLB4HxAqbTJBmdQ9Pjkd4BgnjN9gV0qBl8ua+NZpwubdVev6sL3VCFXL+2kH6uyzeOHU0gjIUcOsMacGCP3bhnVeMBjyBPXMUIlDFCa50PGypAE9Pk0UKVZl3Fj37cZsdz8Mo8Whr+cz95scxfbTtRXqmAMxm9K4f8dhsAXBDxdi6O+N7Bti9E2wzAaUS+cJ8kYW7KH4HMiHBRSzm6PzHbsV1xAh1ID/4cWdn5gSmENvKz4ryhRYQ6J5q0otqSPTRVwPp0Bh8a9FPs/JobCkdrEJ9ETgpE93qFb+uZqK/0YWvNuaseeVz0YLXb9pyE87IZk2vI//5DZY8sq9oYqTrLepzle47eaR53rqkCHAylC41uIJ+Fx9E7EmhymA3DwKBoUzdiKd2woIeBvwvdp0="
+  },
+  {
+    "name": "e2fsprogs",
+    "version": "1.47.4-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/e2fsprogs-1.47.4-1-aarch64.pkg.tar.xz",
+    "sha256": "153046071f8abf1caf546a0352c7d268fb07a5b0ba0abd996de382adc8692842",
+    "size_bytes": 1195448,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmmx9l4ACgkQdxk/FSvb5qbfsg/+JdLUrIMXoip374MMhY6J4XP8YyijTtH9gzjnpykl/wvRTm9XvLHge0SfHy5q1z+eV8bal4D/lrUyVkhnjPynfAZeFxhCg0QKiY2kAXw9H3z+Iopnk4aV2fCSxZypWxA2fCvQK/dNa50PsZ4koYYVtPecCAu4gyLP1608uYHcVupJePPFMjVSeFKMc0ujB30iX79BpJrzzxPzvUllvYQLFQat2BdlQdrNQhkrF80jk1VAPcRCxkx0L7DvpYlxmhMuPP/aiZORq/QzpsYiBZALszl9VcPQ4lVlIBAioOevZvkKpwxRuHQBv86TsfZ2WDRR5ZJtVCjXlUqpmy1TxZrV1Kny87Vca9BOIFbJbcs2ewRUgZ3+oNHH5GZ5PPcNYQClFxlkMFULdP9EIXdjBkMghcLNE/9DL0A6/QsO+JjHCYOeQ5ghGhJyMMMSW+U0hIA8BJ2wk76Yn0kJkWHemZS9IgIZ8fVWRk0CgzbFAfZQ9a9txY2h5K8BzdG2qEQZDifVpc5sME8jCpXIGAh3u/q3wHEjxM9mT4QdZpq0/kCbr5hzHp1Eck945BJVTgsG+IYt8xCi0PacMv02q5/bjuoXhqXfCauEzjqpZOfnpfI7Re8auhi8vY//9hsit+ZbOnKSmPG69rpjdW/cDhTL8WNcFWmSny2+OcFk/YR5eGqAcJ4="
+  },
+  {
+    "name": "efibootmgr",
+    "version": "18-4",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/efibootmgr-18-4-aarch64.pkg.tar.xz",
+    "sha256": "a443637e3c1171f9dcf60b5a2cf46bea8f397bb03168c38745084ca11dfa14d7",
+    "size_bytes": 29360,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmoAdUcACgkQdxk/FSvb5qYMxg/9HRuAS4FsQ/RKHFAYoETKi9Anm5I0zptC058kc6uZkDR6kOE9Jt51+jAjicNBH6TmI9mf3UN08TwZgG8dy6MqB/rQWzLxTaRrTg1FPN297IhleC+KGn+JTk+JI7NtayrMS5FA2Izv9lCnsM8B511L0fBJ0lAZe6G/EwepGe+8TA8nl6+E2T4VEiCFekzQLNQDPGDipEG11Esz0aVJe4ljulPPzjiUPAygHAhtoQ/98j1fXQYijQms+IYPjc9vydH29Ft14tLK/No8Y9eyppFwgE4iq5iAchvcnzMQGqif9t1tZ9L3Q0r8tH9tZ/a6+72eYApl6dQMExhtiN/NMyhe6WzP9iaJ+8EPJdmZKefJ6q7PBBcvGjf8/o6DtuUDeVGk7qZEqJg03LZPHPd9bFXc9y0usEwiZ9f6+wdZt5nlaQn/jaodk67d5Fv+2jdsnEqfrOjIgUEYObU3K9vTzhNgvaNDfbY5+Jt7/oTMyoSVkGDJ948sdSoQRiKqyZmX7PDd+pyVLLWm9XDtloeTKoNDdxCK0jtIP/QBwNnIzc6xcocCp5vs5j9mTMInZez99y/Oh44KxvEc/KfrDYcox6bVjIfg3ziSxHGTY56G43OaY3uaW38yXX3R1r0tkNR3YQhoZINI1Y9Aid5dqr/l/2vj3NPvcaM0JOsS9HVJMylYblE="
+  },
+  {
+    "name": "efivar",
+    "version": "39-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/efivar-39-2-aarch64.pkg.tar.xz",
+    "sha256": "6abe1962460263cb7f0c2213de8221ce570b83c301010afc13319b5a9cd97bba",
+    "size_bytes": 135928,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmoAdSYACgkQdxk/FSvb5qZdaA//bLhDh/SAcBHouBD/aThDvtKofJjcY/bPbpVpAMoS8bwUMTyeSySr4WIlyjedbH3YzbQTmnGOVFgF/pTkDg+ML99JUEhZv9CsO1bkabW7r1hQTraGKlwe+vbxKfI5lV9pqsABW+4Kvku4zLWPp9j7cF9skStzFfNaX35xy7qjxDj+P26f8lW5yfsx2wSaWMZuA3LIC+0sFw/UBO+bWzWeIG6p4N1n69Uc2oQPTIijCYJaaZrn/4Zj33r9FqCUQZSvTxtfYpYjHH6l1HDkWxyCmWIg5LLZri2iYdx6JL+eL4vttq6VtQ3y8YrDbsaLo5EGBDIjky7MJKjS48g+mFBJkz+nTP+XiNCdJHZhPHxY96Fi6qme24OXXwZYPeExLPs6TcSmEsFsXmQOOsHCyevvnCm9fWgPBEaKFB7yB45Iuw7gbdcT1bUj7LjJIYH0ByZBc5nKK6/0gFiwSnGnqbO0yuDQH+HyDFUIpMWhzzz6dJRCxEjih7UPenDaYVSmXNwPDCraeDVKiYRbJ1c3d2tTiQfa+ShV3daTjUSX54fhlx6CitX25oUjo/FLJjrLEYu7HOoETCJEimRtSU9B0Np5fZ5tG64KjnlUZjA7QJ7/Yq9S6bd4RcddytW+1gT8QXHk6WYvSRAXaP8Zd2ztIOrkR1coLuXAjkCE1pAoqMyFUyk="
+  },
+  {
+    "name": "expat",
+    "version": "2.8.4-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/expat-2.8.4-1-aarch64.pkg.tar.xz",
+    "sha256": "95b99acc39cb71d84fe2a7de224b0efb2fd1f383f9f6386508c280601e8714ec",
+    "size_bytes": 116696,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqYAeoACgkQdxk/FSvb5qYHMA/+LrUBn42ek0OSPKCyPzgikQ2qUpyLv/LuT1k7Q/KhfrxYa2YlfKLDRF1DyqRmEDglPy19ZxR4xIKseOTP+j9fLL2u3Rj6YMiCoYd6q881MFi9+dtHodWhaqex+Xo1cjcW+RL2eAw8w9qpwdq1+umVRRSdNEyMyOraMXWNzqVxplknD9qP+s9A3lAgfeRDYUtxKzwqu17KRETfV+xn7dVnr/CoxOUG1uWenDdYzrvvXZ14UxD6YqmY2K+zM7TxMr1Q5ABz1ZqwGjSDF/Ss0wygG46B27tvPj5FvhqMp6vhPHgfFB5YNbUle+lzHZ6pp2TaWbo9OAzwYSe1g8HLY1FTcBKs/IG6xErfd9Ta3oXojWv4Gg8ZgBhjjzWMuXu/hnE+ojubkmA7lUbHqPJtZsPtEQ+b1bxOh1TP2GY5MAdmtF1sn1rdq/+Ebb0skB+VvDGoYmsk47REJgFJ16TQDEOLj9Z3hUEBHQUzf4c3gv1q0C+FE0mYC9eqsyjm56yRJCXkt3OFFd7FEmUqNWuS3MPydI++9QYgAA4lz1RzSJROsIUOdWHj6ZZuzX4/qc0lHsDl6mCXQbyVyHlQt0IBhRZ5FytaNsqpC5O2qrNTt9wIS68+Zyomr9zVM76dkmZQiUIGady+2AEPqiFH1ujL3+1q+BJlA5b5n5DAxbrqMwObXXQ="
+  },
+  {
+    "name": "f2fs-tools",
+    "version": "1.16.0-3",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/f2fs-tools-1.16.0-3-aarch64.pkg.tar.xz",
+    "sha256": "251e31f6199c7e7a072bc9eb5e936d4966de7d1e180471e45e89bc62451cacf4",
+    "size_bytes": 192532,
+    "signature_base64": "iQIzBAABCAAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmahGr4ACgkQdxk/FSvb5qYeLQ//aGLsej3L7xIhPWWEk/5+YPfH2651+e6awOUaITpvXmC64sBPqbqL6WB0aY21APfHJMClL/Ok7ao+k/99A96VJSmEJM9DslxqA+TBKLSQiEJv6IR/wm7jyt/tk2X6Kvm3DYJgkDE/2pOZAeciDVW/ayGJugm7Ew2xlAayVaRdPJ3UtYbpWvTRKCnNWISNPmgyhPXl6lk5l4KluxUqGOBxqSVlgrsi72KmHC8CjtM3lxXF9eGOhefJuZr8VZDlq2JGZtwfAtgFZ3zF2u3XARcFDyKItSVJ/WyVlAoeIU6lQKGeR2pu+Lw9lfn8DamMzAk5FacYTYHoDtIHAn/ZGSMywyHQ4zKE/6Bh2Xx7hjC54FAbFrLaXCO25Q0Ux6YfaJRubXm6MwKj/bLXIqulNV/wpC23sj4mYrBifMW+LHrpaOq1UU5Pxv5bL2QWA3BtxO5V0lncYJC4rIrW4z6ZOkSgR6iE5mshXPrvzvlKDsEW8nPMo87k+LL64uNWHKkyU4n0snzKFO4DO/Y5Z8tQ0h2HeB5lA6Dbo4zSIo8f6tlkB+C/2FBEHeA3A38vfPT9OCdH5IDJcZJJ0kZAud5yO1bLCqWuspKU9YEFomfBssxfAKC7zObVrJ8Aqq+W1vFBW7jzahCsA8z/uH18grGVCA04muHlI+uwyN27MYvss6IrQsY="
+  },
+  {
+    "name": "gnupg",
+    "version": "2.4.9-3",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/gnupg-2.4.9-3-aarch64.pkg.tar.xz",
+    "sha256": "3f26513fb04d1670ca202551988f5766ef5713533b27846831e834243f52cbfa",
+    "size_bytes": 2763600,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp+9tMACgkQdxk/FSvb5qYmlxAAiyD1sNndxIR8ce8rrp08ac7rRPjtpfikeUbzbjsGP1SkEglzXqH4u1oqbEltfIashoeTa73jae7sHFXHnSJCLUKqv1LfKJBuFvlFocd0tlsAIPhhH65Q4CWqN0I3tJNt0wt0CEH9fM+VtkpUT4pjKq481Ic7HJM7hrPZvvgiiAcHba2iSRSejc+DCqlxNpALqDo2d13TeCM3DtIKXm+SCG9JKhlsc0r3d9C8vmvqQcqS685o+dejBrVU7anR6p4x/DdoElZ9164Rra5pdzMpbp5YQqzIwjYKNCsl/5lipmwL9CGABudoDGkQNYC3tj1sFmGbvVNAAc0VNxbKedXAn3mz6nW1AKy/4gQcmhNfBTiE2dES6Uvms4XJUsyd9g+inRKxwbMcRy8hmTSylLLfjyeUKYZIImmVU4CnFX8cDNU+yw31nxNuPBIE75J9gJoXVWwG/UDtS4QQYFoJiHro5h8OY9ejB99UhfbCC9pZsf7GvJYMvQDj3QzakZkzlaefArmyiYkg7gZUjwW5yGp3F5rq6kemF2SAOfp7nuWEGvGR055CG+kzGMkNgxi8W8rnflvMGvCoHhWml9l9sSX4AUI6zbdQweHWp+bgtjEb2U3z9/Y7mvtXcJ5wMJbZgD8fDZYrg5eqRBhKfHPYoHs4hmBNO4tv+mmSdZ17Fh35LxQ="
+  },
+  {
+    "name": "gpgme",
+    "version": "2.2.0-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/gpgme-2.2.0-1-aarch64.pkg.tar.xz",
+    "sha256": "7e7f7277f8ddc618499cfeb105f67d3f7be1caa32aec561c744b2a3b5063785f",
+    "size_bytes": 313456,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqZQpIACgkQdxk/FSvb5qbPug/+KZKtSz35LwJLmRdL8g9ICgsOGaFBaXcCFfyfj1dEL3AWBOTDLO5Cep61ZNc23ceiHqXaRXMYR5uy/LdlIhgLiKGuML7xl/EUE1udvXnH4HVOfA1ohfxEfWVEs88wzDmDg9I55Uhswdd6NWn3yIB1z4BgyV4QPOFK/fXc+A/fcKX1Q8VycL/v7mfPsX+T9jglbyJfs2CtXMk6kz9pYBxXbrT1skb0YdcVyOogLeKAu25ZiCKyU1NsWaVpwzD7JCkcNa56c3HfANKeljT1ZU1Ae2XUlgQpBSwKVMps4vvDmnZveMa2nwRVnNwiKQ+PFsaTpbAu4eNFM9HG8WKcI6N0qUm4UDT66D9CBwjPSi0AihmELy1qR0ER8NEdQqA7UqvQsiN1Cm4maB1FtcAL2RYt8iTMFdk2SKBQKZDvX0zCMNr3fdHcEWROXbPy7kdwbyvB+9oCVg4FAJTEtf+JeKZxi56ba2ElaXASGp8ucr8rA3UaH5kB3bGgBsP/7WnuXI18JwluHDvgbVrS4EeQOn7yDzUMkSNPSQ0Yd9s7K+Zfk8iGDBFnxO7ozSQ/ditzLyLYAJFUh5gP+oHytBZHqUlPma3n78FrpJw9jXM01O597A4mbxK7mcq8oBeOMn1AXMtKN+6vyA8QCMh28VeX8nq90gqtFOPaX/PzLmyG/NzvDy4="
+  },
+  {
+    "name": "grub",
+    "version": "2:2.14-1.1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/grub-2:2.14-1.1-aarch64.pkg.tar.xz",
+    "sha256": "cf8470867afde66260a1e59d32ea186cd3493513c785a18a3b0f8b8aacab269c",
+    "size_bytes": 9410924,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmnlMOIACgkQdxk/FSvb5qberg//Qdx0MhaVhdUjZyv8g+n+JD0b6BagS/24LkF+MxKA+htVu+2QDealDQXswSGgMFvJn5cj9okChrw70ZANTjrWA3u4DvP93de9pbiKC5iqh11O8SPrBQ7Q+ygZkBTkQJJd5WefnpWNLAhJwd02jpUyFM/hYb1zRkXIQPeFoRoUFqVuhj33LtgsrMzsXz/6Wegb5C6aTx4EoVXejo/0/8V7KGpFmdQuujD9c33ytRqZemGtDoynNwpCRupbJpkkpnBZljrSwZ1UlHZHokxIhyZ8OedHbxk3ZHAyqNxfO/GnroTXnKEAhYZjTppDl5abs2HFXitjazPPn5dFPJdeHRS0N8/4vs9Si95wn/0CaOOTuDMx9mKsk+qQGU7uzfjhf0f1P9tN4AKnCKQAVzB5WfKV3pZFaKnaO14S72u2o3sn/sgFIUNZ9zxK7LBUgNyj7gQKO0+ot8qF0nJw3desFXQD3xTrWWcruJJ/TwF/SgQcD4qwEFKbRqW+F9SoFvnvteHjSznkU5ra4SLUxKO5kx4VKFQfyJGhF7l0DubH0SlJskJuByeXvwZTxGajDyoXCCr7WKEFdFN7WmJ4ekmon7X/J9u+ZHy1JbJz0HGSthBHePrPlelQwQxsISAHVartoCeSQjAU5ivtu6PaPc09qarr5ScbEhc0sGfv+YnWbyCuBn8="
+  },
+  {
+    "name": "hidapi",
+    "version": "0.15.0-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/hidapi-0.15.0-1-aarch64.pkg.tar.xz",
+    "sha256": "3c29d538838d3cedfaee37291cc139ffe07e9a9cd8da1c24ed8e58da5febd670",
+    "size_bytes": 42400,
+    "signature_base64": "iQIzBAABCAAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmguKLYACgkQdxk/FSvb5qZWcRAAnmCF0jAY61PJZE4emzq7Auz80x/XM6DQEJ+2tHizLfSZPI+vR8vLCchbj07eBD8jKpt8Mn/hGahZ5U0CbtvwMqcuVunaqMi7QG1zJmoFXWGFWUiGQV74NH0byhbGd6SNQGG0k45uE8L0MXr8A5utCAG6AI7oBXRxNDHtpAa9OuBaGuNCQKUkK9WNmw7mqAySbGnQ+5AZIex2PlNSZgCgbn0FyJ/i16tYr1g4mDBRCCyItsadS9M6g1AUV6uKstrCD1nKShGoGDmDyrbDf1tKSuKKdGAMIHcjP32ZIzll0douZ2XOQZ+fYx6mDUaav+DRi6EZH5SxWSXfFCctiZK7rwuxGrSdu5JiAdAoJStcnOzU3laLJJlgqOxhfmUidTPkpDvldctUCbB2BNFVxzgcFA1IoGy5GIAyQneBiQHALcFDI4R9a0s9XHT4Bln5v7DOJL9Du8GZTfN5IyixZfU3zYA/wFUwr9BkThfHEn/8MyxsDz62IuIlucWUqYNn6MvtSMInme/Z599ZVnEio0XxjIGvRFq6htbPzmdw9tWcG7kF7iLLazfR5p8yRQS5K+d5g/uTqnkwJXCv7UmQiHUMYo5n4iK2T8fIEs++SGEcd0rB9No/MicGg8y4GMZm2cLIjlEPAtUNfjZtN6tLMkXlvJAS+h7i4oEZW5g4SN8IUGM="
+  },
+  {
+    "name": "iana-etc",
+    "version": "20260617-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/iana-etc-20260617-1-any.pkg.tar.xz",
+    "sha256": "09fced67d5a7e1e2380fe5aaf0ff257aff8a6866e87f3388f506e379c5ed01b5",
+    "size_bytes": 394152,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqK4akACgkQdxk/FSvb5qYE9A/9H81PVLRIdKyYHudbKfCDo9GV6Hog0shkxXA8XzBtPYlqVGe3qzfbN/Br3sqCkZXWH40RLf5FjF1MNM8Ax9hnWMZtTJ3UVSPW0NrIevFB9qw1flZh+Yy6JaUOSVje3JrCKIl4VOXILZi7D65rvfGiEUIdn4cNkOdBAJXHmJqDC6JcHEnhucgyq2o353gjfGgm+i8tzglLszgdFZez7fjoTz2KSKS7lyBB8KzDNh21VI4jQNvMb8uOf91lA8xSu1DdXbHmvSw3mb9g1OR3FblBgSLGQg55E4W/GcqJkdMNXE3aad8mRw9E47XUr7RSYipkZtXDYU7y+pdBG3KAr7T/GAhYg56Pp9K8G10jERn0GcuICQbxx7zGHm4kuL//lEBD7CY3vifVuRt3YVb+T2tlaH5xvzu/4nUmRBQt8+02IariAaOwAK/rcoszeRjJhpC8M8nJ7tGUwcdKpdqQo7ugB8olyrOeCHhlDeaVuEmwthaqqoVbB3GuxpMyH6o3L6w9ED9LtNGyGw74kRZFgGEJUgnigiDZRQ/59hlfCNiw3se3EMkwar/YS8dkTABfjZWvFXlyhD3KnUfgEuLzn+QOcxuek06nZjgjaIc2CWa3bWVkHGGSDceHJFr3xGnPvk9ownY4g00TyHLoKRDJ3XfeyLYizYlFiFIJ8uyRboY1mvE="
+  },
+  {
+    "name": "iproute2",
+    "version": "7.2.0-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/iproute2-7.2.0-1-aarch64.pkg.tar.xz",
+    "sha256": "37a789f1b62f329e17868f7a2e8e232ed12700e93fbe1504d9f59de5aec80e8a",
+    "size_bytes": 1149324,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqEpVMACgkQdxk/FSvb5qaW8hAAhdv8l425fw+ITF9Vv3BdbuAHkEL9v4Q3Ke77A+euDZ8UUZ6ZLH3iLMCmZbnVWmYJwI+Hu1LL4YHvYkBxnahjrna4wzN8RrG9GymRj8X6WDx09AjtrBpqkH1kOHchPLEDIQj62Z/89HbIvIMyZnosRmSTp8xkwJlzi4DrIRa+SnmQqxRpc2LPGz0mq5WL47XC/Jpr4BSoMuV7KKcjxbTuUqh7o44YlLN4YXrs0xas4sEgPn04LCZvhfOSA4S3CvbtA83m78L1Tx5rMkc3LVwv94TwBH+lRs2z48k3NTinvuk0hHlZtF0+rqxC5rYxqVaqMo6t7OHBg9StPIGS5agEMpkM7LxfbWx8rTz8zChaI5ufmXkzgbzkt/5A359sBRjYZnDe/H8kso3iMm9o/ojm5fuPRJqeBB3kYEnwKAWLU7SztOYJUu1Dl3LFD41kiLlzbWzvjWXXTbscyNxyoGnd8R5BLHzEMoCzHY2851gacACNvA9B5jBvc92vAFuxUXfBKJJob3IHmCPKFu45fIfR6POSL+/erwOCABKmECBYzL3RPrOUw8xoV3GgH21eSvG00cyJlThMpXxdOQ/uXHcOKe+uIgGDzBPGoskz+CZ+EoEI44PoAelVjeO0Tra9KXNfYNeUkeOYiFCM2SY7h+c6OT1b/pq4MxadlHinQOK3iSM="
+  },
+  {
+    "name": "iw",
+    "version": "6.17-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/iw-6.17-1-aarch64.pkg.tar.xz",
+    "sha256": "e925035ffa55196d8627810ec30be3c4a87291ff61e8881aa22767d76c85f3e7",
+    "size_bytes": 105064,
+    "signature_base64": "iQIzBAABCAAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmi53BMACgkQdxk/FSvb5qZyNw/9EjO7nouvCK0xAwNSgmdiuWyUqZ0ry6u1zn3BJUHb1iExW0xdopy8NxJP39hB1o9VpzpEH9emaHZJG2L/ZhLE/Dp4NAL+76g0whW3Vm77Fm5nZk4tw4Rz86VrQQ85Z528MWENXscZiZOpTwygrqzmrsmd1UWtz9aKSTCSr1Fm7XxqucyzmCE6K5Lbwv0BZ7g8xBmdrsnyPJh5IHOcHXVbYKlHwNpUSAt4aC/ZXS2X7hUtrRsWokmHG5D7xfPzKJncA0zKrhjAwyUQSKJU8iHCLoK1C2VKEsq7l5cJSwUq/7CSUlOL63TTx6wKgofRatVmBvt9S60+j0tS4TGAEjiJQYXYXlYsk4aEx2CwLgod9Ilydf7AnyCZeoQnAzC0IbyBRVIefoMTspanZq/qOY1Q01RVTF1czlq86rPw3fXezxiTERdngf9sMOKYlFyQPHEU0YIaCRvcALclUNKwusn+IiFSnudSvm+nnAg7vl90D6xcJVq4MJedE5vuK/ONwibBQA6fCN3F6t7feRnmDQ4vW5Q1CTm69VOGvPOPteNXcJ6nC8Ld/dHl3qiERxVrRAomjKGu4Sdy1Dpf9bolmafyt7F4GcRJw2kmXsq0xhkdXB1ZMcOX+ng2ImoxcV3QMhbb7mGr7cZBTW0G0m/XZ3vmyIJ1VyuwGIUvoc9ORY3fS2Y="
+  },
+  {
+    "name": "jansson",
+    "version": "2.15.1-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/jansson-2.15.1-1-aarch64.pkg.tar.xz",
+    "sha256": "bffe44d5a784c7cac0a478cfb6caefe065fb59c907c1d182f60750d2873f261f",
+    "size_bytes": 77460,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqKGpUACgkQdxk/FSvb5qZvChAApUuY5f/669J+nLk7bQYUJI625kUGXK819JOCH7/ighRB7khMvBu7g+vPVuk7ymydc3J5QbnRNOZYEr+YDL0f2fFGNP8AL3w82hWgdvUHnNtdBNYWByr1fJt7t1byy6mgxZlqSxRV01UIBHarYD8o27jRgomwG087c9jjBOhGbGBP6J7GOs8iiDkuZPUvsICW+ZW/Uk0t1jaewk44HGx4U9J/Al2V1PkRyODEN5EyUIloUEaMEsUz54PmENqS6jAY3uKbRIaHAy9h3fXUABKi7/XvPn6GVH3asevjyAYwbLWiVXn5hm8lpizg+jhZ0KQXcp6XFw5dbNlHQSqdZrqQyzuGClcNBvMERW38kkq9J2hJD4PiXV8zU7QUXx/DNgD5cK+Jj+gohg8evJ+qQYjNmK0AuiR+FGA+MzjhzHSul371YtdJTrB6p6/wYXwPbDlD4qyddeYTZcP6+yUgnhfiaNip9+gxpoLg2IYuCdNEeffMg9m/4SPPLS/h21F5L6uD+yPqkLjmD+7qEXvpYkPep9aIVKmUpU8njagIdokrrLPNzPAFcmGt3yPzVcAbYARRprE4DbwgedE1FtptZ3iowAbxA8fL0/gvl3uYqXNGawDLAVq9tMRtHXk7GLDdq/s9uGpkRRTp9Hcl61O3kpdNKFTRbB+fcniWUAE9k+toXmM="
+  },
+  {
+    "name": "less",
+    "version": "1:704-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/less-1:704-1-aarch64.pkg.tar.xz",
+    "sha256": "77de77dcd1371ffed620da4f8d1e31bdbd90cb97a75f50eaa90666db9ccf6ccb",
+    "size_bytes": 153468,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmolupIACgkQdxk/FSvb5qYDiRAArsAdmMLRMTUyiDd3te4P1XzkyjRSdcEVbi5pnjovVRhA9o1XWGpzuS3BMyD7jKMm3BL4TilAOmpyysQ2KFY53tXZHDK2Lu+jnIHrehLV5kwnVhxLQCoJgzk0XFWJc8dLP9ZeH5XmgKj/LNN3JApkYpeoO9YDORabzAG8KFExyB8rdtH9biek/OKW0aXof9ey5YdFPyuDWxvztci7IruKjkPidVaxW8msHfYFdSK1brxIeBWml1EdT4q1pmReMvMl7SlmzMSCyUhjnZpX0WKcYaGkbyJ5xovFSsDTjUwM6QtgHW09C7UbYgOmRbSx3PE/9FZ5ep8etvR+94dlqLUl5lJnUlGR+tx8mron9LcbZ4mr84VPgRGClL1b8d4RrlDmaQ5/x9MQeGZQEHD+GZ+enwz+WutdcYZj9LSnlQ1lbIpcFu1qy2MDVgdcRxC/4KAKfgr+69PqDT4jKj8OHvsbkgsFDcQNtBhEfC9Okl+hpzsJOzfY7A23HpNuz/TKb6NFHFShpszljs+i4i3vgSgOXtQsIIJgvaYQC/eW1XpeBfduS0RnTptrixmojCH615G6tTN8W67v6qsS9WFytoIGAc+f2mJlYVkifcOgvC44HqwRMQqYg99eoAbHgI5/5bkfVJPxnH1LD2Ry/20O47LWvFV3dnNWwPqBhPv3OPM3nKc="
+  },
+  {
+    "name": "libaio",
+    "version": "0.3.113-5",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libaio-0.3.113-5-aarch64.pkg.tar.xz",
+    "sha256": "18af1ae9233952a6a505f09cc632b09b2eff5898ebff7e1e931829146169de47",
+    "size_bytes": 23840,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqRehIACgkQdxk/FSvb5qb+lhAAlmFTusmtTtXD5suWTqlK18lq7ZfHdOLVrdxSbIED2lJGw3slicxuk4tPkqyVnCythgEWsakbvGxAp9JCtBLH49ZAHVqYPd+x3sIrk0BAHGQV8smMJuIO1N8WX6Y5G4xwILonr3nSI8m3g6QJupakuY+Nglx05zm1ygikb+R+iQFdrKCC7vd2KlG3Yg0qMQK6t3fbeLuz2dZEGZvc8Y3bSte6/UYcDHa+eK+IcADchHHk/pvU1JvyHUA9YokI88VBgRsvrtg/YL7dvq4NDKwpl/azoCs4FwwctKzB8OjtZnRTpoBSfIzndOKbNVqcv0n8dYEgMREHRB1vaOtvXwYHfVAUF5ZepWmmEeUoLjsPPOOBVktOAry/5fQjNn6yf2ImrtsFDl3YQ+FrOL1jb1pCoo4iKs/Lypu37sJ2RPwngvX388I1GyVEemAP3Kman6VtqUDDeNR5tUXqlYx/qxodbuPG6xQ0ed0KEWxBbXzdVpga4HXDxqJLQ5I7e9aSbpigSO7GtplHviSKA2QhKHvgw6Cguejop5aM+qcArpv6A0emY8w7TUqYGoeOApkmX095MOzkQZpF7hY//x0oEcwzQawgidcA1hac+GKQb3rI8i0VBPz5yfO1JmELLeERSUKHtzcdiS6kAJHFi5kIEbj+ulUK5bV+KQs7FPW/X6UNa8U="
+  },
+  {
+    "name": "libcap-ng",
+    "version": "0.9.5-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libcap-ng-0.9.5-1-aarch64.pkg.tar.xz",
+    "sha256": "bb9e44b018e7dcc08cdf0c9ae374e58a52b12cc65448fdd350ac5b75604f1937",
+    "size_bytes": 68712,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqOy9UACgkQdxk/FSvb5qZwaRAAgLxXIILINxcQC//0uMBLRYXn4JnkhSa2fAM0Y0Oe+tsabhKlBWU7fkOyUCK1S4/9WJ3g3V4RGyBMQeNrwdwTCIep/8F+LPi3C0YQGVMuFe28PKVCqG1HpEijI+7bC4OOk0yK4PUrHf0dBFq1vG66fWRvWuaSM750zcLg8IoLjTqvEdvyV3YbyV0N2CFPISYgj8/eOEaJ14+xshfbN72Uj/RL65fN6s/sMNjfn8bzgwI4RLYIas/7n2dsB0Au/tSI78qUAFDcBLyZ4CmYd0jfgURUfo6z1ma/abRx2o8NNSaH+i2HToxYBUqcj+PdmmpK2bAyRM6wrB0ykiR95dIpWi4EqzdAPNCcvSuJf9XvHbubZ6OD08op5c+gl7mymp+F/0KC6ZmBWkSH+gtfCNw6x6yya/RS039GHdV4+fVmecWpEnEYwkvDJsC89t3suCdIZqROBoAjf/8jrTA1Y0FOmcxLHrhBkqMtjH6Lkt0/VvlXKDG+6zjyo8dwyPMW3EjR2IZEhVFWKyD5tLMbxBUBr/REaA3npZADezwQJ5ThIu2fjanaRGpc0XPOv1j03NMyOGs1gKQ16xZ3oZji/V35LxNGoyyCo+buStmjQuJ552RkMivV4DnbWZ4gmffVpMRViIs+zB0eftzo7cWvovrv/GtCr2ZNZMyHfVflYYD62hg="
+  },
+  {
+    "name": "libcbor",
+    "version": "0.14.0-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libcbor-0.14.0-1-aarch64.pkg.tar.xz",
+    "sha256": "6e6d2ddc7c902b4841cfd40dd030326e2895c364a6151df60c864867582b4b02",
+    "size_bytes": 46960,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmnYUlIACgkQdxk/FSvb5qbRuA/9FkfAu6aq4hO4koBQLhFw7Zt6wnOI5gXtSrQWoU26mtC27w1OAeV4vH4P1pyemm/nMkkQyvOLuz5UFBK7bHnXv0lwY07ydEKBQvZuLPEsK/3ZMGE/3WZa3HvS9xasCD5kmO7xzk0aGS1JawNYHBgfnJXAbPvyrafn8pmRJcm0NPfBy1YTtKHmKmDe3fBVjj+l/stNA5Bz4ax0ptxtErv20ytwqUykG44ZubH0nRiOpCGFSYzzoFsvPyWfI97c58dUojhTpAHOu4keqgjAtimC4bWrIlpMKRD7sx7Y2W5GvUUdKoppk1KdvQHH2kJhOGQ9ug8/vHjosJSK3o7Tf3aUxRK/JqxlTxPxZ160mQPXUb5A6NshqpCpRmFqxkoqaYHU0QzfR0jtMEkkPFI8JX6rtvH3VmQPxD1kPw3tk4fQpOQJulQVg2ACZlImSvJCHkpqBlL/G5Pf65vDns39G/2urdB/ToOYuUowo0V5eQcG/QZqoF/UrXyhlzWJ/g6zOedry9KmQDSb+wuA+Hneopf06MOTR0+2biROEBs3cHi7oj1IiFOPJ12ZR61VrkeaML4J6CLJ4xaZ9oIto3DNppKLYyDVSQT0im4J4PUQV7B/HH7D6nkMX2iNgj1fYEafOVUpu3Hbok454Zo1vUop3t5m5tpTP3PXuB0i+1p8Vp+MUb8="
+  },
+  {
+    "name": "libdaemon",
+    "version": "0.14-6",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libdaemon-0.14-6-aarch64.pkg.tar.xz",
+    "sha256": "b96e8eb1604bf7901feb1addd2882cce2f366b504d919c9fc28a53f8c240243b",
+    "size_bytes": 19340,
+    "signature_base64": "iQIzBAABCAAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmaJqQMACgkQdxk/FSvb5qaljxAArCRCh+V1Iw6pqY8GiwpLA0Q43u9oodhDHgykZvizixCf2qQf45KXme7yfAayin73A4rAz8BQHTSKvARisdd5obiMjOh6T0BELi+gzX2BMmwOQu3LxPllzDvnyGlmOM7gdDAE5W99epIel0MzzqsZ0CJ1zFSnmUgvqvut1F/LhxXp6IsFrrnEPSlhItD+mwSloPLG0nDfD6VdHHuUt/18dW8zcYzTkxa4m8au6Chm5c1TOpuTdnFfYkk+qG8aI5yIvvH83B8DIUB36K9qbn7H0MUVMRkt/I31J75wfgUYCdxLRVDMiCNSmDdpoCMiOHNrvSihOGlmvKLx3Ucp+1gmlcM1j0Ljt5g8zDhz8042BUm8rSLK8gHnyBO6tbBNBOiIHfhGn/QL2ndYdzntmbsndEiF24BpKOrRsT+tHr+s/DLXuDSI4PnowKiZrEfzqzxrDvvDDUNu31Jvyp/7yMsZF6NFSJ6S8qhUxgmONmfNG7llhtQRpkEGEheVSaPHmeSwbQ4IfxnCyaWDvfX7n/6GhwTeyDm4JI5qdHXM5ubZbrVWz27WDkSNKkSAr0Sn16PyXWoAIDxonCqJxJrMCpOXZw/wPJZD/2uQVY/wQY2nQAccG+TPeGiSw4MjBimMSLqhYv0fuaw0EfqHjFM6V0XSevH8Rre1wQ1mBVm2iYgoOhU="
+  },
+  {
+    "name": "libelf",
+    "version": "0.196-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libelf-0.196-1-aarch64.pkg.tar.xz",
+    "sha256": "a8f417d24a297384b27935381a0a4f892b121956066c09a3c9cd1e3a47c6d214",
+    "size_bytes": 577236,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqDAnIACgkQdxk/FSvb5qacVBAAns1gKnHMgleCNqvuoY709mZDPnYdvV0pa9C9oMeecDj4hQyZmPmNux8lLeQ31iPCf/b4qML+b7kv9ocdPgkzUsZ+pR1vtGZJed0UTRyPJYslTUBVDVwivIgyYRWqBVpNTf0ibUYrnGal+DtjTxypdm/LURvb9Itaxhhh1uCa7ko7zYxsowJLlCEzU7DIbHrynycEzjdro71sPHcfMDovTTtNy7SPnARkZFST9omDeNBw8M6EGBbs/HN/+LctGOawb+oTiIzSQxF2kQ313M0iWW/pIcgBA5Kc8duXXfMkxBkeLSxJtHuV/RscHmqPJkSveWHKrHl9NDpHI9XEO8MGrSiyZnh7uhLhF7cMiDtNIW03os5a5AjwCChA7RFv3OYWnpwC+bM5t0fbcyn46SKpxIvXoP7NM9ZT+P3JiI2R7BBK7Px5+SRYCCZOImmZdRjC89bpJRpkAUoQ08EO45gqoolcfe408bt0pBeKmEHe+BBajWn3Wv56ogdbQmbpzLs2ffe8Ke2XNrArNf7dreFLszU8nJIaM1tZnBO/vJjVCiWiU7f9f9bxaQAa64KojQ0I9DUCBVkvlzxkqfBK1kN4+iOwvv9AOHC0nBJIMgkHB9dJ2h8maVyqv0JtS7sL2fo3c8Dmhf0uQgpZxC02oTOTRQmPrIixmB3TMfcRtx/Cmvg="
+  },
+  {
+    "name": "libffi",
+    "version": "3.8.0-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libffi-3.8.0-1-aarch64.pkg.tar.xz",
+    "sha256": "dfece459e053d53a5a7fdfbb2caf1b0fa662470220f86615a7789eba8571c0ff",
+    "size_bytes": 51464,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp6WWEACgkQdxk/FSvb5qbCew//Xncvw5AMmMmyLXsBd87JFRMb0TFlBzTEHYHyaUxh1YfNeiliBnWMwM30ymAS7wyG3LD0L3d2M9aKHsYFYbkLsM7qJIBI/sTPFN9i+hP4dlYlf1nYttDymW1SdCo2kExVw7a0maPrwrF8u42YTACpFZKoBPfTgsyfT1UxQ9UHw+7qB3fiP30yBoi+hKl09P3fhITLzQwBQ/wuvnNAP0xzilBun9u+x9O0g9uIl+7/qK+J6T/Ax9exQ17ZJ7Tl/Gndrcbne+vo9D2rOsH0ZgNS1ma4CnPJoU/DCkTLFXCtAAMVGMfz6uDk22hunjznGNLBsK89qanjUIAVQmPrAElTyEk0NohMM2RfyxvY2Uo1zlK8pl8IUC+5FSaumFo0C0aCI+KS+4iVmpwMHdBhDAu/MWAt22XG8d+5rve+0LgfR6gK4tsMPNyLKoJVITQ324EqpTMd+bmPy+Eu/uzb98E0a1QEAe2AkspYHwkldJTiuzN4fHpGCk3czMvy1A5FE52I/vKVkqjsXYGmeUwXyITdRsWZMf8grqJaklIt9stj11fk/94021oJ64ZGv96IHfDwEqjLpQPDCH597Lm9Lo9VvjxkEHOjbgT59DjfnoYmmq0AglXGND0AVGfEo+EaINDTIISbyWcLoi++3hBTKeaDv4GanVhjo47G62JgV2/V4IA="
+  },
+  {
+    "name": "libfido2",
+    "version": "1.17.0-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libfido2-1.17.0-1-aarch64.pkg.tar.xz",
+    "sha256": "dc0cc62611c94e9b659071d5b60d29ffccdc06f41bc5badd741c59bb2bbd92cb",
+    "size_bytes": 190508,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmnj5MkACgkQdxk/FSvb5qY5jBAAuOilZVtFYeSGhVSoNnX7GXbXrHvj7WlywmDV8lHRlRf4d/ZuTMGwlJj3UTlVo3iUMcIM6qhK/R57ZyZMrc7z9ViY4ElE7eSbBvISmzoxrXZ1cb+1pWNieVausGZ2lI0nTF5kb8zCxR4NycuMtV1v/RDe64IxK23Y8/DNHtkVSI7XtmTWiPBQrXhM7L7L4epa/OkJW34vdtOF8o5qv1Whcmk0RYAECxMGkhuPGhGq9gwtR0ss3+37+lIdhT1PPFw0wEveffZz4CpxX0EEgzAnW/N+vwbYGO8LfJ/5RnYxKfVfqT4DbxQtRTnt7i+0lv7G1TLVvxR/sIN5p/PjPDkPH0mtv2kVw0jMki1U+ieS2jXr5uzpMp7xoDObBytZvhG83prIzNpR1+00uYbLTa0ItUuXorNQWuxcnSvSdaOuV/bUTsJJCkA4evZuu5mJFFHzzLnSQVMduEddEGuoS1hAZ6UimQwiW4+Pw8unGbksuRoT0fogaF6IpJdyRwRjKhpDRLUUdPk8pmRpDJ5XyUISBUC516DIihdwjYJo81SV1vIfQT9L4/rhi80KeQ1nlfuk4YHH9sWtYFXBTBOInfEi9QU3McRwDBuoB5GOJZGexVXhjkY1zUgNwR3g27T41Gd1Adf5j1+y1927xAE8glPUbQXDIMm5O8pBR5LE+AEJSKI="
+  },
+  {
+    "name": "libgcrypt",
+    "version": "1.12.3-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libgcrypt-1.12.3-1-aarch64.pkg.tar.xz",
+    "sha256": "77483cb078eb015c2bee6eb50bea2582abf27438967ab255cdef1c663c785c7a",
+    "size_bytes": 599224,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqR05IACgkQdxk/FSvb5qalPw//WQlrbTGmWisY0xBhmZtxCiNYgEyrfQC1xsS+gmrF33dEp6ZQ/ImApiGQTwh2JctKyepSBBiKqWLyKEXXeIPSL7FxVwJKAGxgFl57shTCJLQk1Z2jdrrfRr2Mhnu/97sEp0FTzAzb6vrjuNcU5+dTCi1Gxzst0rC9Ic3gX/t9jTnyqDp+YyXMBQHILcLERNcWFErKi+Jm2DJNZTMT57IBQOLDtVVvtEe03546gkv09lqXBxwy3bXdBftN3jG4HtliV4K3CU7m5u3hvGvWfqpZKbdiPNcPN+W2ql6+HyUVD723XSbTv8TpaeXDYdkmOy15YRR4MvRRr/I8RcCQUIX0QH6hfoo9YHW9l+FonmAbiCMQmDIrjK41TS05pdQE8DcH6t+jG9+2KZK0jnYEdAsolstB1p9n3hQVqBaroAfQ8LKD2aB43OfDoHCCruwaJROe3L+swfftQ21u2Kc7eXh9t9R2/XaivrYXLoOebmYJpj1kgna6DPcHgL7GeNBBsBZdD77nOBHRiFdPo8USHaOWLU7S22Zy+Y3i7y8way4gVPe8IS3vmRj+6hAS+JlVG8LemNNNA3jXCXgwLqJ2IXJeGmvi/VgbXWtlk2LXNddH1xKidTc2mThhF815odXmKTZ6wojzpnqvmaIf4ynsn7Q6z7b0cL02ycJP7TqB5bS5D6c="
+  },
+  {
+    "name": "libinih",
+    "version": "62-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libinih-62-2-aarch64.pkg.tar.xz",
+    "sha256": "c561dff1db53c3b11bcef7e694e6b9dc4b36133ff81038e52777568ba470f1fc",
+    "size_bytes": 19796,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmmeTEcACgkQdxk/FSvb5qY/eA//YG2u1llNbGebeNAXOZWlByLEYl/R5wrhGFSZVdqktJ/eVk56jTH99Dv56HWniyq/8jMIn+VSK2RB43W6/FafAkDO/AKnsGLQT9Loe0mBR2a9C+3at6/PxFq06/icsUPMV4AJtSxhfLh66HvTgCHc8KzeHxooSCIf53SlRnb1hEXZiJO5kfF6bHWBaOYwpg5tKqOFOj+3FtKcHG5APs0DDUoBuEQIQxVzcYWmZQMLmM3ykwTfoBymGjEMKvHm16XZQPYukxjfexgtQmjKUm9GYvrVEpA2g4E7NXKfT2fjbi1u+Vo2mk3VLaZRf8Bmy3RLd1IxwvBYX/JQRyOIiTuICyEprvGk61tJdROuAwStUIoI/HkNZdetFOfDocbYdWXlU4dcsg9/HloNzIZViK9uIQ1OqTNTX/8otoDwYbnD088FPjsjK3pFHuybWwmZGwO70yndrqC32tSWqOkbN3yIQSyNUCiSCkhsjkfQ0EgQWN3yxaWM9/apTKigk5giBdVo3WrRzEsX54mu8AT3lGGcAIlieY78WSYqGpp2hw6Uye9ylceB9cGqOfoo4k5e+F6BSGlu2nhPX24EU02ZT5ykadz10A+VkSWuQffqO58I3tJ76cV/ylBnljCtKF8jVTXC4ZIkK3TSIV0bfWWMMtmF2j78YLoVF6RzrI3mR4yqr2g="
+  },
+  {
+    "name": "libksba",
+    "version": "1.8.1-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libksba-1.8.1-1-aarch64.pkg.tar.xz",
+    "sha256": "e776fa6704fd22b2d5dcaaf402dfc705228bbca455027aaad97220699360611e",
+    "size_bytes": 134672,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqRxf4ACgkQdxk/FSvb5qZkIBAArwASw7VgXMc4wYC4YWMMw+caSAU2aNHBTjMzxuW+MqNVUKsBtv9kMUZUBXBLfjXNXHXiP7a+c4yksWiREUbtj4k/VXxsx1BKiufrbQm0nfMihcv02EaxwdDuhKuCfr/+GpR0x2XpYfV7nyJYgP9Qh2wI8rE/KtXYGX8Mv8ywLnyLrATGq6wO8LLsG5SKSmzUEvppGmAdh8jFNJV67uGJq7uFDg/p2L1RnQbZR/Hkww9etedaEeRzfMvzC2c+UXIbC/95Dj4vE/cyKQO0X5wbkVUKxVk4WInpWMASAP6lEx+NWpzKRsKja/xdE7xhFMqxasdIxNhBYDBhyoSCZwMX8ErNrtBeV94oCL3wDd95/LkrSM0GSPKb3J/YhnUK/9gcjiJqn70gm/s/EJP9luUPq8lK/euzFOuxPHFK532uADEAX6BNw66T3YYIzlId3ljdqzFv8w9wg0ZJakt0gQ3nHC8pY0PNUW1zpICBNG66QyTfRlWwV5E5OMIZwJ6ymtit3MiwGkRYayzzNK/Ypf98R+CG3RWzOaopjLCtZ3xLufu5sEs80c+QY9H5CDkYHy0ZFTza74xeBHh0L1ThyLH0KzcvqtMLWuHqm9hIKBHK5enevI1IDHB2j+sgndxIi+EpYT6e8UHVTVRkT1Xhy2lYA7HR0OnqjIkRZt9v9VzvEgs="
+  },
+  {
+    "name": "libmakepkg-dropins",
+    "version": "20-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libmakepkg-dropins-20-2-any.pkg.tar.xz",
+    "sha256": "9dd39ae2962769cd1f97c731833c62f07389ec8fbd2ddb4891a5b25c7ab7d578",
+    "size_bytes": 6232,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp7r9sACgkQdxk/FSvb5qbOgA//eecRtVZXLrCM+sf1FkPUUTgUxWFCQjxnLGe6Mlnhz7nGdQoTXAdYvXFzR6jkJicOOeHbD808v16YzJpnhsfFCnghPT07HeORdMrD2IT863LDsbrHkvrcBmdn7modedNDOm4ArNcCb+lV/4+zBza+4QZZ3f2w/F8xf5xIc7IKylxGkcISwpvSwJQn2dqhDrPUpB/7u3RDLM5z+8KwLSfOwEs1vQRuK5ERUIb3Vm/gy38pA1Amyrf/UAEcEmHO/iVely1FL47JWNnFh8kcuqpJbyq63g4GxUXZhb8EpyhjjX31rmDRG3H4HxoyqRCTh7KCcsnbJyrgiX8IZldKDDGGZRUBIXagWiL1I9ppVJRA6px7FbsTkkisyPtUlVh46QDNee716z2lVApX4SdihPbC2vXRMOwtYdW7N3y1ek03Vo24s916OeSI94rqXXKo+TjMN5EM+Bb7RGyktxgegA8MNe+yiQZeibzcbcrnlU9zXXQlWgvxLJUqY+g8rf8LSQOneVdAhDmv2wh8Upwc9hnYuX3kCMbMLU7HPzNp2IRcrx85dRb34yyPlgEzfpmQCUEkobj4+c2PSxgoL/zQfaAXl7HUDcgeTb801/T4yNna+vQO97TtpPM3bJKKTf94O0UjjT5NEsR+OXnW/KTissm4Y9ripNoiWgvNQOunyO1m1Pw="
+  },
+  {
+    "name": "libmm-glib",
+    "version": "1.24.2-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libmm-glib-1.24.2-1-aarch64.pkg.tar.xz",
+    "sha256": "e5c0233fbb1596d585c661efde113dfa5ebdea63402e01d270fb8d81897f0627",
+    "size_bytes": 543176,
+    "signature_base64": "iQIzBAABCAAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmiRdkYACgkQdxk/FSvb5qYUsBAAlBcS0GfhPOQEKQuaxCUDw+ycv38/Nc7R9eDgt3wTm7JY0411MYWPfDXmqixMuAPYGN8Fs7tlDDHD72DCX771eSwYdLM/DtQ2m9MeDNPHmXyy0qXcWJTJUjE8m3ZRItqFJppvrz4P367rw2Fj0kW2uK3/Rrb83pVr11sW54jPEaRetcRDg3ZcQzStuEUa49QFbfMXlsGnVSi8b0Nh7of5ZJc3pLVWMbLNLzU6QHTtmZMNZ34InqNl3IUKebogN21lKnHVq5YVxSvkjwT7GHnHGpmfoKlpZSWXePHk+zW8xdd9r6mLoZytQpoPs5O2DJGRKyqpHVqhdzLoJRol5e/qF4K8ohWoAbhpKGNidTHkKveX/eADCD5LbKVs1Ho3zdUGfimnYez34Qk30MLcOce5cScTp+uqwGf05zsuutXmyeaqX/eGv7RDbVODhjgW28Vj37uME3vrs8J3yjLoXde0Wk3ctLG2J36jYhUVUBhQzlT2PL94IFQEiupGT5LC3RMqyy+lqJzuo15w2BsEN3zb9h9iEfxPEh/sMyhIrP6FUmkmQqFSTcSw0vWuYelC3fSStnIFab7/PUnCk8CkSGPLTbPkb35gcUcJF/rz3XHNSbg3u6khfuB8UuVPNh/JfG/898PhqEAGlSRw13R3HF3n9C7yPz3M2hrnYrUSWJ8CcWo="
+  },
+  {
+    "name": "libndp",
+    "version": "1.9-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libndp-1.9-1-aarch64.pkg.tar.xz",
+    "sha256": "eb095019df469b96d728ef91cbf50e90ecd8482dcbda17fcbc3091b24e87e6c7",
+    "size_bytes": 18820,
+    "signature_base64": "iQIzBAABCAAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmaFSyAACgkQdxk/FSvb5qaDJA//fE8cJlZ012DWzuwIV3Ly8uybqAnqhlDuTVvjNkDCYPTDFizS6bqeOGfoz4Zcdjfh0J+R20v/WAYiRarUjKOwRpBiSFVyE4UMizdhf3wcgbrVUKkloT+m5UpwEI89lHb9M53V1hdMpCD34CNx+n+M97Ct/X/BYmtMbmnJbvgXThJfxH0/MyMZXgJUfvkd97a2FM7Txv7b3e2nu2iT54Hz4IjfcfUgDuxLbO+PYZ1blKvdImtTY1kzHXcwKb6bpLcjRbRe0zJLomhj3Txz4p9gtjKNBdb/Wv0ZLEQ5S2y3XjLV5FlDhATILOI+EGdkr2rQ2AY5Xnfb/x8E44cnHGjmaO7Q67cjPw+dyXExppmOCUaDuFLDjjnMhK48zL+tcbnkmtgbLDhaacBj/tTawgfJ4Fs42noDcsL9l2VSDYs9CAbH/j3+LEXf3JGa4NQIEXOduF2KfNSn2BRBTr0vScDpEN4jGr0/vTi0vGuaWklr8wHUCPcd5YOg0mRWigrE6Fkh7Le7k4bCwPbb2sK6gRaRFDVXObKcXkXIrrFoQiEw9D5acgHi0mrGJhih93zTDwgo813ADExhKfjulKB/RSTqLg5xpx5xioxESJPbmRnAjDxdINsyU0T57W8Wn++rHtTbe9goSSts1LfBg6lDjOsiAU3kKkfWmFkdigVVhusPAHo="
+  },
+  {
+    "name": "libnewt",
+    "version": "0.52.25-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libnewt-0.52.25-2-aarch64.pkg.tar.xz",
+    "sha256": "957ba14b3781acaad75817096ddb1d3833f5abb128ad596276f4b2c08870e5a4",
+    "size_bytes": 86656,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmlirtsACgkQdxk/FSvb5qYTKg//b25XHgx7ntnuSSeTbBXaClxrSrY1uHEKj8YhzRh0AH5b46EjvAkxBZTDJZelw0w74GCak5MVD6JX3/EUrpxvS4YTUJ3+rWUPSidwQSmOWO9zAnHOkZD4QOpZfROBYhQ3L2TOQqQR0ICDYxJbtZJ8YKsKzMnsFBhq734slHzTTRN6FDsyrOED/aWHroIjM09TQ3hbB2J9vQdA+XpTL33cAtiRRnFjamYU3fsAOFnV6UjDDI/JHBAhROEyAiulXpZ3FLlelHBwtGuvX7NdzzYns2UWkJd+Wqa0rIOEwLiKsLvNPzHK3OrsPYtEQAoX9l1K9ZjQU0GXJqpVFpuWBTIKKr8YjZo9WvBSPaEGFWZhctHSeGYDE0hT3cBY5LvmbJB1Rdy8GLYx0C+O08GS76AqMTCyicRgtyfD5yo5VsvSqiKkKN5nKIZmg1D5XzHcpmHLzv4cCAqxoXX79z3062Fatd4Gkl3KYVd9Lu9KbsqG0m1MBZUCcvcfqyCgrg5vhFgE04aXvWaHoftzvBRUdUb8CKMgHqb49SxqrWm7VGLmnsdBM6j/YhBUfccGiXk/RjlvxMbhRl/tB1tc2OWximp+IkU8oDqsSSlOpqWeYFj6LpoQ6MHBIQHtOB9SgXo452rXtVw+r4L9BheETSzlvh0apXFE+DvjFMJJRaEr+Echo10="
+  },
+  {
+    "name": "libnftnl",
+    "version": "1.3.2-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libnftnl-1.3.2-1-aarch64.pkg.tar.xz",
+    "sha256": "ff6d6be54c599807600ba9058b0121d8206691f9b4849774af7eced9924cb1d8",
+    "size_bytes": 66748,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqZRE4ACgkQdxk/FSvb5qYm6BAAsBU1hvudfFT19EwfNeqKzNVlhRmirTAE6qh3akN76VqCoASj0+dv94J9Nz/OHKnmZsVfgUs9UXB8BiV/+6rFWKL0M1rl2MlOK24g0x5nG1KavTyZ3ZJC//PYCTkWvwfirdtoSTGmwga3RGOFjit4lap+abEKuGnW3O85LJECTyKMhNfakmH/cPMPuUqCy4Smeu10rzZckbzKbJgVOZIP9ST/MM7RI25dSnOFLefQ7X+bZtICIDCRWbMJpg/9PAJ8557s9iYOuorogVXNLCFr89M1Gl3gog3zcDUA7a1GLh8QfPD2VZi+rzZufzKjwtIgBKwhlQbTwQruFrcZPbWPv8ph4ynWA2w4RZAQl+JEgxU1M1ZKjLBogl1AQu1XfdR6a2EvBVe8vGr8fxWc99vULccb0irrf1dAz8+yxKvfMn0OkgY1OzzZQOGEta0RlSmS9d7bzVYFq0AgywflKPWABix43+LVUvSxELDQ4ayARXBbIfGd8pdji6U5DKZbfa3Ep3/l3rvs9T+bM2YNOmDrYTdUY8hdAV0gDODPk2eBLyv6/Q3ZUcq+g8loUH3mD5iwkSAOiRtwrbShm1/YCXOqRlz8GWKxzTv+F6xlqmGT+xKU8OY0LWwtn1knwssXRQ0+8qJXtiteHbjrtWUE2FNDt2lVbe9ZQenZnlErxAwCnYw="
+  },
+  {
+    "name": "libnm",
+    "version": "1.58.1-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libnm-1.58.1-1-aarch64.pkg.tar.xz",
+    "sha256": "9219404664cc04bcb9575f9a16d2eeb13f7aeaa062c601623a2c4c4571fb3013",
+    "size_bytes": 865536,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqIozMACgkQdxk/FSvb5qYeHRAAvteyEjXo5WcXYogbSEHh3ZL+fWvhYWB/ZryF+gh/eL42M/aFA5aVcgHYKjutOddnMkkh3c7LCLKdXeq4vxohXwi0QMZ6/8lFqS+lDhiHmqhIeofOcAdZd7qBU93CJF7xpO3EGJyL9f42fmeXo4r06UqZI4/fEFkjAScHpoQmfpt+7irXAIkOwGJgo3EEIUaMb1EoQPwVxWrvf9IAcnl5/Jd/XqKW1Wz5uXlLJ5bQuf8pWO/yQf0DH8UOpZU5BOxt2EaaMaE4Ks85cw89aw+qfzyPn7st7JBsHhgsno8wuR2Y1sZgGdp5xE+DA7aiDRiZwTQT8hAnB0IPrjKDSpZ47MGNQHijARhxWIptAGkA5xYQE0nwlbt2R+j2G3CzljKsWgcSKzvYYwxDsC7q+nLsktkQjhdl8CFDX/SKZVq0b6deif1AuS1VnFU5FHeNV5y4HfTMwU8euKVqCzY2AoweMiCyFbcmtDb03+NFK39cpNgqKv2fh/pD9VcDVGyWnzhspsj4NCZiRedNB3YJywZl9IRrZrbJBb2pjOj9+vqzsm6qWR6/POeLdJWsOag0v12DVQGvZtyQTZtwhGvOL3FiOro0CMdRQcXwvfRowOf0/QxC+V0n7aa2pMrZThQ3eKS4FpTU9kjwScVk0L5cdCe4RMdR3cShc/9TdvKs0Xa4K3A="
+  },
+  {
+    "name": "libp11-kit",
+    "version": "0.26.5-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libp11-kit-0.26.5-1-aarch64.pkg.tar.xz",
+    "sha256": "0d8da62f6e0fb213858619d928b4b25afb9e783b8285dfdfbef54339584b35ef",
+    "size_bytes": 416988,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp6W3AACgkQdxk/FSvb5qa0CBAAr3yDN48g7G1elkbNWxYjcHIy4GDJdo/2uHgUL7/5O0zfJkxkzDgZBbJf6045nnJ7FUu+aJO8YtT7JkXXKXBk72EDlbVIL1mhzZ4+ZNLUevi+mdppR4sr44ZGs1kXRxPNj1IADC+qMUbctwP8vh9/BPxh4AIr8/5U7U7VMFwc0gFVrhkpBMthMle25cPnsnDyUnLexoif/EgQI7JRfOvpNArpNDMCjPlpeghUk6XnBUWei8LNqjKg4r6B1OyuhMnUyjxQ5smOHK7MMgq9L/2B8ei375zMnJxUmHJwNU8bpLp5XZ4pkSFJldmR178CAQexoj7Rs3O+YdV0udmZ7DED2SaynzhdSFsaQ26aXrGUqGaKKOlyy5KkxKY51MyFZdVUeo2l9NFRTgt0zzSCVVS1SBDLII6eVT0rXFpHFFOKyWkmg7Zp3rJo06BnglnBC5W52qXMa6dU23zxV91MEa5SO9g3quUi9Te/oQgqUINxmwrnoOVtZ+mmFImaP1mwE7bKmTceLpJH32f0sarGLA/3r6Rnvjncfe2IrMZph9nGr7XReIOyVguZmXFcD9KBUZ694nkjf1Ys6PU81c5YVSdwY66DFIX84KVpWWvKvNmT5UmF4DMTlyWFQEOfKa90zWkQB7BL0ZTNq4xJ2rPSb6b4pX64FJMy/oWF7T6aeTUwSDk="
+  },
+  {
+    "name": "libpgm",
+    "version": "5.3.128-4",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libpgm-5.3.128-4-aarch64.pkg.tar.xz",
+    "sha256": "9bfc588e91f3c68639538c6eec8bd50905095fb7a480392ec69503b4f7b57009",
+    "size_bytes": 164780,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmnYDKUACgkQdxk/FSvb5qY2gQ/+Kk8R9XJvRNiakkxPonKe2rcPTgOOgRNDpXmyiOUrDyxqhzYIYvEP1iDaRaga2Az41zLiUGnq5V9ssq0CQ1cEQzdMN69dlck7cHyztVMMKjsUfQ642fmuSX8NgmgkChKjEax7kqsmiUZZ4KvwYjDy+D1ive7Anip27PC7vPDKm5Wxqf4NyrV17AP0WOH3XurZgRIxvkk7k1ToZOIWvS1N1nhOZU9mHFuUoH8uPC8s0naMR3XxC8SXGNeKCOsNuBcZVRWbjrHLElcMgc1IlgsmzLfuSjsSQfzyZS8ibg/U/Se/y6Y0hcnCb/BUnb/RU0XZp3dCuun/CSP/+TEHgU/yUE4+YYeVtmSaRFId1VeD3eIwRvJp4AjKGlV1IikW5GZKsZkpNyQiwhXm4//I3ab8ig8Wr1b7G9iCMc9TeZnBxInPhe7c3HBkWDcW3XufDEc77dPPfshTqGXBs8rTDWdXpiEonVz6NQ/J6a0fu9I9XTPl3RVmmgBDt/U4yJRIWAVHto/5HVottlwqiZh+Yb8IgjeieKgy+aqz9V7TK/UpT0GwqYsKqcFYZgW5DpGFMAcwBW7gnwaJn7bETRynxrhfLybPU9GH8ChuxHELfr4xWocf2UjCXx62fuKCHzbnItfmzXCIZFgnk4x2uLkJX9mSVDnpRuYl8n785VH4Ssn/Tq0="
+  },
+  {
+    "name": "libsodium",
+    "version": "1.0.22-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libsodium-1.0.22-1-aarch64.pkg.tar.xz",
+    "sha256": "0df84ee0659a06e2c192c72782484a0a6402535178f4ee867bfcb636cf2ebab2",
+    "size_bytes": 162092,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmnaPYkACgkQdxk/FSvb5qb7WxAAscaK595nw2q4WYwRaYc6mise0Lyijdw9iUcK6ptCzr9uunxCm0FpNX6bOlzjZyV7d2nmh4m9ZVzHMpQwDSFMsVJXaY1fyK0WpEnO6hPubgF0mfPgw1+lNHGl5ZzHA9eAUxJBf7Fz0UPRh/jjk7MgdMvawaIg2dkluZ5jqDgaUywuFmG4/+LptBDcEK+/mFXNlz0zSlPRPQrp2DKbYrr8HHPixhZhkye9BEeqIH7pkQsHWI+UvZhCGOnOBWXoamVCzJzrXyREANX59TVrUGYbH2s0bvFhR1BDg/Iy8J3/7kR72zHrREPVIZW9M8OP1kUDO/FqBIruPXwcu+WgHA8UMNw6XyBQSJgWwRUQEqXE+m4vEiWDdm+f+1a5gk6puBOin3qDO6fP/tzQBI93QGAGvIqnuFHOFncVN+uGFhYbYWGF056brFDepqkZgHepHkGpET1XXiOnA70ufOf4klv4wSGW2DjLJAFTYshvcMK4Hbia/S76f8DwwFAzcdsR60UF6IKV0Om5O7K64AhMtOWGXK80S+3HT23eOJrR9IjNHIQ3MBQBlldwCGpo/sEU8TEoBs0FzmtVYnP2yJ0B702EcrTMlZNG3CDhhq3MgovGFgEZFh5lz+PEXj+WZW+pUSB+tc4oyyw/sy5qvEEBcx+wL6Jb/dZfvJ/TMg4GKg/Lr58="
+  },
+  {
+    "name": "libsysprof-capture",
+    "version": "50.0-6",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libsysprof-capture-50.0-6-aarch64.pkg.tar.xz",
+    "sha256": "b1f88290ba1971929b22783b78b9dbe7a01ade6271e95ddca1a9d224cb25713c",
+    "size_bytes": 47420,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp7sXcACgkQdxk/FSvb5qbfFxAAi5L+4NYWgdUPzM7g66VeWUzKPWN1hI+OQWI+HmFR/xURTBpg9cmpcFDO2TAGswcFSjyr1NDLA28GrbdbATSUpt7IvBeNRkA/Q+MBupJ/uUNcmvfWk3crtSRnZ8PkrKc2V9RH+S8R6eQDH9moXo4CmmcwF1PqOkCsJjgHy+RdFaapyfZKwQIV+Ywe4Ujk6l95wAN6OYLUnlOG7I+3/hQ4WZLmBOPBY2MEFU5HHeA3OqYiX20HFTW7ojztiLi9Yo+rMNBRBdNDw9nl0j/bJmdyBxSp+GCa3qfcVS+V+eJ7/my8sv3/ZwQEFRfn2xBqhee3mhehcsW85GJOjE8hf6w01iAegHZAvQgLo0kv32HxyBA/DVK+x0DVD3I48805dTpKBazRsmrT9sr/s2eeHBuQtPvHxvaWB0rmmn2Jym3D/UDI4JkKZUf5WYn+zj9jqp1VYjj4NMGh+uMiVQRi+EzBsYEsbIsufwfe4Lyba0zP0WNbVv2m0wLyLwennB+z0/lylgPssPChx+V6/kvbH7/CsyACWqKGtisjj8sDdX6mDWPe5E+n9aG6m3fTH9YyBaUKiKrTVJNtPAwmj/VRqm9csHR8oCPhYiQvg5koRPaja5t0n27M6AOzrUSXvjBOuRJI0QbqQ+2NmhfIqlMoSPnXElvdGRkDanTpKx1ksjqAdLY="
+  },
+  {
+    "name": "libteam",
+    "version": "1.32-3",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libteam-1.32-3-aarch64.pkg.tar.xz",
+    "sha256": "2facc93c151ae9ac48d614acd38643deca05840d3cd4632a3ed4513f5a108fc8",
+    "size_bytes": 105456,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmkkJGkACgkQdxk/FSvb5qbPEw/+OnI+kQpZNhnB0QFKIKF9UaaGAEexp5lwO6IUnmZOJan0vZkipluvKhe7uKrXGH7l5tVliaUnSWU6c4wTsnVfJNGNTHGjrSRW/fRGwjJ490oUo0H+EUhjFPhm0tzHDs4ia+LTy2ujXw6fNmrZdwmP2AGCnntBLumHlnvyShnTwCkVEhZzvSIUwojx82YY3kWZCUMqEsy/MB9DoaZhDOUaiV3Sy/oRQ8GAGZLVebrji8JC1gaUcwsM8bWGqh8k4OAwbIfcIrVf3pfWniyKYdRVrvFX27LWyiIbL9w8aCZ4Qta0nRPQ6DlwGpxM9A+d7lUFLBDNWx395rX8RAs46Jwrfh7+gkKuAoNmIrDEHqhnhA/aoRCfySFCk4ijRevuyU5ixNuWl4broIHObY1sd+imGKlolFXlJm4TTC+UJw1Htl7Mt/yuWcUuPuiokDGNmoDjT11fOokdtX5wzi6Kvw8Iku/KbpoyGrTIoRGX7nBQg8Co6ZbZ8SUqGDpoDDEbqjuWxdIepX+Vo1TaKyQ0PEew5FyL3LHK/fpOwedJKpdDlT8Q28QvVJLofU5Sd9f8LbM2i4e1rRkqzuppasrlabO7ciurlhtYfsOGyV+76VsmETdLLIKOXcrviZxFImvEd12JEKoeIeGGKsKoBFwdYIM9ugj/twyC24EHA6yORnsz6mw="
+  },
+  {
+    "name": "liburcu",
+    "version": "0.15.6-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/liburcu-0.15.6-1-aarch64.pkg.tar.xz",
+    "sha256": "d792f3f3e6a4cc523f19dba393abd5819efdfcc86bf4f2d49009711b29a02085",
+    "size_bytes": 127228,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmmtmiQACgkQdxk/FSvb5qbrDw//Zepb9kjABXc06+nxB8qdWd9JOXb09hrsDdx0AruMin4c9OXfyDCqwy8KAExQEl8iDMT3hFYQqjdizszIK+NHtY22fXPzhPyG7QWGMV7a7T92205XwnAkWuAGrM+uUspviNFh4AZnjhWdY8RWolSrQQRO1zNrq9nSrrlE3bOCbQy0FlHgQjEwPv4JHl9dmBSitfZQLCKoRkWLEU4+f8Z2KloxsqC/R7emx6RSSKalpDvMvBxPc3LhBhuuOtMDuS/RuZ24vGfEdSjyL9BuO1v1tE+KtYv1iWD+wD8mRIZZTVGY9drh0cnGv+XT2GHG750pudf7wCOEIermjXl1E8WgMiqFCtbLll3qdwUAfDsfS8e6hBUUkgw22HR51OJjeKBSO3N6K1I5mBTjfhOk7A4oWN9J5bLB1IJVjGCD/0MC97tBu+pxVj5SwLPTLvDuPzWOJhi4RVLvSbohlCZly3Ik+QmC9YtCf4pSwQvSgCwZfJ2dnpTMM8s1zFP/XGZetYUEfF1VZNggKBj3xv/CFLA3RbTKRDieeKe7z9591hCLxxl3IX+OwYoLQrKdqnET96lgld5KbnYmdCM24y8jIx3br7FW88AcIGham+y20v3pkmFmzeolO6XaP5LNqZKHQXpGTNcjpzwYqyucX4dWTx/OoaYk21pvNPXkvSZdWWfNyZ8="
+  },
+  {
+    "name": "libxml2",
+    "version": "2.15.4-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libxml2-2.15.4-1-aarch64.pkg.tar.xz",
+    "sha256": "c86239f383dc47736c4f6851063fb034edcda5ed59c7cafbe694e5f65e2d0da0",
+    "size_bytes": 694244,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqbVq4ACgkQdxk/FSvb5qYsgRAAlnkxDKYz6nZpChUy+WhpGn5noIW1HQvFoVrtwEBX2Xz2w8EL2tEgnJoSn4K44Pe1vvelR/sLSbFmGrygzynV2b/Le1L975j1YNVpyTf8wmptv1gCTvqMkxfr22Ux20XBqRrj5rCnyArnQbdjxkJViG5agAx5NS/mSG5dz1OJWf1/LQvswkt4DfMM0PPLyanyet1AjMuubXCOFqJk+JOhsN4rJZ3kxTNhpaINWF+2+9OasH3sypHb5M8RaipFOCYRnNywyFkdbgkc88usUbxvR/+bpFlT09LUtxbhafmh26D00WDd2rByzYdzpOxFMotmuF3ZAWN6k0ghs9OgkXnaIdSDtyuBeU6R85YbejtTJhCY5nr2eYXsvKQEwDxhpObu0FntHAMemT9q/fA5WeQiV3/ssEV+53BJLj0Wj9wls29JgMaIEhrt9OBgzK8L88KqOcV+QbYTW520tJV11tVYNqbLsPLI6qSE4iPuVq51nrSzjKjHssEN3E6bAWMfbN3wZ/wt4YKGysh2YgTzNfExRLREFpvhwjOzjNtVu6Qw7qHyt1BBbYM32WeDx7qAcCdQk0UtiyUHWaSyUzyIYk7efII3RpnvxQI0T7/7OyejlHGoewe7L069LcZAgwfV0sdnJh/AND42BBHUG1p7kCW9bH8E1ZCMswNSyTJTCSUitG8="
+  },
+  {
+    "name": "linux-api-headers",
+    "version": "7.2-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/linux-api-headers-7.2-1-aarch64.pkg.tar.xz",
+    "sha256": "e03baabe6bbf49b65b394eb24629978bbb2094cd17b3fecd892a011041f9c24a",
+    "size_bytes": 1509724,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqC26MACgkQdxk/FSvb5qbwfBAAtx05ewxoKi8gdnNjOclKI2hMnFTuzYUhrrNgWhk3CQvsLi9qBoygQ/kT0C6NOYY1KPlSoLklRaNfJgszWVS8zHBblBiByCcOJPtyzqgYs7/1OqZWnUKI2EI65xbsEF4gUiGHaFjaL0knno2CQQGhDVErh/87kaaKX+UotLGQueqJkCsxNDZqDAIrIdFDl3meG64KjcSXE/TbGUrLQhsoZj7KD2T9zC/jPfXYDxRn26n2y64IMw5tf+bPUuBFsuWpWQvQLaYLiW8XQN2UhXNVeOn8BW9l8Ekh6YrNcjJlctrt8T0WAX15nEaOlniBoAds9ez6FIMEhyUQpOXJTwYeZRNk6azNfvWx69IIDh7A4BW5Id4yjScj521v2hWUMA0FAwpSKO5bncbzIPr4nD+9LRi92DOQzKBSqAA+onoWDxsfHoTtVxnDHteABellrhAUR3sM0EvDKhYHH79sIxvp2/CPuKrwYO2UtYNi+HwYcPWRVAAq/46AYPoN58M6esyliDgRX9oD6rNEjnqHunogvDVqRxFu13ZMX/DULWHcSkJBOmw6A7PvqBXLYEJsLoiaoJ5+eYkW1CWO03VlgbygcQKJIupJ88umUlFYFM1DOsG3/Hb7yNDvzwC6VxDEGduiTX+EmWM4j79wbAR1Ri9S2JnMtkcnHafoTKF8+Gef1eQ="
+  },
+  {
+    "name": "linux-firmware",
+    "version": "20260810-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/linux-firmware-20260810-2-any.pkg.tar.xz",
+    "sha256": "d90b211b6fdf51af10b690ae4bcb0d148fb72b151a913d05b3fe789a9dd81671",
+    "size_bytes": 2596,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp/yL4ACgkQdxk/FSvb5qYygg/+PPABWRPYOfx/sc1/ssIB1jhojuHmagax1MJPnpGpqusR2OJFYaPg4P+aL/RY9jZDVVZBcsqU4GiXcZrJKCK5mB09DnTtTG6CP1A5tMFiXZIgQYsG8wzFmdclcPrBHnT2AKaU67da00bYk4dJI4hVZB6xv0duln0lOYGAfIQCMWhfChuj3kbiDvfJMGSl+QBYz8z2ZUP6HypXLu8Eji1xkKNtUASJRTXScbq3PTLYQAt/xpnJs8d+Jsld0yzg6FA9dyN9YCtx15Mh99bWqfs/zV+juCVH46J9YcZqXwI9Jon0o5Keg+GntD7pPNF9jjBjA8jrAAucSeSHGJtN7Z8FzDth3gEyirx6CITQBqbZm8fm2Lr2KTHl4Hsy2hgCzzCwK0beMso88PaLKPZeCs6P87t3FRsRa6QfAC+IbHp0dAU0pPAXPk2bVRhI0InfhWIAbk7n7m7Ei/2Rh/GEcpad6UVh0dNnhj0JuZi5J2+Naub+7rIqD388Vp71y9Us8Sm4fxTcZtMwZpmHN+FvkeIauJUptiY19fFMSxOvKziNpLK4RABkXgxm1FcCpAwppumkCcUQzwjgHS/RGhJvs7kl4GJKFtrd9eMaH9AHjj0ZVPq6UVyW4G9fnarpzkqkrUmGnMCuQEIkqQhGiP8N2A3CmOc97x5Q3Jj5m7BmesvMXpw="
+  },
+  {
+    "name": "linux-firmware-amdgpu",
+    "version": "20260810-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/linux-firmware-amdgpu-20260810-2-any.pkg.tar.xz",
+    "sha256": "eaefa88190359c88ef7bbe07b20fecc05e047c4f32505898bb1c1bc769dff33c",
+    "size_bytes": 15424800,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp/yL4ACgkQdxk/FSvb5qYMXQ/5ARG7+c4+t8FH/sRnv6ykRB7yWSs3CkEwcZLZzea6tHpamoYqGnc63s++MKtJWav0AU4CyOz3E34glSXt++rlPasNz9oyPVA14fPpgUQO/wEViBIzQm6OKwyIXv7v26evVfWrozhFpUJut+DHuiuZSxHBz4vRFMpC74J71yAxKcD4CX8GNu4vrZeprvndCBAcvEUEO2RSNf2aecNdSgTVMxafYHFbDscWQVqMOmnjozfEJoneqITZCITSBkjbrT9LIg0ujIgJnZZ/IVRT4clhgx1KqmNabyTPK9uOQhtMUZZ7sdfXczxrv0oHYgOX6vh+Asa6/AazNzv6sQRORpX9fENinnfo8lkJIEnzURLJ0w72SmS1412n74Z3cn2udrFAHljV3Zvw7Hw87JenHSFt8mCJ8mPnQW+DEQWlcQxvr1zDoZzSGMdBe/MJyYp0hKUYhPC74+1esfqRoDyv+GPjG/tWgbm2hskHHAhUIoJzLmAwGfYu8Q+8MnZSGC/4B0L6ArhygJldUVTzu4tth/K56DrH5QPGAcHLvXGlsw0IjC+tW1gcJNuhGNN26SUy07wj9PrnSwmRBe3TcMUN5GM6/nVEWCjGDmSoWe1rfyImH8aKA7wJQahY+zmmhuaJUTnOoUq1k8AGt3elfl1dc5GlFIvKzYdsYzTr6X4GHaAaLzY="
+  },
+  {
+    "name": "linux-firmware-atheros",
+    "version": "20260810-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/linux-firmware-atheros-20260810-2-any.pkg.tar.xz",
+    "sha256": "0057bf851e1b054335da890374ff0333d7f9ec26c6bc89045c168e40d0b1c40f",
+    "size_bytes": 41911660,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp/yL4ACgkQdxk/FSvb5qaMxw/9Fh4OLmqFWSkoYz39G6CbhjaNbcB/ENJO7K/BISE/8jxvKsmeCnVr1nQf6ie43F/sdvwjPw5zhXHw118Jd37W/F4PLE/YXZv/e9K4ljqOzcDUX7TWHx2X3x43+dlEIqtIL6tFTd7YJ/Ly4DVPFs9c32vwMa1TF3vqXO2RYYCH5KSBucfa7FTUBjNF0nCTnaw+H9fSpx2rCC1ksYOBpIadmqJfcIbjzGMWUKCwhaTzHU5HFrm9pZBIr7tukYjFaWA//Ei6HvokNHTAbPElf0QzOlL8skOji0SHhjHTNYfrpIOA4pnuIGSqpEpm1jJa1Wj0ZyURKnh8sQ3Jb+t6EAnYCxE4WPET2J1uOvEgVuAseG2vKvsRAi6jE0MF6ci9WeuyKs6ZMRmtSBeGzARVlEq+UY4487qu0KVuPi5EQwxrNZwM45BIro8usdpdt3o7sZ3+Gg2YVPxoCT3jIUiPg+eisKMdN5oWcapiCCMras+/SJ704nKFXuKvD7IeAwvf6ZdKFUsSbEH2mXIO7AN0wENlxIXW3RNfT/kq4G2uB45oVy9zSx8uVhebaS0552yQQIDmWTGmQLRqTZKFeh6Yl3kBdjB6/fYI7UzWo3cJtvkASPzdW02TXZhdUuSC4qZyRhI9heHcB4EE1Opm9g9H2OxyDB1Uy1kIerwRwwQv1qlJbGc="
+  },
+  {
+    "name": "linux-firmware-broadcom",
+    "version": "20260810-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/linux-firmware-broadcom-20260810-2-any.pkg.tar.xz",
+    "sha256": "678b4f518512acde2305d7f2319a31fa5a82cc20496f22a5c9b2f663c380f108",
+    "size_bytes": 7791740,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp/yL8ACgkQdxk/FSvb5qaVJQ//V/7JGNDKDCaoZqaXGtDC8qQ518lmyLeSR6K0/S0CtcpfVvZ7Pm+VV/xBFwYlVU7Aa47eViGkFoyQZSgKNHZYkmuWDfVwmvnLjRVSy3lveuvA4PeEWOLGV41o77HoN8fxaFyQhmB9UaR7sVQqhhqg+nLzIkv50gGgqKChZOqPE0CFTTD3QabNDDfOncCFmAxmD/qHbiAZ5PyF73AauQubWSUsVU5zboARfNl+3xcKuLSL9OKFEwtmufVAVJTRax3B4PGOHV2ZdHchcrWVGgsKOYUuLjX0aGyzoMYcW5VBS6/NLYIyU8E00Jenh0o14YOqO/t13eb493m2o7Z35U/41LMlrxMolEoeiNBCzfcPv1MauxMckbhckfY+wdM/1LJVKUtYgJ8dvSKR6oxzS+pcCxSsQNT8j77Y7c1GIjk7hXnUPmJPS9ccYGHC5rbCoKqsRt+wE1TP8hPbIaPp/rclHSZc+he7JqwD6Q+EV8iKiOsb4GThIoGTbzRa1Ngig//xDTgJNMCqo0syJnPpLq0ARFXnHLpbVh16p2vFlbc1z5hyD57x6PGxqwZ9rmyFOV8VP5nBIYoDT7phxzvqDICjxA1qfDCQ4YDf6V2l4Wfh+F80PrWKiunRq5dmKDmGbDQ5tnrXi4rVYwSi3foF/X/APmsJvFjZSPCGnwAI4zSb6ZY="
+  },
+  {
+    "name": "linux-firmware-cirrus",
+    "version": "20260810-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/linux-firmware-cirrus-20260810-2-any.pkg.tar.xz",
+    "sha256": "6da8bf8dafe8d41605caa1fe0639b9efe763a55217a8c37ef171464246ca8104",
+    "size_bytes": 438148,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp/yL8ACgkQdxk/FSvb5qYZ8RAAhPMxbvY0r5jhFy1S6Cn/bXWJKRLsFUVqwfVSve5g6/yCzmDIqeXKR7ATPZV8I4v67MblBfu8ohp7LyDgReLP2n3CXzYMJjvHE0jhyY2qAssheC9561UT8lRzOyxjOJNvKdJ++mTvqQMKylRsnQY2bpYxKv4DuOG9Fzlk5NgOfoqGK1P+BC4KqjlQRDsGdpIMv+AGuVrx8WMTlisurUQRG1oERF62Pi9fUPxP9VAbCdKg2TwJyp0G7h82CVA9Nkx2v5BwGfXDmtQ2aAjhxNnSaDwyk1R6uDsHM5aDlct/BvlkPqi6FvvADPV90jMYpw70EHmhrdFZwFjyS/vkH4O7QbJWnHHHYFfxlUO3owX8u3U4UZPWyPxkrNHLUuPwqa+hRC4Z8Iivjzn042rJ5uH4L6TV6OUjt97ld35h6EpgeoLrvd+7jh2pkR6Wo/TLv/Q3AlKEo/0FvP1j/prZ8q9YgyRTlqVoExwjKtbb3yWjCD2lLNBkJBouGWXdeELEc+UuQICM59L9/jn+PJ/8/KycN37UvOiXCsj1SFTq51jTXifOy5OD7INllmcWyqO8YSYygFRKWRjKRJ70bHcXu9pFJnrwqLe3Cocut0Iq7oOuGgDrHAp/XKBVnBqX8KfTrdUTwPeMGCzjHHPb92R+NjeAa9fbay5ooYBSSKMdB34qFtY="
+  },
+  {
+    "name": "linux-firmware-intel",
+    "version": "20260810-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/linux-firmware-intel-20260810-2-any.pkg.tar.xz",
+    "sha256": "71a8f51674e468944dc56ebbf2664f8c40fcdbf8967434561ec82a3f321a9137",
+    "size_bytes": 54728488,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp/yL8ACgkQdxk/FSvb5qaF7RAAvQ529pCDA1CbsYbTxZcn/6Vgtr9Bwpm12DEYKMhPZsB1MlADQnijF5Jt7Qdb67tkKvnwlW/9SpVahJDUHkHxCV63QhD9nWEgNDNa2g0rQECLdczkorZ1VyzkXD7prARXoVqvsTQcJst5rJl6oso9WG/OnvR2Xl6LcpzNLV8M7EXIqDptUAxHQXyB17GPHJZZVD3H6DKVX2doCLTrGZZplJjo5xQaygye0ktqiGAtmQS9ZacGXN0db27VA4uw5GlQcdobmxMItbQpCPL8JNzZEqvfZlzlpa5LvKxvf7gwfZuB4hJmtHb57n6xGTnw2QjnoYcF5lTVjMiM/zBe6uFjUm8Phvb/t52m7T+qQY1suahGZBcIX+nilYGvBxjIPwC0Z9Sqkkhl2016vkL8/SJV3tiOSH5rlQ8J7zwYI13mf35J78tRzlSTm8xEUNfxECsv9NSM5o5O02eqip+mU059OvKg6qv3lF+aAOkVeQ+JPLoS8Uc9bjA2rwm3PZKFxZSLTPgueizFv3InVU/2iMbLNFzoFssZiW20ZbffFOdCrckCc6p2lbQCR4wSXB5qOYHnbUjAq/JEje+Sm6SJBGlCjvoSdfFssEoaicA8AeWqgYPuoeh4fYCI9ZuExJKTlDOJAgu7/3cUBHNyHT0oIulq1cEJBTpu8XyUH49j/5WeFUk="
+  },
+  {
+    "name": "linux-firmware-mediatek",
+    "version": "20260810-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/linux-firmware-mediatek-20260810-2-any.pkg.tar.xz",
+    "sha256": "f17329224000c4adbce8931f962a870293e24d68b721a5ba5cb71e460602242b",
+    "size_bytes": 34704972,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp/yMAACgkQdxk/FSvb5qZOkw//UCPFMPz1dJGyeEtoE7xTKFlHfdEOi/0nKXDBpT2kUkvCIy1lw3khmQGm3deh8WYpu55AtXAB/o01irMP2DUAsYW2LF5kxdeqmA3HD1C+fCsu0mb9Vdn6HpS/Zb1/4+7bc0g8PrIFm9BRGMkoQmfAanmUowDw10jXg9FI9NfIE/1j2jHeGfNozD+4kIntUMMA7gi24939sTq7SKPwu9ykZSOuzZxdXF+9j1WwKiOs3j/nJaTmHX0NgEsKNZ9jj9J6IS1u9hzLNqJKL7Y1RJI3cO5pNJOnoBPAW7qCPM8Qwg6c2/Oti8IqbeRF4iTWWlqK+6ZD/WZHs7h3uS/zC0U5vtyB6lusbVeFzUtvBgla1xIB+3kfT5F71aUgNicwm18I5QWMD0mOe63twLCMwyB4bBU8VW8pOn14zBLLQxKKIUE39dODAXEKH52VeTnL5tQin8wsTE3XnTTFLZTuw9NE6Tnbn7Og2XkReRskBcXdkSQcEPpuJhn35PZj/CUYeSWyBBBrfUbUEdbUg/eBuuG2Z6spN23YnFIgrCIGcutHHaMJcT+MjuBwcDNfNsc1GiX2xJjOKIOyXn4wS0SZ+9plJ1lJ2OAVa1Hc4LnjLVDuZMFlKLsv3/mngwT4Ffo0M33aXvHpr+/U/ED/j874pv8nXD3Mombprayj7haHVzXk908="
+  },
+  {
+    "name": "linux-firmware-nvidia",
+    "version": "20260810-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/linux-firmware-nvidia-20260810-2-any.pkg.tar.xz",
+    "sha256": "d45de486fb3627b4289099bbeba67ec735962016bd4d383b1a76db4b3925a73b",
+    "size_bytes": 104329088,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp/yMIACgkQdxk/FSvb5qZOURAAjvRdAx8IYSbYU9iptVFZIJOqzgpCMr3Kcw03fVkerzDsOkyqo+oZxSDXiat0LUYPX3E/JrR2NjS/Fhf5Uoz1uYhXABQRO6BYcmopRTzVsjXE6Ztab5MzX/kAmCM7/S6TUfyfCT+ms0Y8bqWpToir4RIVoqCmzxEUteOvHj2UYRaIKjgMUmIVOgtjlWJWbmr6euh9K6SRRHvlk/Fv55Sy0UivNFYvyJjt4SaozPSdxaLfjbyrNpFmtE35/15N1+qnCQH5IihkVjE+sc/dHD0mhHWSg6GaGi9W216HmFPDYoKVxUzUIKC3xnOVU2bQ/FWnmiCC935U66pvrQJDovDMgKS/5d8Y9R19U6RR2sKf/IWHLDJvrAEpIcLN9ov4pyVcHnRwY4Z0Zvo53GUV9E2bYJwk3oBnCBOLzny9dX0kCLTr9FB308JdzaIsdhEsa2TsbYXlD50RbfUL6NCVxEVl0/UbB5Mua6UhloZT9aH6gVm+FqmIanXhxC4lPi7LQL+ULMmRPL4H1M94UI8uNhEUpv569NScX58PNHQEdMCKZu/2aJxvCSrbq3BZAfvsSulWqH6xU3TfTyaLntjileDvxAizcGnVMqd1h9HXJNnhA8CUI7o50NLC59xNjlkYlwtMG/alCxgzaUu0nzU5QLViuOcSOEzXL1RfJ95hmvNjCqE="
+  },
+  {
+    "name": "linux-firmware-other",
+    "version": "20260810-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/linux-firmware-other-20260810-2-any.pkg.tar.xz",
+    "sha256": "a9800b802d938e2886fae423bfbad0b8cbee66056d3fd09bbda05406d58e16fa",
+    "size_bytes": 16901732,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp/yMMACgkQdxk/FSvb5qbuLw//YDEnh18bTG86vrJJ1NyIBpz8xaLwbAevl0sb9hIxT92cXihqe4kvJ3bKHYKb4i6qPc7snpPKPF7JmK1Mb05BanzfAmlaL4y7mtfVEj17pogfRb/t82KYclCH0DDca3uCjiU7/p/u3sgwU17Lrbkt0riPSWIQR14l6QFGqz4hFOjCqpK5SCJ0qNFJ1BXFShietykaWbYuiQzWzD69agg6zKygMMJIoYj8BQf8MuWh9OdnEXULlEU1Zp0u3djYpvaHO3aW6F+3gAv6QqnsoeVyT3Zna0jSIxj85GrkvU/z0ZNJq+Ev0+MjLo7yZVQ23d4spGj3s1Gj/GNVgws2dmIoyPyLOUHPCjuTcuraComiM4ee1zUInpYLI50PsW/6K0TsQfCRZQJ1G6Os0gM+lfXAPb0MuqnnVIjf3SMjwwW5DXrTSSBjLItXRsaxlIq0dSbsJmBKLm2TwQm9wJMwfd81t+R7u5ZxLj2RBVboXyhElCgkrHfpHQPLv2IawOgavs1KwIEHE0ztwHGPBSziB3MGBERMosAAEq3PCpDwwNzCB6BBjB3Ux0zWVHtbB2b+NJ5Qmbv5Z3DrfhAjOzavgV2nA6GoywpfFwF5ZFiZw7uOtQG8IJJHmrc8VpiuUIxppuvHeMdFz2HEjfguvhci+ouiRZF73XqBKo2WUWLK+D7p5sc="
+  },
+  {
+    "name": "linux-firmware-qcom",
+    "version": "20260810-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/linux-firmware-qcom-20260810-2-any.pkg.tar.xz",
+    "sha256": "5cf7ac0a7150f6674ba2b9d041693a3c12d1ba9fd0b83abf2b2331ea6da543ed",
+    "size_bytes": 156216328,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp/yMQACgkQdxk/FSvb5qakxA/8CDa2Mrsb1MSrOi0j7yIOFKdgoi6fpofBIAEJ92MiD6sZhpc6ypQhVirqp1I0xN8l2+5LBcmJNBeRUN0ZIvdctCbt/1/m5fes6kz7JHpxwjXZJi6pjnRD85P5isS5gbeYzAz8JIaELECU15uvwsDhqzjKit+epHXK6zCfNjK/ExNOTY0ckC5XNvlPWWEV0KwC0VWnSrY1F02YeFDqIrpaMc1lwzYJh2yacjv9P4Y5eXNPcYN+oFqkgrA9k1qh17mRYF2VZ8d5cxRRkZdAdaQUxVQ0PP37mE2UDcXZ3RKU9c2L4oW2g6RliP3R0s9hVwXceFYmXMpor1hCmGdaglP2+Mizm609fGCv6YebHtdRYaO8GMIXwJrJSYx/EnCvVyKXcWIWknvSdCb+ahlk6PTgN2qbpobIOjrQdHqcwhUoVl3RGsKp34RLCZyopNcJgZPjGo+NjcHcgS9/kRijCf1/nZxPgj8/0gy9h+ZP4Af5LcwKPT0OYrWf1ZGwB69dtlLC8mMceFwIjIo1c94O33BONXOWtIntJBC2WC6cw945KITHlvtMysGa0eSI7QzZxiERKul46gzF3qtBegxT2rfQhoFZ+37/km2GK6snawe4pWp/Ym+FpVGtYEAEmtwgY2ZT2fTyfhlTxm1MyF9FhGGzmKhXwUKav2PtLWD31DaKxDY="
+  },
+  {
+    "name": "linux-firmware-radeon",
+    "version": "20260810-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/linux-firmware-radeon-20260810-2-any.pkg.tar.xz",
+    "sha256": "9190b293befd245158a31f17bd30ebc4c197c42c2b87a95d70a5f1d658d8fd2e",
+    "size_bytes": 841880,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp/yMQACgkQdxk/FSvb5qbsbxAAuZMOjznfek+9xnGsv23J676f+0/Aku53nXyQ0+JpNI940judr2edDlprAlQqzyJkoRTzShRZ1eOB/B506/G/QrWv3ptP1zXYIXCVT4qeAUsBBpEtXY8fn79FurLP2Ig5qugC2JLoC28qPIAE2ZR0aIQhfknGsC16k02ezDESS0uq4wbMX7M2Y+r92VyDNfW5jM4VnhfuGb47PP0PuXptTO0dmq5DgmhaP+fuknWiML1WQ9jzj2KpdyfdOmRYqi4ddDufY2wk/SIo4yn/zjX8gnGUKLAMh+opYBslTdOa7D/pK795pFAsok+S8jZ6RFMFBEx5qmCF4LNj6yapHnvAT63IOlcg/z94qq2yzGcl+95lW8FvtM66Qj+ceiJRmrdPj8ZFnIwZ3MFwh6weC6rRPUHf57q65vI5kIpZWO149Bk7R+PMinwG5HMKbXnPSNzEIIaY4MMeYpUh4oB5mHoHwmixJRQAAX4LXyKRQ3+Sib02JjYTN9QqTAg7EqZ9vIPXasv3nQJzQ/JUmgibRDaDnwq8WkjPbQ683PDnC/XXTcll11cNw/KoBNqbGIfz3pHHkwPLOaFlHxVy5gEeQzB4VbJIzfXx5Qci6M+qCaJmq4D2ZUdTte7+Aj15u1DJ/whzk/cFQQ4ATr3+Risbpw8rZsvFliMdwziXljwBDaElnZk="
+  },
+  {
+    "name": "linux-firmware-realtek",
+    "version": "20260810-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/linux-firmware-realtek-20260810-2-any.pkg.tar.xz",
+    "sha256": "6f9008b534cc7faa99c3b3912653cdaaf32e0a9850deb0339e375d60ff479d32",
+    "size_bytes": 3937492,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp/yMQACgkQdxk/FSvb5qa5LBAAqGSy/rhZ/X1iF+hsqZIsaF0d2DkiOAdV6zWgYvbNe0uKYnT4Va1OnpPj8tDpr2ntlBpA3NC3kR+r5+YrXGlfPt3lp2jevOpZLvv6yioCRtxS2TBgxTSuYez76bAKm2kv2qFscMBeHUSpUw/tr/czrcEg7XRA3e5dpuSNU0ENqtbIdAgUlZ9Vv5K/yEc0FPJMQsmvp7bqPd+VuiRtokacBzhnLqEjaLwQyQ0Am5HXM4YwJu+FsY6h6x6etFqAMXD9UGWatZlt+BqtfrxtdkE+uvxgJXoEBA0UJj5py5ZDJI/+yThwhErqSlinBHeFUidJ9XCf5+8cTpaIn2ChQOBmgx+eakHSUxYBtn6eIzHmqxLBp5fwYFz9K2j2nkLb0idJY/xOSYtoPoeu7KNe30mJ2ifqxFrpKF2IAiihNrNstqjnumB+zMYmXnBfE0sXskuwN+cC7MR/u9E2Gchf52QILEGTTHQO1FOE4obRIPjr2Ad5lXwRhlP19BxQMQklesouGuv5dXTcTeDgCIB4ZX7kjLFCLeijOei2CBogKJyok80EiTiN5uorn/eS5FI/5Pz3nyTj3ljgKGNV7GphdSNTNa/SPymMxd/9Ob7DXe9/GS0taFV+f69OABpm8jNFMQopToDOy8rIGOnWFl10BA6jU6vZ0wfXFV3HDG5Ta8x+cKk="
+  },
+  {
+    "name": "linux-firmware-whence",
+    "version": "20260810-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/linux-firmware-whence-20260810-2-any.pkg.tar.xz",
+    "sha256": "9ede673d695432d493666dbb4edd6eb4ed03cf6771cb991073e64de09090b4e4",
+    "size_bytes": 42464,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp/yMQACgkQdxk/FSvb5qYQ3g//YBc/aO8utTmrTgEPO5l1tXKjk262Jc1GdpOxbXTT7GhGFbzSdCIUX1/w3q+lJf4wPCFsobbR8hGo+lOQ6tar4AOHg+jw/adaoQxAo2Qnk/OJx1M+PL758Q9+t7MLNK+iv7IWtKMB1w2yUA691cNZG+4+uL7gbFtMPfmbtFjGaGmd7JAfMFTqoBco+3BYVHOX7tDmjgz5cRiTTiB5pN2e8nYi3V1Cx1JY1s1MnPPkaFqJQvm90fG0Q02ZbzE/xS9BisJA/I3pRmXvE60Qqzzo7AUY7yC7uln+Ub1sMrqDOci4NX5bUfLj/vEa+lQy9zwMpyYLajRlKm9ZIYXAYelfMpRnKulvlP52TPM1wIlJsm0wlOonBQPL2r9mlOtqi3NMvc1fK0WMpD6Xg1vrkqovIALgGG0MOl0muv+jWa/9CfK6WTVa/6I/h5ekTzXY4eZJGLQ4xiOC5IY1/p7m64HyK0txnmFQ73jPScMVwvD2YHTB7dKo4e2BaHb1+Kak1rv611u20RNGxUyw+L0XmQ2bFq3UGXbRXbMwROE6rZEnjyVxBi5XSIc5dNK9Iha4vbAjr1W+SeXChuXVRtYELNHiNdt4DT+Zo03QskxgvrVBVv0Oou5sJuM4gibgrz/D0uS3bsILLkUr3/QDHFQCu0SLH/ecMGNWjsTpM84I7CURKbA="
+  },
+  {
+    "name": "lvm2",
+    "version": "2.03.42-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/lvm2-2.03.42-1-aarch64.pkg.tar.xz",
+    "sha256": "0a5fb62db616fdf52b1affcd93222cb1bec7459d62d57f5864bb494f8b6db9d7",
+    "size_bytes": 1373268,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp3T5EACgkQdxk/FSvb5qbxkRAAvFBx5f0yRsoSpQl+NFSeWDd4xoGAw9pFs8+iHbCMk7dW1kDJ2wDmj4swr4IUPNycEBm6XxTSzQghsIoeKzfFsiIQBO7G/HAHxZefSUkbYQD7hj5qsVlQWj6UdVErOehd9NqQYkDlZhbd5+l4jcaomsA9C7MhVhv0Fxea68Q9vFe8Wd1CvL+NCBrDBI3I90CLU41zZiu/2R8C2TsGettmbm62jCa5IvzImuXZx+mmHo3Pk6DdpeD9RRlagIV3erBb9czGkHG/G3X1EUKyxukXz1frgYYzgaJwn5oBC2egOsqa8rP4KWa45N48e9uk36faRThn1gHdpYWsjJVanJiPpgvXEWKscx9aGgCKFf3r72Z5XoNPkoBEbhqnzHtvH/c1GwD+1XVIr7s5pjUJwLDHrHJEx86aN+FvGWjT8EtID0LxmpnIO0f7jCxuK7+VMs8QXfV5gZXYd2kbBzM7IngPPdGGtzPssZvIwIdLYXXSmne8Nqbjtqd5+TnWJhxSuqKG3VNTqD7JEMFda+36MscyfM4Q29M6xcBvjsZZg2cBjzRrmRazfl2OxO4MKKnNKk1N48OI5P0aGOkUD/4how5mzCLNlE4jShCDrMg6jjdi9Smo6b2LuNc40ysjkXyCtNubpmRMyXsxI7yOe8UeSGn4SIzROKsLTpxKxK5y5C1xG9g="
+  },
+  {
+    "name": "lzo",
+    "version": "2.10-5",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/lzo-2.10-5-aarch64.pkg.tar.xz",
+    "sha256": "7831512f18a7764b64f04c2c3483405c7576aefaf543b3fcfd462721afcf3c7d",
+    "size_bytes": 78388,
+    "signature_base64": "iQIzBAABCAAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmPSsccACgkQdxk/FSvb5qYX4g/+LuFhysTLf+0tKo/BuB8rDFuo7RBETlxZ4nQ3KRxVpZjNC4aErp5kzeQ8BDbl16l5moeLHCp7fPuqTBjB6jEwR5/e2VnxSRJzg121UuxzTOYjFAE31yUt4FI/HfJEDB2YAvUm3NN1Kc4vh3O+dFtPqHlLcqpVLUa+f7IE3wlgE5hlv+aUydNy19GM6N5fQr93V2h5gMYZTXQOSIBNs2Zl8qV9hDinLl4TglJDBylEPcXzB2QICathZSIa3RwSpTwKcc1JSelEDQP5+8OVZWyhYvPQDd8/eAKsp2eFLbx2Sile0oGBxNNemChAjC2kjQ6gNBvluOHBF3Hk3TqEKIk85WsGF6ppc9O4wZbYc7ZFZIB1H1aoe9ta/wCFciv0mXgLLxWT4aMylFctShY0LXFoB7UCLTHoPg4wp6m23Q0fodv/FmX4LECteckcFrnqwjljs6OTIGPK/nPkUYGwzpMRsjRoIWYY9vtU4C2wsSHOiAn8ucyPoU3mzoL7V4Vb3CG9mZ1pYb1FG/LQQ3a3B7Wih8fCz9SeuuRFfuqjhvRHVmkNWrV45EHukl2ywJnvus++He/LIeM9MDU8E3QfXDXv3d+B6sFGkkLOekio94JwCsMXSw4L28Mxgzoo+xzHHSkuukJwiMCxWY28FyXGvO4nHgrTTQWj12vwnuxB4vl6UCk="
+  },
+  {
+    "name": "mkinitcpio",
+    "version": "41.1-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/mkinitcpio-41.1-1-any.pkg.tar.xz",
+    "sha256": "fc4d5aca3791479561e07df05d680501510e152333eea27beeec0a01cc3e3895",
+    "size_bytes": 69040,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp8t/oACgkQdxk/FSvb5qaChw/+Of+MoSPFFNtlVHvAoLuzxSpp/zxxTV3qXqnnb9pqdfj8zLPeA42UudL8XQh5yqv1xwGWg0hWHtaykQANud7ig3cgRgjzW5ECpspnH6wme8054y0O28RV4GcyNe0+SoGNCYWcePAXqVCf/oJcPKcSQ3D176zdZHCbnD9ugf4XIXQXvV0NUzSV6f4mZPCOfsTinoCkBgu+IEXQO5jnICsyNagp/AxUSJjXwbcDjadaHiAVOnKGkigUcKbyZfBbPsjoBU59mhPUG0N3t1JYkR1x3WB7O6rhbjnjrVATlFF8zkdt9WZ9gaDUV20eb9i91aO1qIdC+Mu3sVp0nAePjs6yxJMGPZ6GknZ99FIDvUpWYf8y50Z3w/YA2T9BYoQTMh0gYndZTm493+XmWqW/jqHTdY6AR1g14Ou8Xb8u4bjqCqMylu9ntzxAiorTYBb6sEkqSRohRC50N/q75nGswN2nPz5zNBAusH7JtT77cwtKpReMEBQkfE9LXiCn+bFaeSSvzcyOIFFPZMOG8Mn0Zz5v9Qbf25dnAASkEmlzEEDar0JrV8X2Arb2Ft4Bi1VPWHE8Nsg/u5Uoxe557gHmVjEOHlIL6XskrRARP+w6bb7Co1kUnynG1/A9MbE5NzkdBgG7WyjSrdxWi+IkAi1gfcW4PJvUV1fHOJMO0dSCuS9p1uc="
+  },
+  {
+    "name": "mkinitcpio-archiso",
+    "version": "73-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/mkinitcpio-archiso-73-1-any.pkg.tar.xz",
+    "sha256": "d0d933fd5815c4a6e48d210f5a489e76d5a8391c0c00ea447de1615cc4de42eb",
+    "size_bytes": 16404,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmkbtp0ACgkQdxk/FSvb5qb32Q//VbMPrne1uYz73LXjZ4SJDjTbWPg2DRlJWTIBiNSZNl7xE8Z3OSwPTFGtduddzhsHP+Pv3qpYHav8h5psJqlERbg4c02JL9xqLmUj6KfmmnrPikyEUX5ddyA4kSRjian/1I9RQieq/M5ualjUueGMVbXked/jjfnfAU+4fI8ljeZmQD893tPHrPRbKYHAUEIGnliu7GXRp5uNlllO2uAHWJkmahdRrgYUwKYjaSGV9Dkb4ln2gginugCDicIQep9SCyzGHtl7dUCw7xFIwg3jc7mBBMzFj9Ekk58+LegiJv7KzQse4Kvz496m+TKt293mMK4j32bmh1tzQ4TRDxEbaTdy1phXMzm0R20w+JX5frkN70jL3TeC7luDCBwuo+HU2bhgSVfK5ZEYm/DlRHWqz1MQLc3Guq8SfH65nwNHkOvlcoS2xDwDkRajwC0I8X69J9SZBoixmOd3VnJ/gvqy8GIFZUPff9Ilst+HkYMeHinI7xcgoieGR1hEFz8eqHhBmD8vqhid5q6OkniwcilQEThXLsejDS2pzcvQ7ILPG5p7asPCM11L/TjU1qwfCgkN6+wmdTE9HooQMfy3fT9DR8cWLlQpP4PGJ+tU1sfyqu8rwPDPP7LhLlsMmLHkBAztpN2uwp7rIXGvoV+z9tLEtcyU5ve8D7nqe+jAjLIBsBA="
+  },
+  {
+    "name": "mobile-broadband-provider-info",
+    "version": "20251101-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/mobile-broadband-provider-info-20251101-1-any.pkg.tar.xz",
+    "sha256": "17b38aaeed03afe9c47f0bf7a9ae92787de939ae645950f48dabace4a25fa358",
+    "size_bytes": 62188,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmkT2VcACgkQdxk/FSvb5qap5Q/+L+A2Wj1lwsyuA1zvXx2YoefwpnjlP4TIpEcv2wGtL3fgDSMdVG9PhkavToXU/auFJMqZP0vjdUGNWVEe+AKVUgTFR/WVY79dwR9oPB/8JEvXpqF+K6NUzoKN3qfcCONt4K3l7tJ0vlL3/JXTpy7zbarmhB4y6mSl9zrcgwa7i9q5Ke+uJVBWPC6tLhOHKEgSrV503qlu+BGlIfsV9mTZQhwn+QX4bmtjnzyB4xHfT6rs7eTiRgE1oCk4K2Fn3uXyZ9+fhZV881PesKoatvNh73dIdWExFC4pYb1ohSj7Ws4LL9JPTa/0E/QKk66RL1Om0boBkOkvpblPxCH/1Lp3GklOswNxj+AHKtWL8QhzsWRu2T+fIa7h2OprEJh51HD+HXJC3EKK/TzKbbomBGcXKTPlt4bseILp3KxtYPXiPFOlLJP6delXn1juST1tTG7YEGHpbR2XRJAnzuCInmwe93mHoTl1kKFFyXKPwzSkM1c6CxblroLJbOR5xnBUss0zLsQwi4qeZFDKJvzWAkPhEdGckJUIlm3F52QWnF2n6/XvQcNrfNzj1gQbKOZz/avcvmIOMmocOvMu7UAC6TvxOJbOnx0grAn9lzV6srUz5802R6oQYhECZab4HsSWrRmTYN4Hbux/tcZiDFeGce0P2b7Y44SJ8O1GAlStz7GlIso="
+  },
+  {
+    "name": "mpdecimal",
+    "version": "4.0.1-3",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/mpdecimal-4.0.1-3-aarch64.pkg.tar.xz",
+    "sha256": "388611eba7f9b0dddcc03adb4f28bcb8fd2c42fbd8c930ca6b9b0f9e4ece0f1e",
+    "size_bytes": 93808,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmm9q2kACgkQdxk/FSvb5qb6Hw//T8N59Yeu1fRg/1Pwd1slq62lXKnjHVqxQXkjaCh6pmFhBWs4fh9TSwJV65bPUlntlbHot5esXtG3yGzCr8L8v7+lMuq/1343p9lLEYkBwk0WRptmbHJabYsKBo6uYS3yayaXMHxqNJBgTE0Dus2uyxX0QXBd7pflZCITk+W/jzplG/8otw9z870M8a4A2Ij+qI0DhE+AqEP24igcTuI7jm65XtEAzsA8hhzpG+b7ACrryN2p5H/aPGslvwdP7vTuEGqY2HSDrbFgTxmv3HjCn5ma7RWGaAWE2Zh4gcsbt7rkYXteJK9Yx+LT5bEF9yZkDxFryIdrEj85V1Cs5pVnYHeIq269GEk3N3jlc1E2NbnVo5U5dNlzCsBIXA1Lrz5MPU15vACF6PVAu+w5tzYsxTA4E6q6BfUJ5aByZJV+CIIILNpdA0Ze5dIHGLaNKkCpCZlOqJ9q0OQIFAPS4FZRx18uUNpmBvFFMIJBGi2b/5i81EXBk4p3p4+ZGbneWqqRbAG6Yof4VMOi04GvuM4N1hdGslLi2lDWbW+/93Gu396sOdSIqFI4EIbfOgyONIYWVoiiJa8ahW1KEbnua/HUVgMkC1GLfF4Rv4+vZ2M7rn4fp1iNfqvNqiZlgJlVSxgYkmNNU9WTQb7JBkaQl1D8D9Bj2W1+FknnChMjf6ebL1g="
+  },
+  {
+    "name": "nano",
+    "version": "9.2-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/nano-9.2-1-aarch64.pkg.tar.xz",
+    "sha256": "b7de7c6cf2e4859c141f978bd7f1e9467118266c1ea83fcae07c2921dae3f3d3",
+    "size_bytes": 620456,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqA4UAACgkQdxk/FSvb5qbMFw/9EufZVr7VU2jJBOMY2jy7V3evM1DtTTaUS91FuHIKB9PZfRHpiwZfuhKF8TQ8Fc5On41gpkoW2+FPZihpD4PBKkSRVrolhuKtJOwAdc9U+XSIXlJDBtc1WpicEx5Fg8VBclx/3z9Fa4fTeVa9cO0Sz5G8IEnmhOcA9C0Aa4t21zMV7Kxkx36Qe6fT9xu+fb061HldbtsRBJ4AMajO7Bhg4SRCpiOJ67Bo4BGCXBoe4cfBFJFYm5yCAAJOHdAwagjaRfIuydKwo7w7HNo+rU7mrbJMs7XH73/CbnmJAlwTcVGpzBSwqB/+z5k6ShVdZun1JraR734DHkqJufRh4E8ry4/vQawah3bU0fOMl7iwuaf0+GsAEUCQ048xWR38gMCksmSSLBGp7yxn37Ri8dfmN1EL1eSoCKQpfSvkF0LgAEQpMN5Urv6cvuTmuDs7kRF9PTSQ4u51ECPh81a9a+iZKjBqMBiIhpKpg9diFOBYi3xttg8G147PTEfgV1Jk+Tvn8W+JH9iRYQKTdfOsKZwF8ZbP2UequZa0JS5YQ/xRqsgTsz5Q6NRUT0LaLeiRpDU8ByT+aNe3xFcBX9W2dGLLqnEfZiWagDCBu6fLhspYu7MbzoQ3UY3Etwy4xjz+UhFttopiRdW8MjD7b28u/yMReHOlW0w0rrwxzg3CHX29LXQ="
+  },
+  {
+    "name": "networkmanager",
+    "version": "1.58.1-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/networkmanager-1.58.1-1-aarch64.pkg.tar.xz",
+    "sha256": "5f88ab112b7e2aa714ed000dd1db0fe4b972b7f91f1450ece1481bc7c3207093",
+    "size_bytes": 3634536,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqIozMACgkQdxk/FSvb5qbbDw/+JX1OmS7l09obf/cFR4kyyh2fnv1glp//B7JwCUNEt49Zz+/FOHigoKJrbj21VrAbgLPg0DuMRgA0/SYg3F58ESpE9ToQGdzev12rqgUW9s4L8fkPfvKIfAxrVHxa6CDIHs7434pAkok6ariFosmD2Uh9KIkjNW9cLK3Dg5PriEkG57RY9gZwnF4VrQ3Gadn0mi/KnIdOGlJlGSxhIpq8XsKKuGZDB9CGhf7rUUFlIyV4FENAO3gSr16tyRQGPEUt+m4TSX9J/exAYfoPwg0gnNNOttritYSY8cYPIZ1VBBe3FPirRlr2YCDJ+pLCdJQ6GOWmxya4Ax/vYGUUiiWJZn+pDt5LPBsoTbx5HKgH1Z2ZYA3cXMopMflmb7E2BMntdPVnn8KDUg75FaQl8KD0UHvhCPE+yYRBfId1UwB0xlTxAq0MhL920bHaFl/rhEPfC7moT3f+vVdqDorLJwwtonhHiDg+CZJh20xN7Qb3HvUh0jPWWPYqGAkldKZYTbJGmDRyS2BQCiF5cXbuFoMRkRFLK3ydSv/zMUO7aT9pV+NbYfmn1jLsFSEJG7uG6/98R8PJF3dq2R2dOCcKOeasTF8ownhUVLqFlsAw/R9yiQZHYr0AzRYTJ6io4t+Lty8ZnmfHNB0mN6IiUwNjRWBWjg2IM8aHdcJFI72IgYYGla0="
+  },
+  {
+    "name": "nftables",
+    "version": "1:1.1.7-3",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/nftables-1:1.1.7-3-aarch64.pkg.tar.xz",
+    "sha256": "5d4a783ce3d7eb2b58b882a5e5ae5463f35af02bb580eaa90255dfbb1ff56c10",
+    "size_bytes": 396888,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqZbIkACgkQdxk/FSvb5qZanw//f2QkZBG3ozCXdfdx+ZAEOX6Jk93HGlujhkobVDro0c0jXmawV3tzibsL2tWzvjSyyj+tfxg7caOfTFk+yGXWW/nkhRd1VJzcciiQ8ENdYnxbam7w0cTh5Qj2jIN0oVvJAr4VpYBCiwk9B+UuR5auOjNG7y3gOcfR96WQn3RKSYSdvV638cSAkEyx1PpRSWI+DCl7hYLAJNerSCMzanIhtX6Bv71BVQJnianPwXfg3xPLfNfgCV1ApzvnrKIhGltMq2XjXYH0WqAc/GEAc+rY0GO+HPUpU1eWtoY2j8Ae+o0qhGVoWic4sgXk7aEBpQGFS8yDEDfCZvdrZF/AzZru/GOtxJm//LsawMh7mnh47x6WEYxQTH7ixJPChiytQr7+KojHNZ690FvJWZ0ju+6M/mlmk5AmG3Iq96euUzCkb4x7hkXh8d0sfcD/EORmDWUCrBxS/UXgmsm0ikiRK8VUHt0skJf1z4dj0NlSAsuzVTaHfDvyStVA/bbb8dctt0fvHcWWmn/S3XBlZb102l5vb4zl4YoEsSa5aGeQJqzWbC+eatd82iBg5+DFxcY6E531l9T6SaXHlDGL2QsLKHv58wp4s083Jz58Qzm3K+3y4JcKCnyGfvkcfrV85e5+bixoGLC4Mj4oUbJ1TIykW9t2mpyOKUH3AlEhCFV1ll2hamc="
+  },
+  {
+    "name": "nspr",
+    "version": "4.40-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/nspr-4.40-1-aarch64.pkg.tar.xz",
+    "sha256": "49a71ff0951c6596b66848381f89273d8c40166731561f716c592c9899b2af30",
+    "size_bytes": 188124,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp6WZ8ACgkQdxk/FSvb5qbKuw/+Jf80kaeQ4IYmImpS8jg2wRFDpB1PuS/JcXgDP4Vaz6rTEAQimNYzhZm0IdRn8O8Rw+VzVg4m/cbUzz1MGZmJZdy/3yoSQmxu64rJQDoGcA2d7pFKGyMXA/Ip1fp+4Xt3a9PJOKkndSRNEzk126yryMzFvXGUDxjEq9zgKp6ltWQtVTKV6u9aO9WIENQdzn0wR0Wf6z9iuM0zeD2oqFbLxEkRNmlyYwxSO0cBWEF62byu1aYyES8LqUFZ7Id7yHnqmQhnJsTC/Ldo1HA/zO/u30yWLTCkpbujEg2zgdgPbRbxpOsb8RT5WClV57M3L8AEbb7Mjx1EGuN1QefwUDlxLM9Nlnw1Ks4xwjFaDHUqT05kmPnrYJ9T+oJxcoByqWxNqZDJVCWCadEL38Qb+QlqiUswnwCGb3q6domAYYZD7mWYCFhQ45Uj1L/h5DZpSU+C+JcFVNWGJ/D/Vxn8iPNQM8n8z8k4jhXtMbyqE+0Lq1yJC2a/WnClLQBM5uOC/ANMnAHXRDTgoQEq1MGqN4XFxjBZCConsXpYi8icjyB/gCbJTh2RUFzs/gKF7n635xLp/SNl+mbTJ9WUlOStCV/pX15NMKibaF553bawfPQL+dCb/7Fukoa6H+mdJU6RK9m2ajo434cW90wwyE5OvSal+RvL9mOLagD8xTvAMdPEr7U="
+  },
+  {
+    "name": "nss",
+    "version": "3.128-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/nss-3.128-1-aarch64.pkg.tar.xz",
+    "sha256": "4a46b9232be780db64a5a10ccff0aad87f65437eed2efc3415eae821d5886813",
+    "size_bytes": 1551184,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqQmc4ACgkQdxk/FSvb5qaFOBAAkpaB9qrKfXKASZQ+kdxn5YE7m5Q0X/a3/0bHAuSIJR5KDzMIed79P88a/7+lgBoItQLQBFMURLC78qF5KBap/nqiCVQ8NYbXMj34OwsS2EkVY852rhDHL42bN9WtTJJmQm/DouO6CV4z+X6JNwmDO/CfuNsVo8r/ttDmZuGZyhGmNzCgyurOcoVvwE4vIvyGOTvrAz21Jcbt2jULI5+xcPW5GY/OluLnmKYM+mWyb1okkD087nUre2B3OrszVgnYfNlyi/w9bvpma/TW0xfpk3naEzURhMNQBK2LsjsarlK+3MITCjMuHpOSu+M5gSubF9AL6lDiceKTGdpb17+0vIRuEq0ByLZqTIx3z5m69BKQm6DHANW9hw5H+M7xp2WpzwkydCz15170LxIW9SkRivfnYTsilFyEklDI7SsE/8hUebben1zKCUQSt9tiXjQPlUJVr0PJVgBpU7/7MBPEZc7Y6UQiUQjVo1vymmcwrwl5WMLYhLQ3CH4qTlTJw0gH2rpwcwMfReTfw6ssoSh9Glk6M+D+SEIfGNvo3R/ERVjiyWCRYAngt6wAuAJcjpZyW3BqXbY0wgHou3QltRpqOI/1Ik4CUCYMr1yBCmfMlGheozYXDbHBoYEeOSJDoUuqLgTdBFa+cZq/8aqVHHRDg92rAHNJqRSIAeeEV8hlxSs="
+  },
+  {
+    "name": "openssh",
+    "version": "10.5p1-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/openssh-10.5p1-1-aarch64.pkg.tar.xz",
+    "sha256": "a297cd3a571d2658adf13ab03017cec61f2f9d88834e2ef113729a521daa1c67",
+    "size_bytes": 1215644,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp7sIkACgkQdxk/FSvb5qbVYw/8DqhQsaDolWhynG/wABqAROLT99KyGoh68nWRPqzD54AvegsixQRx19lnGcTCBeLU5RBtO8otQmqQwrBKEiu7Z2d67dKIYs2Ev++Eo9yD0eByqQC1k2XMWXqJzdOcjaGiQLmtJYUmhEbD0/0Y+1u+cbaSxNQM3UvXkS0WZ4FexpdObC3wSLeTPXvuAq7OE4SwmXQAPYsw1b10RXFSbEAkSiBnY9zOjK+uD9oL90O2jiN4cEu1fxX3Y47qJbO+LAcvo+fKHBXGk+97xPWZVSt4UQgTym7UFOthX6fSYAzwYvBOBW4Lhr/CZPlZGbjgxlTlESKRr5I2y1a8n5v1T4V8Yj6KAtoR7fFWY599PxL0PwHZh8GAs4vX/JtU+s4v27wiFFfMLAQbZH7mw5yBMvfyXhrUDXTBE83G77+jqKZTP/iS+WUkUZXv1kF7mOF83K4MUuC8k5NhjWayxyEJhJ9oc0YxMYFWbtgGr1/PFbSiyCVobQ/uznnOLE3VEqjb7ovRS2AHtqrF9yRDKcFQvO1ezk769KzDAgyPAlNueEgaavNFu3DXpWZpM4YFxdK8Mod8weIzevFFswzdsblYi0wGDgGfPOwcuHJtxQSd2W5DhJEtc3AUzP2Fj5trMxdg0veNo18u716I1oJqF1ijoZNsvozZCIcyOJJSEWtZPwsQHb4="
+  },
+  {
+    "name": "openssl",
+    "version": "3.6.4-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/openssl-3.6.4-1-aarch64.pkg.tar.xz",
+    "sha256": "6a1d3aa2c1706000f02c8d211bf82fe7d53c26a32b4d7381b74e0a3aba68322b",
+    "size_bytes": 5886140,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqOz4cACgkQdxk/FSvb5qYfZQ/9FchcUoRD8FE6SvKRlc2QhgE1dz2icBMCIos6y+r2w4Wx266xOqnjz8uKkRroppf+2LCaNHLUnKTrH724ZwKyBm4Hx0nSxhLYC9jDFbUkBbcOm+y6QUqhEUEYIdhcmW9tDJMHYPCiaXN5aT9EnTm9e3msM9vChYCAZ7CGGupNpKmctUuyTm82zJIfbipXdlCcD2s/HPnY7HSc6GVwDOlWh3ruIzM3kfVHZ9xdzRwJSioj8A5+e9lnsEn/ONgI2k8FBs6X+3iPRSFWrRW+0VSaLT6aLcBXJ6UkuOuagEXjKuRbg4HaAtjXtPAthrvQwUJ4URcirOXQG252FiPNMKzwqvJbQhngB0jMjM79Pr7ch+vyWrNjkQGk1ZeehA+/rs6+8+9q4oF5M2jrEQLO4nGkhRWgUQRLde1I66NCqcqPBQuw7B5UWFTYRlWm37vsMiOp9bBXLKU4fuPYVMlygkTGjcM7VVngb/zLK5jwyRyAl/ejnZri6tieqV5NZ2ftyvvQ9gzk6P1vcRiDGixJb5DTBEua1V/fN2ExTdJnWVlbstUFsPMAe1uEkBu1M3Dc8ErO+lxg9o9MXHej3qdfHWOuNkyB2ZscCGNpgOVC1Gy+U+z3kXWVCA+22Le8rmMb9f6gin8Smxdr75E67DaMjUynK7IKKuHtb6Ey9axvysMS708="
+  },
+  {
+    "name": "p11-kit",
+    "version": "0.26.5-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/p11-kit-0.26.5-1-aarch64.pkg.tar.xz",
+    "sha256": "7e5c2facac3abd9b51709e081e8720dc7ccc0f27d6c9b49bcb3d188fa91e75f1",
+    "size_bytes": 249124,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp6W3EACgkQdxk/FSvb5qZbAhAAwcpsn5iueqRJfsCu0vYtYFkAPY/aXBISbOXa1bgKpfuWSqigxgMBSs0+gff54oKGdgP4pfd2pfYGI60v5hDDnBNzAXVXX6+RFnSOQxRzUMWmFijLshN0iRQcXlskANVrgJqkm5tCJCpscsWGjVOioPBksW7KXG+x+C3oyWqHrEElZRUBR6O4mRAYIuEikEduAK7LhO2dDjzGbsDIfybQhjr3VVrF6uRlRS4v7keq8+7HpOmhnoUBkEe024tLcq3z5PtjnqqavrnB5tVqp2C4iWbpmmIBzbBvTgHi8bgIu2RwNVPatWD+9aOL81xcyAvnvKunS+RdIp872b/KBruNY6gV4cgLqNYZ7rFfVpvKtmiDP9bihMCoHPyHiSm0Sz2l5BFJBV3SyMpiNpho8EvSKOTlELidK+AWEmhDH8rylehN3GPKKn+0OYOLlWrs7xMkfbLfSi2S5HgyaUtg+rP+RGyq+0seL42X0OtpVZ5qKF/HiuoETRO039WqpI8Hr3uSXl7QgtWd6ll2N8jkDGzg3032TgVI5G/7ozu+grxeZdQaO3UfnCLe5HR4IVYxuXc6H+d7T7MERZM6RYcSNfeJBTKTcP5K0HDfb1bRgCXZmcLdHVaUadBTzunK0fqyLpRjKHmUEyG8S2Irm6ScNp+62pgzTiazGWIy4hI7Wn9qRhQ="
+  },
+  {
+    "name": "parted",
+    "version": "3.7-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/parted-3.7-1-aarch64.pkg.tar.xz",
+    "sha256": "8168e03b992080c00e3e5d48e886a393e71679d1f7cac300aa0048422c45516f",
+    "size_bytes": 519880,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmnX+gEACgkQdxk/FSvb5qYCmg/+MIJYDoPTbcCYmuAj+SDpw/pMdlxYSiFyGH7oQE+B9VWCTEJ5e/wURaEWKp/Cqifz0MhINp6GvXIOnpx3sdgw678Tx0WbsZWuX/87Nxzi/eEuYm265qHLyWv+qYtaXQ/baIXwRZOvzl2KYJMsIbfxBIPzudnDzkNJFAH0G8mIaMYGceI/aNgiTslX4X5hAhYF9kNVlkM7jL9rKoTXWH8oSk8F+crkHNNMEl3MYzb+Sk+m/lb4JXQ9rBGfkHmzDXCa6CPzAigNaSmlNZ2nl6dvsxai4ewWvs8/QPs1yBtVHmdWt6H+flT+M0nHEVHnSC97YkUquIvR2mcW7vhBet2qL9tqn9OdWRo9x/vTLWK5Rosv+AbKUtw2ufK2cCh1eaDU5yfwcGpzwnQt9H+TioO644ecFnQv0yLgcCKXQcllgKfWv70YPIE0cNYJUjWd1v4F/Xj+sfD6FqAGS8mxJIjcdIaD5l8ObpejnqrdTUdMthEYItlmcK43UGiIPYkTTWCA+VWjyGU+7xGTEuarHbzMCfeCZQfi0ceVUn9fv3nVLg3sfzwtXWXihoO45fveQ5Ma/+NFTzqvcI0MhEDXmN1fAVNu9vcJWzR7mY2OXqbhSKHtLxOCOSh4S4rpXLg9ksGiy2qMHI0yCoPhtRy1JIWGXAEXj9NHc5Mvu6lrDaWs3Ik="
+  },
+  {
+    "name": "pciutils",
+    "version": "3.15.0-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/pciutils-3.15.0-1-aarch64.pkg.tar.xz",
+    "sha256": "57e4440f20a6ab0ea94a8c8725b569c1beac5d2952a793ddf80fdee1067c5a84",
+    "size_bytes": 138264,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmnWLk8ACgkQdxk/FSvb5qZMBA//R3JhP0eFZveZ42l4lU+nyEH8srxjLh6TEZQoGAX3IwZ8Jry2nmSvvzKiIC5EVrVsP8o6ioj4rqthARB7yo10tgTjxLcePplUXh2QGDJigUIXZL7ccIb+skY083/AEbuK7wdMvIGyuBW74tVcqHfx5Qnz2qTUwjmJY8TeOCWQQ6+o2CQLB8SacwSb2agAsq7hajBFbK5WWRBhrGPqTsdkTt65ILQizn3gnTCfEC0lW0dWvvsVS1PnKHpufrjta0lugH9/NmXXn7mpkxPnqPomVGsSHbv/i15tBgUzCZO60cpcjSc+6j4RxWKA+OTjnUQfOT2QSTB0EEVXMo2uUKFUL1m50ceb5BIn4fUPrsIUBEmbEFXSM6J/XtP/R4lsG4xuLc/NKD8HJ9PUOvDi2Fjd10AboCIGzuWDG4NzYLpIxN+yJyAihelD5pgksl+4Au0G5z+p7NOe7YtO1cp7b0xE0tLNiKyE/z9+jEcnKThRyuVXXqwdQPkA1MwY+jh/V+E/fU+MQ3DebA4rJxYw1u77aDKjrPP28E6TFBaucJNh6Qkgzu7wLyhVq++EgZ7B/0pU/WriTtLnqFzHv1mIWr2RQRI0CybtOJefDwIOb6IzpgNKQ8CODnCU11co9ESQKGqspTQ7XFG3L/py5RYvm2/mW2qvCwcd27aVqxrdCT4xN+Y="
+  },
+  {
+    "name": "pcre",
+    "version": "8.45-5",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/pcre-8.45-5-aarch64.pkg.tar.xz",
+    "sha256": "a553cb6ea6ebf3b47133696c42c2d7adbc4be55c41666723590caf408d24b85b",
+    "size_bytes": 920788,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp41PwACgkQdxk/FSvb5qa55A//ToC0Fsz1NEiuxNSwhndYkl3P1EEZNoufVWUVLitY0E4vee32Q0M3VcOXwhF+Tgrp687ahg8eMTr+X4QTmadtqnNVguTA00RvaFxg7w2TSp1WBaOUnl+m6hblGHwzy+i4qhA0ptgIC+gXtzNPsz2dZ2mtQiGpkOuFG47bMvNI1k0GW0CDVnWYi0rDV3ZQhyzWTu4lvpVoq/eRFApg2limzvMR3b4pmD/xlvOqeIbdwgqvzMPvPYTCVPRdmvbACqYJ7+xiLTS++NJpXb1DkPvA8CY9uW/DnL6WCEZATTYpQeAjGOIHFZoRZNEg6RhioKUJwM/yMxvxy/4oAo+LvsPSk3m4FbvUjpLQMbaaFO44DztZXfiv/faScQW+myvIQ1DlWrckwHwxmTfISp862IodmN5U7DXRD/n9m2Y7n6IqYoRKxlMdew10Mrjw7m4ehOPv2XizcUftZHKMmqidrYzDyCWIMJVW7Xqno6cgkrPPqkGjBV1Qdr0keo705IvuNiX9XaJgmItOo1C+LxNkhI9oeQ4CgriW5rPUPcxB3AWRyFDhdiHu5tqnHQ4PcjcSohYIQ2uKmML9cna0lqg8ZVrgdQWCMIAcGm1UskQcH3s/j0GepEtMO9JAj9/Z7n4kgWvQ+Zz3xGGJI8vSZy4+kYvspWXbNzvpxavSzXWWt5vznfI="
+  },
+  {
+    "name": "pcre2",
+    "version": "10.48-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/pcre2-10.48-1-aarch64.pkg.tar.xz",
+    "sha256": "58b6a901b7516650acee3f04fe94f3f37935bafa4483f05d05aecdb58a7c7c2f",
+    "size_bytes": 1260392,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqYAbMACgkQdxk/FSvb5qa8ZBAAyUQ4RMPqhTImxcxFZIUKFgS6GTom3zUogJWbnmFSsbyjSGxf22jc+wfVmHwN8X3c1vGfyLhVcQbVpVNZpip107oMBg9EXP2bTJMwkQarD+0+K0lxY6b7ekZBajPNOd4Ogtp/+s7nGlWupMv9Yxn32w03lX8X0gnbDxbu5BP4f8gF0My/owI9XMZJZHf/vHs8GgnrtmuOXLeknk7f/vH83OSTbjNVAgqE+pRhQwG6zdKYGG0bDqJwuEZw+frjH7xdoxoo4Liyvj/XlLBkIA+CCiX0lcTj0jspgfJEuNUSd+Yc5ivIYmfcekjMqJA3VrS4uOHgIApK5KRPZKPAyyJzUAYXdfNRy2rq3BgaDoV154PMwEpyI1aeRhU82OskggXHmIYfykvgRHzpS1g9G1jFAfVpxcenWOOPQnwJJfFgkIVrTY/93ytjJ76NyN09v94kQMcpjkl98GsZoNN+pM4KUDKjwwOtrUcYcA2xBKMPoVwM2LJDfu+A1XaoWwL2Qk6JcQ7wzAHQ7ssZa9ImuazPaFyCnPx9X4OLzai1tSOifl7Dvss6C7oE9Jd4iGaCQth6p+qtEIDDJVLY3N2aijth3TrNK1FX4zZN/iwWvp4LYS8VwjbgToykwBPPGqCskIPkvX19/RPiJmTX0CeNpSvCL/dvCpRVdUURT3TJdMfqSPk="
+  },
+  {
+    "name": "pcsclite",
+    "version": "2.5.1-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/pcsclite-2.5.1-1-aarch64.pkg.tar.xz",
+    "sha256": "58ad5c7d1074bbb372d6a9c26f882a302b4806bb5666d7ee80af65effe7507b7",
+    "size_bytes": 103260,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmop/YcACgkQdxk/FSvb5qZbeBAAm2LaGL0/qPo6+07GVNP81stZaQjHnNWWRRre55VO+/zDiqTo9KGPYKQHN0mT3SnXBgrS5ay3y6Exnn2pIoCTrSAMMpadK6glkgyddnigNZIn29jmmFi9YtAx5MQqCzv8nyTWBuw4ha7qvCKh1ZQ6OLbQm1lrNT7PvSZFzSv3IvkS0mcnPrgWQ+DG4bfZKgK4p+zC/8qabGga+Vb8Xab7Wx8o2PMnxbRqsFPjHHHgid6XxaMpqN7o8DXoaRQztEdpgBEdxGi/YvVrJRcQs1TmV1k1RoZ1UjL5dTIwF5reMEVP9/bVYmU7XSpBSHUB3/VetlNlAh4qaoDJl3BefGBDEQgsPOFEneqEoAGSsKvtmZ4FZL6YcOqO+CykZ0uCOM4s6f/IhakOuJ10AazDGQor7hODPURiKb51NA28GNZjbGOnMWbURMq1qadax5ZluW8kybqXu1AlilTJNdjuQjbD951/nsulLlhaZ8W7ZqaRzHpDtW2Ymaz15LPPmHQLRGPkltpKeHwmGsbdnb2xkKXu7o1r6myne3dXIP7VLEzHGuNXzV8TU/aIFf89lNQya764TWQ2ps+I48KeJ2s6ADy4CweUfwSZplxdTlIj6/3rqbUQM3bZWybP+a1MCs7kOBcwm7uOfWMdZZ6tqv4/xEUgWttrjbcENWYrPOZ8MnoY51Q="
+  },
+  {
+    "name": "polkit",
+    "version": "127-3",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/polkit-127-3-aarch64.pkg.tar.xz",
+    "sha256": "dbfa3447df79d526968deb0117ff73580969b1f02ce678270a0ba2f1b134244a",
+    "size_bytes": 413660,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmlV2vUACgkQdxk/FSvb5qZYQhAAjVKWbS1VaMJAzsaS0JC3adAWocNWth7Tx3X5OIPPsY4ij9rbwQQN4ZLWlu3f+WXfpvLJpOW3T+hzJYWavIwHNINcP/8mTnX78AT7mH7n3MmZpIg2SjLC85guXI0hh0ynq3SNfKtIsBbWrHN/VLmASS86jTNn0VjtDEBKANHhR1rlUh8stdSAt5rU+Y8IDDCj+yr4f6dZghOEQGWOncQKJOV5r6Ut77QBv0/T3BaapDw98lGsn6Es1nEjlTT624YIZwWlrjzN+0vgMVdV+/kl1iCuYyKgaxc7OICxl4IcIvW2NUlnS5O1L0a3tOZimwQHi5ZFj03xzaW4pFQxgs6PJ1T/Gic+yz6D8V4WFfmfjh9BlFW6shVttL1SEZBOVrTb4aq/kv4ov6xz+MlyHgsskmSaZbPPRhMWd26+7voHTNXJxqQ9srm/Kk5LVoAC5LtjSpdRAA99m/tVRLvQ0A9s3Hg7wuajwuB4xemedqkhzChcS8wrL2xq/Jnn3MYXmfMizfLz+yPKwZzYuzg22lvatJK41+8N89xZL1Aoe8QCyh7V+AvQuvjOCee2ILDwLJ3stx3mUwmRmdxS1tPiC8kouCXU0oviFyYo69eOPSX+lQVapbkEeOkvXOqDrwPNF9Y6pWZAfSFpvPu40e+YHlxqcwuSPxcTHNGdvi2yNckcZqM="
+  },
+  {
+    "name": "procps-ng",
+    "version": "4.0.7-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/procps-ng-4.0.7-1-aarch64.pkg.tar.xz",
+    "sha256": "2041c460f7a25e9c33c52b420c4c0b50dc4652b01a6690397ef3b870b7d89cfc",
+    "size_bytes": 991768,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp9gGUACgkQdxk/FSvb5qbF+RAAy0PPqg4ojDdnwc0s/48rKccaCHyur5KwsO3qMBpJvrVuu7ZdTbGGo+nT8m98l6StcYQU8YxhKARFMPhDV9SBbh1Oc0qYSaUhol9ToOEn42Gaa8D6OoXzO3Q/p0r5cgy+YjWvGSQg8ZG4Us0rbmUWz0gTjBOc6QBP6uq9n40h3nMS6fI7pu32VySC9YNdVNqbYRSRJ+L7KHK9QYQVq/Z5Y6U2WsymexFWjEI+/ATBiLUzrx2EEEq0Vzd/FWIphRyN1kQUD95Y4ln87mtAFS5c4DJASLd/xjDTJ+BLcssf1Su5zRDnm7i+TPuY1O54L0/UsxYa9wQKgUpMdQSQWjWPrKncOI1W49FoxSbN7bWECwF9hf2yRCaIyyyyrbFaf60hjG0+WGZ1+JknjR5O4p4Lta4NMcywGphmurVZfQq9GlRXnh+3veO+CxbwlC1K23y/tZWc/xoXCaMksu9VSxhBaUSmFly96cLTOuOHtROSa2HKVhVCIiwcPr7mGqtjAOgCH2VoMy7+1SXRjMHaEkbIYDQCpPSpCJRnhHUr1EIo/Br8epm27BRcti1IoyO+GHSuLyARQ/u+O9x5frvXtqz6ROH5aZBzlrtZJ0KwycKl+N6faGpUpUeqNssBQi43Me9h0R4XNH3bHko3pgfiJvUEOJgK7WlV75/Qelpfm+flBPA="
+  },
+  {
+    "name": "python",
+    "version": "3.14.7-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/python-3.14.7-1-aarch64.pkg.tar.xz",
+    "sha256": "17015e87d76198ffda880a95fb5ce46f340a68247bd2b4148a7078d1d3f1f250",
+    "size_bytes": 13514884,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp8ebsACgkQdxk/FSvb5qaOnhAAnbVtR9q9yibbGQR1FKAzkPFn7AxVyQDybKqJuCR4iB/11s1rKc6WuW2p5aE4shvQ8GXi2FMLGvGKxyuc7pNMqboXAW3/Ef1CzOZ3tOvX4mTjGoxeoypugHFxNFebOVnHVFhqBUg+qgL1wzeFZRIYkutBKnKlGveJUwI6Vu6o+jeWzCftIt6n5DBtNO/f/s5pCCtTorXyy61CKHuqTRlcnLlTbBu/k1lYOPwfi/T4Au1l0EsouFB8YBpTph6EzjdWcbpTCIaQwyVw1g0FEknUErpJrqB71/DQiCrYFDi9gQgXTvFhY5WykOuXnF2UpOE/9SL6G69fd2TTQ0m3CX4sMHn1TJao5sH6lnG7MywHvGfu07He/MFXc7AzOT4v2NIHbMouMHQChLjeNtf0DYjha5rkURbowTnHcI80ayccHeZkJn2so/+blnnRbNlzhe9CVM5x5Z9sJC1QsTLoXD51cAw9VjLjtZXvR7Oqs0bfh7eyzBAhEEbyxvbfds7gzFelRZEzd3IdUcUXq/u4HdcClddnI9LFOiPrSSSqGMc4qwkgRVJVBXORIWDNFw3QgRkA76Rvp3GddZpLDaqd5kiqFlrJnDQZgbseHObvaPiH9BV+OdwqcNiPXsOt2dfM49r4rjV2Lr6WR2Y3uTG5PzfFvUJ1g7hFELj1SrMJx3AFveg="
+  },
+  {
+    "name": "python-annotated-types",
+    "version": "0.8.0-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-annotated-types-0.8.0-1-any.pkg.tar.xz",
+    "sha256": "0a674392adf6e510478f1d3f453e9e42d43f832efb24e4aa7d52f835f11c6947",
+    "size_bytes": 22588,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmpkq0kACgkQdxk/FSvb5qb+aA/7B6PSgmqqmOG1BF6hlHFai+vqhc0mNlZXapfHW2KEfJ7KQsg18bW3ciDOg3ENes5Xi7XNWv0JWUM/iUBLNaWWTJ7XJVCDzkLmgFUiQcHZ5T3x0hNWB7puW5c/VMSxhjWIatapS2Ic+ABfIPNId/BsZsEzM/dn1QBDEW8yawp2hSuvJKyJNsoM+oAB20XwSroQV6xtppXQqT66WLsynCFiwvLhZgw3SBafxWEkF6cRkeF5HSj/PVW3jv/QfwWWVAgVcxRTz19mBoXf++oK3PAIdq/t2RLh9FooN3onI3vN4+mkWW3rCcxaamJtNM3HvCC0CU0dgjwp2qIT6kAb2KZk9zMmAJH4jCbhv4mlp3Iezny7NvPtT6HabSJ2P7+q5hbRlzwZFuXDjmMkhuf93HppYx9GKCK0AE77gzEIajYoi2M1RmyamTNhJ72ulO+9jRnAABic+UZBzUkrBV5iLaBy2T69ryGJJrmRLWPczsmLWPbBKBbQQwnxtbcNCpS3enMwUeFIVlhTq4nqZa3XTIdCJeCjMkGut8M7v+/Gpktg2tJy43QQqg2l5hrskR7YeouM8XgbjU3HXazrCd0J+1SqJ836/l84Q7EBGs0X1JZLDzXuVDeEC5sBSfCWmXAMfJfrhLwD0I1cDrPzp8pTrj1g1vJ3YI4bA5sUvX4C1w6hpjg="
+  },
+  {
+    "name": "python-cffi",
+    "version": "2.1.1-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-cffi-2.1.1-1-aarch64.pkg.tar.xz",
+    "sha256": "261dad7b3a50cacd4b86eb3494ccccc5f6a6cf99532ab5b5bbbf9445f5afaa63",
+    "size_bytes": 286416,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmpyZ6EACgkQdxk/FSvb5qYSHA/9F6lCkLOfChtNS9dDW/B3vu3uu7fJyzDv9y7KQsIjBzip9xzzep8zCvRJhQ7mfIozsG3EldrmUP0vFWuwOqjogKndhApWTFEIYkfs2NC6qFkdTV5HnRvlS9XCIgNlth9ZoizR7DEih68xiTct64v68WexXIj8+jFUSaKPToEAYYpgvskHCZmoE+bPyfRk6a07AV8NQziaz6k5rHsG4L1CqxCs+kywibRafprALh0fqbHjSVqZo0e4qdvT2WH1VFjchVPTOdcU5WJRx0aeIpZBgL3g93MzgufCoPwnPX31XK4Y2q5RpRptzIPdvmFI688uns5AVQhdWaOzGJ499yiVbrbdW5+Kg+xtqO9a7j2f1dxjdEkDjXss1X/OpLHMfZynaboUCtgdU/DNAYTPPJAa+xtRjfnWuFkL9P1YtmjJp9qlmKz8Xza+fSiDlDSgXVk0UP/R00zuEkmn5UtQXvMghwnasC2X3/iat80UVs0tB3UyVXHKUsyU9swkcnb6h73kmXiukMl8Zw7rcOSF8aGhg/f3L+V/W2wcef5r4rvEjWcURDB2TdzbZEYf6Lg+iMAdnuX9+oydZOX60AoLAF7mn8x9/4ENcI7hry6wWdjkyWLdICKexdV8bfOhSp9d7+1MxGg53B4T7fbtdBGC3EMvRZmeffRbU45BP61wPnyiK3I="
+  },
+  {
+    "name": "python-cryptography",
+    "version": "50.0.1-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-cryptography-50.0.1-1-aarch64.pkg.tar.xz",
+    "sha256": "fe3753fe21c380309ede2e5a0e99db1d16b271192c87c752e02642258f068661",
+    "size_bytes": 1307676,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqOmHQACgkQdxk/FSvb5qZSUA//cnH/U5ZE6K4QBOhDkAViqEdOUpp/IMjxwSv5vPQV0WzSdHg8TuJXWQO32DGSBtR8ehOivdkhuCsVf4O9gyPWNagkrQz8/S6Wsp7GKVYe0q41gWIJv2uHR4hn6ioiotB7+FPPM0T/b/mvZNzcLkBjXnysiM5cfSl1iX8ExWgmdyEuCyj2VSmk4e0h6sGdUMoHxsemeQmzwtntN651kAY0g94lYs52SR8LwH2p0/1/pUnru+Jbf4e8xJCGk1bwUb/dS8fyO+mQRpk12m3RMt4Cp9GIsquAj74N89cBFA52RnWOlPEdwMmgHQStrh9ZPzNtsYA4Gz9g6mgkrnJCeDVUrbmNSYzvxECOAEaLdADPu1bYr2R7aWaZIrrdVTlvALS6MQepVhqmZ6k8upeoMpzclU5iEyP5ynD//5BYaNl8y557WYQX3bwbED2cMvnpkCDKzPHjsP2n2hJewAhm/dxZvjrFHWQ3UiFbrNsrwxXXqCz9Rb0qvK3PQnRWfmFcItLc+o9kdU0hG2T2XNYBmqvrXECDllffPAlmCBckyQ/64eS0bZArXHjqxnBGpTqvcQc+n+/h/C+GwOhopN0DL17fQrdbGseLucFA4ebEHm1V0J6LRRMlVIGY9M6SHCnkRhJYQcyGTESmushGZQpZmQ5SHr5kZSXKysghCJDYMbstzZQ="
+  },
+  {
+    "name": "python-linkify-it-py",
+    "version": "2.2.0-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-linkify-it-py-2.2.0-1-any.pkg.tar.xz",
+    "sha256": "81ae09dd2ca7f778758279514db957970abc0f5cf0c3cd0bb5f47c8c0f21827b",
+    "size_bytes": 42032,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqYOu8ACgkQdxk/FSvb5qa+Yg//QAQaLrMPr0U+UMzJIcG3Hf6PLrCbf/rUpoi5hLlCLEN5xADoFsGdXeC+uJfEkoUid+7HDS90A0fB/VbpiNCxWxdNdHQBIZ1cKT8pgPG5738IsZDPLcBivvODH/ACJ3dlIGmPwU0KjVO1Z11jqGo/8t6MrCnE8MUyILejdfeCfTbiVsQeE3EiuC3l29as7W1F0JYe4acXJUMTLS7n+CooysI0g1BnqI8jjdloD3w9VLDem5HO0NBIb5Wt0QsUd8006NdiSdQCiL8jrx+/Gkq3Xk94Xf7x2AqPvm8ObRMUPJuBXAHKWv6QcPDGjlTuwnKvCAo52BhPHSNOh64I9wN3m5ymrKFV3GayzlzIIFdbLFGm5AEtUmmWa1aM1+fb4ejh7M7631F7w7TU1kws41GkiUdnFfaDkoGwfQ1JVqbP5xKzAMMrs4tLnS4rCQoSj6fRLo5tmIhcb2gylPFBzD8FSK598lzesiJbo9rizh2CK6vMnEvI2O03+0W0xikG2Eo97/6ktUkYTh5tdJCzq/O1hw7PJ6aY5/jCiTA6YT5MmmZ678UnHZfkOtNofFFwjkpUIprjLX53AwbUhSau5vGa2ncEHuNKF46nrFn+9mTVxQqQTdYMSPqfZf9QikdJauFd74/INb0hDcnkIhxuamV3wSf/16wFfx6G0eBqTs9ESrg="
+  },
+  {
+    "name": "python-markdown-it-py",
+    "version": "4.2.0-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-markdown-it-py-4.2.0-1-any.pkg.tar.xz",
+    "sha256": "75af1e415e950f674b08a800e0852736998b64cc8744e497039b87bb738be19a",
+    "size_bytes": 149860,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmpbjnUACgkQdxk/FSvb5qYDgQ//cGbw1htQ+akijag+pFg7RwfnDF5vqAYagT5Qy+b9vRS8eEj6dmhrGAd+YGKYArjabvVjHTHvxeGlJ6LFD8HNWVkAsdq5LSuAjZSekvuGHrlVLRhDGZfvKNlhvpYXk9O6L3ouujvpbrdUwSWQucqJmsjrrsFkoJM7NDn3aqU7asUuSlr4Lqb0t5BcNiTyxhZOR4GOYAiru8PETvT3yzHNNriLQDGUpgRH7IMKbDswdEMl0nnS0LIEbq0r4nHjR+L6yyOCHnXXWlxZEmL2CO8tzN3JlOCCQCyajMkGTVeNBowku3Edw7Sn0gvWu/oSQQy/WFGkwH7C6Y69LEeQrD3Wi657RIwZfgCz+UqXzNfvuDF/7z1wAv9QEcjaALI9IAXaqi66q3KK2DRa1NreFbJqiWbjVndDPHummY70BQCP8aujrRBbpbxGOoclQxS0MPaARirar+o4ENDtedUpXkA4LqPIYtyY2Wo9bRNiDFBoBJnJKLVNQPYh1Pe/EQXwg1vMKIYcEh4h+YRL0ztNSmsuPtJ6s15kJWbQgExFQAdfPzFMWk6EBWv7N1qPAdZi5JJtltuf5m3+UAZB2Mxnoq/Xva52cicpIB/b6IyuGopXTEgpyOXreYMNP8e5zsHWrfw9SwG7TopGEzz4AUtNv0tWGZfu1kxdaEWU6oabqX970vk="
+  },
+  {
+    "name": "python-mdit_py_plugins",
+    "version": "0.6.1-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-mdit_py_plugins-0.6.1-1-any.pkg.tar.xz",
+    "sha256": "943ecd9235957623f774b97b3f6dfe29990d6e6ffe657357ae955642200d0c16",
+    "size_bytes": 102040,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmpbjuAACgkQdxk/FSvb5qZSkxAAxG/OQFSdIaFSznCbtPQionrUhQJXL3VjgXUyPhaYE3FjImryMlP1R/Qmi7oJf0iEFF2D4OR6+uu+hgj8pYWp97MFdTUS49/CYtDyQwXKziGRrPW2wKxD9YWKCWdr44DyexPyaAuHR3hWCmODhqUgxUXVAcHKVLZUPqNDWzUwvy2xZT4y0qOxHW7HMiJYlPzZFU0XSfK3oEsZ/Buz6udTubp9k42Oysb0pCzjLoy/yzaCeK1nhjT5dBjV+oo6wJraBKNHbDr1VvwIQiyVLiy4bIlsUkayiHAhru37rxT9TXv+QprF1BW7RbcM1EqhELN8VTltDTZy5eak26q9dFBwnxXO4xBE4oFIwFVAffzTcaIyWxZueXeMbCqBfGru34+GecuA7TtlQjU1XJkKjLzAI9r3iH6zWEbMsPoW1Y4Pv8rxj7lENxhCHje8jEXffmwbMtGrimfrQfNxoetzuD2iV/V6sUeM8EurnjemW7Z+p23ADiYjMNwI5a90nLyn7gWroQ+hexHtDorvWQd+jFvKMZctLhrL/EI5H5dmzpr6bLb/8LKzKDJvqCpuPLUvCyVkdC+er7GaIR/e0AA06/ctKQbRDuxaxPYDYtQnrJUKwZT90WcU5jtI5kIWB8jyQOgVD6QZVUgaV4DB7qu6Df/FiO2uKSPxTwUWByOcQoG7Ihk="
+  },
+  {
+    "name": "python-mdurl",
+    "version": "0.1.2-9",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-mdurl-0.1.2-9-any.pkg.tar.xz",
+    "sha256": "8aff9cc81b94e37cb8f677e97c33d3bd0a6aea3494e2f7d1bec06b80714deba8",
+    "size_bytes": 18148,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmljMtUACgkQdxk/FSvb5qYX/hAAk0ujBo+zNS7ZhVrKLJY0DIRP5rwccj2/jOFQIo6PR+DzAQI14dAV9bZ/syUozdGcq08pxUUIoBMdJhWpjqGtO6I8cKNY8u7Gk/pUxLfCHqiMM+7MhlSNhY9xunP8DttyGdGZB2o15nEpRVjo+JjMSWsBxqLs9wLSRCpzdvbXrMkgsAfOFqO1Iodjny4lU3uGGbey7fpp+iY8fYlVU62XqS2KFfC/0clPK5eK5NPQk8Frvl7J0BsI85r/03WLEMLa9eb931FSF44YSfdgUESYHECqRsI3u0zDEq0OGY7Afd8O3g2Mt50v+Ewn/rF+bHK24ndxOAZNKSmWJoCYzChFf/+zfLqJZp6sj58aTqlee2/NZJg3lYeuXBfBVH+uHrXReOc/Hp5t0T3x5o+ffJvfYx0959FmELr6wpX/WrX+Etj8/8PakCERg2KdFw+dGhloCUlifjY2DuefttzHolDLmM6d7fvxWramHMa0b71SBpeqlTC0qvJ/nzSUByqyJnY00jnjYqarQEaWNlJVA5tNtRgGsSptUA1XFtoIcQGG+Eow+Lm+/glBjaHgAu1CxQqxRlb/VGaI9PnCBSCV2wVkZFUPmOoOOOMcPFHGYGs6kgJ0XoXrzqyrBkGytKR4uGghWjncwC08Ut24gDhaWEQ0k5SambMJ57gurHgDVoZELVQ="
+  },
+  {
+    "name": "python-platformdirs",
+    "version": "4.11.7-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-platformdirs-4.11.7-1-any.pkg.tar.xz",
+    "sha256": "e58b0aecde2c0f42cef5976a3ca1133f465356930394faf2ca6546ca4d579b36",
+    "size_bytes": 48564,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqYKvkACgkQdxk/FSvb5qYkhBAAm8j8T9oKJdE3K9KisRJu1vRHMnmYhNrjwI4reXgphyciNhQkzBUT0ydEQruZhoU6GBZriBWeQw+mN1yDES5Xedtf7eSOmNI4W3bzlN7eHJXQPkgkvbMpbHCwNqNvm4NrLRPsWXjp+RVF2gkbMSneLzUcK7JQ16lM77lS5Okxk1ceK7PL18IKyqzHw6XQaiafIeaH4gXtHzj3mca28wVcrWfmzwwDGd+hBgAvx+jEO90m6oZESXUkY03j4ChmpxTlybBE+jP8rZkOn775P+ZCnd6d5Myf1X4U0njZpmHHUJ6cIG3mvuCt0QCX1kTjhDbvi6T1AUwJilsNpkqIcRa4oTE7y7RiaBDI3SUpAIfw0lCOne0fg0cHAT2weavTo5JNJ4ua54YUOu0Lc7zDY8rsp576DIdJOClnqMZj/+K9iWKsvdHUc5oFFYCaPryY1q/u+cSoBXVEmIZO35Om0cNFXFvq8e42SvjC6h3SYCp0zPgET2V21GGl1+seclRPlcKKadFS6gUqoTEDcylNrniYGqO1RGZJYcPJOfFNCoFVHIM5SZh+jeL9u9zWDzR4LkEzPW6xrEht2dRnSrup40RDgmGHjOpjEFgBfkfGhKDMNEjmUh6S9y46cG0YlcUcaNjLxlFQqT+PdU6qdwXCokHNib9f2a4Kde7XjzNWQuaIXuk="
+  },
+  {
+    "name": "python-pycparser",
+    "version": "3.00-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-pycparser-3.00-1-any.pkg.tar.xz",
+    "sha256": "af3989fb5cdd57857fb70db3afd06f01af80fedda459aead5ca684e3b1fde6e1",
+    "size_bytes": 106496,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmm8Gr8ACgkQdxk/FSvb5qZnnBAAkGPay79FmtH8pL7J8SPxzvgEYzKws/5dj7Inya5xEiYIcUcKF6ICt9Btq7vEL7Q3eK6slKfbtnz6qzXkNm6tPX5YiYldRagydhn6Z5ki8IHeg2vmpX88rjkae3m0KRlxFOj1dTu5UDhHv1zN3Q0+R6XT0tS/24ARffJZ0hyHS8tPHom2XuC5cUf/bc0hpiQjN8sLqSO17huuCBnkPPbWnAeICVU9gVg9P775AEEddswPAgXDiwNcNv39M8NUNkBTZiNgg4jlENZUh/RNi+Z2nzBmEQk+fUYK2KRelk2gk/9RT8oXysJRQ64mBmcSv/ml0NrKgvl9ftTOJ6vGV3BX60wLO8cChUfXYjCkHkfvnG7r3v+quIQC2vZK5shM/7cRD8hNROfQ1mVfJ2kCBQIZwdwQS6ISjDAN6aXwV2lXK4MKd+K1BbNSQ/S/c8Ry46MhBeax3dyGj/cwuPXtTKe/kzVKqWYFqXSw7SS+Nyod/941UespcVUd/FGLyHUuM4cNvPKNW7NHc1MwhVBceaz2AXUG+xq5MTJ7XdI1+oWgJxXJsXztvmPiIRnu39iJ+bIIQhGm4pUW1byQfSI/Gv06EZOkuNiJx+9svn8ANj93HDeSdTs0RRQuKNWgD8trw9LYc2OYhHYuJnma9SvPtdQkrghMu/Vj1uBfI/5kMm9cx/w="
+  },
+  {
+    "name": "python-pydantic",
+    "version": "2.13.5-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-pydantic-2.13.5-1-any.pkg.tar.xz",
+    "sha256": "7f98df00163ab5a8d17b0273eac69be669a9b4f3f20de653fd80c8b0fd0e39f1",
+    "size_bytes": 865072,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqe8S8ACgkQdxk/FSvb5qZKOw/+KjpTfv62ZKSJXvVt+QS5ylX04xPQHsyG+T14X9EeUQ5dsZyN9m8AFdUYE/z64ianYsc/qxaM7OllTApjkQzbkitr1wVZyEuUmlfr6gJ2h7HhTwccGWwrFqLGXIlzmHE4qugSLqse1NxHDrsF8b6BLSUQ06buhHadkhMf/Ey3DitM2Db5jKHSV2go1dCezu0hdD116335JXOiDCtN6lmjvOjxQ5VfXGaOCxks4ZbZ+2nE3Oj1idbcHoylmOmiHU+43V49hW7hEphMx8+8mg3qKYCGbtjueGzuTtyKfHhLbYwnItyIVHiicQjFu1GGrN6tlXbbnH4XNDXOZQbzSSKsw8tYZOufbkK0XzP+eVX4kKSToBOs+19OLE1N1tF5fZUOQn5r3dJY/h0d+xgeMP8AG+wPaZ+dOgExv8B5BGbRyrfa4RJPlpAC98yWppaKJ6sKtJDTKj6YBisNeyYKfUJX28u9YKKpNyGBvLc428d+Dt2pIlKjUZsekV1ZeEwqywYolU6rrO22T6GD1QKu8HdngdICbgmn0TiUMtc59uTROTZanaN+Wlf/sgftrJvnVeQwGFxGajZgNmjsJXBhDV32W43fnkm/3g0qIznwg3U/Ra1HEG8zGXygU5G3ltZsGG0wFjrX/i1NBvL00V5eLusmTXfQzB24/yVTOEKSXUhOMNc="
+  },
+  {
+    "name": "python-pydantic-core",
+    "version": "3:2.46.5-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-pydantic-core-3:2.46.5-1-aarch64.pkg.tar.xz",
+    "sha256": "8279763ef062aba71df574e3da44170ea0f96c32bc03cd8d99300ada6b64999d",
+    "size_bytes": 1332016,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqe1MUACgkQdxk/FSvb5qZL9BAAvIf1dV/27IyoSXS/3ChlDA1wo4xdfdhPyzUGSR4OR1qk/9XQ3JxnAHMG/eUvRlsygsgEGMVrkfXWN7J1hvDxjNiW1FPUUz6OJ9i6iK2goSeHNpmgqd04JgTjToVu/eR/lM8uIA3Kvaf/gdBzQKlyEzVjNp4CEt4qMF/vW5vwsBSfTcQXxIZjmaN+aoUTYrLoynAvRZfKG1gKnLN8AuOF323stgQPC/259zyIyyGbJwSgvKbFitAAJxyJlBMdwGEUUgu2FLvg53pC1Z4xrOlEglhf+xfdUJb8xKDmTjY8P9iXSgT9BGcyyrIICJhh3nTDS5zwiNE6ia+RnrBa9JOfCXlES7ThLyrBrrrpzN1dyMgFqRqISUBC5efsuANmLp+rqNf1KtCgSv9onT5M9yzRBpjd6yew7udQNhW59L+uzfQkWA6KdCsEfGtW6psDYmGxP0ToIs8fQEUYH+GyDZ9YGCPAU0OchX6zT+IHiSyDsb3lERBeN23NalBqxDtgNQznwb9yyQ6/H7J0qDVtYgb/GIBAjctsZAD3vJWk+jjGWeqr77ad/oRXVORIX1rD7PAwcR5HdYHB+6Jav0Jq2c6glN04Z6hn9dUymJp+xvY+w29dbkOwLHL+Zcc/QsWfg3/OQ9WU0HT1gXjr4d2YG4NWo5byncAgo8VUfu4enEn2aaY="
+  },
+  {
+    "name": "python-pygments",
+    "version": "2.21.0-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-pygments-2.21.0-1-any.pkg.tar.xz",
+    "sha256": "599962a7b0f5f3387682977065f045b0f9ab93e6c1f0dd840d06c302a8e4d113",
+    "size_bytes": 2439236,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqbI9wACgkQdxk/FSvb5qZbHA/9HLFnmQxODx5klM4NrxLQcrOkwDpMP5vI1YulnQ2UeQrRGktbvZ77AnpfIlGQt1RL7JqvcFBdwJ218aeIEneLPl9eY+Fd6RX+CUMTdjUpN8QZKzaNlYfC6ddpbPUQ4uQzXBkjJ9gUvCLpssvuG+5oUk1B2+ZM6UCtNA8i+JzK/eXmk/AIwajlZCy1b6PEUjU5w1whA/XrS8LriQVhguc1YNcv8fg3LJRnnLVC3UBqY50VKKN2ExLb7lK29yhyXi7p7/uFQUEnzXXeQ2k2PHToxHpOd25cNAtGSf3jky/u2NFLJ+3b56Ldna/gY6KZEmKGWywrJChb6/WV5H+sVMTV4H4weR298K3ohZ+jvRgiqOHFJFKYuBUBxZwnF/QSuBlPzoP2wJdWJXFdISfaWswQY2j35fIgGm+0SYIKu/hIoEYs45TNxqsY9irVmgHstLT42yGgbvlnUb8VkZCwJJJ6fJTVqntS/gSnA/EJ6qzWsnNypagnMRR1Wag768kPK7L9R8dTpvnIi9jtchXnk4Xcbh7vUrDCV+hMN4TsXiwx2HYS5xumeMMOZezx1Ji5F4UbmkRLtdd2DP7SYgrUi4CxLBElbxjXKdiKTOFi04x7K/TsXOj/rn/LKJK/HTAlIwcezBrj5zjG16u5pvmIL0EUeOiFm5Q3e3kcnhaVL3BnufI="
+  },
+  {
+    "name": "python-pyparted",
+    "version": "3.13.0-6",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-pyparted-3.13.0-6-aarch64.pkg.tar.xz",
+    "sha256": "053a292ffc4c8f35464cf243ccaabd49ede108cee1fd7fca14f48674aee496db",
+    "size_bytes": 95632,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmli9l0ACgkQdxk/FSvb5qaCEQ//Z+upcFw7XVNgcIzwN/BVxCMTNyEONMOMEHRTMzeAsbX5XLr9m4wbW8+PU2gLg+NfpQ9fjfIfEg5JzfpuiU03PIXpfrs1EXW/b8ZACU/30BSeiqFfO4TsHO23tXsEh8rwYp8m9+ao2VToEfxsajPMvJePS/5UtkOLtACgPVn9zOJ4zISzwXRUavcNy4YoHrHCIgOVmLyx2cIl/1k8qm6XgKSwwj/EdjXNy/lecTYXasCDumImnBtpneSjh0MEJSuZW/jMp2U0qa+fNOqhlzZ0OmDrkJ3v8sLZbMEchsAx37kbGHv9Urat6Nchr78/ADdtjHR9VT6pIr0U4JZeQiTGqHgq4zhJFNRBQe9V2Ke+Iic/LGKK2vVg3sWykPMscpU0exolbtaONmj1Lm6PsLkXU0SdltYuTwjI3uPFA4b3d/T2zfyXX8OXqvRszzxDJHHafIUws+ivp8XtjiTU4v/yn8sX24akPxVf8PzUSsr5nFtkJZwWxZneJ9BapAfhrPgtSUBr1xj9mBe/kjRdHyC/tRDmbaKhNhov+N/F0wMwoE133W00QizTnsZ/v0M1lsJeWlQrJGQqxtHTnFcgep9NLmlAb1ywfuXaGa0ZlL0ZCNzy9RLNwwxDw1H8/TntnDaTOD1snaXV/Ud3W+IyKGrUISdt41t9dMI3IPrGI6poGm4="
+  },
+  {
+    "name": "python-rich",
+    "version": "15.0.0-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-rich-15.0.0-1-any.pkg.tar.xz",
+    "sha256": "d77cdd1437c23b65f4360f823fe94502f0b23dbc3a5fa220a73457430bffd25b",
+    "size_bytes": 550240,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmnbajYACgkQdxk/FSvb5qb8GRAAi2DSVO74yim8qB8kw9TZYwsw1t5tGlgCR45uAnXaJR9QFLKmftSWWrXfyJnYiqL6I3Rh8s8sbdkUXlEUq9tIedd2XLsVk4FO37QkK1Aycg/Pe5Vv4e/YiX5sXvGefMDXBrR3kzaWKxSdvEBOymyLfiQ2OSTMNbAyKBrKwE1FxdOw8Oh3m8jUZXMSg0GHIljd07iaM+z/FUnuYiAcOtb0sa99Q6EHAS8xa4zBosrFn3egPPI8Wu4KRQfNfPW+a4fY+3ay/7iUPRV5r1kZLVZTG4eYgKCDN1XcbbRii8kxrcHpfd3nZCO/+Ji59oEkyUVKl1EUNxB5WokRGqMLVCcthLYQeOmc7t8cLvbbgATlAhN7jnp/CSinRWIWEELCqsSkz0B9fdCTtJw69gc9YTGfUIQbItbUtvNTgFGFvXPAA5DPSc5PiyE60yIRNLdX7DyTNBrAJixATZfgg7QOm8aig0wcA4ZqDFw9I5PTmO2GZyaXZCd2lqdzrrNzEyE6UyaUVeKoqiEklu5KGZ9vtZUWb+U6t7bsV7Z0GTAxTGAexYp//PML1Z9CnQCY8nwUYzauR8atLdEw3nW1gR/ZCiEjzLpGAqH2ykxf6pJ8WvjiBZndpF+vcHrBCU+IW9ZYpIQcV/iGPFKphhOBq9ZmmTXjHQHZgoWWYfg7hSCSWY8siuY="
+  },
+  {
+    "name": "python-textual",
+    "version": "8.2.8-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-textual-8.2.8-2-any.pkg.tar.xz",
+    "sha256": "49b579ad2e87796c40a1fa9f54430d0bed2c57118c34f4b2000a0c7f6e19fb10",
+    "size_bytes": 1430212,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp04GkACgkQdxk/FSvb5qYDUw/9HklArbc4Ens3vtVKmgY6ufj5o149r9YECMgGtm8sdK7GD/8eEVA9z3KsUfbJZq4blPHn+BQyGxX5kIa8BWwU7H+yxbEq/bgXyE72EI6XtFcB6IeVhCSHCPD4IH+hSzcd3GRtm29CEX0yRBFq7PttY8kQvuvBqUCpuJMDglOaCRuaIeQ0vZfunVHIpukk1ffOyTFODyXtbu93audkbCe5Z+FRJ6/+o/qvGiK4VISVKWIPovM2WpPEuP7vjiANsDCyaN99hXjbEfEs2Hdfbju0ssVADqTQNIApWzbSmh3s/d0sLilUNX0GnGQXKZ+NgKq5AI8zsUjdlrp3kvrtBN5qHEP8NxxdSTTS+PNUiIDw0yOxGSNUSTJTQba+X3vRQc2yBLVIDVkXsIiYuLke0g/78FAw+nl0m2RW9r0+7wjwi1P0HGfWImffh0gz9D5E1PjvhHwhNunpiEya5KfNzps/mEOBOAv/M2tlwYi2g19xBphZdyt1O0CkmUZEWJW2h6wuiYHy33q/34KbCIKFMEwrkfzoJuS84jpIDjnPZ6Ge2LmoUNjY5rpZ2JIGuhjmIbpnW9KiJhR1nsQwxspL9mVjVJZ3fR75Lf3c5QQ30JrtgyuDNrcrexFzKM2fsRUNNN1sse8bVCZQQO1tP46+xb5n2F10B/I9tYRLy77rua3n1QY="
+  },
+  {
+    "name": "python-typing-inspection",
+    "version": "0.4.4-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-typing-inspection-0.4.4-1-any.pkg.tar.xz",
+    "sha256": "29f3b573184eec607380c3afb911c6bad2a7b47c8f59af1562e61e017472acde",
+    "size_bytes": 24616,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp8uGUACgkQdxk/FSvb5qbbsBAAwn43rIPv4hCebYmlRpOi0CsfMLyzRaJ8Rc40M5AvWKtRFBiS6c9nifkthFn0JZYQwkA9TiTXf2EW53jGIDxEDajumOzZaXZN0LYE0vTWVGw3yQAS7Je5EW1v/nqBqiQMBt9C/mPeyifqtPM48mVHSmSf1CY4By3x2xwDL9L71125iT1RYDVyBQA+coYN+dk577ijCjfzFG57Khql/9tVQADlIdpoi27N49FsGA72c2ASQX+BiSkrSitB7e6t0BofW+gFiPjgZq5Iiaf793DbsYvBJPYWBGJjnVr8LaIYAb0pIMhhH5ilroDtRirNQO8GxWIynnoY/Xizcu8XCOem1NbDLvfvgHs8SJ+O5IPD3QhoCbAG/eBKHTi4ViEJ7hkenX6cZBneaGLd5d6MFki9wvcIke/Jd/2iW3ex5wRzzILEQMFrYjnx5Jk6t1c9i6yipQlEB6mVefroh391kZv61tKttKv/DNvfm0cOYdkQg+hSgw6eHefQyZIF3Ia62rSmT/kua3mUTIy6jMIId71d6cKPYuplU+CPmh3XfoLFhMSPyWtuSBDz2ApeIqDnRNKNc6/0E082WVr/gbiNhXmbCl4K7DkVQ3KpR0mAvt9ExJoiDihibEuavdxjOKbo8Havpw+XJD2eWFjHuWTR0ubctDU6PO12vQkVlm+feDDSwI8="
+  },
+  {
+    "name": "python-typing_extensions",
+    "version": "4.16.0-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-typing_extensions-4.16.0-1-any.pkg.tar.xz",
+    "sha256": "4bfa7bf08c2c831fdacb9ec267e0ec9069392d8888a898e9ed0f99a56d9b27de",
+    "size_bytes": 92672,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmpLAUwACgkQdxk/FSvb5qY+Dw/8C54mIhM9EMQK/BYt0iBfVuPWk47oW2CMgFa2IeixdK6C+J6DvoZaLhFZIBkiM5R/KydDeJ1NzHUWciyOwxP/YMJS9eOaiEEm2YaoJ7eMtHVGZigtFWJm61RE2rbTG2XY5Cd5n10tuuVbzvqv3Up9XLBKU8G2oDxiCS8Ovk1PTp1x5Fuh/JowlMpk3p6CIoBBuHG2eBs86fsZ+ViBw0o7CgoZGeV+ABRKhOPV4BlDgDHB5301DNFamJgUpT5XaJr9FWzLIc9g/GkNRqFZ7tW9L/11hVsFiFY6kee/+n1cX602rIcIxcBM/LJxoBFKNaOu8/It+we+fYLFXQ8KldsgdBNgGDNq8Ae4TLHm8K23rOoX04a2TJv1Vw/Ow2Wc0ikKww/zBadzNFhWRhOjLd5J4GLOl4fCfDkXZFaaUMgimFob9iHhrPjXevh8ZbxtpnDKlJC0bQZGRlk0hs0pwzqyAW+29VNaug1yb+6cB9VtDei1NMtDZ+3SV2Dhd+LE+a+2sr6forw4748Q1yO2jt7fo9XyrcOdd6j0kv6mPgiS0SJIGSn6YW3/1zlgWVhvAv3cf7UF4ghslpQH4WbkxzudURcp/uoezLT+qmnT4kV5gQvuFySNtNqh9waJ0EVEihDj1wepTYhGXUNPnFuiEkbl+YvWm1m4PVcXREPaXp+Ckpc="
+  },
+  {
+    "name": "sed",
+    "version": "4.10-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/sed-4.10-2-aarch64.pkg.tar.xz",
+    "sha256": "06d68115408b4ab7ca59b9e6f386dcc1015bdb0033686d115d6621711602ed8e",
+    "size_bytes": 236260,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp41TQACgkQdxk/FSvb5qbMihAAiMzUdKQlxztwLQu0tBNvA3bEB6VO/mL5Zxc6o4XatWmsF79Err95CbInWYzSq5kqmI7+GCosln/lgIlhkPS+/g1vnX0fyemp05GhbFLpLR4AuED3RWXC7tNQTHxjxf90NBHjU4ICcZ8QoeHSe6FkACTKuL3SHwG9TVJn+7ead1p1N9psYZOwPjMSSOp8pDK+kv4vjSYw5GTv/yuT1/fXgH9rH/89Kih5rTjC1JpBOqlR2XuLzkcFrlibuLzaRHTDQgSpK/t4EGpDXA8gwqI7jyRJ3clH5RKz66JfyPEoK1rI1KqfBYicCwaCnH2tntUfPjHXN0blWK7j6WG5+RTgGli2gTcfwLYgCXreSzJlECxkK8SQjnM3IRKS18uhnwVzjQh32rFHiUbZT9r7EH1GIgfGYKstWe2qepIV3IYAhlteUp83UPHgG3gYvCT206YVeLxsEp8lrksypgkHHKjg53TUk5BrJpTRUfzyd21EyS4cnkfW9gObLCx0MpqcsBAuwVoTLmjC52vS9XYkB0JgtPl5Odli3WniLJisxz1FMqmYKp+uhoUhySex7wZGZBs/9WeTb8mT38iCTS/aktRd9HSTBWolOPbCJD33frduBpTg0iIGnqzYq2zhKob+xFdBf9+vo0ebZRZ5/OScVP8uMj4kVU8YLqy2WXA6pcNVDns="
+  },
+  {
+    "name": "slang",
+    "version": "2.3.3-4",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/slang-2.3.3-4-aarch64.pkg.tar.xz",
+    "sha256": "0eb1ebad4099190298e00cb68e3853d155d52eb8cb1157a7ec914d505279de70",
+    "size_bytes": 767256,
+    "signature_base64": "iQIzBAABCAAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmiGDXIACgkQdxk/FSvb5qZZ7g/+KJBSOpKLCcClLwzorq9AfwHHJkyhzA+wYK1LgZ+iLG1IPAjqrlkoouaKs0BCMUqkrfOTDAUst9IZjLzc7gZaVByLaudQrsy5NfoLziBOKEq1hcpRu6lB1DhgCrGtLkE5gMia6ju1jJek6ig39ree30aoqKSXfnqHMXyVCB4YBg3hTQPJI6v7oaNf7Vel5bwkwRbbazBUa6e4w5w1Os8YBAv9t0eIIny8BbaE4Ub34LiBLfuamN5Jb1rp+tmnxOpY29r/forGb8kI36kXfJjSj5HbHQ3+Do5novqjveKO4fb8Pqdb9SPJwdOZukGtjP3cJBbd31yoOnNqIJRxgE4wotKy8SFQogZwlSjHV2UgJJfLizqM2Emp3nsE9obJeY81JBHgnnxeE0scHyRKcc9jLM44+Ys69KuRqzNaE3ae1kirtE16R4JBBZXzMIcjXGzdYTiNi7MYa9DTWQGuG6Xd2SQiwQnXOzd/FcjtIVCUE70bOgy1k39Y0XI5V7/qjk8gUxJb0FgsrTiQu6P5pFHIbV61ldHcEXbPlqiYNL8UfiaRbASrgf+nvrBtAWqusCrwboW4XMdsB23zzRk7EGMjeDWcNKRZn/isdD/hkxg3qN6hPYM1OD8mMnVpmzX5CAYFA/xbfQty4LF0aECQke7gnhl40gVVCscPqBW6hNLfndk="
+  },
+  {
+    "name": "sudo",
+    "version": "1.9.17.p2-6",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/sudo-1.9.17.p2-6-aarch64.pkg.tar.xz",
+    "sha256": "3e90ee7aa3b5526a155396f3baa6305e37eed317db674cc077312cc386d5b0bd",
+    "size_bytes": 1774712,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmoyhvoACgkQdxk/FSvb5qYfCQ/9HWSRyH0JdWCMD4zCV0ufuKEJUJF7/fwki6Qrg9uCcKjyKCB5I+YSDTnFH0fwRnipbpOmnEKkmaXTlkpYmpqYU7z3KX1SxXybiIIcTj7bEdaDGioPxrrTcX4X9UjlYsauC7T+tRUEqNndP/lMk9rM7SrmVUkq2r8vbA8hBV9L4OQOBCVe5vWP1mTO8wNwcymMwtZrQT02nf6QJ0pK2kDpF7hwpjb9d/CM79igvzAamCt4JXCdyufWuEK66aswhIzGMHowP2YDH6iRViXBezazWHYeVV9ZGngUrmX0n4dO3gp3gNsuU1/6nUyQm63luadGiK5c0zQMvxJw6YAKyHjXTR5j33XpnfYnPWO+iWgFVg+2FUjukgyZeq64uZlStAtntp6pQRIs6oR+0uWLrjzhFKwPQRfRBIh6515TK7muTz8tV99S+dpUF2XYloO3CAtQvF38NEUaABKpErv0fWxScqA0IjfA8j2CtiA4pmcZngDQT+AQArsk81rZO4qYL7suIFr6kCLq+O1qZqIhXJdu0G7kGVkpGlOLXfwc5KHw6xR16wZcn1kV2tJX6Za1rjwWC69t2ttTXnS/in4Z/zZgESBVWi1N2Wg6T0OMqnhHNMMzvnkHpb9T/rh0SepMaHBfxI7+Y3a9JtW4sl3c56zJcb/OVlosaXHM10j2hBdU4rQ="
+  },
+  {
+    "name": "tar",
+    "version": "1.35-5",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/tar-1.35-5-aarch64.pkg.tar.xz",
+    "sha256": "8a9a195736b5cdac96c0511b6a6ea8417477552cf1ad24d904bf6476539b0ad3",
+    "size_bytes": 736708,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqIlJsACgkQdxk/FSvb5qbx6hAAsb9a/qL1KaT5iyqbyviwfMW7tL8VCMYDvotwJTRCarLjSA4nKt11ydFfBCKf1cF0tzakiHi9O0DKwLS3Wd4sFl1b4N5lapU1TXhzGFVWaZDsS2OOGWqzWn2qVcL/6YruRIIclLoYbmBV2ji7IT4g12C+uKu/IdiKLqQeTasPo/B6mxMC20x1Pm7e1LMtVe2AVkwPMKNRh0oFXCrmvA6KL4nVFRw35QU8OzMKK6GeMhPE1MRT2MWLV5dB6zCU4crP9vzR92Hu6lJMe08uVAocWDLULBEOgUWIzYW02lnXHnw3mxM1bly5bfR9O7eTR9/JhNEthyxwspmEqcdI55Y6YTfHeQG62IMcghnWVbOYFol9JxH6XxKPOfEBnfaUMixb6kM5NJYR7TCjpkqTdo7cz4w0ATePTTzgMnEwqufinN3VHxjK4Sp+Cxp0ty/hWheAA8xrb2SXxgbGPQ5+F1fgLEfF1WgnjOx1qPnazTqgJvOjgG4W0yuH/HgcjXh51Jc2VI3zg7vhOes8uv6CyIgfX7gmgR/tHtVe9Kx7ltxway7FXmESQbbpFK5rJo5XOI3Kf936CYh/Zi+U5nrNxJuV7owsGuo5z1hXnqX9UMvENG3mqZLiSse+zgZGo8I5jMHmdLgpgzzo0alWiuK8zNCwp7PNyqFr05CZnBANEqfixbE="
+  },
+  {
+    "name": "thin-provisioning-tools",
+    "version": "1.3.3-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/thin-provisioning-tools-1.3.3-1-aarch64.pkg.tar.xz",
+    "sha256": "42dbc142973bd089d06a7a7cc3b78f930f8936b7425aa4f499add126e6e36793",
+    "size_bytes": 857004,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmo8JnQACgkQdxk/FSvb5qbUkBAAsV0JZpSluHQH6Li5AlwfNLxfryPv7YOC0slAjPx+YbbfsmXVUT+Iyz9UnwPHXpLMcRavltsMoZlUVgS1hFYBK3E46sS/SdE8E+LFo63b/veqaSAFGTT5oVXQGeWkXN0caqGyBNJHKYdjUN9T2OehztfIFznSR7R6q717qQq1/Orwikm6oBw9KEvStz7vP1C7uWHBBmWeuCn9ZEBC6CfQkVAUJbQZ30DcTfgiRcCaD9KSFj+/VZ/wj5VGDS/cyYbHL1KudUnaq0R/21gUC5WiqtaFsauMDtbVGq5um9VdJRhFy/EWqpPdr8GHUXVLGfVG+P5pbzsE7ABh9jwWl3HFs5+ZWZKSwJzgao3MFb3fLvqcGEagxgmEzfx3EdJu232WJtjToYXJaAhtqs3xa9/NCoMnaWuQi8LidM3OAf7oI5KXTwt4kLUecDqopwVBDseUCRAnWWW/wAk0lB3mEqNkTEDozFvH8RrNT3kiiNuKxdCOJKKi4CShC/IsAgmQvIOdTfg0eD2Ou+y2O5dUdv+/+vf99yDvMCNdoDwZ0KVmVExENPVfU7THv5dK8Fbu2fe2gxAzZ7Fqco0H9KeUe/MCMzYZvPa1gpByHzNxJ3kn/lrif+9r55S4jkpJuyXkMPr+WBORouQlXBf1gbjoviNpE0Ah7qGAgBFarJ+U9uYkWQg="
+  },
+  {
+    "name": "tpm2-tss",
+    "version": "4.2.0-2",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/tpm2-tss-4.2.0-2-aarch64.pkg.tar.xz",
+    "sha256": "90f527d90d490e1436c696a81df7b0c6da5fa18dfdb87fb92813f35ac86c7c1b",
+    "size_bytes": 877720,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp+9ewACgkQdxk/FSvb5qYRCRAAhKI86Poqjd1nq0kvxvsJl4OTLVrjXAlGcLBWRfic8Ft8Z2TR9je6NuVOolC49UjXsjOwrIsZoQbc+5QpnQLFuGxJr6R/AcUYvsG/8DVekX1zeCzPlXPnvquOdNQs3kuZTP7mbE+dlVvpaTvVyegktinGXo3waXRj4qXUBLFuUeXQ4ezvcH/fNUSbCmHKSzslUQi4nIDVUcElKl452nQWm0YPZPpI8Kjst2W5FmJm2Oabk7CxNLD3JwhuVPyeEodQXhNLEslA0VZQSBm8gh+t6GdbrS1C5/2ocXvTpX0EBO4p1aFOq4Mg1aPTNJJWayAgAQWs5A88vM4bTfSGQVHUSEdC2DxfK1XVBKrzeLp5TQ+YNh8A2iF6gPxkXvan/TCho/ElJnHhoRorPwtHA1sWDAE0bqZduSbEZCu0juDlVhdNSXKpgyGKJG/AerZuc7ekKHJH8B8AtL0WoqxT4G7buTUGsOipPkqAlKbelegIfDfSCefSFRXXtQ9k6KRpawHwWQL8ACwgWKMdD9N/rY5hTtHhOSjhUxTGX43pdakjJ5eiguXYF+NtB7ejZOXHWxr43pieP3SB0ocVufQjtXzBuIqu0mLjCACDAi5eHGShfrvlT4iTyYbZQqK6EkFxBh5hplkQn7k1wgyx90QKnzpN6M/UBR3/P9jgNzCht8qTxYE="
+  },
+  {
+    "name": "usbutils",
+    "version": "019-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/usbutils-019-1-aarch64.pkg.tar.xz",
+    "sha256": "5e1f150ac7d3d56a0bf7462206ce86f1dc9086cd4bcadd3e2bade03a8669f99b",
+    "size_bytes": 109900,
+    "signature_base64": "iQIzBAABCAAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmj768MACgkQdxk/FSvb5qbZWhAAih9qVT3yiZaKT89bKET9rTMfbyk+jZOqJEXMfY/83eDFThQsTylO1Ss/BjGVVO6h04mf6tg4y27WDmlyE2Jp3kt0wCjkmNEMVYr+9jUW4Slx8LE9XPzOsaIJtX/CxlZqLf20jEsRogxzKldL4YrxKCOesjTCwH0m1L8WlO3idsBn7/PHQ3nF2w/ciLpvCU6eGPvR1s7ikKDIRJfl1KFmNSwPGqCVjJ19RvFa13I5jZbKE7CcTDqEJ9fL49w8XRLFCagiUcLXm2NH5jVD/Xr7iPWxIce47ymLKsJKoq8GhELEkedSrETS6q9JNfHX4y1o2BztUCD25Is3CF4d50aHg94roqxk0RWM01WfLV7ZMy5vsGLLkOb/9+S4Qafl7Tgs0BnmXXFmaXjXO0KN3j/+TegBjQ0S1oLPqGkHE3yrPUjWO0eGOA/YXBAKHTw9BTBFE9p7w13UPbWlq6PIjmwW+Mm5grFbQAkEuSuVU+EEUgwHimdoD6rXsdDYs3O0viU2s/WrZrzZAbhXvKeHLZcBEzjtf3UEabzDzJNW/qTakUb5eZ4OjJkWAiN7nQwVcYbK0qpL0yDzQDpRpjiminl85F/dHPsIc4Jf4CDKtJYH8VCer2byQchH4I7PnMUxmoSSfAs9VCdRvKf/kykjwARII5lasEXC9SFCa7MuDe8wXyI="
+  },
+  {
+    "name": "util-linux",
+    "version": "2.42.3-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/util-linux-2.42.3-1-aarch64.pkg.tar.xz",
+    "sha256": "eae9f9725252407e28aa39868746ab3b70a17ca440f429c3aa7a8d8d68659566",
+    "size_bytes": 6771476,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqZRfAACgkQdxk/FSvb5qbYpw//S4tOtIWFKsWPAjlHRUzjPNGwBNkM2kzoUFmeRa+3Rz2cpgq8RIh9qlImgJ2w3XMQBzo9it2WBOrl3K3zhVsoNi+driLtLPbRdzoh9QItEQCxHZZaauS1x6uMUDRUIE1oB7sDbSNIfBXovy/w+TUCZdlX3nSAQXyB6q3CB+VZGsTDIpLWcg4xfLmJcpTzU80cnKxu6cz7p4iPU5oPlMRQgqA+t4UOc2bRsOcW1Rwb0x3aIZYuGRK8XxbdH72UvWbNPyYcdZBCDsCVu7jH8ksDXaltQsGwaM1R6PwWzdOUCaxynqsrn1one5thiaW4zl7SZArakDVGra1Fd/gtiu+kWY8b03vg3aK8IyS0s97CP7ZcGQrjqiL1heYm6nUy4Po74CCfvmppqR7Wi6XcohafgNYoXYGHCRTaKQSqVGeWUvwxIW1nbyXPRE98NHP84+DIdDAWv/nO133RUgZfhQYy3cFYY/0azP5j3jcIG0tvpBbtOc2HqcSY2ljYxi7p/oOOmjFq8VlJlQ65liK8Ue9okbwSuNt1K2Cd6GctNDZ9rnLGmrHVDQkcXjMUTHbbqmalbCmLzm4OqD2kW3iyhR3Sm9mWQPs5f/TfZeCJZfdUXbzosxuYEy3encAINwG1zgMUXLO5rGQDRUBgyplXsUCa9q2kD/hO9OLiFXzN+ALPXnU="
+  },
+  {
+    "name": "util-linux-libs",
+    "version": "2.42.3-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/util-linux-libs-2.42.3-1-aarch64.pkg.tar.xz",
+    "sha256": "977fa5d7c4f98ccbecb69edbf4264a8532cf39167f5e8907dbc6253240df6b72",
+    "size_bytes": 503480,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqZRfAACgkQdxk/FSvb5qZvWBAAnX/jOIdbUD0+ecM91QIuDAuYQUOzuHP6NyNr8MT1mEYyIC4PF2WRaSqjS3F5TOLxkcifictDgBzWg27ITTRIZTvkkK/APe0npTGN4wpffGfzQ5VQtVtvPDWfpqrybluRPRlBTgtjapMNzoyEAOLJuwCn4M6veXT8F+2ImWbYAJ3m+Bz0QiqN0uZpHq2NWs2XdkAVjf//637A04PArNtoOmqkfcNIh2dcjX2QW3OQIYUBpHCtGI5Ud4ztNQrgqZXI+lOPiGNfeT8SLtlAa4CtzF0ppKN8tSjdOCzVeJBClvzmGUHGw5WnGSKjrdLSI4FmDuHVFl+a6kQLz6eApZIQBQUD6TjcfLP3KvBBbYnUXdgeOS5jlvXHRsnOgHdeAuu9LcruFel8qRv/VsnwXrODuH69FFP4wB3XnT7JbuVti98btghXRecDkIuV2UPDntBwb3MAqJPml44GBQl5T2Jx1FxFcLuXJudl5z5lZr2BGJZCWL1JR/ejwvf6VbNKCGMjr+1Gi5A02fO7muCERE3QT9UTH66uAThUEkE5gubvGdDK/ncfzoOeXjB3YbYupP5uCnAEriWV+J/7Ca5csvbCC/uck3wbuYtOKtVIi97fSA9kSbAZL09ZI7Z1aoQf7EBnsY7l/NFalDZndm5gg0ifoBnIHgZjoqsx1xar9DKQO10="
+  },
+  {
+    "name": "vim",
+    "version": "9.2.1011-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/vim-9.2.1011-1-aarch64.pkg.tar.xz",
+    "sha256": "03640569a1af58c43c696350e4b19aaee3ad22f31c47b58e32388c7dd077e2cc",
+    "size_bytes": 2072276,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqOGp0ACgkQdxk/FSvb5qZ45Q/+PXR/zGklG5XlUUwwXf6A8aYdElTvE4ylLzCGd7Jayuyn1LZnveziu56fcds5+rXcDmuDzMGpaEgQD6dqtFkgxYWujcwHs6U37oIlabdkaAbwDhXDxDLR4wRujV8F51yR3hPy7RVJzZ+MrBFpmOOEAuEFULYS6C2t6h4QfiMtBl5sk8dtiXeySP8PWrLh8Z9j1ubQmc8ZE1p+2S7Y+MiYtjhelbvIAZS6uOsiMtP8brDUjH/WlkNkwplooo6mCR34LxDfWyVnUPr9Aw+aqemzm6FY0Me6rjAckuv/ECDiW+2F2gkkfEovMmIy9BqR1qlPn3p6DV1vRprpdzXLY7N1/v6YToy1RttgSh1xCJ4m60+4l90flPrKdrCcer/v/q3ZXNow52aHkTT5aDHtiEw9xeHrI2GNTiM/Nwe9bAnCJff1F0FfMRSwlfKhGOXIDuTuubvyZjs3z6b5WRxFXVF22PIO3ECH8icBotzz0vN7dE9q8ABzYDUgT1Omp3FHMS0Qnk/24+vmCpdbtTeQM4a29EgOMUk2U93lDurwLtQsOmgfO/o+KUM9gOyA56do7c5IGaEgY4volpCToJuKfpS5z0CBIS325DWfH/0PnmtT5wt8YdrYHi8IMHmqHA/JU0qyJ4NXF9VAlAUc2CEToM6FmACIixLW1K4K29JXm/89YOg="
+  },
+  {
+    "name": "vim-runtime",
+    "version": "9.2.1011-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/vim-runtime-9.2.1011-1-aarch64.pkg.tar.xz",
+    "sha256": "f4d712264ca81656bdad203bf0d6d6cb7a36719192d3e1b822c38bf3698e4965",
+    "size_bytes": 7650328,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmqOGp0ACgkQdxk/FSvb5qZ46w//R4a/6vYpZfLMTEPaidf6TUtTya+6UkBihLX8RDAxLf9UkciBa8H/+4aoTYKUmuOlucmNCoTcd1SC48zyNWUQjZLaLhRbok4Sex6FBKrkYcpEOqTUjaGmDcvbdXfVy5vARJVrNyL6GE6JQQvWXO79O/ynHa26gkw/6TwiMcphZqxqr0WZRj7y0m/EX2ESdFwjMpE5lLfdLUk3f+wbCCd1wy4cAoQejEYQvWxcvPO9GKs9M8yMqzrJ1sXlNb6gQ7ijScekl2sBbCmezeiXMzHnpdRguHbIQeK0KhiUmF6yo8YIuo9wC/suvJXk7SYOSGSVN5Ffh1DtOSc0P7az/ei5mPYoy0TFCFdnGm2FwYRDpNE8mhl6GpkEEvIOzeoXFF0slWwKRI0GnkmOaAtEiMdMtdaBwAMzBpP6V9VkiD8MFNcqjWLuXZAyd8ccKiUWXc2MB5XmRsYfAFTg0qe5YbGm0Mvi2sA9xMFGNlHLJs3j6n/jDWmYYFsa31hL9TGG3MdpOq7syR1fQk3BipreQ/FdUwl79mjDT9rilYejTaXiNKEu1Lwufa5WFiW/KNC7dNdfKFRHS3Z9lRhsNt77pRggvAvsmJ4vZdstE3qHs5LkUH62P0urnXIcvCpCoxsiMe+qU5wDd4V7NxbAhz+mw1KMu0BGogikmjLPMRBhQYqrRF0="
+  },
+  {
+    "name": "wireless-regdb",
+    "version": "2026.05.30-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/wireless-regdb-2026.05.30-1-any.pkg.tar.xz",
+    "sha256": "76fe7e5b5b1e3d2544ec01d7ae6fe0134062480933df2826981a1ec16faf898a",
+    "size_bytes": 11180,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmoggDwACgkQdxk/FSvb5qbrrw//RZHTFkY9Q5rokDoX5OuNjovfXM1rgk2RWK/+PSO+ICb5C6CkSbIYXr8bSjCQJ086Uc8wP4CsjvP0rqAWehCUeNt69fQr2Fy3YEl5MWEKHCNIU5fKlU6YRnjc7K722DK4QqXIuxS9YQN9OmNdrgM8zWmv0f/1eAzQyig9V+AW2VhHya2f+vKrXS4qwjdZ2n0JWLMYtK20OG4DAon8FIPSVz4mprqJByz08VpbJ8mGyTORi/wXgokDRkhEUwHIhTyPToh0sEYXhdS7oZnFK5ijy7o1OEIzk+XGjTJ7mGBQAzZsyETJkQJJeIEQoJsemahIIdHWhaR8HI3nJv2dR5VKu6nBGANFyw2ZLLwB7JmwxgQafLmsyQlOZcvkVUYVtUCPFx5M/BqYS/r/Odlo+ysDh3cw/AquJ3FYsMLXrsWJhSpjWx7fT2fiuX5uDAjvFIiHHYHFDbYazODYFt6n1MXBer4Ro4a/QSdSsBlqrSUMEZw4gF5IGTjGHYHSSzJm19rLONkTOO3T9+kTykI7Og7mSiKhAraro+AlS0waveeFM6pKlmgVDqBOf4qakv2Bys+ptf6Z3eplHQqIMoajEwDtT/gt0i0ier4gE25+3qSrTGT7VOpS2349mRmLIeff2MwbJZBmlfs9Te/fN5IufPyhCwkjPj4+gciUVpT93ELz+vI="
+  },
+  {
+    "name": "wpa_supplicant",
+    "version": "2:2.12-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/wpa_supplicant-2:2.12-1-aarch64.pkg.tar.xz",
+    "sha256": "d5c3968fb3c9292c1097da0de8b07e4309258cf4b03701c3525c97b3b2443183",
+    "size_bytes": 1865832,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmp8ougACgkQdxk/FSvb5qZpnw//RSJ9CLSQsJr9SGBBLp05ZNr0TJEZmudE+YHnDPewIR/Kj4KuLTC+3ICs9dabrkOtMbO5TwgWRhEbVbk2pwWqkRszycE7i4JMBizaivQQSkqTgEq7RkzHlzsXDgqpJbUeJZEecZAIUgexevtykJDuuympfmToHUfvpsV8b+o8QJj2DCwBaZd4J7WKEJ6aEN0w7ccnfUggLIDrYUU2cneGqu4xYwkagDYc9pB3pGw15Y0acvx2umjLZrJ2X2riUr9z/NMMI8JahfRCdZkQTWNVF8hZ78MU2m732muoztpwaW2rdFMwn8AkZY961iw7XkcRDv69CwxHj7WgpDI00OY1PM1qNyWGKc8K6xYK0eU2AHfH1gNQgRAbd+Bh+WnVQOddHV3yTlzqVV9UfJpxeews4pjX/Zj5GAUpj/ZKrfPc3j14nh5n2q3LUX+qchknFncviY1l83r1BAqVTp4rNe36M2YDVJN+AqVJVBmBgNTw+UPDajhVFlYV67fL2pxjD35ZnyWBReRsuCfkV5AwXDPLbt9GXePgbatG1wg2Txu9MHeZoBi15eyK8Zu2//sHWupNTEmHWCBE+kFy076DX5NAEPFETeAl+eoNkt1mwQIB6OhngR9qwEenrUo0R/m31CbEPmlr9ed/fkVMIQo8TvIuuiQa2eU3SYMQUzp0HDxGzso="
+  },
+  {
+    "name": "xfsprogs",
+    "version": "7.1.1-1",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/xfsprogs-7.1.1-1-aarch64.pkg.tar.xz",
+    "sha256": "1688edd827ae5a34d5aabead164aca684391c1ba6bd0b13779e83bdddce7d063",
+    "size_bytes": 1417948,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmpgtX0ACgkQdxk/FSvb5qZdeBAAyb57QH3qnfewkBfaEE2AsfG6UoqjNarjgGD4HJmuwypvZjyURLzNmQyo6Yxf3BeNZKK69rijevfnGXXOq+QXXvzR2DevZ0gFJHNHZO/Gs//KwUZUzuDJKQ/MNLX+tPBZuOqW7ByrTTf/0SE9u6yh3Zb1EvxFDOuffjwSatkXR8gf5YecLZGh9mNvfVcGtcXug9ROZWFCV15wbNHjlHi4bUw8gDshspkST2QwZ6lit3Tougwea52xsGRNgxjhR9nGBlx1dG/Yq6U9pMzryoN2Slq71I7uKFkzM01GgbUs4FN3Rp2FKUGHCzl/xkplRuG0Kpn7ruqsD23CccC3v8NHSQA14n+nH23XxkC43C7Nk+txrfjINDGv05fY7Q3EbjlNFJAeogi3gAPDAjHoSm7LV4cshOq2uyBTCo8RZ3MrKTH7zSvJ2qvaYrYCzMU4jfOjmbhcT+s1TfMrLDUUZnPzudRmMhGkR12LXzslMTh5el3wzcRMkddLcFg2njSJyVagY4I2NX/n9uzJmdAB6iO9KNp+AaC9mMQUjW9+1HaTaRtlzN2pimW4/1Vi91iZqGLOARANl8K8oJwy8sh24hktunauOHfcS4EbZ5ZtG04GLjPUZL7gCxIseFp0qzCGgonC0FX0p8kV6AiO2X5L06vYg0lAtbXuylE569Nj+30e7ss="
+  },
+  {
+    "name": "zeromq",
+    "version": "4.3.5-3",
+    "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/zeromq-4.3.5-3-aarch64.pkg.tar.xz",
+    "sha256": "ae6e65b77c02fcec6b566209f02f0effd527234934b8fbc6042acba7619d9c71",
+    "size_bytes": 534876,
+    "signature_base64": "iQIzBAABCgAdFiEEaLNTfzmjE7PldNBndxk/FSvb5qYFAmmScGsACgkQdxk/FSvb5qZRCw//Y7IQzKRjpapUqrYupCGYEKFGctrm6QInEV4gHgZvAspOrxQcqro392QEXEBsycwv3/kbra5dOlL+v1Rc0zipQigQkYCKBcF3nZBpZyufLIADPLzkFYcu2zthBv/FfQcW+puviCZP46023nVZZrzwnEqOziF9iL4SZdXPP2l9TmAh5jnSXjcz9SMIIGmj89pJ6ZXZhMnS+VGM7PhaEN8S466OlZxiTfBXLc3J0BP2PitupQvtABTRxIi4h5vgGg+92dSHy77+NAFIgiM1wKZ5KT0AefpBrsjXfaakmd2tNj86itPH9Gg5GLY9oAPfeBSxv07XwNZ7ZpplBRZ/lc0hlHc+pBzLMo14mOTyShqzloip3iiBYGtYDhcdDcNYfUBMB2TlrtjHO2Yzblu8or1h/CV3xoku/KH6Zstm+h9ENuyJu1v26HzwfYgV9jxj6r3wGGZcKk0HxRTafkL3tEXygQptoasxJDaN3YByTz3nyuQ58ZccTG1454hVsZKzMAitYAz/PvX5KkmM+SMbZXM+0uThs3yUWAc3G4t1BRRC57hDV78VfJyr++iOFOU1cIC5ORkjvSJHvKmd9nxkjk5ThEKq6lxd4lBDrjqoYQ2d5rbN2YwSOJmCKRj/sAKEGPh2FJdMk/gXBa8877nVCrwfU/V0kf+qsVcM23FQn10dS4Y="
+  }
+]

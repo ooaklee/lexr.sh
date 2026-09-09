@@ -119,15 +119,22 @@ func TestBuilderBuildsCoreCompanion(t *testing.T) {
 }
 
 // TestBuilderIncludesMaintainedEmbeddedInputs proves the compiler and source
-// archive receive both distro guides, without adjacent private text files or
+// archive receive every maintained embedded input without adjacent private files or
 // unlisted elementary Python helpers.
 func TestBuilderIncludesMaintainedEmbeddedInputs(t *testing.T) {
 	source := makeTestSource(t, false)
 	admitted := []string{
+		"internal/image/archlinux/LEXR_GETTING_STARTED.txt",
+		"internal/image/archlinux/packages.lock.json",
+		"internal/image/archlinux/scripts/prepare-root.sh",
+		"internal/image/archlinux/scripts/live-session.sh",
+		"internal/image/archlinux/scripts/build-boot.sh",
+		"internal/image/archlinux/scripts/setup.sh",
+
 		"internal/image/ubuntu/LEXR_GETTING_STARTED.txt",
 		"internal/image/elementary/LEXR_GETTING_STARTED.txt",
 	}
-	excluded := []string{"internal/image/ubuntu/private.txt", "internal/image/elementary/private.txt", "internal/image/elementary/unlisted_helper.py", "internal/other/LEXR_GETTING_STARTED.txt"}
+	excluded := []string{"internal/image/archlinux/scripts/private.sh", "internal/image/archlinux/private.json", "internal/image/ubuntu/private.txt", "internal/image/elementary/private.txt", "internal/image/elementary/unlisted_helper.py", "internal/other/LEXR_GETTING_STARTED.txt"}
 	for _, name := range append(append([]string(nil), admitted...), excluded...) {
 		file := filepath.Join(source, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {

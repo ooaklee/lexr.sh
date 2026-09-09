@@ -308,7 +308,7 @@ func (a *application) newImageCreateCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "create",
 		Short: "Create a custom-kernel hybrid ARM64 ISO",
-		Long:  "Create and structurally validate an experimental Surface Pro 11 ISO using the implemented Ubuntu Casper, elementary Casper or Fedora Live adapter.",
+		Long:  "Create and structurally validate an experimental Surface Pro 11 ISO using the implemented Ubuntu Casper, elementary Casper, Fedora Live or Arch Linux ARM adapter.",
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
 			request.CatalogPath = a.catalogPath
@@ -332,8 +332,8 @@ func (a *application) newImageCreateCommand() *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&request.CatalogID, "catalog-id", manager.DefaultCatalogID, "source image catalogue ID")
-	command.Flags().StringVar(&request.Source, "source", "", "source ISO path or HTTPS URL (defaults to the catalogue URL)")
-	command.Flags().StringVar(&request.SourceSHA256, "source-sha256", "", "expected SHA-256 for the source ISO")
+	command.Flags().StringVar(&request.Source, "source", "", "source image/rootfs path or HTTPS URL (defaults to the catalogue URL)")
+	command.Flags().StringVar(&request.SourceSHA256, "source-sha256", "", "expected SHA-256 for the source image/rootfs")
 	command.Flags().BoolVar(&request.RefreshSource, "refresh-source", false, "replace the cached copy of a remote mutable source")
 	command.Flags().StringVar(&request.KernelDirectory, "kernel-dir", "", "directory containing a verified local kernel image/modules Debian package bundle")
 	command.Flags().StringVar(&request.KernelRepository, "kernel-repository", release.DefaultRepository, "GitHub owner/repository containing kernel releases")

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ooaklee/lexr.sh/internal/image/archlinux"
 	"github.com/ooaklee/lexr.sh/internal/image/elementary"
 	"github.com/ooaklee/lexr.sh/internal/image/fedora"
 	"github.com/ooaklee/lexr.sh/internal/image/ubuntu"
@@ -15,7 +16,7 @@ import (
 
 // TestReleaseJournalUsesEachProducersWorkflow prevents equal journal lengths
 // from accepting another distro's creation sequence, including Fedora's
-// userspace step and elementary's distinct GRUB preparation step.
+// userspace step, elementary's GRUB preparation and Arch's rootfs workflow.
 func TestReleaseJournalUsesEachProducersWorkflow(t *testing.T) {
 	bundle := kernel.Bundle{ABI: "resolved-at-execution"}
 	ubuntuPlan, err := ubuntu.BuildPlan(ubuntu.Request{SourceISO: "source.iso", OutputISO: "image.iso", Bundle: bundle})
@@ -30,7 +31,14 @@ func TestReleaseJournalUsesEachProducersWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plans := map[string]plan.Plan{ubuntu.AdapterID: ubuntuPlan, elementary.AdapterID: elementaryPlan, fedora.AdapterID: fedoraPlan}
+	archPlan, err := archlinux.BuildPlan(archlinux.Request{
+		SourceRootfs: "source.tar.gz", SourceSHA256: strings.Repeat("c", 64), OutputISO: "image.iso",
+		Bundle: kernel.Bundle{ABI: "7.2.0-jg-0sp11v23-qcom-x1e"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plans := map[string]plan.Plan{ubuntu.AdapterID: ubuntuPlan, elementary.AdapterID: elementaryPlan, fedora.AdapterID: fedoraPlan, archlinux.AdapterID: archPlan}
 	for adapter, operation := range plans {
 		journal := plan.NewJournal("image.create")
 		identity := FileRecord{Name: "image.iso", SHA256: strings.Repeat("a", 64), Size: 2048}

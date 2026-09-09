@@ -41,6 +41,7 @@ nav:
   - User guide:
       - Overview: user-guide/index.md
       - Installation media: user-guide/installation-media.md
+      - Install Arch alongside other OSes: user-guide/arch-linux-arm-quickstart.md
       - Offline companion: user-guide/offline-companion.md
       - Released kernel and userspace: user-guide/install-released-kernel-and-userspace.md
       - Userspace support: user-guide/userspace-support.md
@@ -50,6 +51,8 @@ nav:
       - Overview: operator-manual/index.md
       - Kernel management: operator-manual/kernel-management.md
       - Release preparation: operator-manual/release-preparation.md
+      - Arch Linux ARM source intake: operator-manual/arch-linux-arm-source.md
+      - Install Arch Linux ARM: operator-manual/arch-linux-arm-install.md
       - Automation and release channels: operator-manual/automation-and-releases.md
   - Reference:
       - Overview: reference/index.md
@@ -59,6 +62,7 @@ nav:
   - Developer guide:
       - Overview: developer-guide/index.md
       - Architecture: developer-guide/architecture.md
+      - Arch Linux ARM implementation: developer-guide/arch-linux-arm.md
       - Development and testing: developer-guide/development.md
       - Catalogue maintenance: developer-guide/catalogues.md
       - Documentation: developer-guide/documentation.md

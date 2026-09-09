@@ -78,6 +78,24 @@ func (d *Docker) EnsureFedoraToolsImage(ctx context.Context) (string, error) {
 	return d.ensureToolsImage(ctx, "lexr-fedora-builder", fedoraToolsDockerfile)
 }
 
+// EnsureArchToolsImage adds trusted data inspection tools for Arch rootfs images.
+func (d *Docker) EnsureArchToolsImage(ctx context.Context) (string, error) {
+	return d.ensureToolsImage(ctx, "lexr-arch-builder", strings.Replace(toolsDockerfile, "binutils ca-certificates", "python3 attr binutils ca-certificates", 1))
+}
+
+// RunOfflineChrootWorkspace permits temporary mounts only inside a disposable
+// build container with verified inputs. No host block devices or network are
+// exposed. Image validators must use the unprivileged data-only methods instead.
+func (d *Docker) RunOfflineChrootWorkspace(ctx context.Context, image, workspace, volume string, args ...string) error {
+	base, err := workspaceVolumeArgs(image, workspace, volume)
+	if err != nil {
+		return err
+	}
+	extra := []string{"--network", "none", "--cap-add", "SYS_ADMIN", "--security-opt", "apparmor=unconfined"}
+	base = append(base[:4], append(extra, base[4:]...)...)
+	return d.Runner.Run(ctx, Command{Name: "docker", Args: append(base, args...)})
+}
+
 // ensureToolsImage builds one definition-keyed ARM64 tool environment on demand.
 func (d *Docker) ensureToolsImage(ctx context.Context, repository, definition string) (string, error) {
 	digest := sha256.Sum256([]byte(definition))

@@ -58,6 +58,36 @@ func TestDiscoverPipelineRejectsUnsupportedOrAmbiguousSensors(t *testing.T) {
 	}
 }
 
+// TestDiscoverPipelineAcceptsCurrentMediaCtl covers uppercase pad directions,
+// stream-qualified formats and empty disabled-link flags in v4l-utils 1.32.
+func TestDiscoverPipelineAcceptsCurrentMediaCtl(t *testing.T) {
+	t.Parallel()
+	text := strings.NewReplacer("Source", "SOURCE", "Sink", "SINK", "[fmt:", "[stream:0 fmt:").Replace(cameraTopologyFixture("SRGGB10_1X10"))
+	text = strings.Replace(text, `-> "msm_csid0":0 [ENABLED]`, `-> "msm_csid0":0 []`, 1)
+	topology, err := parseTopology(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pipeline, err := discoverPipeline("/dev/media0", topology)
+	if err != nil {
+		t.Fatalf("declared disabled route should be configurable: %v", err)
+	}
+	if pipeline.BayerOrder != BayerRGGB || pipeline.VideoDevice != "/dev/video12" {
+		t.Fatalf("pipeline = %#v", pipeline)
+	}
+	if err := validateConfiguredTopology(topology, pipeline); err == nil || !strings.Contains(err.Error(), "not enabled") {
+		t.Fatalf("disabled route passed configured validation: %v", err)
+	}
+	broken := strings.Replace(text, `-> "msm_csid0":0 []`, `-> "msm_csid1":0 []`, 1)
+	topology, err = parseTopology(broken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := discoverPipeline("/dev/media0", topology); err == nil {
+		t.Fatal("discovery accepted a missing route link")
+	}
+}
+
 // TestDiscoverPipelineRequiresTheCompleteDeclaredRoute verifies discovery
 // cannot infer a connection merely because the expected entities exist.
 func TestDiscoverPipelineRequiresTheCompleteDeclaredRoute(t *testing.T) {

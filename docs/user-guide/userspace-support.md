@@ -132,6 +132,14 @@ sudo lexr userspace install camera \
   --yes
 ```
 
+On Arch, the audio installer recognises the packaged ALSA selector symlink at
+`/usr/share/alsa/ucm2/conf.d/x1e80100/x1e80100.conf` only when its value is exactly
+`../../Qualcomm/x1e80100/x1e80100.conf`. It backs up the link itself and replaces
+the selector atomically without changing the shared Qualcomm profile. Unexpected
+links remain rejected. Recheck audio support after an `alsa-ucm-conf` update,
+which can restore the packaged selector. See the [Arch post-install guide](../operator-manual/arch-linux-arm-install.md#pen-and-audio-after-installation)
+for pen, audio-server and private firmware prerequisites.
+
 The camera installer also retains compatibility with the downloaded, checksum-pinned camera release and does not accept the native-only repository or authority options for that input shape. Native camera input is selected only by its structured build or local-release authority; mixed authority files are rejected. Static validation never executes a supplied package member. The installer verifies every package again while privately staging the confirmed `apt-get` transaction. Installing support never invokes legacy clean-up implicitly. Use the separate `clean` commands to inspect and remove only recognised obsolete workarounds with backups and receipts.
 
 ## 5. Prepare a release as a maintainer

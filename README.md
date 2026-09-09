@@ -45,7 +45,14 @@ redistribute restricted firmware. You can also use
 ## What works today
 
 Dedicated image adapters support the experimental Ubuntu Concept Resolute
-Desktop image, elementary OS 8.1 ARM64 and Fedora Workstation Live 44 ARM64.
+Desktop image, elementary OS 8.1 ARM64, Fedora Workstation Live 44 ARM64 and
+an Arch Linux ARM terminal live ISO. Arch includes a
+[step-by-step installation guide](docs/user-guide/arch-linux-arm-quickstart.md)
+with the Surface kernel and GRUB; no desktop is preselected. On 2026-09-08,
+Ooaklee confirmed installation and boot from the internal ext4 partition
+on X1E/OLED using v23, with touchscreen input and Wi-Fi after reconnecting.
+See the [hardware test record](docs/operator-manual/arch-linux-arm-install.md#hardware-test-record)
+for the tested image and remaining checks.
 The custom live and installed Fedora path is limited to the Surface Pro 11 Qualcomm Snapdragon X Elite model; its X Plus
 entry is a stock-kernel, explicit-DTB live troubleshooting path only. Debian,
 Pop!_OS and Fedora's compressed raw disk image remain
@@ -64,6 +71,12 @@ test reached the emergency boot path and then a persistent black screen. That
 failure is tracked in [issue #17](https://github.com/ooaklee/lexr.sh/issues/17),
 while [issue #16](https://github.com/ooaklee/lexr.sh/issues/16) tracks the
 separate Ubuntu end-to-end qualification.
+
+The experimental [Arch terminal image](docs/operator-manual/arch-linux-arm-source.md)
+includes the custom kernel, networking tools and a terminal setup menu. Users
+choose their own desktop or window manager. Further hardware, recovery and
+alongside-install checks remain tracked in
+[issue #52](https://github.com/ooaklee/lexr.sh/issues/52).
 
 Lexr can help you:
 
@@ -131,14 +144,19 @@ You can start with a prebuilt Linux image from the OE repository:
 
 - [Ubuntu Concept 26.04 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-ubuntu-concept-26.04-v23-20260905).
 - [elementary OS 8.1 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-elementary-os-8.1-v23-20260906).
+- [Arch Linux ARM terminal image with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-arch-linux-arm-terminal-v23-20260909).
 
-These experimental ARM64 images include Lexr, prepared Wi-Fi board data, the
-IPTSD bundle and a desktop getting-started guide. Follow each release's
+These experimental ARM64 images include Lexr and a getting-started guide.
+Ubuntu and elementary include prepared Wi-Fi board data and the IPTSD bundle.
+Arch starts in a terminal with networking and a guided installer; follow its
+[installation walkthrough](docs/user-guide/arch-linux-arm-quickstart.md) to
+choose your partitions and optional desktop. Follow each release's
 **Download, verify and write with Lexr** instructions to install the latest Lexr,
 download and reconstruct the split ISO, verify its checksum and write it to USB.
-The elementary release also provides a pinned source build for use until its
-adapter is available in a stable Lexr release; v0.3.0 cannot validate or write
-that image. The notes record the exact tested hardware and remaining limitations.
+The elementary and Arch releases also provide pinned source builds for use until
+their adapters are available in a stable Lexr release; v0.3.0 cannot validate or
+write these images. The notes distinguish each published image's validation from
+earlier hardware tests and record remaining limitations.
 
 To create your own experimental Ubuntu image, you need Docker with a running daemon
 and Linux ARM64 container support, at least 24 GiB of free workspace storage,

@@ -88,7 +88,7 @@ func (a *application) newKernelBootCommand() *cobra.Command {
 	refresh.Flags().StringVar(&abi, "abi", "", "exact kernel ABI to refresh")
 	refresh.Flags().StringVar(&profile, "profile", "auto", "registered platform profile or auto")
 	_ = refresh.MarkFlagRequired("abi")
-	command.AddCommand(refresh)
+	command.AddCommand(refresh, a.newArchGRUBRegistrationCommand())
 	return command
 }
 

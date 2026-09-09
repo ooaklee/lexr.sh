@@ -15,6 +15,8 @@ If you want to install Lexr, create installation media, complete a Windows hand-
 | Understand which repository owns each workflow, provide the kernel runner, or publish through the correct release channel | [Automation and release channels](automation-and-releases.md) |
 | Download, build, inspect, install, recover, or package a kernel bundle | [Kernel management](kernel-management.md) |
 | Turn an image, kernel build, audio source set, or camera build into a closed local release directory | [Release preparation](release-preparation.md) |
+| Inspect, authenticate and retain an Arch Linux ARM rootfs snapshot | [Arch Linux ARM source intake](arch-linux-arm-source.md) |
+| Install Arch with guided menus and the Surface kernel | [Arch Linux ARM installation](arch-linux-arm-install.md) |
 
 ## Keep the boundaries visible
 

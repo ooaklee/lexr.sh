@@ -1,0 +1,387 @@
+# Install Arch Linux ARM on Surface Pro 11
+
+For a guided path from a prepared USB through partition selection,
+first boot and persistent multi-OS menu, start with the
+[Arch installation walkthrough](../user-guide/arch-linux-arm-quickstart.md).
+This reference covers the installation choices and qualification details.
+
+Boot the Lexr Arch Linux ARM USB, connect with `sudo nmtui`, then run:
+
+```bash
+sudo archinstall
+```
+
+Option 6 in `lexr-arch-setup` opens the same installer. The USB includes the
+reviewed Archinstall 4.4 package and Lexr's Surface integration. Use the bundled
+version before updating packages in the live session. X1E/OLED live boot,
+installation and boot from an internal ext4 root are confirmed with v23. See the
+[hardware test record](#hardware-test-record) below and
+[issue #52](https://github.com/ooaklee/lexr.sh/issues/52) for the remaining checks.
+
+## Prepare space and select the layout
+
+For an installation alongside other operating systems, prepare unallocated
+space or reserve an existing partition whose contents you intend to erase;
+allow at least 16 GiB and more for your intended software. Do not
+use a whole-disk erase layout on a disk containing systems you want to keep.
+
+In **Disk configuration → Manual Partitioning**:
+
+1. Select the disk containing your prepared Arch space.
+2. Create an ext4 partition in the free space, or select only your reserved
+   partition for ext4 formatting, and assign `/`.
+3. Assign `/boot/efi` to one FAT ESP on a GPT disk. Reuse an existing ESP without
+   formatting it and keep its EFI flag. If none is available, create a FAT32 ESP
+   in free space and set its EFI flag.
+4. Leave the other OS partitions unchanged.
+5. Keep `/boot` on the root filesystem, and leave encryption and LVM disabled.
+
+The walkthrough's
+[partition table](../user-guide/arch-linux-arm-quickstart.md#2-select-only-the-space-reserved-for-arch)
+explains which partitions to create, reuse or leave unchanged. If another Linux
+installation has a separate `/boot` partition, leave that partition unchanged.
+
+Archinstall performs the disk operations you select and confirm. Lexr does not
+add a separate partition-preservation policy. Its Install preview checks
+the Surface boot requirements: an ext4 root, a FAT ESP on GPT at `/boot/efi`,
+and GRUB
+without UKI, removable fallback or Plymouth. Other layouts need further Surface
+boot integration. The boot hook needs 32 MiB free on the ESP and refuses to
+replace an existing `EFI/LexrArch` installation.
+
+## Choose the rest of your system
+
+Set your language, keyboard, locale, hostname, timezone and user account in the
+normal menus. Create a user with sudo access. Leave **Profile** unset or select
+**Minimal** for a terminal installation. Optional environments remain available;
+no desktop is preselected. Graphics are fixed to **Qualcomm Adreno (Mesa)**,
+including `vulkan-freedreno` so Vulkan dependencies select the Adreno provider.
+PC GPU choices from older saved configurations are rejected; start a new
+configuration to select the supported graphics option.
+
+Before formatting, Lexr checks the effective ARM repositories and resolves the
+selected profile and additional packages, including dependencies, with pacman.
+An unavailable or incompatible package stops that attempt before disk changes.
+Later application, network and greeter package transactions also check architecture
+and Surface compatibility. This does not preflight every later transaction or
+guarantee download success or that an optional desktop works on the Surface.
+You can also add your preferred environment after the terminal installation.
+
+For KDE Plasma, choose the applications you want under **Additional packages**:
+
+| Package | Purpose |
+| --- | --- |
+| `konsole` | Terminal window; also needed to launch terminal applications such as Vim from Plasma |
+| `dolphin` | File manager and directory-opening handler |
+| `plasma-nm` | NetworkManager controls in Plasma's system tray |
+| `plasma-pa` | Optional volume controls; installing the widget does not configure Surface audio firmware/userspace |
+
+The bundled upstream Plasma profile selects the desktop packages; it does not
+explicitly request Konsole or Dolphin. A minimal `plasma-desktop` installation
+can also lack the network widget even when NetworkManager is connected.
+To add the terminal, file manager and network controls after installation,
+log in on **Ctrl+Alt+F3** and run:
+
+```bash
+sudo pacman -Syu --needed konsole dolphin plasma-nm
+```
+
+Return to your graphical session with **Ctrl+Alt+F1** or **Ctrl+Alt+F2** and retry
+the application. If the newly installed network widget does not appear, save
+your work and log out and back into Plasma. These are optional desktop package
+choices available in the ARM repositories; Lexr does not force a desktop or
+replace upstream profile recipes.
+
+Keep **NetworkManager** for networking. You can reconnect with `sudo nmtui` after
+installation. Lexr uses Archinstall's normal network setup and does not add a
+Wi-Fi credential-copying helper. **Copy ISO configuration** is upstream's
+iwd/networkd flow and does not copy this image's NetworkManager Wi-Fi profiles.
+
+Lexr fixes the kernel to `lexr-kernel-sp11` and repositories to Arch Linux ARM.
+GRUB is preselected in the normal bootloader menu; retain it for Surface boot.
+Lexr installs matching modules, DTBs, public
+Wi-Fi/GPU firmware and an initramfs for the installed system. The fresh root
+receives your selected account; it does not inherit live autologin or
+passwordless sudo. Audio and other optional userspaces need separate Arch
+qualification.
+
+Review the complete configuration, select **Install**, then confirm it. To
+preview without partitioning or installing:
+
+```bash
+sudo archinstall --dry-run
+```
+
+Saved `--config` and `--creds` files are supported. `--silent` is accepted only
+with `--dry-run`; real installation retains the confirmation screen. Saved
+configurations may use bundled profiles, but external profile files/URLs,
+replacement scripts/plugins and custom commands are outside this reviewed flow.
+The dry-run resolves packages against the available live package databases;
+normal installation refreshes those databases before showing the menus.
+
+## First boot
+
+Choose **Exit** after installation to read the boot information. Lexr installs
+ARM64 GRUB at `EFI/LexrArch`, preserves the EFI files present when its boot hook
+starts and the existing BootOrder, and creates a separate **Lexr Arch Linux ARM** firmware entry. Select that entry
+in firmware, or use the exact one-time `efibootmgr --bootnext` command printed
+by the installer before rebooting. Keep the USB until the installed system has
+booted successfully.
+
+### Add Arch to the existing GRUB menu
+
+The installer creates a separate firmware entry; it does not automatically
+add Arch to another OS's GRUB menu. `BootNext` applies only to the next boot.
+If another Linux OS is installed and you want a persistent choice in its GRUB
+menu, select **option 7** in `lexr-arch-setup` after installation.
+Mount the existing OS and its separate `/boot`, if present, before selecting
+that OS's GRUB directory. The menu previews the entry and asks before applying
+it. It does not scan or mount other OS partitions.
+
+Alternatively, boot the existing Linux OS, mount the installed Arch root
+read-only, and run a Lexr build containing the new command:
+
+```bash
+sudo lexr kernel boot register-arch --arch-root /mnt/arch --grub-directory /boot/grub --dry-run
+sudo lexr kernel boot register-arch --arch-root /mnt/arch --grub-directory /boot/grub --yes
+```
+
+Select that OS's `/boot/grub` explicitly; the mounted ESP defaults to `/boot/efi`.
+For explicitly mounted paths on the live USB, add
+`--grub-directory /mnt/existing/boot/grub --esp /mnt/boot/efi`.
+See the getting-started guide for selecting the Arch root UUID and mounting
+it. Older candidate companions need an updated Lexr binary for this command.
+
+Registration checks the installation receipt, mounted root/ESP identities and
+the ARM64 loader's recorded digest. It appends an EFI chainloader entry to
+`custom.cfg`, leaving kernel/DTB selection to Arch's own GRUB. The existing
+`grub.cfg` must contain the `41_custom` loading block verified on Ubuntu; unknown layouts
+are refused. Existing menu contents are backed up and preserved, repeat runs
+do not add duplicates, and no GRUB regeneration or firmware-variable change
+occurs. Do not run concurrently with another GRUB update. A legitimate later
+replacement of Arch's EFI loader also needs receipt review; there is no digest
+bypass. Keep the existing OS's custom-file loading enabled on later GRUB updates.
+
+### Check the installed system
+
+After boot:
+
+```bash
+uname -r
+findmnt -no SOURCE,FSTYPE /
+pacman -Q lexr-kernel-sp11
+sudo nmtui
+```
+
+The kernel must match the USB's custom ABI, and `/` must be the installed ext4
+partition rather than the live overlay. In `nmtui`, choose **Activate a connection**
+and enter your Wi-Fi password again; live connection credentials are not copied.
+If you cannot find a terminal in your chosen desktop, press **Ctrl+Alt+F3**
+(with **Fn** if your keyboard requires it) and log in to the text console.
+
+The matching Lexr companion and
+source remain at `/usr/share/lexr/arch-media/sp11/companion`. Copy its binary to
+your home directory as described in `LEXR_GETTING_STARTED.txt` before running it.
+
+To regenerate this kernel's installed initramfs after a deliberate change:
+
+```bash
+sudo mkinitcpio -p lexr-sp11
+```
+
+The GRUB entries and DTBs are bound to that ABI. Cross-ABI upgrades and rollback
+remain unqualified. Retain the Surface kernel package; a generic `linux-aarch64`
+package or generic regenerated GRUB entries do not replace this boot integration.
+
+### GPU firmware and software rendering
+
+The image includes public GPU firmware but does not redistribute the private
+Surface GPU firmware `qcdxkmsuc8380.mbn`. During the installed KDE test, KWin
+reported `llvmpipe` software rendering and the kernel reported that
+`qcom/x1e80100/microsoft/Denali/qcdxkmsuc8380.mbn` could not be loaded.
+Installing Mesa or choosing another installer does not supply that file.
+
+The [Windows firmware hand-off](../user-guide/windows-handoff.md) describes
+collecting authorised firmware from the same physical Surface. Its application
+and the resulting hardware acceleration still need qualification on Arch;
+do not treat a working desktop as proof of accelerated graphics.
+
+## Pen and audio after installation
+
+Choose **Applications > Audio > PipeWire** in Archinstall if you want sound.
+The installed v23 test already had PipeWire and WirePlumber running: its missing
+audio support was the Surface firmware and FullIO configuration, not an x86
+sound-server selection. Audio remains optional for terminal installations.
+
+Include `rtkit` and `alsa-utils` when completing the PipeWire setup. The
+[PipeWire realtime module](https://docs.pipewire.org/page_module_rt.html) can use
+RTKit to request realtime scheduling when the session lacks direct permission.
+After installing it, log out and back in, or restart the user audio services
+as shown in the retained guide. KDE users can add `plasma-pa` for sound settings
+and volume controls. These packages complement the Surface firmware and UCM;
+they do not replace them or establish that playback is free of static or pops.
+
+The retained `/usr/share/lexr/LEXR_GETTING_STARTED.txt` contains the full
+copy-and-run commands, dry-runs and post-install checks. Open it in your editor
+or run `cat /usr/share/lexr/LEXR_GETTING_STARTED.txt`. On the live USB, the guide
+is also available through `lexr-arch-setup`.
+Lexr's existing portable IPTSD and FullIO releases are shared across distributions;
+there is no separate Arch firmware release. Install pen independently with
+`userspace pull iptsd` and `userspace install iptsd`, or select `recommended`
+for audio plus IPTSD. The guide gives the exact paired cache directories.
+
+The Arch ALSA selector fix in this PR permits only the distribution's exact
+`../../Qualcomm/x1e80100/x1e80100.conf` link at
+`/usr/share/alsa/ucm2/conf.d/x1e80100/x1e80100.conf`. It preserves the link in the
+backup and replaces only that selector, leaving the shared Qualcomm profile
+unchanged. Other target links remain rejected. A package update can replace the
+selector again, so check audio support after upgrading `alsa-ucm-conf`.
+
+The public audio release does not include private aDSP firmware. Follow the
+[Windows hand-off guide](../user-guide/windows-handoff.md) for same-device
+collection and reviewed application; Arch application remains under qualification.
+A working Ubuntu installation on the same Surface can also hold the device's
+existing firmware, but copying it locally is a separate recovery operation,
+not an input accepted by `lexr handoff import`. Never manufacture a Windows
+hand-off manifest from Linux files or put private firmware into the public ISO.
+The updated installed Surface preset includes only its fixed list of locally
+present DSP/GPU firmware files and the audio topology before early driver
+probing. Missing files remain optional; the live preset does not include this
+private set. Rebuild the installed initramfs after firmware changes and reboot
+before checking ALSA cards, PipeWire devices, speakers and microphone. Updating
+Lexr alone does not replace the older preset on an already-installed candidate.
+
+## Front camera after installation
+
+Install the native Arch Linux ARM runtime and PipeWire camera plugin:
+
+```bash
+sudo pacman -Syu --needed libcamera libcamera-tools pipewire-libcamera v4l-utils
+```
+
+Close camera applications, then log out and back in. To refresh discovery
+immediately, run the following as your normal desktop user; restarting
+WirePlumber briefly interrupts audio and camera routing:
+
+```bash
+systemctl --user restart wireplumber.service
+cam -l
+wpctl status
+qcam
+```
+
+`cam` should list **Internal front camera**, and PipeWire should expose
+**Built-in Front Camera** under video sources. Close `qcam` before opening
+another camera application. Browser capture additionally depends on the
+browser's PipeWire support and permissions.
+
+The installed X1E/OLED v23 test used Arch `libcamera`, `libcamera-ipa` and
+`libcamera-tools` **0.7.2-4**, with `pipewire-libcamera` **1:1.6.8-1**.
+A bounded `cam -c 1 --capture=10` completed ten processed frames without saving
+images. Ooaklee confirmed a usable `qcam` picture and the privacy light
+on during preview; PipeWire exposed the front-camera source after discovery
+was refreshed with the preview closed.
+
+This path uses [Arch's native libcamera package](https://archlinuxarm.org/packages/aarch64/libcamera).
+No OE camera package or kernel change was needed for the preview. The stock
+runtime warns that IMX681 properties, gain helper and tuning are missing and
+uses uncalibrated defaults. Exposure/gain accuracy, colour, privacy-light
+turn-off, repeated starts, browser capture and suspend/resume remain unqualified.
+The separate OE sensor patch addresses metadata, gain mapping and tuning; it
+has not been packaged or qualified on Arch by this change.
+
+Lexr's released `userspace install camera` bundle and static camera package
+checks currently target Debian/Ubuntu. Do not install its `.deb` files on Arch.
+Use `pacman -Q libcamera libcamera-ipa libcamera-tools pipewire-libcamera` for
+native package inspection; a Debian package/path failure from Lexr does not
+establish that the native camera is broken.
+
+For an optional route diagnostic, use a Lexr build containing this PR's
+`media-ctl` parser fix:
+
+```bash
+sudo lexr userspace camera capture --dry-run
+```
+
+The check does not stream or change the media graph. It accepts the uppercase
+pad directions and empty disabled-link flags emitted by `v4l-utils` 1.32,
+while retaining the exact IMX681 route checks. The corrected command passed
+on the device. Close camera clients first. If WirePlumber holds the camera
+open while idle, the retained getting-started file includes a temporary
+stop/check/restart block that restores it even when the diagnostic fails.
+Use the [userspace camera guide](../user-guide/userspace-support.md#6-inspect-the-experimental-camera)
+for optional private RAW capture and rendering; do not publish captured images
+or infer picture quality from a successful dry run.
+
+## Power profiles
+
+Select **Applications > Power management > power-profiles-daemon** in
+Archinstall if you want selectable power modes, or install it afterwards:
+
+```bash
+lexr userspace status --feature power
+sudo pacman -Syu --needed power-profiles-daemon python-gobject
+sudo systemctl enable --now power-profiles-daemon.service
+powerprofilesctl list
+```
+
+Use the absolute user-local Lexr path from the getting-started guide if it is
+not on your PATH. Lexr provides inspection for power support; installation is
+owned by Arch's package manager. The [AArch64 package](https://archlinuxarm.org/packages/aarch64/power-profiles-daemon) lists `python-gobject` as
+the optional dependency needed by `powerprofilesctl`. Do not enable competing
+power managers together. The installed test had the kernel's **Surface Platform
+Profile** interface but no power-profile daemon, so it needed the distribution
+package rather than another kernel or OE userspace bundle.
+
+## Hardware test record
+
+On 2026-09-08, Ooaklee completed the bundled `sudo archinstall` flow on a
+Surface Pro 11 X1E/OLED and booted the resulting installation from the internal
+NVMe disk. The reported command output confirms:
+
+| Check | Result |
+| --- | --- |
+| Running kernel (`uname -r`) | `7.2.0-jg-0sp11v23-qcom-x1e` |
+| Root (`findmnt -no SOURCE,FSTYPE /`) | Internal NVMe partition, `ext4` |
+| Native kernel package (`pacman -Q lexr-kernel-sp11`) | `lexr-kernel-sp11 7.2.0_jg_0sp11v23-1` |
+| Touchscreen | Ooaklee confirmed working in the installed system |
+| Pen | Ooaklee confirmed pen input after Lexr installed the paired IPTSD portable userspace |
+| Audio userspace files | Native `bf617c5` build passed dry-run and installed FullIO, preserving the original selector link in backup and the shared Qualcomm profile unchanged |
+| Audio early firmware | Six existing same-device aDSP files and FullIO topology verified by hash in the rebuilt installed initramfs; GRUB unchanged; audio DSP and ALSA card present after reboot |
+| Stereo playback | Ooaklee confirmed both stereo channels work cleanly with no static or pops after completing the installed audio setup |
+| Audio scheduling and controls | Missing `rtkit`, `alsa-utils` and `plasma-pa` installed; restarted PipeWire uses realtime data threads; sampled error counters were zero before and after; clean playback independently confirmed by listening |
+| Microphone | Ooaklee confirmed working very well in the installed system |
+| Front camera | Native Arch packages stream processed frames; Ooaklee confirmed qcam picture and privacy light on; PipeWire source present; sensor tuning and further lifecycle tests pending |
+| Wi-Fi | Ooaklee confirmed connected after reconnecting |
+| Power profiles | Standard daemon enabled; power-saver, balanced and performance each verified against kernel readback; original low-power setting restored |
+| Persistent entry in Ubuntu GRUB | Native `241f119` preview/apply/repeat passed; existing EFI files, both generated menus, Arch initramfs and firmware variables unchanged; selecting the new entry on hardware pending |
+| KDE terminal | Ooaklee confirmed Konsole works after installing its package |
+| Network widget | Missing `plasma-nm` installed; widget registered after refreshing Plasma, visual check pending |
+| File manager | Missing Dolphin installed; process and directory handler verified, visual check pending |
+| GPU acceleration | KWin uses `llvmpipe`; kernel reports missing private Surface GPU firmware |
+
+The tested image was candidate 4, created with Lexr `2e0d384`, independently
+validated and written by the matching native Lexr binary with a complete USB
+read-back. Its SHA-256 is
+`bd60290edeab9fd4b183b00b8ff361751c32898f56e723c9ef99c8aa0d0aac41`.
+Later documentation updates do not change or requalify those image bytes.
+
+This confirms the first installed boot and the features listed above. Repeated
+boot selection, returning to Ubuntu/Windows after this installation, further camera checks,
+broader desktop behaviour, recovery, cross-ABI upgrades and X1P/LCD still require
+testing. The image remains experimental; this record is not a published ISO release.
+
+## Following the Archinstall video
+
+The [step-by-step video](https://www.youtube.com/watch?v=LiG2wMkcrFE) is useful
+for the account, locale, profile, timezone and confirmation menus. Follow these
+Surface-specific choices where its example differs:
+
+| Video step | Lexr Surface choice |
+| --- | --- |
+| Download an x86_64 Arch ISO | Boot the Lexr AArch64 image |
+| Connect with `iwctl` | Use `sudo nmtui` |
+| Choose an x86 mirror region | Keep the Arch Linux ARM mirror |
+| Use the best-effort whole-disk layout | Select Manual Partitioning and preserve the existing ESP/OSes |
+| Select stock kernel or systemd-boot | Keep Lexr's Surface kernel and GRUB |
+| Choose a desktop/GPU vendor | Leave the profile unset for a terminal; customise your environment after installing |

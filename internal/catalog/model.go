@@ -4,8 +4,12 @@ package catalog
 
 import "sort"
 
-// CurrentSchemaVersion is the only catalogue schema understood by this build.
-const CurrentSchemaVersion = 2
+// CurrentSchemaVersion adds explicitly pinned root filesystem archives. The
+// loader also accepts version 2 with its original artefact kinds.
+const CurrentSchemaVersion = 3
+
+// LegacySchemaVersion identifies the ISO/raw-image catalogue contract.
+const LegacySchemaVersion = 2
 
 // Architecture is a canonical CPU architecture name.
 type Architecture string
@@ -24,6 +28,9 @@ const (
 	ArtifactKindISO ArtifactKind = "iso"
 	// ArtifactKindRawXZ denotes an xz-compressed raw disk image.
 	ArtifactKindRawXZ ArtifactKind = "raw-xz"
+	// ArtifactKindRootfsTarGZ denotes a gzip-compressed root filesystem archive,
+	// which requires a purpose-built adapter before it can become bootable media.
+	ArtifactKindRootfsTarGZ ArtifactKind = "rootfs-tar-gz"
 )
 
 // Adapter identifies the image-specific implementation used to prepare media.
@@ -38,12 +45,16 @@ const (
 	AdapterFedoraLive Adapter = "fedora-live"
 	// AdapterElementaryCasper selects elementary OS's Casper and GRUB implementation.
 	AdapterElementaryCasper Adapter = "elementary-casper"
+	// AdapterArchLinuxARM creates ARM64 terminal live media from a root filesystem.
+	AdapterArchLinuxARM Adapter = "archlinux-arm-live"
 )
 
 // AdapterSupportsArtifact reports whether an implemented adapter can safely
 // consume the declared upstream artefact format.
 func AdapterSupportsArtifact(adapter Adapter, kind ArtifactKind) bool {
 	switch adapter {
+	case AdapterArchLinuxARM:
+		return kind == ArtifactKindRootfsTarGZ
 	case AdapterUbuntuCasper, AdapterFedoraLive, AdapterElementaryCasper:
 		return kind == ArtifactKindISO
 	default:
@@ -62,8 +73,9 @@ const (
 	SupportLevelCatalogOnly SupportLevel = "catalog-only"
 )
 
-// Checksum is an optional publisher-supplied digest. Value contains hexadecimal
-// digits only; the algorithm is not repeated as a value prefix.
+// Checksum pins accepted source bytes. It may be publisher-supplied or recorded
+// by maintainers after authenticating a signed source snapshot. Value contains
+// hexadecimal digits only; the algorithm is not repeated as a value prefix.
 type Checksum struct {
 	// Algorithm names the digest algorithm used for Value.
 	Algorithm string `json:"algorithm"`
@@ -99,7 +111,7 @@ type Entry struct {
 	Experimental bool `json:"experimental"`
 	// Mutable warns that URL contents may change without the URL changing.
 	Mutable bool `json:"mutable"`
-	// Checksum optionally pins the publisher's artefact bytes.
+	// Checksum pins accepted artefact bytes; root filesystem archives require SHA-256.
 	Checksum *Checksum `json:"checksum,omitempty"`
 	// CompatibilityNotes explain device-specific constraints to users.
 	CompatibilityNotes []string `json:"compatibility_notes"`

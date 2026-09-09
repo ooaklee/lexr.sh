@@ -1,0 +1,548 @@
+LEXR GETTING STARTED — ARCH LINUX ARM ON SURFACE PRO 11
+
+This experimental USB boots a terminal using the custom Surface kernel. Choose
+X1E/OLED or X1P/LCD in the live USB's GRUB menu to match your device. Disable Secure Boot for this
+unsigned kernel and external device tree. X1E/OLED live and installed boot with
+v23, installed touchscreen input, Wi-Fi after reconnecting and pen input after
+Lexr IPTSD setup were confirmed on 2026-09-08. Recovery, cross-ABI upgrades and X1P/LCD remain unqualified.
+
+The local live account is arch, with passwordless sudo. The installation section
+writes only after you select and confirm a supported layout in Archinstall.
+Other changes to the live session disappear at reboot.
+No desktop or window manager is preselected: you choose your own environment.
+
+INSTALLATION WALKTHROUGH
+
+After Lexr reports image validation and a completed USB write with full read-back
+verification, reconnect the ejected USB and boot the entry for your device.
+The tested X1E/OLED route is: connect with sudo nmtui, run sudo archinstall,
+review Manual Partitioning, then choose Exit archinstall after completion.
+Section 4 covers the partition choices, first boot and a persistent GRUB entry.
+The partition guidance and complete online walkthrough are at:
+  https://github.com/ooaklee/lexr.sh/blob/main/docs/user-guide/arch-linux-arm-quickstart.md
+Until these changes merge, use that path on the branch in PR #55 instead:
+  https://github.com/ooaklee/lexr.sh/pull/55
+
+1. START THE TERMINAL SETUP FLOW
+
+On the live USB:
+
+  lexr-arch-setup
+
+The menu offers kernel/network/storage checks, networking, package signing key
+initialisation, this guide, the included Lexr and the guided installer. Return
+to the shell at any time.
+For inspection without interactive prompts:
+
+  lexr-arch-setup --status
+
+2. CONNECT TO YOUR NETWORK
+
+Public Surface Wi-Fi board data is prepared before boot. Use NetworkManager's
+terminal interface to choose a network; enter its password in the prompt:
+
+  sudo nmtui
+
+Or inspect the connection with:
+
+  nmcli device status
+  nmcli device wifi list
+
+USB phone tethering is another option. If no wireless interface appears, collect:
+
+  uname -r
+  sudo dmesg | grep -Ei 'ath12k|firmware|wcn7850'
+
+The kernel should report the custom ABI, for example 7.2.0-jg-0sp11v23-qcom-x1e.
+Report the selected GRUB entry and output at https://github.com/ooaklee/lexr.sh/issues/52
+
+3. USE THE LEXR INCLUDED ON THIS USB
+
+  COMPANION_ROOT=/run/archiso/bootmnt/sp11/companion
+  mkdir -p "$HOME/.local/bin"
+  install -m 0755 "$COMPANION_ROOT/bin/linux-arm64/lexr" "$HOME/.local/bin/lexr"
+  "$HOME/.local/bin/lexr" --help
+
+After installation, use the retained bundle instead of the USB mount:
+
+  COMPANION_ROOT=/usr/share/lexr/arch-media/sp11/companion
+  mkdir -p "$HOME/.local/bin"
+  install -m 0755 "$COMPANION_ROOT/bin/linux-arm64/lexr" "$HOME/.local/bin/lexr"
+
+Copy to your home directory before running it; temporary mounts can be noexec.
+The bundle includes matching source, catalogues, notices and any selected
+redistribution-eligible userspaces. Section 6 covers native pen and audio setup.
+Do not run Debian package installation commands on Arch.
+
+To install the latest released Lexr when connected to the internet:
+
+  curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh
+
+The release installer verifies its checksum and puts Lexr on your PATH. A released
+version can be older than the development companion included on this test image.
+
+4. INSTALL ARCH WITH THE GUIDED INSTALLER
+
+Connect to the internet first, inspect your disk layout, then start the installer:
+
+  lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINTS
+  sudo archinstall
+
+Or choose option 6 in lexr-arch-setup. This launches the bundled Archinstall 4.4
+menus with Lexr's Surface integration. Run it before upgrading the live system:
+a different Archinstall version must be reviewed before using this adapter.
+
+For installation alongside other operating systems, prepare unallocated space
+or reserve a partition whose contents you intend to erase. Allow at least
+16 GiB for an ext4 root and more for additional software.
+Archinstall owns disk selection, formatting and confirmation. Lexr does not add
+a separate partition-preservation policy; review those choices before Install.
+
+In the menus:
+
+  - Set your language, keyboard layout, locale, hostname and timezone.
+  - Open Disk configuration and select Manual Partitioning.
+  - Select the disk containing your prepared Arch space.
+  - Create one ext4 partition in the free space, or format only your reserved
+    partition as ext4, and mount it at /.
+  - Assign /boot/efi to one FAT EFI System Partition on a GPT disk. If an ESP
+    already exists, keep its EFI flag and do NOT mark it for formatting. If
+    none is available, create a FAT32 ESP in free space and set its EFI flag.
+  - Leave every other existing partition unchanged and without a mountpoint.
+  - Keep /boot on the ext4 root, and leave LVM and encryption disabled.
+    These are requirements of the current Surface boot payload.
+  - Keep the preselected GRUB bootloader without UKI, removable fallback or
+    Plymouth. Lexr fixes the kernel to lexr-kernel-sp11 and repositories to
+    Arch Linux ARM.
+  - Under Authentication, create your own user and password with sudo access.
+  - Leave Profile unset or select Minimal for a terminal installation. You may
+    choose an optional environment instead; no desktop is preselected. Profile
+    graphics use Qualcomm Adreno (Mesa), including vulkan-freedreno. Old saved
+    PC graphics choices are rejected; start a new configuration in that case.
+    You can also customise after installation.
+  - Keep NetworkManager under Network configuration. Reconnect with nmtui after
+    first boot. Upstream's Copy ISO configuration handles iwd/networkd; it does
+    not copy this image's NetworkManager Wi-Fi profiles.
+  - For sound, choose Applications > Audio > PipeWire. This supplies the audio
+    server; Surface firmware and FullIO configuration are separate (section 6).
+    Leave audio unset or choose No audio server if you do not want it.
+  - For selectable power modes, choose Applications > Power management >
+    power-profiles-daemon. This is optional and can also be installed later.
+  - Review the complete configuration, select Install and confirm it.
+
+Select partitions by purpose and size on your own disk. An existing Linux
+installation is optional; Arch can be installed on its own or alongside others.
+
+  Partition                         Mount point        Format?
+  New or reserved Arch root         /                  YES, ext4
+  Existing ESP, if present           /boot/efi           NO
+  New ESP, only if one is needed     /boot/efi           YES, FAT32
+  Other partitions to keep, if any   Leave unassigned    NO
+
+Use one ESP: either reuse an existing one or create a new one. Formatting the
+Arch root erases its contents. If another Linux installation has a separate
+/boot partition, leave it unassigned and unchanged; Arch's /boot stays on its root.
+Before the final confirmation, check that ONLY the Arch root and any newly
+created ESP will be formatted. Never format an existing ESP you are reusing.
+Keep GRUB, the Surface kernel and NetworkManager; leave
+Profile unset or choose Minimal if you want to customise from a terminal.
+
+If Install reports an incompatible Surface boot layout, correct the highlighted
+selection. For an alongside installation, do not select whole-disk erase or
+format the existing ESP or other OS partitions. Archinstall executes your
+confirmed disk choices. The boot hook needs 32 MiB free on the ESP and refuses
+to overwrite an existing EFI/LexrArch directory.
+
+Before formatting, Lexr checks the ARM repositories and resolves your profile
+and additional packages, including dependencies. If those checks fail, correct
+the selection first. Later package transactions are also checked for architecture
+and Surface compatibility. This does not check every later transaction in advance
+or guarantee network downloads or optional desktop support.
+
+To inspect a configuration without partitioning or installing:
+
+  sudo archinstall --dry-run
+
+You can also pass --config and --creds with files saved by this installer.
+--silent is accepted only with --dry-run; installation retains the confirmation.
+Use bundled profiles without custom commands or external profile files/URLs.
+The dry-run uses available package databases; normal installation refreshes them.
+
+Lexr installs a fresh Arch root, the custom kernel/modules, matching DTBs, public
+Wi-Fi/GPU firmware, an installed-system initramfs and ARM64 GRUB. It retains the
+Lexr companion and source at /usr/share/lexr/arch-media/sp11/companion. Your new
+system uses your chosen account; it does not inherit the live autologin or sudo
+policy. Install optional Surface userspaces as described in section 6.
+
+After successful installation, choose Exit archinstall to read the boot information.
+GRUB is installed in EFI/LexrArch. Its hook preserves the EFI files present when
+it starts and the existing firmware BootOrder. This does not undo formatting
+selected earlier in Archinstall. Select "Lexr Arch Linux ARM" in firmware, or use the exact
+one-time efibootmgr --bootnext command printed by the installer before rebooting.
+Keep the USB available until the installed system has booted successfully.
+
+If the printed BootNext command has scrolled away, list firmware entries:
+
+  sudo efibootmgr
+
+Find "Lexr Arch Linux ARM" and replace XXXX with its four-digit BootXXXX number:
+
+  sudo efibootmgr --bootnext XXXX
+  sudo efibootmgr
+
+Check that BootNext matches the selected Arch entry, then reboot:
+
+  sudo reboot
+
+If the Arch entry is missing, do not guess a number or reinstall. Keep the USB
+and use the persistent-menu option below from your existing Linux OS, or use
+option 7 on a newer live image with the required filesystems mounted.
+BootNext selects one boot only and preserves your normal BootOrder:
+  https://github.com/rhboot/efibootmgr
+
+ADD ARCH TO AN EXISTING GRUB MENU (OPTIONAL)
+
+The firmware entry above does not add Arch to another OS's GRUB menu.
+BootNext selects Arch for one boot only. If another Linux OS is installed and
+you want a persistent choice in its GRUB menu, use option 7 in lexr-arch-setup
+after installation, or run the commands below from that OS.
+This needs a Lexr build containing register-arch; the
+older candidate USB's companion does not have this command.
+
+From the existing OS, inspect lsblk -f and mount the installed Arch partition
+read-only at /mnt/arch. Select its UUID rather than copying a partition number:
+
+  lsblk -f
+  sudo mkdir -p /mnt/arch
+  sudo mount -o ro,noload /dev/disk/by-uuid/ARCH_ROOT_UUID /mnt/arch
+  sudo lexr kernel boot register-arch --arch-root /mnt/arch --grub-directory /boot/grub --dry-run
+
+Review the preview before applying, then unmount Arch when finished:
+
+  sudo lexr kernel boot register-arch --arch-root /mnt/arch --grub-directory /boot/grub --yes
+  sudo umount /mnt/arch
+
+Replace ARCH_ROOT_UUID with your installed Arch root UUID. Use the absolute
+path to your updated Lexr binary if it is not on PATH. Select
+the running OS's /boot/grub explicitly; the shared ESP defaults to /boot/efi. From the live USB,
+mount the existing OS and its separate /boot if it has one, then select its
+actual GRUB directory and the shared ESP in option 7. The equivalent flags are
+--grub-directory /mnt/existing/boot/grub --esp /mnt/boot/efi. Lexr does not
+automatically mount other OS partitions.
+
+Lexr verifies Arch's receipt, mounted partition identities and ARM64 EFI loader,
+then previews and adds a custom.cfg entry that opens Arch's own GRUB menu.
+Existing menu entries, EFI files and BootOrder are unchanged. No update-grub
+is needed for the supported 41_custom layout; repeating the command is a no-op.
+Do not run registration during another GRUB update. An unknown custom.cfg
+loading layout or a loader changed since installation requires review first.
+An existing custom.cfg is backed up before appending; the command prints its
+backup path. Do not regenerate the Surface menu just to bypass a refusal.
+
+In Arch's own GRUB menu, choose the normal "Arch Linux ARM for Surface Pro 11"
+kernel entry, then log in with the account you created. The live USB's X1E/OLED
+label is not used for the installed menu; its device tree is already selected.
+After booting the installed system:
+
+  uname -r
+  findmnt -no SOURCE,FSTYPE /
+  pacman -Q lexr-kernel-sp11
+  sudo nmtui
+
+For the tested v23 image, expect:
+  Kernel: 7.2.0-jg-0sp11v23-qcom-x1e
+  Root: the partition you selected for Arch, with ext4
+  Package: lexr-kernel-sp11 7.2.0_jg_0sp11v23-1
+An overlay root means you are still on the live USB. For a different image ABI,
+compare these results with that image's kernel version and keep the results
+with your image validation and USB write receipts.
+
+In nmtui, choose Activate a connection and enter your Wi-Fi password again;
+live connection credentials are not copied. If your desktop has no accessible
+terminal, press Ctrl+Alt+F3 (with Fn if needed) and log in to the text console.
+
+For KDE Plasma, you can add the terminal, file manager and network widget from
+that console. A minimal plasma-desktop selection does not include every app:
+
+  sudo pacman -Syu --needed konsole dolphin plasma-nm
+
+Konsole resolves "Terminal konsole not found" when launching Vim; Dolphin opens
+folders; plasma-nm adds the network controls even when Wi-Fi already works.
+Return to the graphical session with Ctrl+Alt+F1 or Ctrl+Alt+F2 and retry. If the
+new widget does not appear, save work and log out and back in. For a new KDE
+installation, select these under Additional packages instead. plasma-pa is an
+optional volume widget, but it does not configure Surface audio support.
+
+A desktop can use software rendering. The public image does not contain the
+private Surface GPU firmware qcdxkmsuc8380.mbn. The installed KDE test reported
+llvmpipe with that file missing; hardware acceleration and the private firmware
+handoff still need Arch qualification. See the operator guide for this boundary.
+
+The kernel should report the same custom ABI as the live image, and / should
+be your installed ext4 partition rather than the live overlay. To rebuild its
+installed initramfs after a deliberate configuration change:
+
+  sudo mkinitcpio -p lexr-sp11
+
+The GRUB menu and DTBs are bound to that ABI. Cross-ABI kernel upgrades and
+rollback are not yet qualified; retain the existing Surface package. Do not
+replace it with linux-aarch64 or regenerate this GRUB menu with generic entries.
+
+Following the video "How to Install Arch Linux Step-by-Step Guide (archinstall)":
+  https://www.youtube.com/watch?v=LiG2wMkcrFE
+
+The account, locale, profile, timezone and confirmation steps are familiar.
+For this Surface flow:
+  - Use this ARM64 USB instead of the video's x86_64 download.
+  - Connect with nmtui instead of iwctl.
+  - Use Manual Partitioning instead of its whole-disk default.
+  - Keep Lexr's Surface kernel and GRUB instead of the stock kernel/systemd-boot.
+
+5. CUSTOMISE ARCH
+
+The installed system uses the normal Arch Linux ARM package manager. Review a
+full repository update when adding software:
+
+  sudo pacman -Syu
+
+Choose your editor, terminal tools, window manager or desktop. In a fresh live
+session, initialise keys before using pacman (the guided installer does this):
+
+  sudo pacman-key --init
+  sudo pacman-key --populate archlinuxarm
+
+Live-session package changes live in RAM and disappear after reboot. Avoid
+upgrading Archinstall before using the bundled installation flow.
+
+References:
+  https://archlinuxarm.org/about/downloads
+  https://github.com/ooaklee/lexr.sh/issues/52
+
+6. SET UP SURFACE PEN, AUDIO AND OTHER SUPPORT
+
+Run these commands from your installed Arch system after connecting to the
+internet. Live-session changes disappear on reboot. Start with section 3 to
+copy the companion, or use a current Lexr build supplied with this guide:
+
+  LEXR="$HOME/.local/bin/lexr"
+  USERSPACE_CACHE="$HOME/.cache/lexr/userspace"
+  "$LEXR" version
+  "$LEXR" userspace status --feature iptsd --feature audio --feature firmware
+
+Use sudo for the install previews too: existing private backup directories can
+require root access to inspect. --dry-run still makes no target changes.
+
+A failing status can mean missing optional support; read each check. Status
+inspects files and dependencies, so physical pen and audio tests are still needed.
+
+Pen (IPTSD)
+
+The v23 kernel supplies touch and the pen transport. Install the paired IPTSD
+userspace for stylus events, then test cursor movement and drawing:
+
+  "$LEXR" userspace pull iptsd --cache-dir "$USERSPACE_CACHE"
+  sudo "$LEXR" userspace install iptsd --from "$USERSPACE_CACHE/iptsd-v1/sp11-iptsd-v2" --dry-run
+  sudo "$LEXR" userspace install iptsd --from "$USERSPACE_CACHE/iptsd-v1/sp11-iptsd-v2" --yes
+  "$LEXR" userspace status --feature iptsd --feature g6-pen
+  systemctl list-units 'sp11-iptsd@*'
+
+The installer configures the portable AArch64 binaries and service, masks the
+conflicting generic IPTSD unit and stops the obsolete g6-pen service. Pen input
+was confirmed on installed X1E/OLED v23 after this command. IPTSD's log may say
+"Touchscreen is disabled!": the kernel owns touch while IPTSD handles the pen.
+
+Audio (FullIO topology and ALSA UCM)
+
+Stereo playback without static or pops and microphone input were confirmed on
+installed Surface Pro 11 X1E/OLED v23 with the setup below.
+
+Archinstall's PipeWire option is suitable. Install any missing audio components,
+including realtime scheduling and diagnostic tools, then log out and back in:
+
+  sudo pacman -Syu --needed pipewire pipewire-alsa pipewire-pulse wireplumber rtkit alsa-utils
+
+rtkit lets PipeWire request realtime scheduling through the system bus. If the
+audio services were already running, logging out and back in lets them use it.
+To use it immediately without logging out (this interrupts current audio), run
+as your normal user:
+
+  systemctl --user restart pipewire.service pipewire-pulse.service wireplumber.service
+
+KDE users can optionally install the sound settings and volume widget:
+
+  sudo pacman -Syu --needed plasma-pa
+
+A widget does not supply the Surface firmware or configuration. Install the
+paired audio set:
+
+  "$LEXR" userspace pull audio --cache-dir "$USERSPACE_CACHE"
+  sudo "$LEXR" userspace install audio --from "$USERSPACE_CACHE/audio-fullio-v19c/sp11-audio-v19c" --dry-run
+  sudo "$LEXR" userspace install audio --from "$USERSPACE_CACHE/audio-fullio-v19c/sp11-audio-v19c" --yes
+
+Use a Lexr build containing the Arch ALSA selector fix in PR #55. Older companions
+can report "refusing symlinked userspace target" for the packaged x1e80100.conf
+selector. Update Lexr instead of deleting the link yourself. The fix backs up
+that exact link and replaces only the selector, keeping the shared Qualcomm
+profile unchanged. An alsa-ucm-conf package update can restore the distribution
+selector; rerun the audio status check afterwards and reinstall if needed.
+
+Sound also requires private Surface aDSP firmware. The public image and the
+FullIO download do not contain that firmware. See the same-device hand-off:
+
+  https://github.com/ooaklee/lexr.sh/blob/main/docs/user-guide/windows-handoff.md
+
+Use that guide's collection, import and reviewed apply commands with --target-root /
+and --adsp-policy enabled on installed internal storage. Firmware application
+on Arch still needs qualification. Do not enable the full aDSP on the live USB
+just to test sound: DSP startup can disrupt its USB root. Do not share firmware
+or hand-off data in an ISO, issue, or release.
+
+After firmware and audio configuration are installed, rebuild the installed
+initramfs using its Surface preset, then reboot when ready. Use the installed
+preset from PR #55, which includes locally present DSP/GPU firmware and topology
+before early device probing. Older candidate presets lack this addition: updating
+only the Lexr binary does not replace an already-installed preset.
+
+  sudo mkinitcpio -p lexr-sp11
+  sudo reboot
+
+After reboot, check the ALSA card and PipeWire devices, then test speakers and mic:
+
+  "$LEXR" userspace status --feature audio --feature firmware
+  cat /proc/asound/cards
+  wpctl status
+
+If there are pops or dropouts, note whether they occur at the start/end of a
+sound or during playback. Inspect scheduling warnings and error counters while
+playing audio:
+
+  journalctl --user -b -u pipewire -u pipewire-pulse -u wireplumber
+  pw-top
+
+Zero error counters do not establish clean sound; include what you heard when
+reporting the problem. Do not change speaker protection controls to suppress it.
+
+The older audio status check may recommend the retired
+soundwire_qcom.sp11_feedback_active_offset2_zero=1 flag. Do not regenerate this
+Surface GRUB menu or add that workaround solely to clear the check. Report any
+remaining audio issues in issue #52 with the exact installed setup.
+
+To download and install both paired components together, the equivalent is:
+
+  "$LEXR" userspace pull recommended --cache-dir "$USERSPACE_CACHE"
+  sudo "$LEXR" userspace install recommended --from "$USERSPACE_CACHE" --dry-run
+  sudo "$LEXR" userspace install recommended --from "$USERSPACE_CACHE" --yes
+
+"recommended" includes audio and IPTSD; it does not include private firmware.
+The individual commands above let you set up pen independently of audio.
+
+Other support
+
+Wi-Fi board data is already prepared by the image. Use sudo nmtui to reconnect.
+If the installed system is missing board data, inspect and repair it with:
+
+  "$LEXR" userspace status --feature wifi
+  sudo "$LEXR" userspace install wifi --dry-run
+  sudo "$LEXR" userspace install wifi --yes
+  sudo mkinitcpio -p lexr-sp11
+
+Reboot after a board-data change. Avoid --activate for an unqualified driver
+layout; the regular install does not restart your radio or network connection.
+
+Power profiles
+
+Lexr can inspect power support; it does not install the distribution service:
+
+  "$LEXR" userspace status --feature power
+
+Do not run competing power-management services such as TLP or tuned alongside
+power-profiles-daemon. If one is already selected, use its controls or decide
+which service to keep before enabling another.
+
+If the kernel interface is present but the daemon is missing, install Arch's
+package and the Python bindings required by powerprofilesctl, then start it:
+
+  cat /sys/firmware/acpi/platform_profile_choices
+  sudo pacman -Syu --needed power-profiles-daemon python-gobject
+  sudo systemctl enable --now power-profiles-daemon.service
+  powerprofilesctl list
+  "$LEXR" userspace status --feature power
+
+To select your preferred mode:
+
+  powerprofilesctl set balanced
+  powerprofilesctl get
+
+The daemon normally offers power-saver, balanced and performance. The kernel
+can list additional underlying modes; they need not appear as separate desktop
+choices. Lexr's package check may say dpkg is unavailable on Arch; use pacman -Q
+power-profiles-daemon to inspect the native package. The file check still runs.
+If the desktop controls have not appeared, save work and log out and back in.
+
+Bluetooth needs same-device address evidence from the private hand-off above.
+
+Front camera
+
+Install Arch's native camera runtime and its PipeWire integration:
+
+  sudo pacman -Syu --needed libcamera libcamera-tools pipewire-libcamera v4l-utils
+
+Close camera applications, then log out and back in. Alternatively, run this
+as your normal user to refresh device discovery (briefly interrupts audio):
+
+  systemctl --user restart wireplumber.service
+  cam -l
+  wpctl status
+
+Look for "Internal front camera" in cam and "Built-in Front Camera" under
+PipeWire's video sources. Open a preview from your desktop terminal:
+
+  qcam
+
+Close the preview before using the camera in another application. Browser
+camera access also depends on that browser's PipeWire support and permissions.
+
+On installed X1E/OLED v23, Ooaklee confirmed a usable qcam picture and
+that the privacy light was on during the preview. Arch libcamera 0.7.2-4 streamed
+ten processed frames; PipeWire 1.6.8 exposed the front-camera source. The stock
+packages still warn about missing IMX681 properties, gain helper and tuning,
+and use uncalibrated defaults. Exposure/gain accuracy, colour, privacy-light
+turn-off, repeated starts, browser capture and suspend/resume remain unqualified.
+No OE camera package or kernel change was needed for this preview.
+
+Lexr provides camera diagnostics; the released `userspace install camera`
+bundle and camera package status checks currently target Debian/Ubuntu. Do not
+install those .deb files on Arch or treat the dpkg/path failures as proof that
+Arch's camera cannot work. Use pacman -Q libcamera libcamera-ipa libcamera-tools
+pipewire-libcamera to inspect its native runtime.
+
+Optional Lexr route check (does not stream or change the media graph):
+
+  sudo "$LEXR" userspace camera capture --dry-run
+
+Use an updated Lexr containing PR #55's media-ctl parser fix; older binaries
+can report "malformed topology" with v4l-utils 1.32. If the device is busy, close
+camera clients first. WirePlumber can also hold the device open while idle.
+For this diagnostic only, pause it and guarantee its restart when the check ends:
+
+  (
+    trap 'systemctl --user start wireplumber.service' EXIT
+    systemctl --user stop wireplumber.service || exit
+    sudo "$LEXR" userspace camera capture --dry-run
+  )
+
+Run the block as your normal user. It briefly interrupts audio and camera
+routing. A successful dry run proves route discovery, not a working picture.
+The optional capture/render commands in the userspace guide record private
+imagery; keep those files out of issues and releases.
+
+7. BOOT DIAGNOSTICS
+
+The normal entry boots the terminal. The text diagnostics entry adds early
+console messages. The firmware display diagnostics entry disables the msm
+module for that boot to help investigate a display handover failure.
+
+  journalctl -b -p warning
+  sudo dmesg
+
+The live image has no SSH server enabled or personal authorisation keys.

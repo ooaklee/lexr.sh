@@ -3,6 +3,7 @@ package manager
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +17,7 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/artifact"
 	"github.com/ooaklee/lexr.sh/internal/catalog"
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/image/archlinux"
 	"github.com/ooaklee/lexr.sh/internal/image/companion"
 	"github.com/ooaklee/lexr.sh/internal/image/elementary"
 	"github.com/ooaklee/lexr.sh/internal/image/fedora"
@@ -47,7 +49,8 @@ type CreateImageRequest struct {
 	Source string
 	// SourceSHA256 pins the selected source bytes when supplied.
 	SourceSHA256 string
-	// RefreshSource discards a cached download before resolving the source again.
+	// RefreshSource fetches a new candidate without discarding the accepted cache
+	// entry when download or checksum verification fails.
 	RefreshSource bool
 	// KernelDirectory selects an already downloaded, locally verifiable bundle.
 	KernelDirectory string
@@ -108,6 +111,8 @@ type ImageManager struct {
 	FedoraRemaster *fedora.Remasterer
 	// ElementaryRemaster performs elementary OS's Casper and GRUB transformation.
 	ElementaryRemaster *elementary.Remasterer
+	// ArchRemaster creates terminal live media from the Arch Linux ARM rootfs.
+	ArchRemaster *archlinux.Remasterer
 	// Userspace resolves optional verified offline companion releases.
 	Userspace *userspacemanager.Manager
 	// CompanionRunner probes the host Go toolchain needed only when the caller
@@ -127,6 +132,8 @@ type imageAdapter interface {
 // imageAdapterRequest carries common image inputs across the manager-to-adapter
 // boundary without exposing catalogue lookup policy to an adapter.
 type imageAdapterRequest struct {
+	// CacheDirectory selects the immutable supplemental package cache.
+	CacheDirectory string
 	// Source is a catalogue selector, override, or resolved local artefact path.
 	Source string
 	// SourceSHA256 is the effective caller or publisher SHA-256 pin.
@@ -246,6 +253,7 @@ func NewImageManager(loader catalog.Loader, out io.Writer) *ImageManager {
 		Remaster:           ubuntu.NewRemasterer(platform.NewDocker(runner), out),
 		FedoraRemaster:     fedora.NewRemasterer(platform.NewDocker(runner), out),
 		ElementaryRemaster: elementary.NewRemasterer(platform.NewDocker(runner), out),
+		ArchRemaster:       archlinux.NewRemasterer(platform.NewDocker(runner), out),
 		CompanionRunner:    runner,
 	}
 	// Companion compilation is a separate process boundary from Docker. Give
@@ -253,6 +261,7 @@ func NewImageManager(loader catalog.Loader, out io.Writer) *ImageManager {
 	manager.Remaster.Companions = companion.NewBuilder(runner)
 	manager.FedoraRemaster.Companions = companion.NewBuilder(runner)
 	manager.ElementaryRemaster.Companions = companion.NewBuilder(runner)
+	manager.ArchRemaster.Companions = companion.NewBuilder(runner)
 	return manager
 }
 
@@ -369,6 +378,7 @@ func (m *ImageManager) prepareImageOperation(request CreateImageRequest) (imageO
 		entry:   entry,
 		adapter: adapter,
 		adapterRequest: imageAdapterRequest{
+			CacheDirectory:     request.CacheDirectory,
 			Source:             sourceInput,
 			SourceSHA256:       effectiveSourceSHA256(request, entry),
 			Output:             request.Output,
@@ -457,6 +467,8 @@ func (m *ImageManager) adapterForEntry(entry catalog.Entry) (imageAdapter, error
 		return fedoraLiveImageAdapter{remasterer: m.FedoraRemaster}, nil
 	case catalog.AdapterElementaryCasper:
 		return elementaryCasperImageAdapter{remasterer: m.ElementaryRemaster}, nil
+	case catalog.AdapterArchLinuxARM:
+		return archLinuxARMImageAdapter{remasterer: m.ArchRemaster}, nil
 	default:
 		return nil, fmt.Errorf("catalog entry %q selects unavailable adapter %q", entry.ID, entry.Adapter)
 	}
@@ -697,13 +709,25 @@ func (m *ImageManager) resolveSource(ctx context.Context, request CreateImageReq
 		return "", "", fmt.Errorf("parse source image location: %w", err)
 	}
 	if parsed.Scheme == "https" || parsed.Scheme == "http" {
-		destination := filepath.Join(cacheDirectory, "images", entry.ID+".iso")
-		if request.RefreshSource {
-			if err := os.Remove(destination); err != nil && !errors.Is(err, os.ErrNotExist) {
-				return "", "", fmt.Errorf("refresh cached source image: %w", err)
+		destination, err := sourceCachePath(cacheDirectory, entry, expected)
+		if err != nil {
+			return "", "", err
+		}
+		// Reuse an older ISO/raw cache only after the selected digest verifies.
+		// Keep its original file so another Lexr version can still use it.
+		if !request.RefreshSource && expected != "" && entry.ArtifactKind != catalog.ArtifactKindRootfsTarGZ {
+			legacy := filepath.Join(cacheDirectory, "images", entry.ID+".iso")
+			if info, err := os.Lstat(legacy); err == nil && info.Mode().IsRegular() {
+				result, err := m.Artifacts.Acquire(ctx, artifact.Source{Location: legacy, ExpectedSHA256: expected}, destination)
+				if err == nil {
+					return result.Path, result.SHA256, nil
+				}
+				if err := ctx.Err(); err != nil {
+					return "", "", err
+				}
 			}
 		}
-		result, err := m.Artifacts.Acquire(ctx, artifact.Source{Location: location, ExpectedSHA256: expected}, destination)
+		result, err := m.acquireRemoteSource(ctx, location, expected, destination, request.RefreshSource)
 		if err != nil {
 			return "", "", err
 		}
@@ -734,6 +758,61 @@ func (m *ImageManager) resolveSource(ctx context.Context, request CreateImageReq
 		return "", "", fmt.Errorf("source ISO SHA-256 mismatch: expected %s, got %s", expected, digest)
 	}
 	return absolute, digest, nil
+}
+
+// sourceCachePath separates accepted digests and preserves the upstream format.
+// Unpinned ISO entries keep their previous cache location. A rolling URL never
+// supplies a new expected digest merely because its bytes changed.
+func sourceCachePath(cacheDirectory string, entry catalog.Entry, expected string) (string, error) {
+	base := filepath.Join(cacheDirectory, "images", entry.ID)
+	if expected != "" {
+		if len(expected) != 64 {
+			return "", errors.New("expected SHA-256 must contain 64 hexadecimal characters")
+		}
+		if _, err := hex.DecodeString(expected); err != nil {
+			return "", fmt.Errorf("expected SHA-256 is invalid: %w", err)
+		}
+		base += "-" + expected
+	}
+	switch entry.ArtifactKind {
+	case catalog.ArtifactKindRootfsTarGZ:
+		if expected == "" {
+			return "", errors.New("root filesystem source requires a pinned SHA-256 snapshot")
+		}
+		return base + ".tar.gz", nil
+	case catalog.ArtifactKindRawXZ:
+		return base + ".raw.xz", nil
+	default:
+		return base + ".iso", nil
+	}
+}
+
+// acquireRemoteSource verifies refreshes in a private candidate directory before
+// replacing a cache entry. Failed refreshes return their error and retain the
+// previous bytes; they do not silently fall back or alter the checksum pin.
+func (m *ImageManager) acquireRemoteSource(ctx context.Context, location, expected, destination string, refresh bool) (artifact.Result, error) {
+	source := artifact.Source{Location: location, ExpectedSHA256: expected}
+	if !refresh {
+		return m.Artifacts.Acquire(ctx, source, destination)
+	}
+	parent := filepath.Dir(destination)
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		return artifact.Result{}, fmt.Errorf("create source cache: %w", err)
+	}
+	candidate, err := os.MkdirTemp(parent, ".refresh-")
+	if err != nil {
+		return artifact.Result{}, fmt.Errorf("prepare source refresh: %w", err)
+	}
+	defer os.RemoveAll(candidate)
+	result, err := m.Artifacts.Acquire(ctx, source, filepath.Join(candidate, "source"))
+	if err != nil {
+		return artifact.Result{}, err
+	}
+	if err := os.Rename(result.Path, destination); err != nil {
+		return artifact.Result{}, fmt.Errorf("publish refreshed source: %w", err)
+	}
+	result.Path = destination
+	return result, nil
 }
 
 // imageDefaults fills only optional catalogue and release selectors, leaving all

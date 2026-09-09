@@ -7,7 +7,7 @@ description: Preserve elementary OS installer and bootloader contracts while sha
 ## Status
 
 Accepted on 2026-09-06 for [issue #49](https://github.com/ooaklee/lexr.sh/issues/49)
-after OpenCode implementation review. The maintainer confirmed X1E/OLED live
+after OpenCode implementation review. Ooaklee confirmed X1E/OLED live
 desktop boot, Wi-Fi, browsing and installer startup with Lexr `927d00e` and v23.
 Physical installation and recovery qualification remain pending.
 
