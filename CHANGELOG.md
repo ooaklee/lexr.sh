@@ -58,6 +58,10 @@ that do not apply.
   with the Surface kernel, matching DTBs, installed initramfs and ARM64 GRUB.
   Surface plugin hooks retain Archinstall's normal disk, account, profile and
   network setup, with an alongside-install guide and no desktop preselected.
+  Include `lexr-arch-setup` in the live session, and retain the bundled ARM64
+  Lexr, matching source, catalogues and notices after installation.
+  Add Arch support to `lexr image validate`, checking the completed filesystem,
+  kernel and boot artefacts, USB/optical EFI layout and retained companion.
 - Add optional post-install registration with an existing GRUB menu through
   `lexr kernel boot register-arch` and live setup option 7. Preview and verify
   the installed ARM64 loader before appending a persistent custom menu entry,
@@ -95,9 +99,10 @@ that do not apply.
 
 ### Fixed
 
-- Accept Arch Linux ARM's complete native creation journal when preparing and
-  validating split ISO release assets, retaining the producer's exact step order
-  and output digest checks ([#52](https://github.com/ooaklee/lexr.sh/issues/52)).
+- Enable `lexr image release prepare` and `lexr image release validate` for
+  Arch Linux ARM split ISO releases. Accept Arch's complete native creation
+  journal while retaining its exact step order and output digest checks
+  ([#52](https://github.com/ooaklee/lexr.sh/issues/52)).
 
 - Allow the audio userspace installer to replace Arch's exact packaged ALSA
   selector symlink, preserving the link in its backup and the shared Qualcomm
