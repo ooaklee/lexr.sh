@@ -54,6 +54,12 @@ that do not apply.
 
 ### Added
 
+- Include Fedora getting-started instructions in the live user's Desktop folder
+  and retain the guide, requested offline companion and matching image manifest
+  in the root copied by Anaconda. Validate retained contents and SELinux labels;
+  physical boot and installation remain unqualified
+  ([#17](https://github.com/ooaklee/lexr.sh/issues/17)).
+
 - Add a terminal Arch Linux ARM live image and a bundled Archinstall 4.4 flow
   with the Surface kernel, matching DTBs, installed initramfs and ARM64 GRUB.
   Surface plugin hooks retain Archinstall's normal disk, account, profile and
@@ -117,6 +123,10 @@ that do not apply.
 - Bind Fedora's generated rescue entry to a durable external DTB after proving
   that its EFI bytes match the selected RPM-owned Surface kernel. Preserve
   unrelated rescue images and reject unsupported rescue layouts.
+- Recognise Fedora's complete TuneD and `tuned-ppd` power-profile provider in
+  static userspace diagnostics, preserving the distribution's service choice.
+  Reject partial provider layouts and report runtime and package-ownership
+  limits explicitly ([#17](https://github.com/ooaklee/lexr.sh/issues/17)).
 
 - Enable `lexr image release prepare` and `lexr image release validate` for
   Arch Linux ARM split ISO releases. Accept Arch's complete native creation

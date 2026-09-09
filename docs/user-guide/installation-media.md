@@ -229,6 +229,13 @@ changes still require a new physical test. Use the text diagnostics entry to
 expose dracut messages, or firmware display diagnostics to isolate DRM takeover;
 retain `/run/initramfs/rdsosreport.txt` if the emergency shell becomes usable.
 
+The live user's Desktop folder contains `LEXR_GETTING_STARTED.txt`, accessible
+through Files. Add the [offline companion](offline-companion.md) at image
+creation to carry the matching Lexr CLI and optional native IPTSD runtime.
+The prepared root retains the guide and requested companion for installation;
+the guide separates supported Fedora commands from still-unqualified userspace
+setup.
+
 ## 2. Review the USB target
 
 `image devices` is read-only and lists every whole physical device with the evidence needed to review it, including whether the disk has an active non-mount consumer. It does not present an internal, non-removable, non-USB, read-only, system-backed, in-use, weakly identified, or undersized device as an acceptable target merely because its path was supplied explicitly.

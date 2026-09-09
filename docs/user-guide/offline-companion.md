@@ -67,8 +67,15 @@ elementary OS normally mount it at `/cdrom`:
 COMPANION_ROOT=/cdrom/sp11/companion
 ```
 
-On Fedora, ask the mount table for the exact catalogue-bound volume label rather
-than guessing its path:
+On Fedora, the prepared root retains the requested companion for both live and
+installed sessions:
+
+```sh
+COMPANION_ROOT=/usr/share/lexr/fedora-media/sp11/companion
+```
+
+If that copy is unavailable, recover it from the USB using the exact
+catalogue-bound volume label:
 
 ```sh
 MEDIA_ROOT="$(
@@ -76,6 +83,12 @@ MEDIA_ROOT="$(
     --source LABEL=Fedora-WS-Live-44 \
     --output TARGET
 )"
+test -n "$MEDIA_ROOT" && test -f "$MEDIA_ROOT/sp11/companion/bin/linux-arm64/lexr"
+```
+
+Continue only if that check succeeds, then set:
+
+```sh
 COMPANION_ROOT="$MEDIA_ROOT/sp11/companion"
 ```
 
@@ -107,6 +120,16 @@ desktop icons.
 It includes these bootstrap commands, native Wi-Fi board setup, the optional
 IPTSD install, and steps to repeat after installation. Use the home-directory
 path above because writable temporary mounts can still have `noexec` set.
+
+Fedora provides its own `LEXR_GETTING_STARTED.txt` through Files → Home →
+Desktop, with a canonical copy under `/usr/share/lexr/fedora-media`. The guide
+covers native IPTSD verification, Wi-Fi, TuneD power checks, the latest Lexr
+installer, and the current limits of audio and camera setup. Anaconda's copied
+root retains the companion and the same image manifest; the user skeleton
+supplies the guide to newly created users. Create a fresh writable CLI copy
+after installation. An image built without a companion still includes the
+guide, but requires an online CLI download. Physical Fedora live boot and
+installation remain unqualified.
 
 ## 4. Use the included IPTSD support
 

@@ -266,14 +266,6 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 		return Result{}, err
 	}
 
-	logf(r.Out, "Repacking Fedora live root as LZMA EROFS")
-	if err := repackEROFS(ctx, r.Docker, toolsImage, workspace, workVolume); err != nil {
-		return Result{}, err
-	}
-	if err := checkpoint("repack-live-root", nil); err != nil {
-		return Result{}, err
-	}
-
 	manifest, err := buildEmbeddedManifest(request, workspace, sourceDigest, companionRecord, layout)
 	if err != nil {
 		return Result{}, err
@@ -283,6 +275,21 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 		return Result{}, err
 	}
 	if err := writeSupportFiles(workspace, manifest, manifestBytes, request.Bundle.ABI); err != nil {
+		return Result{}, err
+	}
+
+	// The manifest binds completed source, boot, RPM and companion artefacts;
+	// it does not contain the EROFS digest. Retain the same inventory before
+	// repacking so Anaconda carries the companion with the installed root.
+	if err := installFedoraUserSupport(ctx, r.Docker, toolsImage, workspace, workVolume, manifest); err != nil {
+		return Result{}, err
+	}
+
+	logf(r.Out, "Repacking Fedora live root as LZMA EROFS")
+	if err := repackEROFS(ctx, r.Docker, toolsImage, workspace, workVolume); err != nil {
+		return Result{}, err
+	}
+	if err := checkpoint("repack-live-root", nil); err != nil {
 		return Result{}, err
 	}
 
@@ -897,8 +904,11 @@ func writeSupportFiles(workspace string, manifest imagecontract.Manifest, manife
 			companionNote = "The Linux ARM64 Lexr companion and complete source-bearing IPTSD release are under /sp11/companion. The natively rebuilt, RPM-owned IPTSD runtime is installed in the live root; its binary and source RPMs are staged under /sp11/fedora. Do not run the portable IPTSD installer on Fedora because it would create an unowned /usr/local duplicate."
 		}
 	}
-	readme := fmt.Sprintf("Lexr Fedora Live for Surface Pro 11\n\nCustom kernel ABI: %s\n\nExperimental: physical Fedora boot and installation are not yet qualified. Disable Secure Boot. The custom X1E/OLED entry uses normal DSP/USB coldplug, with platform modules and public GPU firmware in its initramfs. External-required kernels explicitly load their paired X1E DTB. Troubleshooting includes text and firmware-display diagnostics, plus stock Fedora entries retaining the distribution DSP blacklist. X1P/LCD is a stock-kernel live investigation path only; do not install from it. Proprietary firmware is not redistributed.\n\n%s\n", abi, companionNote)
+	readme := fmt.Sprintf("Lexr Fedora Live for Surface Pro 11\n\nCustom kernel ABI: %s\n\nOpen Files > Home > Desktop > LEXR_GETTING_STARTED.txt for setup. The guide and any requested companion are retained under /usr/share/lexr/fedora-media in the installed root.\n\nExperimental: physical Fedora boot and installation are not yet qualified. Disable Secure Boot. The custom X1E/OLED entry uses normal DSP/USB coldplug, with platform modules and public GPU firmware in its initramfs. External-required kernels explicitly load their paired X1E DTB. Troubleshooting includes text and firmware-display diagnostics, plus stock Fedora entries retaining the distribution DSP blacklist. X1P/LCD is a stock-kernel live investigation path only; do not install from it. Proprietary firmware is not redistributed.\n\n%s\n", abi, companionNote)
 
+	if err := os.WriteFile(filepath.Join(sp11, "LEXR_GETTING_STARTED.txt"), []byte(fedoraGettingStarted), 0o644); err != nil {
+		return err
+	}
 	if err := os.WriteFile(filepath.Join(sp11, "README.txt"), []byte(readme), 0o644); err != nil {
 		return err
 	}

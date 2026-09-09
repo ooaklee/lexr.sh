@@ -97,6 +97,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 	extractErr := v.Docker.RunInWorkspace(ctx, toolsImage, workspace,
 		"xorriso", "-osirrox", "on", "-indev", "/work/image.iso",
 		"-extract", "/sp11/lexr-manifest.json", "/work/manifest.json",
+		"-extract", "/sp11/LEXR_GETTING_STARTED.txt", "/work/getting-started.txt",
 		"-extract", "/sp11/fedora/boot-policy.json", "/work/boot-policy.json",
 		"-extract", "/sp11/fedora/lexr-kernel-sp11.aarch64.rpm", "/work/kernel.rpm",
 		"-extract", "/sp11/dtb/x1e80100-microsoft-denali-oled.dtb", "/work/x1e.dtb",
@@ -114,6 +115,9 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		addCheck("required-iso-members", false, extractErr.Error())
 		return report, errors.New("Fedora ISO validation failed: required members cannot be extracted")
 	}
+
+	guideBytes, guideErr := readBoundedRegularFile(filepath.Join(workspace, "getting-started.txt"), int64(len(fedoraGettingStarted)+1))
+	addCheck("fedora-media-guide", guideErr == nil && string(guideBytes) == fedoraGettingStarted, "ISO getting-started guide matches the maintained Fedora commands")
 
 	manifestBytes, err := readBoundedRegularFile(filepath.Join(workspace, "manifest.json"), imagecontract.MaximumManifestSize)
 	if err != nil {
@@ -133,6 +137,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		report.DeviceTrees = append(report.DeviceTrees, dtb.Device)
 	}
 	manifestErr := validateFedoraManifest(manifest)
+	manifestErr = errors.Join(manifestErr, validateFedoraManifestEncoding(manifest, manifestBytes))
 	manifestOK := manifestErr == nil
 	manifestDetails := fmt.Sprintf("schema=%d adapter=%s abi=%s", manifest.SchemaVersion, manifest.Adapter, manifest.KernelBundle.ABI)
 	if manifestErr != nil {
@@ -321,6 +326,20 @@ strings /work/appended-grubaa64.efi | grep -F grub_fdt_load`, "validate-appended
 		return report, errors.New("Fedora ISO validation failed: remastered EROFS cannot be extracted")
 	}
 	addCheck("extract-remastered-erofs", true, "fsck.erofs extracted the complete root into a Linux-native volume")
+
+	supportErr := validateFedoraUserSupport(ctx, v.Docker, toolsImage, workspace, workVolume, manifest)
+	supportDetails := "live-user skeleton and installed companion match the canonical guide and single image manifest"
+	if supportErr != nil {
+		supportDetails = supportErr.Error()
+	}
+	addCheck("fedora-retained-user-support", supportErr == nil, supportDetails)
+
+	contextErr := validateFedoraUserSupportContexts(ctx, v.Docker, toolsImage, workspace, workVolume, manifest.CompanionBundle.Included)
+	contextDetails := "canonical guide, live-user skeleton and optional companion CLI retain Fedora 44 SELinux types"
+	if contextErr != nil {
+		contextDetails = contextErr.Error()
+	}
+	addCheck("fedora-user-support-selinux", contextErr == nil, contextDetails)
 
 	rootChecks := v.validateLiveRoot(ctx, toolsImage, workspace, workVolume, manifest, stockABI)
 	report.Checks = append(report.Checks, rootChecks...)
@@ -797,4 +816,17 @@ func findEvidenceArtifact(record imagecontract.MediaDiscoveryRecord, role string
 		}
 	}
 	return imagecontract.ArtifactRecord{}, false
+}
+
+// validateFedoraManifestEncoding ensures the retained canonical inventory is
+// byte-identical to the ISO inventory, including its JSON representation.
+func validateFedoraManifestEncoding(manifest imagecontract.Manifest, data []byte) error {
+	expected, err := serialiseManifest(manifest)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(expected, data) {
+		return errors.New("Fedora image manifest is not in its canonical retained representation")
+	}
+	return nil
 }

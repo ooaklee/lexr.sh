@@ -34,6 +34,16 @@ lexr userspace status --json
 
 With no feature filter, only catalogue-required support blocks readiness. When a supported or experimental feature is selected explicitly, its failed checks also produce a failing exit status so scripts receive a useful result. Diagnostic-only and obsolete checks remain clearly labelled and never make the complete default report claim that those components are required.
 
+`lexr doctor userspace --feature power` accepts a complete
+`power-profiles-daemon` installation or TuneD with its `tuned-ppd` desktop
+bridge. Fedora supplies the latter. The check preserves that choice and does
+not recommend replacing it with another service. A file check does not prove
+that a service is active or that the kernel exposes power profiles; RPM package
+ownership is reported as unchecked. If both providers are present, inspect
+the active service before changing either. On Fedora, use GNOME Settings →
+Power, `tuned-adm active`, and `systemctl status tuned.service tuned-ppd.service`
+to check the running setup. See [Fedora's power-profile documentation](https://fedoraproject.org/wiki/Changes/TunedAsTheDefaultPowerProfileManagementDaemon).
+
 SP11 generation numbers belong to a kernel patch line; they are not one global
 counter. The existing userspace evidence covers the `7.2.0` line through
 `sp11v19`, while the `7.2.2` line starts again at `sp11v1`. Until that newer

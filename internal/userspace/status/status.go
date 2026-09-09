@@ -281,13 +281,13 @@ func (inspector *Inspector) Inspect(options Options) (Report, error) {
 
 	if features[FeaturePower] {
 		required := policies.required(powerComponent)
-		add(policies.decorate(inspectPackage(dpkg, "power-profiles-package", FeaturePower, "power-profiles-daemon", "", required), powerComponent))
-		files, checkErr := inspector.checkAlternativeSets(fs, "power-profiles-files", FeaturePower, required, powerProfileFiles, true)
+		checks, checkErr := inspector.inspectPowerProfiles(fs, dpkg, required)
 		if checkErr != nil {
 			return Report{}, checkErr
 		}
-		files.Remediation = "install power-profiles-daemon to expose the kernel platform profile through the desktop"
-		add(policies.decorate(files, powerComponent))
+		for _, check := range checks {
+			add(policies.decorate(check, powerComponent))
+		}
 	}
 
 	return report, nil
