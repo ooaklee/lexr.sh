@@ -488,6 +488,12 @@ grep -F 'grub2-mkrelpath "$target"' "$root/usr/lib/lexr/sp11/bind-installed-dtb"
 grep -F 'kernel-install add "$stock_abi" "$stock_image"' "$root/usr/lib/lexr/sp11/finalize-installed"
 grep -F 'grubby --set-default="/boot/vmlinuz-$abi"' "$root/usr/lib/lexr/sp11/finalize-installed"`, "validate-policy", abi)
 	add("installed-boot-policy", policyErr == nil, strings.TrimSpace(string(policyOutput)))
+	anacondaErr := runAnacondaBootPolicy(ctx, v.Docker, image, workspace, volume, "check")
+	anacondaDetails := "Anaconda preserves all declared boot argument keys before the first installed boot"
+	if anacondaErr != nil {
+		anacondaDetails = anacondaErr.Error()
+	}
+	add("anaconda-installed-boot-arguments", anacondaErr == nil, anacondaDetails)
 
 	xattrOutput, xattrErr := v.Docker.CaptureInWorkspaceVolume(ctx, image, workspace, volume,
 		"getfattr", "--only-values", "-n", "security.selinux", "/linux-work/rootfs/usr/bin/bash")

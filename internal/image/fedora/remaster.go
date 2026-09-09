@@ -197,6 +197,9 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err := validateSourceRoot(ctx, r.Docker, toolsImage, workspace, workVolume); err != nil {
 		return Result{}, err
 	}
+	if err := runAnacondaBootPolicy(ctx, r.Docker, toolsImage, workspace, workVolume, "prepare"); err != nil {
+		return Result{}, err
+	}
 	if err := checkpoint("extract-live-root", nil); err != nil {
 		return Result{}, err
 	}

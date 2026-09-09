@@ -111,6 +111,9 @@ that do not apply.
   exports and allow the isolated EROFS/dracut mount operations on AppArmor hosts.
 - Fetch the pinned Fedora EROFS extractor from its signed, digest-verified Koji
   archive after newer repository updates replace that exact package version.
+- Preserve every declared Surface boot argument through Anaconda's own GRUB
+  default generation, so the first installed boot retains the TPM-wait and
+  soundwire arguments before the one-shot finalizer runs.
 
 - Enable `lexr image release prepare` and `lexr image release validate` for
   Arch Linux ARM split ISO releases. Accept Arch's complete native creation

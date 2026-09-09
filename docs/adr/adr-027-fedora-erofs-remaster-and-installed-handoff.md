@@ -176,6 +176,16 @@ resets the custom kernel as the default. Secure Boot remains disabled for the
 unsigned custom kernel. Text and firmware-display diagnostic entries expose
 early failures without changing the normal boot policy.
 
+Anaconda rewrites `/etc/default/grub` from its own preserved-argument list.
+The inspected Fedora source already retains the clock, power-domain and pointer
+authentication arguments, but omits `systemd.tpm2_wait` and
+`soundwire_qcom.sp11_feedback_active_offset2_zero`. Image preparation appends
+missing keys from the declared installed policy to that existing list, retaining
+all source keys, comments and unrelated settings. Validation reads the resulting
+configuration independently and rejects uninspected profile or drop-in overrides.
+This preserves the values supplied by the selected live entry during Anaconda's
+normal bootloader generation, before the first installed boot and finalizer.
+
 The structural validator will inspect each boundary independently:
 
 - the outer boot media: hybrid records, both ESP views, the AArch64 shim and
