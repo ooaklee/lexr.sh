@@ -13,6 +13,7 @@ import (
 
 	lexr "github.com/ooaklee/lexr.sh"
 	"github.com/ooaklee/lexr.sh/internal/catalog"
+	lexrconfig "github.com/ooaklee/lexr.sh/internal/config"
 	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
 	"github.com/ooaklee/lexr.sh/internal/kernel/release"
 	"github.com/ooaklee/lexr.sh/internal/kernel/releaseprep"
@@ -33,6 +34,9 @@ type application struct {
 	errOut               io.Writer
 	catalogPath          string
 	userspaceCatalogPath string
+	configPath           string
+	configuration        lexrconfig.Config
+	configurationLoaded  bool
 	loader               catalog.Loader
 	images               *manager.ImageManager
 	releases             *release.Client
@@ -79,6 +83,9 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cobra.NoArgs,
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+			return app.loadConfiguration()
+		},
 		RunE: func(command *cobra.Command, _ []string) error {
 			if !isTerminalReader(input) {
 				return command.Help()
@@ -90,6 +97,7 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 	root.SetOut(output)
 	root.SetErr(errorOutput)
 	root.Flags().SortFlags = false
+	root.PersistentFlags().StringVar(&app.configPath, "config", "", "path to the Lexr configuration file")
 	root.PersistentFlags().StringVar(&app.catalogPath, "catalog", "", "path to a supported image catalogue override")
 	root.PersistentFlags().StringVar(&app.userspaceCatalogPath, "userspace-catalog", "", "path to a supported userspace catalogue override")
 	root.AddCommand(
@@ -104,6 +112,25 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 		app.newVersionCommand(),
 	)
 	return root
+}
+
+// loadConfiguration resolves and loads the process-wide CLI configuration once
+// after Cobra has parsed persistent flags.
+func (a *application) loadConfiguration() error {
+	if a.configurationLoaded {
+		return nil
+	}
+	path, err := lexrconfig.ResolvePath(a.configPath)
+	if err != nil {
+		return fmt.Errorf("resolve configuration path: %w", err)
+	}
+	configuration, err := lexrconfig.Load(path)
+	if err != nil {
+		return fmt.Errorf("load configuration %q: %w", path, err)
+	}
+	a.configuration = configuration
+	a.configurationLoaded = true
+	return nil
 }
 
 // ExecuteContext runs a fresh root command with cancellation and explicit I/O.

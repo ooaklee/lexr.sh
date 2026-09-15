@@ -220,7 +220,15 @@ func (a *application) newUserspacePullCommand() *cobra.Command {
 		Short: "Download an exact checksum-verified userspace release",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
-			bundles, err := a.userspace.Pull(command.Context(), a.userspaceCatalogPath, args[0], cacheDirectory)
+			resolvedCacheDirectory := cacheDirectory
+			if resolvedCacheDirectory == "" {
+				var err error
+				resolvedCacheDirectory, err = a.configuration.ResolveCacheDir()
+				if err != nil {
+					return fmt.Errorf("resolve userspace pull cache: %w", err)
+				}
+			}
+			bundles, err := a.userspace.Pull(command.Context(), a.userspaceCatalogPath, args[0], resolvedCacheDirectory)
 			if err != nil {
 				return err
 			}
@@ -338,20 +346,27 @@ func (a *application) newUserspaceInstallCommand() *cobra.Command {
 		Short: "Install an authenticated userspace input",
 		Long: "Install an authenticated userspace input through compiled policy. " +
 			"The recommended set contains audio and IPTSD; experimental camera support must be selected explicitly. " +
+			"When --from is omitted, downloaded bundles are resolved from the configured userspace directory; run userspace pull first. " +
 			"Wi-Fi derives its board fallback from distribution firmware under --root and does not use --from. " +
 			"Its optional --activate restarts only the running Surface Pro 11 X1E/OLED Wi-Fi driver.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
-			if strings.TrimSpace(from) == "" && !strings.EqualFold(strings.TrimSpace(args[0]), "wifi") {
-				return fmt.Errorf("verified userspace release directory is required; pass --from")
-			}
 			if !dryRun && !confirmed {
 				return fmt.Errorf("userspace installation changes the target filesystem; review --dry-run first, then pass --yes")
+			}
+			defaultCacheRoot := ""
+			if strings.TrimSpace(from) == "" && !strings.EqualFold(strings.TrimSpace(args[0]), "wifi") {
+				var err error
+				defaultCacheRoot, err = a.configuration.ResolveUserspaceDir()
+				if err != nil {
+					return fmt.Errorf("resolve default userspace directory: %w", err)
+				}
 			}
 			results, err := a.userspace.Install(command.Context(), userspacemanager.InstallRequest{
 				CatalogPath:           a.userspaceCatalogPath,
 				Selector:              args[0],
 				From:                  from,
+				DefaultCacheRoot:      defaultCacheRoot,
 				RepositoryRoot:        repositoryRoot,
 				CameraAuthoritySHA256: cameraAuthoritySHA256,
 				Root:                  root,

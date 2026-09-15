@@ -48,6 +48,19 @@ func TestRootNoArgumentsOnNonTerminalPrintsHelp(t *testing.T) {
 	}
 }
 
+// TestRootConfigFlagNamesMalformedFile verifies configuration failures identify
+// the selected file before any command workflow runs.
+func TestRootConfigFlagNamesMalformedFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "broken.yml")
+	if err := os.WriteFile(path, []byte("unknown: value\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := executeCLI(t, "--config", path, "version")
+	if err == nil || !strings.Contains(err.Error(), path) || !strings.Contains(err.Error(), "unknown configuration key") {
+		t.Fatalf("error = %v, want named malformed configuration", err)
+	}
+}
+
 // TestUserspaceCatalogDelivery verifies that userspace catalogue commands expose
 // the complete catalogue consistently in human-readable and JSON forms.
 func TestUserspaceCatalogDelivery(t *testing.T) {

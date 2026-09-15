@@ -61,6 +61,26 @@ lexr userspace build iptsd
 lexr userspace build camera
 ```
 
+### Default bundle configuration
+
+On Linux, Lexr reads its optional configuration from
+`~/.config/lexr/lexr.yml`. The operating system's user configuration directory
+is used on other platforms. `LEXR_CONFIG` selects another file, while the
+persistent `--config <path>` flag takes precedence for one invocation. A missing
+file is valid. The file accepts only these optional flat keys:
+
+```yaml
+userspace_dir: ~/.cache/lexr/userspace
+cache_dir: ~/.cache/lexr/userspace
+```
+
+`cache_dir` is the root used by `userspace pull` when `--cache-dir` is omitted.
+`userspace_dir` is the root searched by `userspace install` when `--from` is
+omitted. Each unset key defaults to the operating system's user cache directory
+under `lexr/userspace`; set both to the same custom root to retain the direct
+pull-then-install flow. A leading `~/` is expanded to the current user's home.
+Explicit `--cache-dir` and `--from` values retain their existing meanings.
+
 Source builds invoke only compiled, component-specific adapters with bounded arguments. Catalogue content is never interpreted as a shell command. The current camera package build requires a native ARM64 Linux host; users on other hosts can still pull and verify the published experimental package set.
 
 Both userspace source-build adapters use compiled Go policy and do not invoke repository scripts. They require the complete OE checkout because the native builders authenticate their tracked component inputs; pass `--repository-root <oe-checkout>` when it cannot be detected from the current directory. Pull, status, doctor, and installation from a downloaded immutable release do not have that checkout requirement. A successful native camera build prints an independent authority SHA-256 for its final receipt. Retain it separately from the directory. Installing a native camera build or prepared local camera release repeats static Git-backed provenance proof and therefore requires both the explicit repository root and the corresponding independently retained authority digest.
@@ -117,8 +137,9 @@ restarts NetworkManager, the DSP or USB.
 Review an install before granting elevated access. A real install requires both effective root privileges and `--yes`; the CLI does not elevate itself. `--root` may select an alternate target filesystem where the component supports it.
 
 ```sh
-lexr userspace install recommended --from <userspace-cache> --dry-run
-sudo lexr userspace install recommended --from <userspace-cache> --yes
+lexr userspace pull recommended
+lexr userspace install recommended --dry-run
+sudo lexr userspace install recommended --yes
 
 lexr userspace install camera \
   --from <native-camera-build-or-local-release> \
@@ -131,6 +152,13 @@ sudo lexr userspace install camera \
   --camera-authority-sha256 <matching-build-or-release-authority-sha256> \
   --yes
 ```
+
+With no `--from`, Lexr selects each downloaded bundle as
+`<userspace-dir>/<component-id>/<release-tag>`. If the selected bundle is not
+there, pull it first or pass `--from`. For a single component, an explicit
+`--from` remains the exact authenticated bundle directory; for `recommended`,
+it remains a userspace cache root containing the component and release
+subdirectories.
 
 On Arch, the audio installer recognises the packaged ALSA selector symlink at
 `/usr/share/alsa/ucm2/conf.d/x1e80100/x1e80100.conf` only when its value is exactly
