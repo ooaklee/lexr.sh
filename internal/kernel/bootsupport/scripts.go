@@ -218,6 +218,11 @@ guard_boot() {
 select_platform() {
 	registry="$target_root/usr/lib/lexr/kernel-platforms"
 	[ -d "$registry" ] || fail "platform registry is unavailable"
+	# A guarded installation carries its reviewed hardware choice through
+	# apt/dpkg hooks. An explicit helper argument still takes precedence.
+	if [ "$platform" = auto ] && [ -n "${LEXR_KERNEL_PLATFORM:-}" ]; then
+		platform=$LEXR_KERNEL_PLATFORM
+	fi
 	if [ "$platform" != auto ]; then
 		safe_platform "$platform" || fail "unsafe platform identifier"
 		[ -d "$state_root/$abi/$platform" ] || [ -d "$registry/$platform" ] || fail "undeclared platform"

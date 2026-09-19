@@ -165,9 +165,17 @@ check:
 
 ```sh
 lexr doctor
+lexr profile list
+lexr init x1e80100-microsoft-denali-oled
 lexr image create --output lexr-ubuntu-sp11.iso
 lexr image validate lexr-ubuntu-sp11.iso
 ```
+
+`init` saves the Surface Pro 11 X Elite OLED profile for subsequent commands.
+Choose `x1p64100-microsoft-denali` for the X Plus LCD, or use the global
+`--profile` flag for one invocation. See
+[hardware profiles](docs/concepts/hardware-profiles.md) and
+[configuration](docs/user-guide/configuration.md) for detection and overrides.
 
 The short command uses the catalogue's dated Ubuntu snapshot and its default
 kernel release selection. Canonical does not publish a checksum beside that

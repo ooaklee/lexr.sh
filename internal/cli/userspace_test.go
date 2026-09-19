@@ -12,7 +12,6 @@ import (
 
 	lexr "github.com/ooaklee/lexr.sh"
 	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
-	lexrconfig "github.com/ooaklee/lexr.sh/internal/config"
 	userspacebuild "github.com/ooaklee/lexr.sh/internal/userspace/build"
 	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
 	userspaceinstall "github.com/ooaklee/lexr.sh/internal/userspace/install"
@@ -75,18 +74,24 @@ func (f *cliFakeInstaller) record(component string, options userspaceinstall.Opt
 	}
 }
 
-// TestUserspacePullUsesConfiguredCacheUnlessFlagged verifies cache_dir supplies
+// TestUserspacePullUsesDefaultCacheUnlessFlagged verifies the config home supplies
 // the pull root while an explicit --cache-dir continues to take precedence.
-func TestUserspacePullUsesConfiguredCacheUnlessFlagged(t *testing.T) {
+func TestUserspacePullUsesDefaultCacheUnlessFlagged(t *testing.T) {
 	for _, test := range []struct {
 		name     string
 		explicit bool
 	}{
-		{name: "configured"},
+		{name: "default"},
 		{name: "explicit", explicit: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			configuredCache := t.TempDir()
+			t.Setenv("XDG_CACHE_HOME", t.TempDir())
+			t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+			userCache, err := os.UserConfigDir()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defaultCache := filepath.Join(userCache, "lexr", "caches", "userspace")
 			explicitCache := t.TempDir()
 			downloader := &cliFakeDownloader{}
 			manager := userspacemanager.New(
@@ -96,10 +101,9 @@ func TestUserspacePullUsesConfiguredCacheUnlessFlagged(t *testing.T) {
 			)
 			app := &application{
 				out: &bytes.Buffer{}, userspace: manager,
-				configuration: lexrconfig.Config{CacheDir: configuredCache},
 			}
 			arguments := []string{"audio"}
-			wantRoot := configuredCache
+			wantRoot := defaultCache
 			if test.explicit {
 				arguments = append(arguments, "--cache-dir", explicitCache)
 				wantRoot = explicitCache
@@ -203,17 +207,21 @@ func TestUserspaceInstallRecommendedDryRunEmitsStructuredReport(t *testing.T) {
 	}
 }
 
-// TestUserspaceInstallWithoutFromUsesConfiguredBundle verifies the command
-// resolves a single downloaded release beneath the configured userspace root.
-func TestUserspaceInstallWithoutFromUsesConfiguredBundle(t *testing.T) {
+// TestUserspaceInstallWithoutFromUsesDefaultBundle verifies the command
+// resolves a single downloaded release beneath the default userspace cache root.
+func TestUserspaceInstallWithoutFromUsesDefaultBundle(t *testing.T) {
 	installer := &cliFakeInstaller{}
 	app, _ := newUserspaceInstallTestApplication(installer)
-	cache := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cache, err := app.configuration.ResolveUserspaceDir()
+	if err != nil {
+		t.Fatal(err)
+	}
 	bundle := filepath.Join(cache, userspacemanager.AudioComponent, "sp11-audio-v19c")
 	if err := os.MkdirAll(bundle, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	app.configuration = lexrconfig.Config{UserspaceDir: cache}
 	command := app.newUserspaceInstallCommand()
 	command.SetArgs([]string{"audio", "--dry-run"})
 	command.SilenceUsage = true
@@ -228,11 +236,12 @@ func TestUserspaceInstallWithoutFromUsesConfiguredBundle(t *testing.T) {
 }
 
 // TestUserspaceInstallWithoutFromExplainsMissingBundle verifies the command
-// provides both supported recovery paths when the configured cache is empty.
+// provides both supported recovery paths when the default cache is empty.
 func TestUserspaceInstallWithoutFromExplainsMissingBundle(t *testing.T) {
 	installer := &cliFakeInstaller{}
 	app, _ := newUserspaceInstallTestApplication(installer)
-	app.configuration = lexrconfig.Config{UserspaceDir: t.TempDir()}
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	command := app.newUserspaceInstallCommand()
 	command.SetArgs([]string{"audio", "--dry-run"})
 	command.SilenceUsage = true

@@ -329,7 +329,7 @@ func (manager *Manager) failAndRollback(plan Plan, backup grubBackup, receipt Re
 	} else {
 		for _, command := range commands {
 			recovery.Commands = append(recovery.Commands, cloneCommand(command))
-			if err := manager.runMutationCommand(rollbackContext, command); err != nil {
+			if err := manager.runMutationCommand(rollbackContext, command, plan.Profile); err != nil {
 				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("%s: %w", command.Operation, err))
 			}
 		}
@@ -339,7 +339,7 @@ func (manager *Manager) failAndRollback(plan Plan, backup grubBackup, receipt Re
 	} else {
 		recovery.GRUBRestored = true
 	}
-	recoveredFallback, verificationErr := verifyFallback(rollbackContext, plan.Root, plan.FallbackABI)
+	recoveredFallback, verificationErr := verifyFallbackProfile(rollbackContext, plan.Root, plan.FallbackABI, plan.Profile)
 	if verificationErr == nil {
 		verificationErr = fallbackUnchanged(plan.Fallback, recoveredFallback)
 	}

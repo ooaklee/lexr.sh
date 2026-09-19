@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ooaklee/lexr.sh/internal/cleanup"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
@@ -27,6 +28,8 @@ const (
 	OperationInstallPackages Operation = "install-packages"
 	// OperationUpdateInitramfs refreshes the initramfs for the exact target ABI.
 	OperationUpdateInitramfs Operation = "update-initramfs"
+	// OperationRefreshBoot binds the installed ABI to the selected hardware.
+	OperationRefreshBoot Operation = "refresh-boot"
 	// OperationEnsureInitramfs regenerates a missing initramfs after a staged
 	// install whose maintainer scripts did not produce the ABI image.
 	OperationEnsureInitramfs Operation = "ensure-initramfs"
@@ -36,6 +39,8 @@ const (
 
 // Request contains every caller-selected input used to prepare an installation.
 type Request struct {
+	// Profile selects the hardware identity used to verify both kernel ABIs.
+	Profile string
 	// Bundle is the already acquired and hashed Surface kernel package set.
 	Bundle kernel.Bundle
 	// Root is the explicit absolute filesystem root that will receive the kernel.
@@ -248,6 +253,12 @@ type GRUBEntry struct {
 
 // Plan is the complete read-only result that must be reviewed before mutation.
 type Plan struct {
+	// Profile is the canonical hardware identity selected for this installation.
+	Profile string `json:"profile,omitempty"`
+	// BootHookCleanup records recognised competing hooks to back up and retire.
+	BootHookCleanup *cleanup.ScanReport `json:"boot_hook_cleanup,omitempty"`
+	// FallbackBinding preserves verified external fallback bytes for stock GRUB.
+	FallbackBinding *FallbackBindingPlan `json:"fallback_binding,omitempty"`
 	// Root is the canonical target filesystem root.
 	Root string `json:"root"`
 	// TargetABI is the distinct Surface kernel ABI selected for installation.
@@ -306,6 +317,12 @@ type RollbackReceipt struct {
 type Receipt struct {
 	// Plan is the immutable preflight result used by this execution.
 	Plan Plan `json:"plan"`
+	// BootHookCleanup retains the durable recovery receipt for retired hooks.
+	BootHookCleanup *cleanup.Receipt `json:"boot_hook_cleanup,omitempty"`
+	// BootHooksRestored reports restoration after a failed installation.
+	BootHooksRestored bool `json:"boot_hooks_restored,omitempty"`
+	// FallbackBindingCreated records creation of the reviewed exact-ABI DTB.
+	FallbackBindingCreated bool `json:"fallback_binding_created,omitempty"`
 	// StartedAt records when the manager began the requested operation.
 	StartedAt time.Time `json:"started_at"`
 	// CompletedAt records when the manager returned its final result.

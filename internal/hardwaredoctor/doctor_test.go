@@ -484,7 +484,7 @@ func TestPlatformIdentityUsesContainedProcFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	check, matched := doctor.inspectPlatform(context.Background())
+	check, matched := doctor.inspectPlatform(context.Background(), "")
 	if !matched || check.State != StatePass {
 		t.Fatalf("contained proc fallback = %#v, matched %t", check, matched)
 	}
@@ -501,7 +501,7 @@ func TestCanonicalPlatformIdentityNeverFallsBackOnMismatchOrUnsafeRead(t *testin
 		if err != nil {
 			t.Fatal(err)
 		}
-		check, matched := doctor.inspectPlatform(context.Background())
+		check, matched := doctor.inspectPlatform(context.Background(), "")
 		if matched || check.State != StateFail {
 			t.Fatalf("canonical mismatch = %#v, matched %t", check, matched)
 		}
@@ -515,7 +515,7 @@ func TestCanonicalPlatformIdentityNeverFallsBackOnMismatchOrUnsafeRead(t *testin
 		if err != nil {
 			t.Fatal(err)
 		}
-		check, matched := doctor.inspectPlatform(context.Background())
+		check, matched := doctor.inspectPlatform(context.Background(), "")
 		if matched || check.State != StateUnavailable {
 			t.Fatalf("canonical unsafe read = %#v, matched %t", check, matched)
 		}

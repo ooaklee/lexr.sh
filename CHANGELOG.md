@@ -50,6 +50,53 @@ that do not apply.
 
 ---
 
+## [0.5.0] - Unreleased
+
+### Added
+
+- Save your hardware choice with `lexr init <profile>` and reuse it across
+  images, diagnostics and installation. `lexr profile list` shows the available
+  choices, and global `--profile` overrides your saved choice for one command.
+  Offline targets require an explicit or saved profile; live commands can
+  detect supported device-tree evidence without assuming an OLED model.
+- Command settings in `lexr.yml` now supply real flag defaults, including
+  layered values, lists and explicit false values. Confirmation and safety
+  overrides remain decisions for each run, and USB writes still need an
+  explicit whole-device target. Build and release platform scope remains
+  defined by source and bundle inventories.
+- Check, inspect and edit your configuration with `lexr config check`, `show`
+  and `edit`. Layer configuration files with repeatable `--config` flags, and
+  reuse cache and workspace defaults beneath Lexr's configuration directory.
+  Userspace installation can use the configured pull cache without repeating
+  `--from`.
+- Organise the documentation around first-time setup, hardware profiles,
+  configuration, task guides and command and configuration references.
+
+### Removed
+
+- Remove the hardware flags `doctor boot --device` and
+  `image create --kernel-profile`, and the configuration keys `device.variant`,
+  `doctor.boot.device`, `image.create.kernel_profile` and
+  `kernel.boot.refresh.profile`. Set one top-level `profile` or use global
+  `--profile` instead. Removed keys and flags are rejected rather than ignored.
+- Remove configuration fields for per-run consent, safety overrides and the
+  disk selected by `image write --device`. Supply those decisions explicitly
+  when running the command.
+
+### Fixed
+
+- Use the selected hardware profile throughout kernel preflight, installation
+  and boot verification. The shared `-qcom-x1e` ABI suffix no longer causes
+  an X Plus LCD fallback to be mistaken for OLED. Kernel and image checks
+  distinguish declared boot selection from merely packaged device trees.
+- Preserve a verified external fallback at its exact-ABI DTB path before
+  installing a new kernel. Back up and retire recognised competing boot hooks,
+  then refresh the new kernel's binding for the selected profile. Preflight
+  and dry runs show these steps without changing boot files; failed installs
+  attempt to restore the retired hooks and retain their recovery receipt.
+- Explain when read-only kernel checks need `sudo` to read protected boot
+  files, including how to retain the selected profile across privilege changes.
+
 ## [0.4.0] - Unreleased
 
 ### Added

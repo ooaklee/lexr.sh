@@ -4,6 +4,28 @@ A kernel image on its own is not a usable or recoverable Surface Pro 11 kernel. 
 
 This page is for maintainers building or releasing kernels and for operators deliberately installing one on an existing system. Image creation is covered in the [user guide](../user-guide/index.md); the automation which publishes an OE prerelease is covered in [automation and release channels](automation-and-releases.md).
 
+## Choose the hardware target
+
+Choose the model you are installing on, then save it once:
+
+```sh
+# X Plus LCD; for X Elite OLED use x1e80100-microsoft-denali-oled.
+HARDWARE_PROFILE="x1p64100-microsoft-denali"
+lexr init "$HARDWARE_PROFILE"
+```
+
+Both models use the same kernel bundle; the profile selects the matching
+boot device tree. An ABI ending in `-qcom-x1e` does not identify an OLED
+machine. See [hardware profiles](../concepts/hardware-profiles.md) for the
+registry and detection rules, or follow the shorter
+[released-kernel installation guide](../user-guide/install-released-kernel-and-userspace.md).
+
+The examples pass the same profile through `sudo`, which may read root's own
+configuration. You can instead pass an absolute `--config` path.
+
+Build and release commands use their source and bundle platform inventories;
+omit `--profile` for those commands.
+
 ## Keep each device-tree evidence boundary distinct
 
 Lexr uses four related but non-interchangeable device-tree claims:
@@ -64,15 +86,17 @@ Select that profile explicitly during raw-bundle image creation:
 ```sh
 lexr image create \
   --kernel-dir <complete-kernel-bundle> \
-  --kernel-profile surface-pro-11-x1e-oled \
+  --profile x1e80100-microsoft-denali-oled \
   --output lexr-ubuntu-sp11.iso
 ```
 
 The selected image manifest contains a derived deployment inventory. It retains
 every source DTB record, byte identity, digest and selector, and changes only
 the `required` flag so the selected platform is the sole boot claim for that
-image. Omitting the option for an `external-required` bundle, naming an
-undeclared platform, or supplying it for an embedded bundle fails closed.
+image. You can also save the choice with `lexr init <profile>`. A missing
+offline profile or a bundle that cannot select the requested platform is
+rejected. The global `--profile` also works with embedded bundles: it checks
+that the requested model is included while retaining Stubble's boot selection.
 
 ## Start from a complete bundle
 
@@ -193,16 +217,18 @@ The target ABI is classified as `absent-and-eligible`, `already-installed-comple
 
 The target root and fallback ABI are always explicit. `--running-abi` is accepted only for an alternate-root fixture; inspection of the live root always uses direct `uname` evidence.
 
-Review both preflight and the install dry run without privilege:
+Review preflight and the install dry run before confirming installation.
+These checks do not change the target, but reading protected kernel images
+may require root access:
 
 ```sh
 RUNNING_ABI="$(uname -r)"
 
-lexr kernel preflight <kernel-bundle> \
+sudo lexr --profile "$HARDWARE_PROFILE" kernel preflight <kernel-bundle> \
   --root / \
   --fallback-abi "$RUNNING_ABI"
 
-lexr kernel install <kernel-bundle> \
+sudo lexr --profile "$HARDWARE_PROFILE" kernel install <kernel-bundle> \
   --root / \
   --fallback-abi "$RUNNING_ABI" \
   --dry-run
@@ -227,12 +253,12 @@ and receipt record the override and print a warning naming both ABIs:
 ```sh
 KNOWN_GOOD_ABI="<installed-known-good-abi>"
 
-lexr kernel preflight <kernel-bundle> \
+sudo lexr --profile "$HARDWARE_PROFILE" kernel preflight <kernel-bundle> \
   --root / \
   --fallback-abi "$KNOWN_GOOD_ABI" \
   --force
 
-lexr kernel install <kernel-bundle> \
+sudo lexr --profile "$HARDWARE_PROFILE" kernel install <kernel-bundle> \
   --root / \
   --fallback-abi "$KNOWN_GOOD_ABI" \
   --force \
@@ -247,7 +273,7 @@ different fallback selection; it does not make that selection bootable.
 A real installation requires effective root privilege and `--yes`; Lexr never elevates itself:
 
 ```sh
-sudo lexr kernel install <kernel-bundle> \
+sudo lexr --profile "$HARDWARE_PROFILE" kernel install <kernel-bundle> \
   --root / \
   --fallback-abi "$RUNNING_ABI" \
   --yes
@@ -259,26 +285,38 @@ returns to the default exact-match guard.
 
 Immediately before mutation, `kernel install` repeats preflight. It stages immutable package copies, retains the fallback kernel, backs up GRUB, and verifies the installed kernel image, initramfs, module tree, boot entry, both packaged Surface Pro 11 device trees, and both development-header trees when headers were selected. It separately proves the boot-time device-tree path with the same embedded-or-external rule used for the fallback. Packaged firmware-tree DTBs without either an exact embedded payload or a matching GRUB binding are not boot evidence and cannot produce a successful receipt or reboot hand-off. If the package maintainer scripts skipped the target ABI's initramfs image, Lexr regenerates it explicitly with the trusted `update-initramfs` generator before verification, and a repair that still fails triggers the same bounded rollback as any other verification failure.
 
-External device-tree materialisation and bootloader lifecycle changes belong
-to the generic boot-support package. `kernel install` and Ubuntu image creation
-invoke and verify that same exact-ABI implementation rather than maintaining
-their own DTB copier or GRUB editor. The migration positively identifies and
-retires the predecessor Ubuntu refresh hook before enabling the package-owned
-path; competing hooks are not left active.
+For external delivery, installation refreshes the new ABI through the generic
+boot-support package with your selected profile. Boot-support packages built
+with Lexr 0.5 also use that choice during package hooks. Older packages retain
+their own detection rules during those hooks; the final explicit refresh
+verifies the exact-ABI binding after any initramfs repair.
 
-An operator may rerun the exact package-owned operation without supplying a
-second image path:
+Before package hooks regenerate GRUB, Lexr preserves the verified fallback's
+DTB at `/boot/dtb-<fallback-abi>`. This lets the distribution's normal GRUB
+generator retain the fallback without a shared `sp11-denali.dtb` injector.
+An existing copy must match the verified bytes; Lexr never overwrites a
+conflicting file. Preflight and dry-run output show any planned copy.
+
+Lexr also backs up and retires the two recognised
+`zzzz-surface-pro-11-dtb` hooks from `postinst.d` and `postrm.d`. They must
+match the known injector; an unfamiliar executable at either path blocks
+installation for review. This uses the same receipts and recovery mechanism
+as [reversible clean-up](../user-guide/reversible-cleanup.md). A failed
+installation attempts to restore those hooks after rollback. The verified
+fallback copy remains available, and recovery conflicts are reported.
+
+You do not need a separate boot refresh during normal installation. To
+repeat the package-owned operation for an already installed ABI:
 
 ```sh
-sudo lexr kernel boot refresh \
+sudo lexr --profile "$HARDWARE_PROFILE" kernel boot refresh \
   --root / \
-  --abi <exact-abi> \
-  --profile auto
+  --abi <exact-abi>
 ```
 
-Use an explicit registered profile only for an offline or otherwise
-deliberately narrowed target. Selecting a different profile after an ABI has
-already been bound fails closed.
+The saved profile also works when the same configuration is available to the
+privileged command. Selecting a different profile after an ABI has already
+been bound fails closed.
 
 Human output labels these facts separately as `packaged device trees verified` and `boot device-tree mode`. JSON receipts carry the digest, delivery mode, and number of matching normal and recovery GRUB entries under `installed.device_tree_boot`; preflight records the same evidence under `fallback.device_tree_boot`.
 

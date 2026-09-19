@@ -479,7 +479,7 @@ func TestVerifyFallbackRejectsABIStampedDeviceTreeMismatch(t *testing.T) {
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
 	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
-	if err == nil || !strings.Contains(err.Error(), "does not match any installed variant") {
+	if err == nil || !strings.Contains(err.Error(), "does not match installed ABI") {
 		t.Fatalf("stamped DTB mismatch error = %v", err)
 	}
 }
@@ -717,9 +717,9 @@ func TestInspectGRUBPathClassifiesPermissionDenied(t *testing.T) {
 	}
 }
 
-// TestRequiredTreeForEntryDoesNotMixVariants verifies a title for one device
-// cannot silently validate a direct DTB path belonging to the other device.
-func TestRequiredTreeForEntryDoesNotMixVariants(t *testing.T) {
+// TestRequiredTreeForEntryIgnoresDisplayClaimsInTitles proves a title cannot
+// change filename identity or select the model behind the historical shared DTB.
+func TestRequiredTreeForEntryIgnoresDisplayClaimsInTitles(t *testing.T) {
 	entry := GRUBEntry{
 		Title: "Surface Pro 11 X1P/LCD",
 		DeviceTrees: []GRUBPathToken{{
@@ -727,12 +727,12 @@ func TestRequiredTreeForEntryDoesNotMixVariants(t *testing.T) {
 			Path:    "/boot/x1e80100-microsoft-denali-oled.dtb",
 		}},
 	}
-	if device, relative, valid := requiredTreeForEntry(entry, fixtureFallbackABI); valid || device != "" || relative != "" {
-		t.Fatalf("mixed device-tree variant = %q, %q, %t", device, relative, valid)
+	if device, relative, valid := requiredTreeForEntry(entry, fixtureFallbackABI); !valid || device != requiredDeviceTrees[0].Device || relative != requiredDeviceTrees[0].Path {
+		t.Fatalf("filename identity = %q, %q, %t", device, relative, valid)
 	}
 	entry.DeviceTrees[0].Path = "/boot/sp11-denali.dtb"
 	device, relative, valid := requiredTreeForEntry(entry, fixtureFallbackABI)
-	if !valid || device != requiredDeviceTrees[1].Device || relative != requiredDeviceTrees[1].Path {
+	if !valid || device != abiStampedDeviceTreeMarker || relative != "" {
 		t.Fatalf("shared X1P device-tree variant = %q, %q, %t", device, relative, valid)
 	}
 	entry.DeviceTrees[0].Path = "/dtb-7.2.0-sp11beta18"

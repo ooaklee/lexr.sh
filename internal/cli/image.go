@@ -208,10 +208,15 @@ func (a *application) newRemovableMediaWorkflow() (removableMediaWorkflow, error
 // validateImageForMedia invokes the injected validation boundary or routes the
 // generated image to its manifest-declared structural validator.
 func (a *application) validateImageForMedia(ctx context.Context, path string) (imagecontract.ValidationReport, error) {
-	if a.imageValidator != nil {
-		return a.imageValidator(ctx, path)
+	validate := a.imageValidator
+	if validate == nil {
+		validate = a.newImageValidator().Validate
 	}
-	return a.newImageValidator().Validate(ctx, path)
+	report, err := validate(ctx, path)
+	if err == nil {
+		err = a.checkImageProfile(&report)
+	}
+	return report, err
 }
 
 // newImageValidator keeps adapter tooling and cleanup diagnostics on the
@@ -312,6 +317,7 @@ func (a *application) newImageCreateCommand() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
 			request.CatalogPath = a.catalogPath
+			request.Profile = a.profile.ID
 			request.UserspaceCatalogPath = a.userspaceCatalogPath
 			request.ToolVersion, request.ToolCommit, request.ToolBuildDate = version.Info()
 			if dryRun {
@@ -338,9 +344,12 @@ func (a *application) newImageCreateCommand() *cobra.Command {
 	command.Flags().StringVar(&request.KernelDirectory, "kernel-dir", "", "directory containing a verified local kernel image/modules Debian package bundle")
 	command.Flags().StringVar(&request.KernelRepository, "kernel-repository", release.DefaultRepository, "GitHub owner/repository containing kernel releases")
 	command.Flags().StringVar(&request.KernelRelease, "kernel-release", "latest", "kernel release tag, or latest")
-	command.Flags().StringVar(&request.KernelProfile, "kernel-profile", "", "declared external-DTB platform ID for offline image creation")
-	command.Flags().StringVar(&request.CacheDirectory, "cache-dir", "", "download cache (defaults to the user cache directory)")
-	command.Flags().StringVar(&request.WorkspaceRoot, "workspace-dir", "", "parent directory for temporary remaster work")
+	hostPathFlag(command, &request.CacheDirectory, "cache-dir", "download cache (default: Lexr config home/caches/image)", func() (string, error) {
+		return a.configuration.ResolveImageCacheDir()
+	})
+	hostPathFlag(command, &request.WorkspaceRoot, "workspace-dir", "temporary remaster parent (default: Lexr config home/builds/image)", func() (string, error) {
+		return a.configuration.ResolveImageWorkspaceDir()
+	})
 	command.Flags().StringVar(&request.CompanionSourceDirectory, "companion-source-dir", "", "complete lexr source directory to archive and cross-build with the host Go toolchain")
 	command.Flags().StringSliceVar(&request.CompanionUserspace, "companion-userspace", nil, "redistribution-eligible userspace component to include for offline installation (repeatable)")
 	command.Flags().StringVarP(&request.Output, "output", "o", "lexr-sp11.iso", "output ISO path")

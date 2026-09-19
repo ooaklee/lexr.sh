@@ -17,6 +17,7 @@ Lexr deliberately separates image creation, private Windows hand-offs, userspace
 
 | If you want to… | Start here |
 | --- | --- |
+| Set a hardware profile, edit settings, or layer configuration files | [Manage configuration](configuration.md) |
 | Create, validate, and write the supported live image | [Create and write installation media](installation-media.md) |
 | Install Arch alongside existing Ubuntu/Windows and add it to the boot menu | [Arch installation walkthrough](arch-linux-arm-quickstart.md) |
 | Put the CLI, source, catalogues, and optional IPTSD support on the image | [Carry the offline companion](offline-companion.md) |

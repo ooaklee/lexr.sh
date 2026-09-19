@@ -70,6 +70,7 @@ func (a *application) newCleanPlanCommand() *cobra.Command {
 	var userHome string
 	var features []string
 	var output string
+	var asJSON bool
 	command := &cobra.Command{
 		Use:   "plan",
 		Short: "Write a reviewed JSON plan without changing the target system",
@@ -85,6 +86,9 @@ func (a *application) newCleanPlanCommand() *cobra.Command {
 			if err := writeCleanupPlan(output, report); err != nil {
 				return err
 			}
+			if asJSON {
+				return a.writeJSON(report)
+			}
 			_, err = fmt.Fprintf(a.out, "cleanup plan written: %s\nfindings: %d\n", output, len(report.Findings))
 			return err
 		},
@@ -93,6 +97,7 @@ func (a *application) newCleanPlanCommand() *cobra.Command {
 	command.Flags().StringVar(&userHome, "user-home", "", "explicit target-visible absolute Linux user home; never inferred")
 	command.Flags().StringSliceVar(&features, "feature", nil, "limit the recorded plan to a feature (repeatable or comma-separated)")
 	command.Flags().StringVarP(&output, "output", "o", "lexr-cleanup-plan.json", "new plan path, or - for standard output")
+	command.Flags().BoolVar(&asJSON, "json", false, "also write the saved plan as machine-readable JSON")
 	return command
 }
 

@@ -10,7 +10,7 @@ import (
 // TestImageManagerPlansArchTerminalWorkflow checks the rootfs-specific route,
 // signed snapshot and complete producer/validation plan without downloading.
 func TestImageManagerPlansArchTerminalWorkflow(t *testing.T) {
-	operation, err := newImagePlanTestManager().Plan(CreateImageRequest{CatalogID: "arch-linux-arm-aarch64-20260805", Output: "/output/arch.iso", KernelProfile: "surface-pro-11-x1e-oled"})
+	operation, err := newImagePlanTestManager().Plan(CreateImageRequest{CatalogID: "arch-linux-arm-aarch64-20260805", Output: "/output/arch.iso", Profile: "surface-pro-11-x1e-oled"})
 	if err != nil {
 		t.Fatal(err)
 	}

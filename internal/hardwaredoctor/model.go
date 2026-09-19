@@ -92,6 +92,8 @@ type Check struct {
 
 // Options controls one read-only live hardware inspection.
 type Options struct {
+	// Profile is the expected hardware identity; observations must still match it.
+	Profile string
 	// Features limits the report; an empty slice selects every maintained hardware check.
 	Features []Feature
 	// ProbeTimeout bounds each external command; zero selects the safe default.

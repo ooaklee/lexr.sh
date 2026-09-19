@@ -65,7 +65,7 @@ func (a *application) newKernelCommand() *cobra.Command {
 // newKernelBootCommand exposes the generic exact-ABI boot-support lifecycle.
 func (a *application) newKernelBootCommand() *cobra.Command {
 	command := &cobra.Command{Use: "boot", Short: "Manage exact-ABI kernel boot support", Args: cobra.NoArgs}
-	var root, abi, profile string
+	var root, abi string
 	refresh := &cobra.Command{
 		Use:   "refresh",
 		Short: "Refresh an ABI-scoped external DTB and GRUB binding",
@@ -75,8 +75,12 @@ func (a *application) newKernelBootCommand() *cobra.Command {
 				return errors.New("kernel boot refresh requires an absolute --root")
 			}
 			cleanRoot := filepath.Clean(root)
+			platformID := a.profile.Platform
+			if platformID == "" {
+				return errors.New("kernel boot refresh needs a hardware profile; use --profile or lexr init <profile>")
+			}
 			helperArgs := []string{"refresh", "--root", "/", "--abi", abi,
-				"--image", "/boot/vmlinuz-" + abi, "--platform", profile}
+				"--image", "/boot/vmlinuz-" + abi, "--platform", platformID}
 			run := platform.Command{Name: "/usr/libexec/lexr/kernel-boot-refresh", Args: helperArgs}
 			if cleanRoot != string(filepath.Separator) {
 				run = platform.Command{Name: "/usr/sbin/chroot", Args: append([]string{cleanRoot, "/usr/libexec/lexr/kernel-boot-refresh"}, helperArgs...)}
@@ -86,7 +90,6 @@ func (a *application) newKernelBootCommand() *cobra.Command {
 	}
 	refresh.Flags().StringVar(&root, "root", "/", "absolute target filesystem root")
 	refresh.Flags().StringVar(&abi, "abi", "", "exact kernel ABI to refresh")
-	refresh.Flags().StringVar(&profile, "profile", "auto", "registered platform profile or auto")
 	_ = refresh.MarkFlagRequired("abi")
 	command.AddCommand(refresh, a.newArchGRUBRegistrationCommand())
 	return command
@@ -230,11 +233,15 @@ func (a *application) newKernelPreflightCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
 			request, err := kernelInstallationRequest(args[0], kernelInstallationOptions{
-				Root: root, FallbackABI: fallbackABI, RunningABI: runningABI,
+				Profile: a.profile.ID,
+				Root:    root, FallbackABI: fallbackABI, RunningABI: runningABI,
 				DryRun: true, AllowUnverified: allowUnverified,
 				ForceFallbackMismatch: force, Overwrite: overwrite, PackageSet: packageSet,
 			})
 			if err != nil {
+				return err
+			}
+			if err := a.checkKernelProfile(request.Bundle); err != nil {
 				return err
 			}
 			plan, err := a.kernelInstallerForCommand().Preflight(command.Context(), request)
@@ -283,11 +290,15 @@ func (a *application) newKernelInstallCommand() *cobra.Command {
 				return errors.New("kernel install requires --yes for target filesystem changes; run kernel preflight or kernel install --dry-run first")
 			}
 			request, err := kernelInstallationRequest(args[0], kernelInstallationOptions{
-				Root: root, FallbackABI: fallbackABI, RunningABI: runningABI,
+				Profile: a.profile.ID,
+				Root:    root, FallbackABI: fallbackABI, RunningABI: runningABI,
 				DryRun: dryRun, AllowUnverified: allowUnverified,
 				ForceFallbackMismatch: force, Overwrite: overwrite, PackageSet: packageSet,
 			})
 			if err != nil {
+				return err
+			}
+			if err := a.checkKernelProfile(request.Bundle); err != nil {
 				return err
 			}
 			receipt, installErr := a.kernelInstallerForCommand().Install(command.Context(), request)
@@ -324,6 +335,7 @@ func (a *application) newKernelInstallCommand() *cobra.Command {
 // kernelInstallationOptions keeps safety-relevant CLI selections named at the
 // boundary instead of relying on the order of adjacent boolean arguments.
 type kernelInstallationOptions struct {
+	Profile               string
 	Root                  string
 	FallbackABI           string
 	RunningABI            string
@@ -345,6 +357,7 @@ func kernelInstallationRequest(bundleDirectory string, options kernelInstallatio
 		return kernelinstall.Request{}, err
 	}
 	return kernelinstall.Request{
+		Profile:               options.Profile,
 		Bundle:                bundle,
 		Root:                  options.Root,
 		FallbackABI:           options.FallbackABI,
@@ -374,6 +387,9 @@ func (a *application) writeKernelPreflight(plan kernelinstall.Plan, requestedPac
 	warningErr := a.writeKernelWarnings(plan.Warnings)
 	if asJSON {
 		return errors.Join(warningErr, a.writeJSON(plan))
+	}
+	if err := a.writeKernelBootPlan(plan); err != nil {
+		return errors.Join(warningErr, err)
 	}
 	verification := "authoritative checksums"
 	if plan.UnverifiedAccepted {
@@ -442,10 +458,26 @@ func (a *application) writeKernelInstallReceipt(receipt kernelinstall.Receipt, r
 	if asJSON {
 		return errors.Join(installErr, warningErr, a.writeJSON(receipt))
 	}
+	if receipt.BootHookCleanup != nil {
+		recovery := receipt.BootHookCleanup
+		name := "receipt.json"
+		if recovery.State != "complete" {
+			name = "receipt.pending.json"
+		}
+		_, err := fmt.Fprintf(a.out, "boot hook recovery receipt: %s\n", filepath.Join(recovery.Backup, name))
+		warningErr = errors.Join(warningErr, err)
+		if installErr != nil {
+			_, err := fmt.Fprintf(a.out, "retired boot hooks restored: %t\n", receipt.BootHooksRestored)
+			warningErr = errors.Join(warningErr, err)
+		}
+	}
 	if installErr != nil {
 		return errors.Join(installErr, warningErr)
 	}
 	if receipt.Plan.DryRun {
+		if err := a.writeKernelBootPlan(receipt.Plan); err != nil {
+			return errors.Join(warningErr, err)
+		}
 		_, err := fmt.Fprintf(a.out,
 			"kernel installation dry run passed\nroot: %s\ntarget ABI: %s\nfallback ABI: %s\nrequested package set: %s\neffective package set: %s\neffective DTB delivery: %s\npackages: %d\nfallback boot device-tree mode: %s\nfallback boot device-tree GRUB entries verified: %d\nplanned commands: %d\nconditional initramfs commands: %d\nno changes were made\n",
 			receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), receipt.Plan.EffectiveDTBDelivery, len(receipt.Plan.Packages),
@@ -460,6 +492,38 @@ func (a *application) writeKernelInstallReceipt(receipt kernelinstall.Receipt, r
 		"kernel installed\nroot: %s\ntarget ABI: %s\nfallback ABI retained: %s\nrequested package set: %s\neffective package set: %s\neffective DTB delivery: %s\npackages: %d\npackaged device trees verified: %d\nboot device-tree mode: %s\nboot device-tree GRUB entries verified: %d\nheader trees verified: %d\nreboot required: %t\nReboot manually when ready; retain the fallback kernel until the new kernel has been tested.\n",
 		receipt.Plan.Root, receipt.Plan.TargetABI, receipt.Plan.FallbackABI, requestedPackageSet, effectiveKernelPackageSet(len(receipt.Plan.Packages)), receipt.Plan.EffectiveDTBDelivery, len(receipt.Plan.Packages), len(receipt.DeviceTrees), receipt.Installed.DeviceTreeBoot.Mode, receipt.Installed.DeviceTreeBoot.GRUBEntryCount, len(receipt.Headers), receipt.RebootRequired)
 	return errors.Join(warningErr, err)
+}
+
+// writeKernelBootPlan makes hardware intent and bounded boot changes visible
+// during the read-only review, before the user confirms installation.
+func (a *application) writeKernelBootPlan(plan kernelinstall.Plan) error {
+	if plan.Profile != "" {
+		if _, err := fmt.Fprintf(a.out, "hardware profile: %s\n", plan.Profile); err != nil {
+			return err
+		}
+	}
+	if plan.FallbackBinding != nil && plan.FallbackBinding.Create {
+		if _, err := fmt.Fprintf(a.out, "preserve verified fallback DTB: %s\n", plan.FallbackBinding.Destination); err != nil {
+			return err
+		}
+	}
+	if plan.BootHookCleanup != nil {
+		for _, finding := range plan.BootHookCleanup.Findings {
+			if finding.Recognized {
+				if _, err := fmt.Fprintf(a.out, "back up and retire competing boot hook: %s\n", finding.Path); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	for _, command := range plan.Commands {
+		if command.Operation == kernelinstall.OperationRefreshBoot {
+			if _, err := fmt.Fprintf(a.out, "refresh boot binding for target ABI: %s (profile %s)\n", plan.TargetABI, plan.Profile); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // newKernelReleaseListCommand shows releases containing a candidate runtime
@@ -522,7 +586,9 @@ func (a *application) newKernelReleaseDownloadCommand() *cobra.Command {
 		},
 	}
 	command.Flags().StringVar(&repository, "repository", release.DefaultRepository, "GitHub owner/repository containing kernel releases")
-	command.Flags().StringVar(&outputDirectory, "output-dir", "kernel-bundle", "directory for verified packages and manifest")
+	hostPathFlag(command, &outputDirectory, "output-dir", "verified packages and manifest (default: Lexr config home/caches/kernel)", func() (string, error) {
+		return a.configuration.ResolveKernelDownloadDir()
+	})
 	command.Flags().BoolVar(&includeHeaders, "headers", false, "also download matching header packages")
 	command.Flags().BoolVar(&asJSON, "json", false, "write machine-readable JSON")
 	return command
@@ -540,6 +606,9 @@ func (a *application) newKernelInspectCommand() *cobra.Command {
 		RunE: func(_ *cobra.Command, args []string) error {
 			bundle, err := kernel.DiscoverLocalBundleWithOptions(args[0], kernel.LocalBundleOptions{PackageSet: kernel.LocalPackageSet(packageSet)})
 			if err != nil {
+				return err
+			}
+			if err := a.checkKernelProfile(bundle); err != nil {
 				return err
 			}
 			if asJSON {

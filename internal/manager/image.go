@@ -26,6 +26,7 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/kernel/release"
 	"github.com/ooaklee/lexr.sh/internal/plan"
 	"github.com/ooaklee/lexr.sh/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/profile"
 	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
 	userspacemanager "github.com/ooaklee/lexr.sh/internal/userspace/manager"
 )
@@ -41,6 +42,8 @@ var portableISOOutputExpression = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+~
 // CreateImageRequest describes source, kernel, cache, workspace, and publication
 // choices for the complete image-creation workflow.
 type CreateImageRequest struct {
+	// Profile is the intended hardware identity for both embedded and external DTBs.
+	Profile string
 	// CatalogPath optionally overrides the embedded supported-image catalogue.
 	CatalogPath string
 	// CatalogID selects the source image metadata and distribution adapter.
@@ -58,9 +61,6 @@ type CreateImageRequest struct {
 	KernelRepository string
 	// KernelRelease selects an exact tag or the repository's latest release.
 	KernelRelease string
-	// KernelProfile selects one declared external-DTB platform for offline media.
-	// Embedded bundles reject this option because Stubble owns boot-time selection.
-	KernelProfile string
 	// CacheDirectory optionally overrides the per-user artefact cache.
 	CacheDirectory string
 	// WorkspaceRoot optionally controls where temporary host workspaces are created.
@@ -273,7 +273,15 @@ func (m *ImageManager) Plan(request CreateImageRequest) (plan.Plan, error) {
 	if err != nil {
 		return plan.Plan{}, err
 	}
-	return operation.adapter.Plan(operation.adapterRequest)
+	result, err := operation.adapter.Plan(operation.adapterRequest)
+	if err == nil && request.Profile != "" {
+		for index := range result.Steps {
+			if result.Steps[index].ID == "verify-kernel" {
+				result.Steps[index].Inputs["profile"] = operation.request.Profile
+			}
+		}
+	}
+	return result, err
 }
 
 // Create resolves and verifies every external input, invokes the supported
@@ -304,7 +312,7 @@ func (m *ImageManager) Create(ctx context.Context, request CreateImageRequest) (
 	if err != nil {
 		return CreateImageResult{}, err
 	}
-	bundle, err = projectKernelBundleForImage(bundle, request.KernelProfile)
+	bundle, err = selectImageKernel(bundle, request)
 	if err != nil {
 		return CreateImageResult{}, err
 	}
@@ -316,6 +324,10 @@ func (m *ImageManager) Create(ctx context.Context, request CreateImageRequest) (
 	adapterRequest.Source = sourcePath
 	adapterRequest.SourceSHA256 = sourceDigest
 	adapterRequest.Bundle = bundle
+	if request.Profile != "" && bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		selected, _ := profile.Resolve(request.Profile)
+		adapterRequest.KernelProfile = selected.Platform
+	}
 	adapterRequest.Companion = companionRequest
 	adapterRequest.CompanionUserspace = companionBundleComponentIDs(companionRequest)
 	result, err := operation.adapter.Create(ctx, adapterRequest)
@@ -360,6 +372,23 @@ func (m *ImageManager) prepareImageOperation(request CreateImageRequest) (imageO
 	if !ok {
 		return imageOperation{}, fmt.Errorf("catalog entry %q was not found", request.CatalogID)
 	}
+	var selectedPlatform string
+	if request.Profile != "" {
+		selected, err := profile.Resolve(request.Profile)
+		if err != nil {
+			return imageOperation{}, err
+		}
+		request.Profile = selected.ID
+		selectedPlatform = selected.Platform
+		if entry.Adapter == "fedora-live" && selected.Device != "x1e-oled" {
+			return imageOperation{}, fmt.Errorf("Fedora custom-kernel media is available only for the Surface Pro 11 X Elite OLED profile; %q is a stock-kernel troubleshooting path only", selected.ID)
+		}
+	}
+	// Fedora accepts only embedded delivery; its boot-time selection remains
+	// inside Stubble after the manager checks the requested hardware profile.
+	if entry.Adapter == catalog.AdapterFedoraLive {
+		selectedPlatform = ""
+	}
 	adapter, err := m.adapterForEntry(entry)
 	if err != nil {
 		return imageOperation{}, err
@@ -383,7 +412,7 @@ func (m *ImageManager) prepareImageOperation(request CreateImageRequest) (imageO
 			SourceSHA256:       effectiveSourceSHA256(request, entry),
 			Output:             request.Output,
 			Bundle:             kernel.Bundle{Release: kernelInput, ABI: "resolved-at-execution"},
-			KernelProfile:      strings.TrimSpace(request.KernelProfile),
+			KernelProfile:      selectedPlatform,
 			ToolVersion:        request.ToolVersion,
 			Companion:          companion.BuildRequest{SourceDirectory: request.CompanionSourceDirectory},
 			CompanionUserspace: componentIDs,
@@ -391,6 +420,28 @@ func (m *ImageManager) prepareImageOperation(request CreateImageRequest) (imageO
 			KeepWorkspace:      request.KeepWorkspace,
 		},
 	}, nil
+}
+
+// selectImageKernel checks the selected model against the verified inventory.
+// Embedded bundles retain Stubble's complete boot-time selection; external
+// bundles are projected to the single explicit offline target.
+func selectImageKernel(bundle kernel.Bundle, request CreateImageRequest) (kernel.Bundle, error) {
+	selected, err := profile.Resolve(request.Profile)
+	if err != nil {
+		return kernel.Bundle{}, err
+	}
+	if bundle.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
+		return projectKernelBundleForImage(bundle, selected.Platform)
+	}
+	if bundle.EffectiveDTBDelivery != kernel.DTBDeliveryEmbedded {
+		return kernel.Bundle{}, fmt.Errorf("kernel bundle has unsupported effective DTB delivery %q", bundle.EffectiveDTBDelivery)
+	}
+	for _, platformID := range bundle.BootPlatforms() {
+		if platformID == selected.Platform {
+			return bundle, nil
+		}
+	}
+	return kernel.Bundle{}, fmt.Errorf("kernel bundle does not declare embedded boot support for profile %q", selected.ID)
 }
 
 // projectKernelBundleForImage makes an explicit deployment choice from a
@@ -401,21 +452,14 @@ func (m *ImageManager) prepareImageOperation(request CreateImageRequest) (imageO
 func projectKernelBundleForImage(bundle kernel.Bundle, profile string) (kernel.Bundle, error) {
 	trimmedProfile := strings.TrimSpace(profile)
 	if profile != trimmedProfile {
-		return kernel.Bundle{}, errors.New("--kernel-profile must be an exact declared platform ID without surrounding whitespace")
+		return kernel.Bundle{}, errors.New("external image platform must be an exact declared ID without surrounding whitespace")
 	}
 	profile = trimmedProfile
-	switch bundle.EffectiveDTBDelivery {
-	case kernel.DTBDeliveryEmbedded:
-		if profile != "" {
-			return kernel.Bundle{}, errors.New("--kernel-profile is valid only for an external-required kernel bundle; Stubble selects embedded device trees at boot")
-		}
-		return bundle, nil
-	case kernel.DTBDeliveryExternalRequired:
-		if profile == "" {
-			return kernel.Bundle{}, errors.New("external-required image creation requires --kernel-profile with one declared platform ID")
-		}
-	default:
-		return kernel.Bundle{}, fmt.Errorf("kernel bundle has unsupported effective DTB delivery %q", bundle.EffectiveDTBDelivery)
+	if bundle.EffectiveDTBDelivery != kernel.DTBDeliveryExternalRequired {
+		return kernel.Bundle{}, errors.New("only external-required bundles can be projected to one platform; Stubble selects embedded device trees at boot")
+	}
+	if profile == "" {
+		return kernel.Bundle{}, errors.New("external-required image creation requires a hardware profile; run lexr init <profile> or pass --profile")
 	}
 
 	trees := kernel.CloneDeviceTrees(bundle.DeviceTrees)

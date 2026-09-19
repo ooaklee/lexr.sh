@@ -220,15 +220,7 @@ func (a *application) newUserspacePullCommand() *cobra.Command {
 		Short: "Download an exact checksum-verified userspace release",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
-			resolvedCacheDirectory := cacheDirectory
-			if resolvedCacheDirectory == "" {
-				var err error
-				resolvedCacheDirectory, err = a.configuration.ResolveCacheDir()
-				if err != nil {
-					return fmt.Errorf("resolve userspace pull cache: %w", err)
-				}
-			}
-			bundles, err := a.userspace.Pull(command.Context(), a.userspaceCatalogPath, args[0], resolvedCacheDirectory)
+			bundles, err := a.userspace.Pull(command.Context(), a.userspaceCatalogPath, args[0], cacheDirectory)
 			if err != nil {
 				return err
 			}
@@ -242,7 +234,9 @@ func (a *application) newUserspacePullCommand() *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&cacheDirectory, "cache-dir", "", "verified userspace release cache (default: operating-system user cache)")
+	hostPathFlag(command, &cacheDirectory, "cache-dir", "verified userspace release cache (default: Lexr config home/caches/userspace)", func() (string, error) {
+		return a.configuration.ResolveCacheDir()
+	})
 	command.Flags().BoolVar(&asJSON, "json", false, "write machine-readable JSON")
 	return command
 }

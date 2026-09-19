@@ -56,7 +56,7 @@ func TestRootConfigFlagNamesMalformedFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, _, err := executeCLI(t, "--config", path, "version")
-	if err == nil || !strings.Contains(err.Error(), path) || !strings.Contains(err.Error(), "unknown configuration key") {
+	if err == nil || !strings.Contains(err.Error(), path) || !strings.Contains(err.Error(), "field unknown not found") {
 		t.Fatalf("error = %v, want named malformed configuration", err)
 	}
 }
@@ -131,12 +131,12 @@ func TestDoctorUserspaceSharesStatusReport(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	statusOutput, _, statusErr := executeCLI(t,
-		"userspace", "status", "--root", root, "--feature", "power", "--json")
+		"userspace", "status", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--feature", "power", "--json")
 	if statusErr == nil {
 		t.Fatal("userspace status unexpectedly accepted missing explicitly selected power support")
 	}
 	doctorOutput, _, doctorErr := executeCLI(t,
-		"doctor", "userspace", "--root", root, "--feature", "power", "--json")
+		"doctor", "userspace", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--feature", "power", "--json")
 	if doctorErr == nil {
 		t.Fatal("doctor userspace unexpectedly accepted missing explicitly selected power support")
 	}
@@ -404,7 +404,7 @@ func TestCatalogValidateDelivery(t *testing.T) {
 func TestImageCreateDryRunValidatesCatalogueSelection(t *testing.T) {
 	t.Parallel()
 
-	_, _, err := executeCLI(t, "image", "create", "--dry-run", "--catalog-id", "missing-image")
+	_, _, err := executeCLI(t, "image", "create", "--profile", "x1e80100-microsoft-denali-oled", "--dry-run", "--catalog-id", "missing-image")
 	if err == nil || !strings.Contains(err.Error(), `catalog entry "missing-image" was not found`) {
 		t.Fatalf("image create dry-run missing entry error = %v", err)
 	}
@@ -416,7 +416,7 @@ func TestImageCreateDryRunIsDeterministic(t *testing.T) {
 	t.Parallel()
 
 	arguments := []string{
-		"image", "create", "--dry-run",
+		"image", "create", "--profile", "x1e80100-microsoft-denali-oled", "--dry-run",
 		"--catalog-id", "ubuntu-concept-resolute-x1e",
 		"--source", "/inputs/ubuntu.iso",
 		"--source-sha256", strings.Repeat("a", 64),
@@ -488,7 +488,7 @@ func TestCleanFeatureScopeIsRecordedAndApplied(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	scanOutput, _, err := executeCLI(t, "clean", "scan", "--root", root, "--feature", "audio", "--json")
+	scanOutput, _, err := executeCLI(t, "clean", "scan", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--feature", "audio", "--json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,7 +500,7 @@ func TestCleanFeatureScopeIsRecordedAndApplied(t *testing.T) {
 		t.Fatalf("feature-scoped scan = %#v", scan)
 	}
 	planPath := filepath.Join(t.TempDir(), "cleanup-plan.json")
-	if _, _, err := executeCLI(t, "clean", "plan", "--root", root, "--feature", "audio", "--output", planPath); err != nil {
+	if _, _, err := executeCLI(t, "clean", "plan", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--feature", "audio", "--output", planPath); err != nil {
 		t.Fatal(err)
 	}
 	planData, err := os.ReadFile(planPath)
@@ -514,7 +514,7 @@ func TestCleanFeatureScopeIsRecordedAndApplied(t *testing.T) {
 	if !reflect.DeepEqual(plan.Features, []string{"audio"}) {
 		t.Fatalf("recorded plan features = %#v", plan.Features)
 	}
-	if _, _, err := executeCLI(t, "clean", "apply", "--root", root, "--plan", planPath, "--yes"); err != nil {
+	if _, _, err := executeCLI(t, "clean", "apply", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--plan", planPath, "--yes"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Lstat(audioPath); !errors.Is(err, os.ErrNotExist) {
@@ -523,7 +523,7 @@ func TestCleanFeatureScopeIsRecordedAndApplied(t *testing.T) {
 	if _, err := os.Stat(touchPath); err != nil {
 		t.Fatalf("non-audio target changed: %v", err)
 	}
-	if _, _, err := executeCLI(t, "clean", "scan", "--root", root, "--feature", "camera"); err == nil || !strings.Contains(err.Error(), "unknown cleanup feature") {
+	if _, _, err := executeCLI(t, "clean", "scan", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--feature", "camera"); err == nil || !strings.Contains(err.Error(), "unknown cleanup feature") {
 		t.Fatalf("unknown feature error = %v", err)
 	}
 }
@@ -543,11 +543,11 @@ func TestCleanApplyRequiresExplicitConfirmation(t *testing.T) {
 		t.Fatalf("os.WriteFile() error = %v", err)
 	}
 	planPath := filepath.Join(t.TempDir(), "cleanup-plan.json")
-	if _, _, err := executeCLI(t, "clean", "plan", "--root", root, "--output", planPath); err != nil {
+	if _, _, err := executeCLI(t, "clean", "plan", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--output", planPath); err != nil {
 		t.Fatalf("clean plan error = %v", err)
 	}
 
-	_, _, err := executeCLI(t, "clean", "apply", "--root", root, "--plan", planPath)
+	_, _, err := executeCLI(t, "clean", "apply", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--plan", planPath)
 	if err == nil || !strings.Contains(err.Error(), "requires --yes") {
 		t.Fatalf("clean apply without confirmation error = %v", err)
 	}
@@ -577,11 +577,11 @@ func TestCleanApplyWithConfirmationReturnsReceipt(t *testing.T) {
 		t.Fatalf("os.WriteFile() error = %v", err)
 	}
 	planPath := filepath.Join(t.TempDir(), "cleanup-plan.json")
-	if _, _, err := executeCLI(t, "clean", "plan", "--root", root, "--output", planPath); err != nil {
+	if _, _, err := executeCLI(t, "clean", "plan", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--output", planPath); err != nil {
 		t.Fatalf("clean plan error = %v", err)
 	}
 
-	output, _, err := executeCLI(t, "clean", "apply", "--root", root, "--plan", planPath, "--yes", "--json")
+	output, _, err := executeCLI(t, "clean", "apply", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--plan", planPath, "--yes", "--json")
 	if err != nil {
 		t.Fatalf("clean apply --yes error = %v", err)
 	}
@@ -618,7 +618,7 @@ func TestCleanApplyUsesOnlyReviewedFindings(t *testing.T) {
 		t.Fatal(err)
 	}
 	planPath := filepath.Join(t.TempDir(), "cleanup-plan.json")
-	if _, _, err := executeCLI(t, "clean", "plan", "--root", root, "--output", planPath); err != nil {
+	if _, _, err := executeCLI(t, "clean", "plan", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--output", planPath); err != nil {
 		t.Fatalf("clean plan error = %v", err)
 	}
 	createdAfterReview := filepath.Join(root, "etc", "modules-load.d", "sp11-touchscreen.conf")
@@ -628,7 +628,7 @@ func TestCleanApplyUsesOnlyReviewedFindings(t *testing.T) {
 	if err := os.WriteFile(createdAfterReview, []byte("mshw0485_touch\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := executeCLI(t, "clean", "apply", "--root", root, "--plan", planPath, "--yes"); err != nil {
+	if _, _, err := executeCLI(t, "clean", "apply", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--plan", planPath, "--yes"); err != nil {
 		t.Fatalf("clean apply error = %v", err)
 	}
 	if _, err := os.Stat(planned); !errors.Is(err, os.ErrNotExist) {
@@ -652,10 +652,10 @@ func TestCleanRestoreUsesVerifiedReceipt(t *testing.T) {
 		t.Fatal(err)
 	}
 	planPath := filepath.Join(t.TempDir(), "cleanup-plan.json")
-	if _, _, err := executeCLI(t, "clean", "plan", "--root", root, "--output", planPath); err != nil {
+	if _, _, err := executeCLI(t, "clean", "plan", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--output", planPath); err != nil {
 		t.Fatalf("clean plan error = %v", err)
 	}
-	applyOutput, _, err := executeCLI(t, "clean", "apply", "--root", root, "--plan", planPath, "--yes", "--json")
+	applyOutput, _, err := executeCLI(t, "clean", "apply", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--plan", planPath, "--yes", "--json")
 	if err != nil {
 		t.Fatalf("clean apply error = %v", err)
 	}
@@ -701,16 +701,16 @@ func TestCleanUserHomeMustMatchPlanAndReceipt(t *testing.T) {
 		t.Fatal(err)
 	}
 	planPath := filepath.Join(t.TempDir(), "cleanup-plan.json")
-	if _, _, err := executeCLI(t, "clean", "plan", "--root", root, "--user-home", "/home/alice", "--output", planPath); err != nil {
+	if _, _, err := executeCLI(t, "clean", "plan", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--user-home", "/home/alice", "--output", planPath); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := executeCLI(t, "clean", "apply", "--root", root, "--plan", planPath, "--yes"); err == nil || !strings.Contains(err.Error(), "plan user home") {
+	if _, _, err := executeCLI(t, "clean", "apply", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--plan", planPath, "--yes"); err == nil || !strings.Contains(err.Error(), "plan user home") {
 		t.Fatalf("clean apply without matching --user-home error = %v", err)
 	}
 	if _, err := os.Stat(legacyPath); err != nil {
 		t.Fatalf("mismatched apply changed per-user target: %v", err)
 	}
-	output, _, err := executeCLI(t, "clean", "apply", "--root", root, "--user-home", "/home/alice", "--plan", planPath, "--yes", "--json")
+	output, _, err := executeCLI(t, "clean", "apply", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--user-home", "/home/alice", "--plan", planPath, "--yes", "--json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -745,8 +745,8 @@ func TestUserspaceAndDoctorAcceptTheSameExplicitUserHome(t *testing.T) {
 	if err := os.WriteFile(legacyPath, []byte("legacy"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	userspaceOutput, _, userspaceErr := executeCLI(t, "userspace", "status", "--root", root, "--user-home", "/home/alice", "--feature", "audio", "--json")
-	doctorOutput, _, doctorErr := executeCLI(t, "doctor", "userspace", "--root", root, "--user-home", "/home/alice", "--feature", "audio", "--json")
+	userspaceOutput, _, userspaceErr := executeCLI(t, "userspace", "status", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--user-home", "/home/alice", "--feature", "audio", "--json")
+	doctorOutput, _, doctorErr := executeCLI(t, "doctor", "userspace", "--profile", "x1e80100-microsoft-denali-oled", "--root", root, "--user-home", "/home/alice", "--feature", "audio", "--json")
 	if userspaceErr == nil || doctorErr == nil {
 		t.Fatalf("selected legacy audio should fail readiness: userspace=%v doctor=%v", userspaceErr, doctorErr)
 	}

@@ -2,6 +2,18 @@
 
 Lexr clean-up removes only recognised legacy Surface Pro 11 workarounds from an exact reviewed plan and leaves durable recovery evidence. The workflow is deliberately separate from image creation and userspace installation so neither can silently remove system state.
 
+## Choose the hardware target
+
+Save your device with `lexr init <profile>` before the hardware steps below.
+Use `lexr profile list` to find the ID, or pass global `--profile` for one
+command. These examples use `x1e80100-microsoft-denali-oled` for the X Elite
+OLED; choose `x1p64100-microsoft-denali` for an X Plus LCD where the workflow
+permits it. [Hardware profiles](../concepts/hardware-profiles.md) explains live
+detection and the explicit choice required for mounted or offline targets.
+
+Privileged examples pass the profile because `sudo` may read root's own
+configuration. You can instead pass an absolute `--config` path.
+
 ## Audience and context
 
 Use this page after diagnosis shows a recognised workaround that you have decided to remove. Start without privilege, inspect the generated JSON plan, and grant elevated access only to apply or restore the reviewed transaction.
@@ -21,7 +33,7 @@ Clean-up is deliberately separate from image creation. Start with a read-only sc
 lexr clean scan
 lexr clean plan --output lexr-cleanup-plan.json
 cat lexr-cleanup-plan.json
-sudo lexr clean apply \
+sudo lexr --profile x1e80100-microsoft-denali-oled clean apply \
   --root / \
   --plan lexr-cleanup-plan.json \
   --yes
@@ -36,7 +48,7 @@ apply has no separate feature override:
 ```sh
 lexr clean scan --feature audio
 lexr clean plan --feature audio --output lexr-audio-cleanup-plan.json
-sudo lexr clean apply \
+sudo lexr --profile x1e80100-microsoft-denali-oled clean apply \
   --root / \
   --plan lexr-audio-cleanup-plan.json \
   --yes
@@ -47,6 +59,14 @@ compiled feature. Unknown features, edited non-canonical selections, and plan
 findings outside the recorded scope fail closed. The two retired system UCM
 filenames are recognised only at their exact reviewed sizes and SHA-256
 digests; a different file at either path remains a manual-review finding.
+
+For retired kernel boot injectors, use `--feature kernel-boot`. This scope
+contains only the recognised `zzzz-surface-pro-11-dtb` hooks in
+`/etc/kernel/postinst.d` and `/etc/kernel/postrm.d`. Confirmed
+`kernel install` also retires these hooks when preparing an installation,
+after showing the same evidence in preflight and dry-run output. It keeps a
+clean-up receipt and attempts restoration if installation fails. See
+[kernel installation](install-released-kernel-and-userspace.md).
 
 ## 2. Apply the reviewed transaction
 
@@ -71,7 +91,8 @@ Current `clean restore` accepts only receipts and quarantine names created in Le
 
 The allow-list currently covers selected system-wide audio routing helpers and
 exact legacy UCM identities, in-tree touchscreen configuration hooks, and G6
-service enablement. It does not automatically remove arbitrary out-of-tree
+service enablement, plus the two recognised kernel boot injectors described
+above. It does not automatically remove arbitrary out-of-tree
 modules, rebuild contaminated historical initramfs images, delete unselected
 per-user configuration, or remove unfamiliar UCM data. Those findings require
 explicit manual diagnosis. A future kernel change can also make a workaround

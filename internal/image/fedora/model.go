@@ -116,7 +116,7 @@ func BuildPlan(request Request) (plan.Plan, error) {
 		}
 	}
 	if strings.TrimSpace(request.KernelProfile) != "" {
-		return plan.Plan{}, errors.New("Fedora Stubble image creation does not accept --kernel-profile")
+		return plan.Plan{}, errors.New("Fedora Stubble image creation does not accept an external device-tree platform")
 	}
 	companionSource := "not-requested"
 	if request.Companion.SourceDirectory != "" {

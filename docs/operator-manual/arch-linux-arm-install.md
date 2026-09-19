@@ -300,7 +300,7 @@ For an optional route diagnostic, use a Lexr build containing this PR's
 `media-ctl` parser fix:
 
 ```bash
-sudo lexr userspace camera capture --dry-run
+sudo lexr --profile x1e80100-microsoft-denali-oled userspace camera capture --dry-run
 ```
 
 The check does not stream or change the media graph. It accepts the uppercase

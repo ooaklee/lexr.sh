@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ooaklee/lexr.sh/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/profile"
 )
 
 // recordingKernelBootRunner records the one direct helper invocation.
@@ -52,8 +53,9 @@ func TestKernelBootRefreshUsesExactABIHelper(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			runner := &recordingKernelBootRunner{}
 			app := &application{out: &bytes.Buffer{}, errOut: &bytes.Buffer{}, kernelBootRunner: runner}
+			app.profile, _ = profile.Resolve("x1e80100-microsoft-denali-oled")
 			command := app.newKernelBootCommand()
-			command.SetArgs([]string{"refresh", "--root", test.root, "--abi", abi, "--profile", "surface-pro-11-x1e-oled"})
+			command.SetArgs([]string{"refresh", "--root", test.root, "--abi", abi})
 			if err := command.ExecuteContext(context.Background()); err != nil {
 				t.Fatalf("kernel boot refresh error = %v", err)
 			}

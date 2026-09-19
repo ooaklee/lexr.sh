@@ -158,7 +158,7 @@ func TestImageManagerPlanUsesExplicitLocalInputs(t *testing.T) {
 		CatalogID:                DefaultCatalogID,
 		Source:                   "/inputs/source.iso",
 		KernelDirectory:          "/inputs/kernel",
-		KernelProfile:            "surface-pro-11-x1e-oled",
+		Profile:                  "surface-pro-11-x1e-oled",
 		CompanionSourceDirectory: "/inputs/lexr",
 		CompanionUserspace:       []string{"iptsd"},
 		Output:                   "/output/result.iso",
@@ -168,7 +168,7 @@ func TestImageManagerPlanUsesExplicitLocalInputs(t *testing.T) {
 	}
 	if operationPlan.Steps[0].Inputs["path"] != "/inputs/source.iso" ||
 		operationPlan.Steps[1].Inputs["release"] != "/inputs/kernel" ||
-		operationPlan.Steps[1].Inputs["profile"] != "surface-pro-11-x1e-oled" ||
+		operationPlan.Steps[1].Inputs["profile"] != "x1e80100-microsoft-denali-oled" ||
 		operationPlan.Steps[2].Inputs["source"] != "/inputs/lexr" ||
 		operationPlan.Steps[2].Inputs["userspace"] != companion.IPTSDOfflineComponentID ||
 		operationPlan.Steps[len(operationPlan.Steps)-1].Inputs["path"] != "/output/result.iso" {
@@ -176,9 +176,9 @@ func TestImageManagerPlanUsesExplicitLocalInputs(t *testing.T) {
 	}
 }
 
-// TestProjectKernelBundleForImageRequiresExplicitExternalProfile proves image
-// creation records one reviewed platform without mutating the source bundle.
-func TestProjectKernelBundleForImageRequiresExplicitExternalProfile(t *testing.T) {
+// externalProfileBundle supplies a verified two-platform external DTB contract.
+func externalProfileBundle(t *testing.T) kernel.Bundle {
+	t.Helper()
 	const (
 		abi     = "7.2.2-jg-0sp11v10-qcom-x1e"
 		version = "7.2.2-jg-0sp11v10"
@@ -209,7 +209,14 @@ func TestProjectKernelBundleForImageRequiresExplicitExternalProfile(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := projectKernelBundleForImage(bundle, ""); err == nil || !strings.Contains(err.Error(), "requires --kernel-profile") {
+	return bundle
+}
+
+// TestProjectKernelBundleForImageRequiresExplicitExternalProfile proves image
+// creation records one reviewed platform without mutating the source bundle.
+func TestProjectKernelBundleForImageRequiresExplicitExternalProfile(t *testing.T) {
+	bundle := externalProfileBundle(t)
+	if _, err := projectKernelBundleForImage(bundle, ""); err == nil || !strings.Contains(err.Error(), "requires a hardware profile") {
 		t.Fatalf("missing external profile error = %v", err)
 	}
 	if _, err := projectKernelBundleForImage(bundle, "unknown"); err == nil || !strings.Contains(err.Error(), "not declared") {

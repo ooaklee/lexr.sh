@@ -29,15 +29,31 @@ func (a *application) newWizardCommand() *cobra.Command {
 	command.Flags().StringVar(&request.SourceSHA256, "source-sha256", "", "expected source ISO SHA-256")
 	command.Flags().StringVar(&request.KernelDirectory, "kernel-dir", "", "directory containing local kernel packages")
 	command.Flags().StringVar(&request.KernelRelease, "kernel-release", "latest", "kernel release tag, or latest")
-	command.Flags().StringVar(&request.CacheDirectory, "cache-dir", "", "download cache directory")
+	hostPathFlag(command, &request.CacheDirectory, "cache-dir", "download cache (default: Lexr config home/caches/wizard)", func() (string, error) {
+		return a.configuration.ResolveWizardCacheDir()
+	})
 	return command
 }
 
 // runWizard collects a request interactively and returns cleanly when the user cancels.
 func (a *application) runWizard(ctx context.Context) error {
+	cache, err := a.configuration.ResolveWizardCacheDir()
+	if err != nil {
+		return err
+	}
+	settings := a.configuration.Wizard
+	output := settings.Output
+	if output == "" {
+		output = "lexr-sp11.iso"
+	}
 	return a.runWizardWithRequest(ctx, manager.CreateImageRequest{
-		CatalogPath: a.catalogPath,
-		Output:      "lexr-sp11.iso",
+		CacheDirectory:  cache,
+		CatalogPath:     a.catalogPath,
+		Output:          output,
+		Source:          settings.Source,
+		SourceSHA256:    settings.SourceSHA256,
+		KernelDirectory: settings.KernelDir,
+		KernelRelease:   settings.KernelRelease,
 	})
 }
 
@@ -46,6 +62,15 @@ func (a *application) runWizard(ctx context.Context) error {
 func (a *application) runWizardWithRequest(ctx context.Context, request manager.CreateImageRequest) error {
 	if !isTerminalReader(a.in) {
 		return errors.New("the wizard requires an interactive terminal; use image create for scripts")
+	}
+	request.Profile = a.profile.ID
+	// The wizard builds images, so it shares image.create.workspace_dir.
+	if request.WorkspaceRoot == "" {
+		workspace, err := a.configuration.ResolveImageWorkspaceDir()
+		if err != nil {
+			return err
+		}
+		request.WorkspaceRoot = workspace
 	}
 	mediaCatalog, err := a.loader.Load(request.CatalogPath)
 	if err != nil {

@@ -135,6 +135,12 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		return report, err
 	}
 	report.KernelABI = manifest.KernelBundle.ABI
+	// Fedora custom-kernel entries are implemented only for X Elite OLED.
+	for _, platformID := range manifest.KernelBundle.BootPlatforms() {
+		if platformID == "surface-pro-11-x1e-oled" {
+			report.BootProfiles = append(report.BootProfiles, platformID)
+		}
+	}
 	for _, dtb := range manifest.KernelBundle.DeviceTrees {
 		report.DeviceTrees = append(report.DeviceTrees, dtb.Device)
 	}

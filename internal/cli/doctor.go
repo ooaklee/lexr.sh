@@ -72,7 +72,9 @@ func (a *application) newDoctorCommand() *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&workspace, "workspace", ".", "directory that will hold temporary image data")
+	hostPathFlag(command, &workspace, "workspace", "temporary image data directory (default: Lexr config home/builds/doctor)", func() (string, error) {
+		return a.configuration.ResolveDoctorWorkspace()
+	})
 	command.Flags().BoolVar(&asJSON, "json", false, "write machine-readable JSON")
 	command.AddCommand(
 		a.newUserspaceStatusDeliveryCommand("userspace", "Report missing Surface Pro 11 userspace support"),
@@ -97,6 +99,9 @@ func (a *application) newBootDoctorCommand(factory bootDoctorFactory) *cobra.Com
 			"The command never executes package hooks or GRUB tools, changes defaults, rewrites DTBs, or proves physical bootability.",
 		Args: cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
+			if a.profile.ID != "" {
+				device = a.profile.Device
+			}
 			selectedFactory := factory
 			if selectedFactory == nil {
 				selectedFactory = func() bootDoctorWorkflow { return bootdoctor.New() }
@@ -124,7 +129,6 @@ func (a *application) newBootDoctorCommand(factory bootDoctorFactory) *cobra.Com
 		},
 	}
 	command.Flags().StringVar(&root, "root", "/", "Linux filesystem root containing boot evidence")
-	command.Flags().StringVar(&device, "device", "", "Surface hardware variant: x1e-oled or x1p-lcd")
 	command.Flags().StringVar(&targetABI, "target-abi", "", "optional target ABI that must be ready")
 	command.Flags().StringVar(&fallbackABI, "fallback-abi", "", "optional fallback ABI that must be ready")
 	command.Flags().BoolVar(&asJSON, "json", false, "write machine-readable JSON")
@@ -231,7 +235,7 @@ func (a *application) newHardwareDoctorCommand(factory hardwareDoctorFactory) *c
 			if err != nil {
 				return fmt.Errorf("construct hardware doctor: %w", err)
 			}
-			report, err := workflow.Inspect(command.Context(), hardwaredoctor.Options{Features: features})
+			report, err := workflow.Inspect(command.Context(), hardwaredoctor.Options{Features: features, Profile: a.profile.ID})
 			if err != nil {
 				return fmt.Errorf("inspect live hardware: %w", err)
 			}

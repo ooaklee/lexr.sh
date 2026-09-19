@@ -16,7 +16,7 @@ lexr image create \
   --catalog-id arch-linux-arm-aarch64-20260805 \
   --source ./ArchLinuxARM-aarch64-latest.tar.gz \
   --kernel-dir ./kernel-v23 \
-  --kernel-profile surface-pro-11-x1e-oled \
+  --profile x1e80100-microsoft-denali-oled \
   --companion-source-dir ./lexr.sh \
   --output ./lexr-arch-terminal-v23.iso
 
