@@ -205,4 +205,6 @@ type Manager struct {
 	now func() time.Time
 	// hostOS records the runtime platform and is injectable for deterministic tests.
 	hostOS string
+	// hostArchitecture records the runtime architecture for deterministic tests.
+	hostArchitecture string
 }

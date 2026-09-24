@@ -7,6 +7,7 @@ import (
 	"time"
 
 	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
@@ -163,6 +164,8 @@ type Manager struct {
 	Runner platform.Runner
 	// now supplies deterministic manifest times in tests.
 	now func() time.Time
+	// host records the static publication capability for deterministic tests.
+	host hostcap.Host
 	// validate repeats the static build-bundle proof before local publication.
 	validate func(context.Context, platform.Runner, camerabuild.ValidationRequest) (camerabuild.BundleReceipt, error)
 	// beforeAuthorityCheck is an internal hostile-mutation test hook invoked

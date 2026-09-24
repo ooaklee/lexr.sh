@@ -17,6 +17,16 @@ import (
 
 // prepare executes a validated plan through one fresh atomic local publication.
 func (manager *Manager) prepare(ctx context.Context, request Request) (Receipt, error) {
+	if err := ctx.Err(); err != nil {
+		return Receipt{}, err
+	}
+	if manager != nil && !request.DryRun {
+		availability := publicationRequirement.Evaluate(manager.host)
+		if !availability.Executable {
+			plan := Plan{DryRun: false, Executable: false, ExecutionBlocker: availability.ExecutionBlocker}
+			return Receipt{Plan: plan}, errors.New(availability.ExecutionBlocker)
+		}
+	}
 	plan, err := manager.plan(ctx, request)
 	receipt := Receipt{Plan: plan}
 	if err != nil {
@@ -24,6 +34,9 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Receipt, 
 	}
 	if plan.DryRun {
 		return receipt, nil
+	}
+	if !plan.Executable {
+		return receipt, errors.New(plan.ExecutionBlocker)
 	}
 	if err := ctx.Err(); err != nil {
 		return receipt, err
