@@ -11,7 +11,7 @@ import (
 // and the pinned source checksum reach Debian's actual GRUB-centred plan
 // without another adapter's workflow.
 func TestImageManagerPlansDebianLiveWorkflow(t *testing.T) {
-	operation, err := newImagePlanTestManager().Plan(CreateImageRequest{CatalogID: "debian-live-testing-gnome-arm64-20240902", Output: "/output/debianlive.iso", KernelProfile: "surface-pro-11-x1e-oled"})
+	operation, err := newImagePlanTestManager().Plan(CreateImageRequest{CatalogID: "debian-live-testing-gnome-arm64-20240902", Output: "/output/debianlive.iso", Profile: "surface-pro-11-x1e-oled"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestImageManagerRoutesDebianLiveRequestToItsAdapter(t *testing.T) {
 		Source:                   "/inputs/source.iso",
 		Output:                   "/output/debianlive.iso",
 		SourceSHA256:             "1111111111111111111111111111111111111111111111111111111111111111",
-		KernelProfile:            "surface-pro-11-x1e-oled",
+		Profile:                  "surface-pro-11-x1e-oled",
 		CompanionSourceDirectory: "/inputs/lexr",
 		CompanionUserspace:       []string{"iptsd"},
 	})
@@ -54,7 +54,7 @@ func TestImageManagerRoutesDebianLiveRequestToItsAdapter(t *testing.T) {
 	if got := operation.Steps[2].Inputs["userspace"]; got != "iptsd-v1" {
 		t.Fatalf("companion userspace not propagated: %q", got)
 	}
-	if got := operation.Steps[1].Inputs["profile"]; got != "surface-pro-11-x1e-oled" {
+	if got := operation.Steps[1].Inputs["profile"]; got != "x1e80100-microsoft-denali-oled" {
 		t.Fatalf("kernel profile not propagated: %q", got)
 	}
 }

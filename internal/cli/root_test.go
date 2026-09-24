@@ -225,8 +225,8 @@ func TestCatalogListDelivery(t *testing.T) {
 		if err := json.Unmarshal([]byte(output), &entries); err != nil {
 			t.Fatalf("catalog list JSON cannot be decoded: %v\n%s", err, output)
 		}
-		if len(entries) != 7 {
-			t.Fatalf("catalog list JSON entries = %d, want 7", len(entries))
+		if len(entries) != 8 {
+			t.Fatalf("catalog list JSON entries = %d, want 8", len(entries))
 		}
 		for index := 1; index < len(entries); index++ {
 			if entries[index-1].ID >= entries[index].ID {
@@ -322,7 +322,7 @@ func TestCatalogValidateDelivery(t *testing.T) {
 		if err != nil {
 			t.Fatalf("catalog validate error = %v", err)
 		}
-		if output != "catalog valid: schema 3, 7 entries\n" {
+		if output != "catalog valid: schema 3, 8 entries\n" {
 			t.Fatalf("catalog validate output = %q", output)
 		}
 	})
@@ -343,7 +343,7 @@ func TestCatalogValidateDelivery(t *testing.T) {
 		if err := json.Unmarshal([]byte(output), &result); err != nil {
 			t.Fatalf("catalog validate JSON cannot be decoded: %v\n%s", err, output)
 		}
-		if !result.Valid || result.SchemaVersion != 3 || result.Entries != 7 || result.Description == "" {
+		if !result.Valid || result.SchemaVersion != 3 || result.Entries != 8 || result.Description == "" {
 			t.Fatalf("catalog validate result = %#v", result)
 		}
 	})
