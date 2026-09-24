@@ -7,6 +7,8 @@ Use the reference pages when you need an exact command shape, want to check whet
 | Question | Reference |
 | --- | --- |
 | Which command or command family should I use? | [Command reference](command-reference.md) |
+| Which settings can I save, and how are files combined? | [Configuration reference](configuration.md) |
+| Which profile identifies my device? | [Hardware profiles](../concepts/hardware-profiles.md) |
 | Which operating system, tool, storage, network access, or privilege does a task need? | [Requirements by workflow](requirements.md) |
 | What does Lexr publish, generate, consume privately, or leave to the OE release channel? | [Project and support boundaries](project-boundaries.md) |
 

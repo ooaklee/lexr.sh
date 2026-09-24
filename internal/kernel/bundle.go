@@ -558,6 +558,21 @@ func CloneDeviceTrees(source []DeviceTree) []DeviceTree {
 	return result
 }
 
+// BootPlatforms lists identities selected by the bundle's declared boot contract.
+// Packaged optional DTBs alone are not evidence that a platform can be selected.
+// Callers must validate the bundle and its bytes before relying on this list.
+func (bundle Bundle) BootPlatforms() []string {
+	var platforms []string
+	for _, tree := range bundle.DeviceTrees {
+		selected := bundle.EffectiveDTBDelivery == DTBDeliveryEmbedded && tree.EmbeddedMatches == 1 && len(tree.Selectors) > 0
+		selected = selected || bundle.EffectiveDTBDelivery == DTBDeliveryExternalRequired && tree.Required
+		if selected {
+			platforms = append(platforms, tree.Device)
+		}
+	}
+	return platforms
+}
+
 // FirmwareRelativePath returns the DTB's path beneath the ABI's
 // /usr/lib/firmware/<abi>/device-tree directory.
 func (tree DeviceTree) FirmwareRelativePath(abi string) (string, bool) {

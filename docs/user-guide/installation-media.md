@@ -57,22 +57,25 @@ from the USB companion. This confirms the desktop guide's IPTSD workflow;
 pressure, palm rejection and suspend/resume need separate testing. Audio
 configuration and validation remain part of the installed-system workflow.
 
-Run the host checks, create the image, and validate the completed output:
+Save your target profile, run the host checks, create the image, and validate
+the completed output. These examples target the Surface Pro 11 X Elite OLED;
+see [hardware profiles](../concepts/hardware-profiles.md) for the LCD choice and
+distribution-specific limits.
 
 ```sh
 lexr doctor
+lexr init x1e80100-microsoft-denali-oled
 lexr image create --output lexr-ubuntu-sp11.iso
 lexr image validate lexr-ubuntu-sp11.iso
 ```
 
 Use `--source` to supply an already downloaded Ubuntu Concept ISO, `--source-sha256` to require a known digest, `--kernel-dir` to use a local kernel bundle, or `--kernel-release` to select a tagged release. Cache and temporary-workspace locations can also be overridden.
 
-If the selected kernel bundle reports `external-required` DTB delivery, also
-pass `--kernel-profile <platform-id>`. Offline media has no physical machine
-identity during creation, so Lexr requires one explicit declared profile (for
-example, `surface-pro-11-x1e-oled`) and records that projection in the image
-manifest. Embedded Stubble bundles select their matching DTB at boot and reject
-this option.
+Your saved profile works with both DTB delivery modes. For `external-required`
+bundles, Lexr selects that platform and records the choice in the image
+manifest. Embedded Stubble bundles keep their matching-DTB selection at boot,
+after Lexr verifies that the bundle contains boot support for your profile.
+Use global `--profile <id>` to override the saved choice for one image.
 
 The catalogue pins Canonical's dated 2026-03-26 snapshot rather than its mutable latest-image alias. Canonical does not publish a checksum alongside that snapshot, so a reproducible trust decision still requires you to record the downloaded SHA-256 digest and pass both the local path and digest:
 
@@ -128,7 +131,7 @@ mkdir -p ../lexr-build
 lexr image create \
   --catalog-id elementary-os-8-1-20260219 \
   --kernel-release sp11-qcom-x1e-7.2.0-jg-0sp11v23 \
-  --kernel-profile surface-pro-11-x1e-oled \
+  --profile x1e80100-microsoft-denali-oled \
   --companion-source-dir . \
   --companion-userspace iptsd-v1 \
   --output ../lexr-build/lexr-elementary-sp11.iso
@@ -241,7 +244,7 @@ Replace `/dev/diskX` with the reviewed whole-device path shown on your host. The
 Run the real operation with elevated privilege and paste the exact phrase from the current plan. The phrase includes both the whole-device path and full source SHA-256; `yes`, a shortened digest, and a phrase from a different plan are rejected.
 
 ```sh
-sudo lexr image write lexr-ubuntu-sp11.iso \
+sudo lexr --profile x1e80100-microsoft-denali-oled image write lexr-ubuntu-sp11.iso \
   --device /dev/diskX \
   --confirm 'ERASE /dev/diskX DEVICE <opaque-fingerprint> AND WRITE SHA256 <full-sha256>'
 ```

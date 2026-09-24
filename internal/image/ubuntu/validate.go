@@ -164,6 +164,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		return report, fmt.Errorf("decode embedded manifest: %w", err)
 	}
 	report.KernelABI = manifest.KernelBundle.ABI
+	report.BootProfiles = manifest.KernelBundle.BootPlatforms()
 	for _, dtb := range manifest.KernelBundle.DeviceTrees {
 		report.DeviceTrees = append(report.DeviceTrees, dtb.Device)
 	}

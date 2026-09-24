@@ -11,7 +11,7 @@ import (
 // and the pinned source checksum reach elementary's actual GRUB-centred plan
 // without another adapter's workflow.
 func TestImageManagerPlansElementarySingleRootWorkflow(t *testing.T) {
-	operation, err := newImagePlanTestManager().Plan(CreateImageRequest{CatalogID: "elementary-os-8-1-20260219", Output: "/output/elementary.iso", KernelProfile: "surface-pro-11-x1e-oled"})
+	operation, err := newImagePlanTestManager().Plan(CreateImageRequest{CatalogID: "elementary-os-8-1-20260219", Output: "/output/elementary.iso", Profile: "surface-pro-11-x1e-oled"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestImageManagerRoutesElementaryRequestToItsAdapter(t *testing.T) {
 		Source:                   "/inputs/source.iso",
 		Output:                   "/output/elementary.iso",
 		SourceSHA256:             "1111111111111111111111111111111111111111111111111111111111111111",
-		KernelProfile:            "surface-pro-11-x1e-oled",
+		Profile:                  "surface-pro-11-x1e-oled",
 		CompanionSourceDirectory: "/inputs/lexr",
 		CompanionUserspace:       []string{"iptsd"},
 	})
@@ -54,7 +54,7 @@ func TestImageManagerRoutesElementaryRequestToItsAdapter(t *testing.T) {
 	if got := operation.Steps[2].Inputs["userspace"]; got != "iptsd-v1" {
 		t.Fatalf("companion userspace not propagated: %q", got)
 	}
-	if got := operation.Steps[1].Inputs["profile"]; got != "surface-pro-11-x1e-oled" {
+	if got := operation.Steps[1].Inputs["profile"]; got != "x1e80100-microsoft-denali-oled" {
 		t.Fatalf("kernel profile not propagated: %q", got)
 	}
 }

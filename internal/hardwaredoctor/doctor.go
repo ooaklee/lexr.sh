@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ooaklee/lexr.sh/internal/profile"
 )
 
 const (
@@ -83,7 +85,7 @@ func (doctor *Doctor) Inspect(ctx context.Context, options Options) (Report, err
 			report.Ready = false
 		}
 	}
-	platformCheck, platformMatched := doctor.inspectPlatform(ctx)
+	platformCheck, platformMatched := doctor.inspectPlatform(ctx, options.Profile)
 	add(platformCheck)
 	if err := ctx.Err(); err != nil {
 		return Report{}, err
@@ -162,7 +164,7 @@ func (doctor *Doctor) Inspect(ctx context.Context, options Options) (Report, err
 }
 
 // inspectPlatform verifies the loaded device tree without returning its raw text.
-func (doctor *Doctor) inspectPlatform(ctx context.Context) (Check, bool) {
+func (doctor *Doctor) inspectPlatform(ctx context.Context, expected string) (Check, bool) {
 	model, modelErr := doctor.filesystem.ReadFile(ctx, "/sys/firmware/devicetree/base/model", maximumIdentityBytes)
 	compatible, compatibleErr := doctor.filesystem.ReadFile(ctx, "/sys/firmware/devicetree/base/compatible", maximumIdentityBytes)
 	// /proc/device-tree is commonly an absolute symlink to the canonical sysfs
@@ -176,6 +178,19 @@ func (doctor *Doctor) inspectPlatform(ctx context.Context) (Check, bool) {
 	modelMatches := modelErr == nil && strings.Contains(strings.ToLower(string(model)), "surface pro 11")
 	compatibleText := strings.ToLower(strings.ReplaceAll(string(compatible), "\x00", " "))
 	compatibleMatches := compatibleErr == nil && strings.Contains(compatibleText, "microsoft,denali") && strings.Contains(compatibleText, "qcom,x1e80100")
+	if expected != "" {
+		selected, selectionErr := profile.Resolve(expected)
+		observed, evidenceErr := profile.MatchCompatible(compatible)
+		if selectionErr != nil || evidenceErr != nil || selected.ID != observed.ID {
+			return Check{
+				ID: "platform-surface-pro-11", Evidence: EvidenceStatic,
+				State: StateFail, Required: true,
+				Detail:      "the loaded device tree does not prove the selected hardware profile",
+				Remediation: "check --profile or your saved profile and run on the target device",
+			}, false
+		}
+		modelMatches, compatibleMatches = true, true
+	}
 	if modelMatches || compatibleMatches {
 		return Check{
 			ID:       "platform-surface-pro-11",

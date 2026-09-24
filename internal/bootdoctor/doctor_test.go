@@ -645,7 +645,7 @@ func TestInspectMarksSharedDigestAttributionAmbiguous(t *testing.T) {
 // assigned a hardware variant by guesswork.
 func TestInspectRequiresDeviceForAlternateRoot(t *testing.T) {
 	_, err := New().Inspect(context.Background(), Options{Root: t.TempDir()})
-	if err == nil || !strings.Contains(err.Error(), "--device is required") {
+	if err == nil || !strings.Contains(err.Error(), "--profile is required") {
 		t.Fatalf("alternate-root device error = %v", err)
 	}
 }

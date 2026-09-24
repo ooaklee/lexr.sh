@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/ooaklee/lexr.sh/internal/kernel/install"
+	"github.com/ooaklee/lexr.sh/internal/profile"
 )
 
 const (
@@ -359,20 +360,16 @@ func selectDevice(ctx context.Context, root, requested string) (string, error) {
 		return "x1e-oled", nil
 	}
 	if filepath.Clean(root) != string(filepath.Separator) {
-		return "", errors.New("--device is required when --root is not the live root")
+		return "", errors.New("--profile is required when --root is not the live root")
 	}
-	model, modelErr := install.ReadRootFile(ctx, root, "sys/firmware/devicetree/base/model", "live device-tree model", 4096)
-	compatible, compatibleErr := install.ReadRootFile(ctx, root, "sys/firmware/devicetree/base/compatible", "live device-tree compatibility", 4096)
-	evidence := strings.ToLower(string(model) + " " + strings.ReplaceAll(string(compatible), "\x00", " "))
-	if modelErr == nil || compatibleErr == nil {
-		switch {
-		case strings.Contains(evidence, "x1p64100") || strings.Contains(evidence, "lcd"):
-			return "x1p-lcd", nil
-		case strings.Contains(evidence, "x1e80100") || strings.Contains(evidence, "oled"):
-			return "x1e-oled", nil
-		}
+	if err := ctx.Err(); err != nil {
+		return "", err
 	}
-	return "", errors.New("--device is required because the live hardware variant could not be proven from static evidence")
+	selected, err := profile.Detect(root)
+	if err != nil {
+		return "", fmt.Errorf("--profile is required because the live hardware could not be identified: %w", err)
+	}
+	return selected.Device, nil
 }
 
 // inspectEntry checks recognised paths without retaining any other stanza arguments.

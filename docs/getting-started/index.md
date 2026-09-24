@@ -18,7 +18,24 @@ Confirm the result before continuing:
 lexr version
 ```
 
-## 2. Check the host
+## 2. Choose your hardware
+
+Image creation can run on a different machine from the one you will boot.
+Tell Lexr which device the image is for:
+
+```sh
+lexr profile list
+lexr init x1e80100-microsoft-denali-oled
+lexr config check
+```
+
+That example selects the Surface Pro 11 X Elite OLED. For the X Plus LCD, use
+`x1p64100-microsoft-denali`. Lexr saves your choice in its configuration file;
+you can override it for one command with `--profile <id>`. See
+[hardware profiles](../concepts/hardware-profiles.md) for detection and current
+device limits.
+
+## 3. Check the host
 
 Image creation currently needs Docker with a running daemon and Linux ARM64
 container support, at least 24 GiB of free workspace storage, and network access
@@ -34,7 +51,7 @@ is still the final proof that the host can run its ARM64 tooling. See the
 [requirements reference](../reference/requirements.md) if you plan to write a
 USB device, build a camera component or prepare a release.
 
-## 3. Create and validate an image
+## 4. Create and validate an image
 
 ```sh
 lexr image create --output lexr-ubuntu-sp11.iso
@@ -59,7 +76,7 @@ Surface Pro 11. Follow [the Ubuntu qualification](https://github.com/ooaklee/lex
 or [the Fedora boot investigation](https://github.com/ooaklee/lexr.sh/issues/17)
 before interpreting a structurally valid image as supported hardware.
 
-## 4. Review the USB write
+## 5. Review the USB write
 
 List candidate whole devices, then ask Lexr for a plan. Neither command writes
 to the device.

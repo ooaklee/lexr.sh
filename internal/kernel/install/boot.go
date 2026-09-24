@@ -36,12 +36,19 @@ const (
 	// maximumBootImageInspectionBytes bounds the in-memory PE section review
 	// used only when GRUB supplies no external device tree.
 	maximumBootImageInspectionBytes int64 = 512 << 20
-	// abiStampedDeviceTreeMarker defers hardware attribution to installed bytes.
+	// abiStampedDeviceTreeMarker also covers the historical shared DTB name;
+	// both require attribution from installed bytes instead of a GRUB title.
 	abiStampedDeviceTreeMarker = "abi-stamped"
 )
 
 // verifyFallback proves that the running fallback has complete boot artefacts.
 func verifyFallback(ctx context.Context, root, abi string) (BootEvidence, error) {
+	return verifyFallbackProfile(ctx, root, abi, "")
+}
+
+// verifyFallbackProfile additionally binds the proven boot bytes to the chosen
+// model. A shared kernel ABI or GRUB title cannot establish hardware identity.
+func verifyFallbackProfile(ctx context.Context, root, abi, profileID string) (BootEvidence, error) {
 	evidence, err := verifyBootFiles(ctx, root, abi)
 	if err != nil {
 		return BootEvidence{}, fmt.Errorf("fallback ABI %s: %w", abi, err)
@@ -70,6 +77,9 @@ func verifyFallback(ctx context.Context, root, abi string) (BootEvidence, error)
 	}
 	evidence.GRUBEntryCount = entries
 	evidence.DeviceTreeBoot = deviceTreeBoot
+	if err := verifyBootProfile(ctx, root, abi, profileID, deviceTreeBoot); err != nil {
+		return BootEvidence{}, fmt.Errorf("fallback ABI %s: %w", abi, err)
+	}
 	return evidence, nil
 }
 
@@ -838,30 +848,13 @@ func InspectDeviceTreeBootBinding(ctx context.Context, root, abi, device string,
 	if selected.Device == "" {
 		return DeviceTreeBootEvidence{}, errors.New("device has no required device-tree contract")
 	}
-	target, err := rootPath(root, "usr/lib/firmware/"+abi+"/device-tree/"+selected.Path)
-	if err != nil {
-		return DeviceTreeBootEvidence{}, err
+	// Attribute the complete boot inventory before checking the chosen model.
+	// A multi-model embedded image must not lose its other legitimate payloads.
+	evidence, err := verifyGRUBDeviceTreeBindings(ctx, root, abi, entries, nil)
+	if err == nil {
+		err = verifyBootProfile(ctx, root, abi, selected.Device, evidence)
 	}
-	external := false
-	for _, entry := range entries {
-		if len(entry.DeviceTrees) == 0 {
-			continue
-		}
-		external = true
-		entryDevice, _, recognised := requiredTreeForEntry(entry, abi)
-		if !recognised || (entryDevice != abiStampedDeviceTreeMarker && entryDevice != selected.Device) {
-			return DeviceTreeBootEvidence{}, errors.New("matching GRUB entry names a different device-tree variant")
-		}
-	}
-	if external {
-		// Legacy diagnostics retain their bounded shared-name mapping. Generic
-		// schema-2 installation always supplies the signed inventory instead.
-		return verifyGRUBDeviceTreeBindings(ctx, root, abi, entries, nil)
-	}
-	return verifyGRUBDeviceTreeBindings(ctx, root, abi, entries, []DeviceTree{{
-		Device: selected.Device, RelativePath: selected.Path, TargetPath: target,
-		EmbeddedMatches: 1,
-	}})
+	return evidence, err
 }
 
 // verifyExternalDeviceTreeBinding checks one recognised GRUB DTB token and
@@ -1089,7 +1082,7 @@ func verifyABIStampedDeviceTreeBinding(ctx context.Context, root, abi, token str
 		}
 	}
 	if attributed == 0 {
-		return "", fmt.Errorf("ABI-stamped GRUB device-tree for ABI %s does not match any installed variant", abi)
+		return "", fmt.Errorf("GRUB device-tree does not match installed ABI %s (no matching variant)", abi)
 	}
 	return bootSide.SHA256, nil
 }
@@ -1220,30 +1213,21 @@ func declaredTreeForEntry(entry GRUBEntry, abi string, trees []DeviceTree) (stri
 	return "", "", false
 }
 
-// requiredTreeForEntry maps canonical and legacy shared names to one compiled
-// Surface hardware variant. ABI-stamped names return a marker so the caller
-// can derive the variant from installed digest evidence rather than the title.
+// requiredTreeForEntry identifies model-specific filenames directly. Shared
+// and ABI-stamped names require digest attribution; titles and the common
+// -qcom-x1e ABI suffix say nothing about which display model is installed.
 func requiredTreeForEntry(entry GRUBEntry, abi string) (string, string, bool) {
 	token := strings.ToLower(entry.DeviceTrees[0].Path)
 	if _, valid := ABIStampedDTBIdentity(token); valid && ABIStampedDTBMatchesABI(token, abi) {
 		return abiStampedDeviceTreeMarker, "", true
 	}
-	title := strings.ToLower(entry.Title)
-	titleX1P := strings.Contains(title, "x1p") || strings.Contains(title, "lcd")
-	titleX1E := strings.Contains(title, "x1e") || strings.Contains(title, "oled")
 	for _, tree := range requiredDeviceTrees {
 		if filepath.Base(token) == strings.ToLower(filepath.Base(tree.Path)) {
-			if (strings.Contains(tree.Device, "x1p") && titleX1E) || (strings.Contains(tree.Device, "x1e") && titleX1P) {
-				return "", "", false
-			}
 			return tree.Device, tree.Path, true
 		}
 	}
-	if filepath.Base(token) == "sp11-denali.dtb" && titleX1P && !titleX1E {
-		return requiredDeviceTrees[1].Device, requiredDeviceTrees[1].Path, true
-	}
-	if filepath.Base(token) == "sp11-denali.dtb" && !titleX1P {
-		return requiredDeviceTrees[0].Device, requiredDeviceTrees[0].Path, true
+	if filepath.Base(token) == "sp11-denali.dtb" {
+		return abiStampedDeviceTreeMarker, "", true
 	}
 	return "", "", false
 }

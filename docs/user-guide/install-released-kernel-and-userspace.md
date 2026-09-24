@@ -5,19 +5,41 @@ running kernel as a recovery path, and add the audited recommended userspace
 support. [Install Lexr on the device](../getting-started/install.md) before you
 begin.
 
+## Choose the hardware target
+
+Choose your device once. The commands below carry that same choice through
+preflight, installation and the final boot check:
+
+| Your Surface Pro 11 | Hardware profile |
+| --- | --- |
+| Snapdragon X Plus, LCD | `x1p64100-microsoft-denali` |
+| Snapdragon X Elite, OLED | `x1e80100-microsoft-denali-oled` |
+
+This example selects LCD. Change the assignment to the OLED ID for that model:
+
+```sh
+lexr profile list
+HARDWARE_PROFILE="x1p64100-microsoft-denali"
+lexr init "$HARDWARE_PROFILE"
+```
+
+`lexr init` saves the choice for later commands. The privileged examples also
+pass it explicitly because `sudo` reads root's configuration. An absolute
+`--config` path is another way to use your saved settings under sudo. See
+[hardware profiles](../concepts/hardware-profiles.md) for detection and offline
+targets.
+
 ## Check the target and Lexr version
 
-This workflow supports an installed Debian or Ubuntu target with `apt-get`,
+This page describes the 0.5.0 workflow on an installed Debian or Ubuntu target with `apt-get`,
 `dpkg`, `dpkg-deb`, `update-initramfs`, and the normal GRUB package hooks. Read
 the notes for the installed Lexr release because documentation on `main` can
 describe behaviour which has not reached that executable.
 
-Resolve the executable once so the read-only checks and privileged operations
-use the same reviewed binary:
+Check your installed Lexr version:
 
 ```sh
-LEXR="$(command -v lexr)"
-"$LEXR" version
+lexr version
 ```
 
 The catalogue embedded in that version selects the audited userspace releases,
@@ -36,6 +58,10 @@ state for that ABI makes preflight fail closed. See the
 [requirements reference](../reference/requirements.md) for the complete host
 and privilege boundary.
 
+The `-qcom-x1e` suffix names the shared kernel package family. It does **not**
+mean your machine is OLED. Lexr checks the selected model's device-tree bytes
+for both the fallback and the new kernel.
+
 ## 1. Download an exact kernel release
 
 List the non-draft releases which contain a candidate image and modules pair,
@@ -45,13 +71,13 @@ then copy one exact tag into `KERNEL_REF`. An exact tag is reproducible;
 Choose a bundle path which has not held another download:
 
 ```sh
-"$LEXR" kernel release list
+lexr kernel release list
 
 KERNEL_REF="<exact-tag-shown-by-the-list>"
 KERNEL_BUNDLE="$PWD/kernel-bundle"
 RUNNING_ABI="$(uname -r)"
 
-"$LEXR" kernel release download "$KERNEL_REF" \
+lexr kernel release download "$KERNEL_REF" \
   --headers \
   --output-dir "$KERNEL_BUNDLE"
 ```
@@ -64,14 +90,15 @@ modules installation.
 
 ## 2. Preflight the installation
 
-Run the read-only preflight and dry run as your regular user:
+Kernel images can be readable only by root. Use sudo for these read-only
+checks and retain your hardware choice explicitly; `sudo -i` is unnecessary:
 
 ```sh
-"$LEXR" kernel preflight "$KERNEL_BUNDLE" \
+sudo lexr --profile "$HARDWARE_PROFILE" kernel preflight "$KERNEL_BUNDLE" \
   --root / \
   --fallback-abi "$RUNNING_ABI"
 
-"$LEXR" kernel install "$KERNEL_BUNDLE" \
+sudo lexr --profile "$HARDWARE_PROFILE" kernel install "$KERNEL_BUNDLE" \
   --root / \
   --fallback-abi "$RUNNING_ABI" \
   --dry-run
@@ -83,6 +110,17 @@ mode is either an exact same-ABI DTB embedded in the kernel image or a matching
 external DTB referenced consistently by its GRUB entries. These checks do not
 modify the system and do not prove that either kernel passes physical hardware
 qualification.
+
+For an older installation that boots through `/boot/sp11-denali.dtb`, Lexr
+first proves that those bytes match the selected model's installed fallback
+DTB. The plan then shows the exact-ABI copy it will preserve for stock GRUB,
+any recognised competing hooks it will back up and retire, and the new
+kernel's explicit profile refresh. Neither command above applies those changes.
+
+An unrecognised executable at either retired hook path, a conflicting
+exact-ABI DTB or a wrong-model fallback stops the operation before package
+installation. Follow the named error and review that evidence; choosing a
+profile does not bypass verification.
 
 If the running kernel is the broken candidate and another installed kernel is
 your known-good fallback, replace `$RUNNING_ABI` with that exact installed ABI
@@ -96,11 +134,11 @@ invalid checksum manifest for a published release.
 
 ## 3. Install the kernel
 
-Install only after the complete dry run is acceptable. Lexr never elevates
-itself, so grant privilege only to the confirmed operation:
+Install only after the complete dry run is acceptable. Add `--yes` to authorise
+the changes using the same profile, bundle and fallback:
 
 ```sh
-sudo "$LEXR" kernel install "$KERNEL_BUNDLE" \
+sudo lexr --profile "$HARDWARE_PROFILE" kernel install "$KERNEL_BUNDLE" \
   --root / \
   --fallback-abi "$RUNNING_ABI" \
   --yes
@@ -111,6 +149,9 @@ ABI and add `--force` to this confirmed command as well.
 
 The real installation repeats preflight immediately before mutation, retains
 the fallback, backs up GRUB, and verifies the installed package and boot state.
+For external-DTB kernels, it calls the bundle's boot-support helper with your
+chosen profile after installation. You do not need to install that helper
+separately or run a manual boot refresh as part of the normal workflow.
 The receipt distinguishes the number of packaged DTBs from the verified
 boot-time mode. Packaged DTBs alone are insufficient: Lexr requires an exact
 same-ABI embedded DTB or a matching external GRUB binding before reporting
@@ -118,16 +159,22 @@ same-ABI embedded DTB or a matching external GRUB binding before reporting
 rollback attempt, but the receipt may still require recovery action if rollback
 cannot finish.
 
+Recognised retired `zzzz-surface-pro-11-dtb` hooks are backed up through Lexr's
+reversible cleanup mechanism before package scripts run. The receipt records
+their backup location. Failed installations attempt to restore them after
+package rollback; changed local files are never overwritten during recovery.
+The verified fallback DTB copy remains available even if installing the new
+kernel fails. Unknown hooks are left for explicit review.
+
 After installation, inspect the generated boot evidence before rebooting.
-Choose `x1e-oled` for the OLED model or `x1p-lcd` for the LCD model, and copy
-the exact target ABI from the installation plan or receipt:
+Keep the same hardware choice and copy the exact target ABI from the
+installation plan or receipt:
 
 ```sh
 TARGET_ABI="<exact-target-abi>"
 
-"$LEXR" doctor boot \
+sudo lexr --profile "$HARDWARE_PROFILE" doctor boot \
   --root / \
-  --device x1e-oled \
   --target-abi "$TARGET_ABI" \
   --fallback-abi "$RUNNING_ABI"
 ```
@@ -145,9 +192,9 @@ DTB on the effective default or an explicitly selected target or fallback ABI
 makes the report not ready after the complete output has been written. Drift
 on another entry is a warning.
 
-For an alternate mounted root, `--device` is required. On the live root it may
-be omitted only when the hardware variant can be established from bounded
-device-tree evidence. This static command never runs `update-grub`, changes a
+For an alternate mounted root, an explicit or saved profile is required. On
+the live root, an unset profile can be detected from exact device-tree
+evidence. This static command never runs `update-grub`, changes a
 default, rewrites a DTB, elevates privileges, or proves physical bootability.
 
 ### Audit embedded and external boot-DTB usage per GRUB entry
@@ -172,13 +219,12 @@ identity is not one canonical qcom ABI, have no digest comparison; the
 `legacy_hooks.retired_helper` field reports whether the retired helper is still
 present.
 
-Diagnosis is deliberately read-only. Lexr does not update, quarantine, or
-remove the retired helper or its kernel hooks, and it does not migrate an entry
-from the shared boot DTB to a per-ABI `/boot/dtbs/<abi>/` structure. Tracked
-per-ABI DTB binding policy, verified GRUB mutation, and legacy-path retirement
-are discussed in issue
-[#22](https://github.com/ooaklee/lexr.sh/issues/22); until then, any such
-changes are manual operator actions taken outside Lexr.
+Diagnosis is read-only. `doctor boot` reports the retired helper and hooks
+without executing or changing them. The confirmed installation described
+above can retire recognised hooks and preserve an already verified fallback
+at `/boot/dtb-<abi>`. It cannot repair a fallback whose current boot bytes
+already belong to another ABI or hardware model; use a verified recovery
+kernel before attempting an upgrade.
 
 Lexr does not reboot or explicitly select the default kernel. Package hooks
 regenerate the normal GRUB configuration. When you are ready to test, reboot
@@ -193,9 +239,9 @@ Inspect the complete system, then focus on the supported audio and IPTSD
 features:
 
 ```sh
-"$LEXR" doctor userspace
+lexr doctor userspace
 
-"$LEXR" userspace status \
+lexr userspace status \
   --feature audio \
   --feature iptsd
 ```
@@ -204,7 +250,7 @@ For automation, request JSON and inspect both its contents and the command's
 exit status:
 
 ```sh
-"$LEXR" userspace status --json
+lexr userspace status --json
 ```
 
 These commands share a static, point-in-time inspector. They do not run
@@ -225,14 +271,14 @@ firmware, Bluetooth evidence, or camera support. Use a fresh cache root:
 ```sh
 USERSPACE_CACHE="$PWD/lexr-userspace"
 
-"$LEXR" userspace pull recommended \
+lexr userspace pull recommended \
   --cache-dir "$USERSPACE_CACHE"
 
-"$LEXR" userspace install recommended \
+lexr userspace install recommended \
   --from "$USERSPACE_CACHE" \
   --dry-run
 
-sudo "$LEXR" userspace install recommended \
+sudo lexr --profile "$HARDWARE_PROFILE" userspace install recommended \
   --from "$USERSPACE_CACHE" \
   --yes
 ```
@@ -248,7 +294,7 @@ kernel pairing again:
 
 ```sh
 ACTIVE_ABI="$(uname -r)"
-"$LEXR" doctor userspace --kernel "$ACTIVE_ABI"
+lexr doctor userspace --kernel "$ACTIVE_ABI"
 ```
 
 Confirm that `uname -r` reports the ABI you intended to boot. A passing static
@@ -269,7 +315,7 @@ its separate verified download only when you intend to follow the camera
 qualification path:
 
 ```sh
-"$LEXR" userspace pull camera \
+lexr userspace pull camera \
   --cache-dir "$USERSPACE_CACHE"
 ```
 

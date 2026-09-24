@@ -13,11 +13,13 @@ import (
 
 	lexr "github.com/ooaklee/lexr.sh"
 	"github.com/ooaklee/lexr.sh/internal/catalog"
+	lexrconfig "github.com/ooaklee/lexr.sh/internal/config"
 	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
 	"github.com/ooaklee/lexr.sh/internal/kernel/release"
 	"github.com/ooaklee/lexr.sh/internal/kernel/releaseprep"
 	"github.com/ooaklee/lexr.sh/internal/manager"
 	"github.com/ooaklee/lexr.sh/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/profile"
 	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
 	userspacemanager "github.com/ooaklee/lexr.sh/internal/userspace/manager"
 	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
@@ -33,6 +35,12 @@ type application struct {
 	errOut               io.Writer
 	catalogPath          string
 	userspaceCatalogPath string
+	configPaths          []string
+	profileName          string
+	profile              profile.Profile
+	configuration        lexrconfig.Config
+	configurationValues  map[string]any
+	configurationLoaded  bool
 	loader               catalog.Loader
 	images               *manager.ImageManager
 	releases             *release.Client
@@ -79,6 +87,15 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cobra.NoArgs,
+		PersistentPreRunE: func(command *cobra.Command, _ []string) error {
+			if err := app.loadConfiguration(); err != nil {
+				return err
+			}
+			if err := app.applyConfiguration(command); err != nil {
+				return err
+			}
+			return app.selectProfile(command)
+		},
 		RunE: func(command *cobra.Command, _ []string) error {
 			if !isTerminalReader(input) {
 				return command.Help()
@@ -90,9 +107,17 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 	root.SetOut(output)
 	root.SetErr(errorOutput)
 	root.Flags().SortFlags = false
+	root.PersistentFlags().StringSliceVar(&app.configPaths, "config", nil, "configuration files in merge order (repeatable; overrides LEXR_CONFIG and the default path)")
+	configFlag := root.PersistentFlags().Lookup("config")
+	configFlag.Value = nonemptyConfigFlag{Value: configFlag.Value}
 	root.PersistentFlags().StringVar(&app.catalogPath, "catalog", "", "path to a supported image catalogue override")
 	root.PersistentFlags().StringVar(&app.userspaceCatalogPath, "userspace-catalog", "", "path to a supported userspace catalogue override")
+	root.PersistentFlags().StringVar(&app.profileName, "profile", "", "hardware profile ID (overrides configuration; auto detects local hardware)")
+	_ = root.RegisterFlagCompletionFunc("profile", completeProfiles)
 	root.AddCommand(
+		app.newConfigCommand(),
+		app.newInitCommand(),
+		app.newProfileCommand(),
 		app.newCatalogCommand(),
 		app.newKernelCommand(),
 		app.newImageCommand(),
@@ -104,6 +129,32 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 		app.newVersionCommand(),
 	)
 	return root
+}
+
+// loadConfiguration resolves and loads the process-wide CLI configuration once
+// after Cobra has parsed persistent flags.
+func (a *application) loadConfiguration() error {
+	if a.configurationLoaded {
+		return nil
+	}
+	paths, err := lexrconfig.ResolvePaths(a.configPaths)
+	if err != nil {
+		return fmt.Errorf("resolve configuration path: %w", err)
+	}
+	if a.configPaths == nil && os.Getenv("LEXR_CONFIG") == "" {
+		if _, err := os.Stat(paths[0]); os.IsNotExist(err) {
+			a.configurationLoaded = true
+			return nil
+		}
+	}
+	configuration, values, err := lexrconfig.LoadValues(paths)
+	if err != nil {
+		return err
+	}
+	a.configuration = configuration
+	a.configurationValues = values
+	a.configurationLoaded = true
+	return nil
 }
 
 // ExecuteContext runs a fresh root command with cancellation and explicit I/O.

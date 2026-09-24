@@ -85,6 +85,8 @@ const (
 // LegacyRules is the allow-list of obsolete workarounds that clean-up may
 // inspect. Apply never removes paths that are absent from this list.
 var LegacyRules = []Rule{
+	{ID: "kernel-boot-postinst", Feature: "kernel-boot", Path: "etc/kernel/postinst.d/zzzz-surface-pro-11-dtb", Reason: "the shared-DTB injector can corrupt exact-ABI GRUB bindings", Markers: []string{"/usr/local/sbin/sp11-grub-inject-dtb"}, prefix: []byte("#!"), maximumSize: 64 << 10},
+	{ID: "kernel-boot-postrm", Feature: "kernel-boot", Path: "etc/kernel/postrm.d/zzzz-surface-pro-11-dtb", Reason: "the shared-DTB injector can corrupt fallback bindings during package removal", Markers: []string{"/usr/local/sbin/sp11-grub-inject-dtb"}, prefix: []byte("#!"), maximumSize: 64 << 10},
 	{ID: "audio-wsa-unit", Feature: "audio", Path: "etc/systemd/system/sp11-wsa-routing.service", Reason: "legacy WSA routing is superseded by the native FullIO topology and UCM", Markers: []string{"sp11-enable-wsa-routing"}},
 	{ID: "audio-wsa-enablement", Feature: "audio", Path: "etc/systemd/system/multi-user.target.wants/sp11-wsa-routing.service", Reason: "legacy WSA routing enablement is obsolete", SymlinkTarget: "etc/systemd/system/sp11-wsa-routing.service"},
 	{ID: "audio-wsa-helper", Feature: "audio", Path: "usr/local/sbin/sp11-enable-wsa-routing.sh", Reason: "legacy WSA routing is superseded", Markers: []string{"sp11-wsa-routing"}},

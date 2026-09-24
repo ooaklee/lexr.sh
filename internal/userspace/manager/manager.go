@@ -89,6 +89,9 @@ type InstallRequest struct {
 	Selector string
 	// From is an exact release directory, or the userspace cache root for recommended.
 	From string
+	// DefaultCacheRoot is the configured userspace cache root used only when From
+	// is empty; every selected component is resolved beneath it by release tag.
+	DefaultCacheRoot string
 	// RepositoryRoot supplies current Git authority for a native camera build or
 	// prepared local release. Downloaded immutable bundles do not use it.
 	RepositoryRoot string
@@ -331,7 +334,7 @@ func (m *Manager) Install(ctx context.Context, request InstallRequest) ([]usersp
 	if request.Activate {
 		return nil, errors.New("--activate applies only to an explicit Wi-Fi installation")
 	}
-	targets, err := resolveInstallTargets(componentCatalog, components, request.From, recommended)
+	targets, err := resolveInstallTargets(componentCatalog, components, request.From, request.DefaultCacheRoot, recommended)
 	if err != nil {
 		return nil, err
 	}
@@ -412,8 +415,13 @@ func resolveInstallTargets(
 	componentCatalog *catalog.Catalog,
 	componentIDs []string,
 	from string,
+	defaultCacheRoot string,
 	recommended bool,
 ) ([]installTarget, error) {
+	usingDefault := strings.TrimSpace(from) == ""
+	if usingDefault {
+		from = defaultCacheRoot
+	}
 	if strings.TrimSpace(from) == "" {
 		return nil, errors.New("verified userspace release directory is required; pass --from")
 	}
@@ -431,8 +439,21 @@ func resolveInstallTargets(
 			return nil, fmt.Errorf("userspace component %q does not support verified installation", componentID)
 		}
 		bundleDir := absoluteFrom
-		if recommended {
+		if recommended || usingDefault {
 			bundleDir = filepath.Join(absoluteFrom, component.ID, component.Release.Tag)
+		}
+		if usingDefault {
+			info, statErr := os.Stat(bundleDir)
+			if errors.Is(statErr, os.ErrNotExist) || statErr == nil && !info.IsDir() {
+				pullSelector := component.ID
+				if recommended {
+					pullSelector = "recommended"
+				}
+				return nil, fmt.Errorf("userspace bundle %q is not available at default location %q; run lexr userspace pull %s first or pass --from", component.ID, bundleDir, pullSelector)
+			}
+			if statErr != nil {
+				return nil, fmt.Errorf("inspect default userspace bundle %q: %w", bundleDir, statErr)
+			}
 		}
 		targets = append(targets, installTarget{component: component.ID, bundleDir: bundleDir})
 	}

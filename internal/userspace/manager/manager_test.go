@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -175,6 +176,45 @@ func TestInstallRecommendedResolvesCacheAndPreflightsBeforeMutation(t *testing.T
 		if want := filepath.Join(cache, component, tag); call.options.BundleDir != want {
 			t.Fatalf("call[%d] bundle = %q, want %q", index, call.options.BundleDir, want)
 		}
+	}
+}
+
+// TestInstallSingleResolvesConfiguredDefaultCache verifies an omitted --from
+// selects the pulled component and release directory beneath the configured root.
+func TestInstallSingleResolvesConfiguredDefaultCache(t *testing.T) {
+	installer := &fakeInstaller{}
+	manager := New(catalog.NewLoader(testCatalogFS(), "supported-userspace.json"), &fakeDownloader{}, nil)
+	manager.Installer = installer
+	cache := t.TempDir()
+	bundle := filepath.Join(cache, AudioComponent, "sp11-audio-v19c")
+	if err := os.MkdirAll(bundle, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	results, err := manager.Install(context.Background(), InstallRequest{
+		Selector: "audio", DefaultCacheRoot: cache, Root: "/target", DryRun: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || len(installer.calls) != 1 || installer.calls[0].options.BundleDir != bundle {
+		t.Fatalf("results = %#v, calls = %#v", results, installer.calls)
+	}
+}
+
+// TestInstallSingleMissingDefaultBundleExplainsRecovery verifies an absent
+// configured bundle points operators to pull or an explicit source directory.
+func TestInstallSingleMissingDefaultBundleExplainsRecovery(t *testing.T) {
+	installer := &fakeInstaller{}
+	manager := New(catalog.NewLoader(testCatalogFS(), "supported-userspace.json"), &fakeDownloader{}, nil)
+	manager.Installer = installer
+	_, err := manager.Install(context.Background(), InstallRequest{
+		Selector: "audio", DefaultCacheRoot: t.TempDir(), DryRun: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "lexr userspace pull "+AudioComponent) || !strings.Contains(err.Error(), "pass --from") {
+		t.Fatalf("error = %v, want pull and --from guidance", err)
+	}
+	if len(installer.calls) != 0 {
+		t.Fatalf("installer calls = %#v, want none", installer.calls)
 	}
 }
 

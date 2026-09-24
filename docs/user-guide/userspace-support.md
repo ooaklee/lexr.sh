@@ -2,6 +2,18 @@
 
 The userspace companion answers the question that image creation cannot: after installing a custom kernel, which supporting components are present, missing, obsolete, or outside the CLI's redistribution boundary? Use it to inspect first, then pull, build, or install only the support you have selected.
 
+## Choose the hardware target
+
+Save your device with `lexr init <profile>` before the hardware steps below.
+Use `lexr profile list` to find the ID, or pass global `--profile` for one
+command. These examples use `x1e80100-microsoft-denali-oled` for the X Elite
+OLED; choose `x1p64100-microsoft-denali` for an X Plus LCD where the workflow
+permits it. [Hardware profiles](../concepts/hardware-profiles.md) explains live
+detection and the explicit choice required for mounted or offline targets.
+
+Privileged examples pass the profile because `sudo` may read root's own
+configuration. You can instead pass an absolute `--config` path.
+
 ## Audience and context
 
 This page is for operators checking firmware, audio, pen, touchscreen, camera, power, and related support on a live or installed system. It also covers contributors preparing local userspace releases. Userspace installation never removes legacy workarounds implicitly; [reversible clean-up](reversible-cleanup.md) remains a separate reviewed transaction.
@@ -61,6 +73,89 @@ lexr userspace build iptsd
 lexr userspace build camera
 ```
 
+### Configuration home and host directories
+
+Lexr's home is `os.UserConfigDir()/lexr`: normally `~/.config/lexr` on
+Linux, or `$XDG_CONFIG_HOME/lexr` when set. The optional YAML file remains
+`lexr.yml` inside that home. `LEXR_CONFIG` selects another file; the persistent
+repeatable `--config <path>` flag takes precedence and merges files in order.
+Selecting another file does not move the home. An absent standard default file
+is optional for ordinary commands; explicitly selected files must exist. Empty
+files are valid; unknown YAML keys are rejected. See
+[configuration management](configuration.md) for merging, `config check|edit|show`,
+and `init <profile>`.
+
+Host directory settings use this order: explicit flag, existing environment
+override, YAML setting, config-home default, legacy built-in default. These path
+flags have no individual environment variables; `LEXR_CONFIG` only selects the
+YAML file. Empty YAML values use defaults. An explicitly supplied flag, including
+an empty flag, retains its command's interpretation. Leading `~` or `~/` in host
+configuration paths expands to the user's home; other relative paths are kept
+relative to the current working directory.
+
+For example, move image work to a larger disk and share a userspace bundle cache:
+
+```yaml
+version: 1
+image:
+  create:
+    cache_dir: /mnt/lexr/caches/image
+    workspace_dir: /mnt/lexr/builds/image
+userspace:
+  pull:
+    cache_dir: /mnt/lexr/caches/userspace
+doctor:
+  workspace: /mnt/lexr/builds/image
+kernel:
+  release:
+    download:
+      output_dir: /mnt/lexr/caches/kernel
+wizard:
+  cache_dir: /mnt/lexr/caches/wizard
+```
+
+`userspace install` searches `userspace.pull.cache_dir` when `--from` is omitted,
+so the default pull-then-install flow uses one root. An explicit `--from` retains
+its existing meaning. The old flat `cache_dir` and `userspace_dir` YAML keys are
+not accepted by the nested schema.
+
+In this table, **home** means `os.UserConfigDir()/lexr`, **cache** means
+`os.UserCacheDir()`, and **repository** means the selected source checkout.
+
+| Setting or workflow | Previous default | Current default and reason |
+| --- | --- | --- |
+| Configuration file | home/lexr.yml | Unchanged |
+| `image create --cache-dir` | Empty → cache/lexr | home/caches/image; host downloads |
+| `image create --workspace-dir` | Empty → OS temporary directory | home/builds/image; host remaster work |
+| `userspace pull --cache-dir` | Empty → cache/lexr/userspace | home/caches/userspace; host bundles |
+| `userspace install` without `--from` | cache/lexr/userspace | Pull cache setting or home/caches/userspace |
+| `doctor --workspace` | `.` | home/builds/doctor; host workspace checks |
+| `kernel release download --output-dir` | `kernel-bundle` in current directory | home/caches/kernel; host download output |
+| `wizard --cache-dir` and interactive root launch | Empty → cache/lexr | home/caches/wizard; host image downloads |
+| Wizard workspace | Empty → OS temporary directory | `image.create.workspace_dir` or home/builds/image; same image workflow |
+| `kernel build --work-dir` | `build/lexr/kernel-build` | Unchanged (repository-relative/verbatim) |
+| `kernel build --output-dir` | `build/lexr/kernel` | Unchanged (repository-relative/verbatim) |
+| `userspace camera release prepare --output-dir` | Empty → `build/lexr/camera/releases` | Unchanged (repository-relative/verbatim) |
+| `image release prepare --out-dir` | Empty → `build/release/<release-name>` | Unchanged (repository-relative/verbatim) |
+| `kernel release prepare --output-dir` | Required explicit path | Unchanged host path: must name a fresh, absent directory for atomic publication; independent of `--build-dir` |
+| `userspace build --output-dir` | Empty → component default | Unchanged: camera uses repository-relative `build/lexr/camera/packages`; IPTSD uses the selected source root's `build/iptsd-sp11`, so this shared flag retains component semantics |
+| Audio release output | Repository `build/release` | Unchanged fixed repository-relative output |
+| `image create` / `wizard --output` | `lexr-sp11.iso` in current directory | Unchanged explicit deliverable filename |
+
+Default directories are created on demand, including during command planning;
+loading YAML, showing help, and running unrelated commands do not create them.
+Explicit paths are not created by the configuration resolver. Repository-relative
+build and release output values remain verbatim when loaded, including a literal
+`~`, for the owning workflow to interpret or validate.
+
+No existing caches are migrated. Use a YAML override to keep an existing cache,
+or pull again into the new default. Kernel downloads share one default directory;
+use `--output-dir` to keep multiple release bundles separate. Workspaces can be
+large; point `workspace_dir` at a suitable disk and use the same directory for
+`doctor.workspace` to check that disk. Creation errors are reported rather than
+redirecting writes; legacy defaults apply only if the OS cannot supply a config
+home (an explicit config-file path is then needed to load configuration).
+
 Source builds invoke only compiled, component-specific adapters with bounded arguments. Catalogue content is never interpreted as a shell command. The current camera package build requires a native ARM64 Linux host; users on other hosts can still pull and verify the published experimental package set.
 
 Both userspace source-build adapters use compiled Go policy and do not invoke repository scripts. They require the complete OE checkout because the native builders authenticate their tracked component inputs; pass `--repository-root <oe-checkout>` when it cannot be detected from the current directory. Pull, status, doctor, and installation from a downloaded immutable release do not have that checkout requirement. A successful native camera build prints an independent authority SHA-256 for its final receipt. Retain it separately from the directory. Installing a native camera build or prepared local camera release repeats static Git-backed provenance proof and therefore requires both the explicit repository root and the corresponding independently retained authority digest.
@@ -75,7 +170,7 @@ qualified Surface Pro 11 fallback from the selected root's existing
 
 ```sh
 lexr userspace install wifi --dry-run
-sudo lexr userspace install wifi --yes
+sudo lexr --profile x1e80100-microsoft-denali-oled userspace install wifi --yes
 ```
 
 This workflow needs no `--from` release, Windows files, previous installation,
@@ -90,7 +185,7 @@ Prepare the board data before booting the installed system:
 
 ```sh
 lexr userspace install wifi --dry-run
-sudo lexr userspace install wifi --yes
+sudo lexr --profile x1e80100-microsoft-denali-oled userspace install wifi --yes
 ```
 
 Reboot the installed system afterwards, then run `lexr doctor hardware wifi`.
@@ -117,20 +212,28 @@ restarts NetworkManager, the DSP or USB.
 Review an install before granting elevated access. A real install requires both effective root privileges and `--yes`; the CLI does not elevate itself. `--root` may select an alternate target filesystem where the component supports it.
 
 ```sh
-lexr userspace install recommended --from <userspace-cache> --dry-run
-sudo lexr userspace install recommended --from <userspace-cache> --yes
+lexr userspace pull recommended
+lexr userspace install recommended --dry-run
+sudo lexr --profile x1e80100-microsoft-denali-oled userspace install recommended --yes
 
 lexr userspace install camera \
   --from <native-camera-build-or-local-release> \
   --repository-root <oe-checkout> \
   --camera-authority-sha256 <matching-build-or-release-authority-sha256> \
   --dry-run
-sudo lexr userspace install camera \
+sudo lexr --profile x1e80100-microsoft-denali-oled userspace install camera \
   --from <native-camera-build-or-local-release> \
   --repository-root <oe-checkout> \
   --camera-authority-sha256 <matching-build-or-release-authority-sha256> \
   --yes
 ```
+
+With no `--from`, Lexr selects each downloaded bundle as
+`<userspace-dir>/<component-id>/<release-tag>`. If the selected bundle is not
+there, pull it first or pass `--from`. For a single component, an explicit
+`--from` remains the exact authenticated bundle directory; for `recommended`,
+it remains a userspace cache root containing the component and release
+subdirectories.
 
 On Arch, the audio installer recognises the packaged ALSA selector symlink at
 `/usr/share/alsa/ucm2/conf.d/x1e80100/x1e80100.conf` only when its value is exactly

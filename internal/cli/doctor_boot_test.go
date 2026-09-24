@@ -14,6 +14,7 @@ import (
 
 	"github.com/ooaklee/lexr.sh/internal/bootdoctor"
 	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
+	"github.com/ooaklee/lexr.sh/internal/profile"
 )
 
 // bootDoctorStub returns a deterministic report and records command options.
@@ -36,11 +37,15 @@ func (stub *bootDoctorStub) Inspect(ctx context.Context, options bootdoctor.Opti
 }
 
 // executeBootDoctorCommand runs the isolated child and captures both streams.
+// The application's profile substitutes for the removed --device flag.
 func executeBootDoctorCommand(t *testing.T, stub *bootDoctorStub, args ...string) (string, string, error) {
 	t.Helper()
 	var output bytes.Buffer
 	var errorOutput bytes.Buffer
 	app := &application{in: strings.NewReader(""), out: &output, errOut: &errorOutput}
+	if selected, err := profile.Resolve("x1e80100-microsoft-denali-oled"); err == nil {
+		app.profile = selected
+	}
 	root := &cobra.Command{Use: "test", SilenceErrors: true, SilenceUsage: true}
 	root.SetOut(app.out)
 	root.SetErr(app.errOut)
@@ -71,7 +76,7 @@ func failingBootDoctorReport() bootdoctor.Report {
 func TestBootDoctorJSONFailureRemainsMachineReadable(t *testing.T) {
 	stub := &bootDoctorStub{report: failingBootDoctorReport()}
 	output, errorOutput, err := executeBootDoctorCommand(t, stub,
-		"--root", "/target", "--device", "x1e-oled", "--target-abi", "7.2.2-jg-0sp11v2-qcom-x1e", "--fallback-abi", "7.2.0-jg-0sp11v20-qcom-x1e", "--json")
+		"--root", "/target", "--target-abi", "7.2.2-jg-0sp11v2-qcom-x1e", "--fallback-abi", "7.2.0-jg-0sp11v20-qcom-x1e", "--json")
 	if err == nil || !strings.Contains(err.Error(), "required static boot checks failed") {
 		t.Fatalf("boot doctor error = %v", err)
 	}
@@ -98,7 +103,7 @@ func TestBootDoctorHumanReportStatesStaticLimit(t *testing.T) {
 	report.Checks[0].State = bootdoctor.StateWarn
 	report.Checks[0].Required = false
 	stub := &bootDoctorStub{report: report}
-	output, errorOutput, err := executeBootDoctorCommand(t, stub, "--device", "x1e-oled")
+	output, errorOutput, err := executeBootDoctorCommand(t, stub)
 	if err != nil || errorOutput != "" {
 		t.Fatalf("human boot doctor error=%v stderr=%q", err, errorOutput)
 	}
@@ -124,7 +129,7 @@ func TestBootDoctorHumanReportShowsEmbeddedBinding(t *testing.T) {
 		Attribution: bootdoctor.DTBAttribution{BootSHA256: digest, DeviceTreeBoot: binding},
 	}
 	stub := &bootDoctorStub{report: report}
-	output, errorOutput, err := executeBootDoctorCommand(t, stub, "--device", "x1e-oled")
+	output, errorOutput, err := executeBootDoctorCommand(t, stub)
 	if err != nil || errorOutput != "" {
 		t.Fatalf("human boot doctor error=%v stderr=%q", err, errorOutput)
 	}
@@ -171,11 +176,14 @@ func TestBootDoctorRedactsAlternateRootFatalError(t *testing.T) {
 	var output bytes.Buffer
 	var errorOutput bytes.Buffer
 	app := &application{in: strings.NewReader(""), out: &output, errOut: &errorOutput}
+	if selected, err := profile.Resolve("x1e80100-microsoft-denali-oled"); err == nil {
+		app.profile = selected
+	}
 	command := &cobra.Command{Use: "test", SilenceErrors: true, SilenceUsage: true}
 	command.SetOut(app.out)
 	command.SetErr(app.errOut)
 	command.AddCommand(app.newBootDoctorCommand(nil))
-	command.SetArgs([]string{"boot", "--root", rootPath, "--device", "x1e-oled"})
+	command.SetArgs([]string{"boot", "--root", rootPath})
 	err := command.ExecuteContext(context.Background())
 	if err == nil {
 		t.Fatal("symlinked GRUB configuration unexpectedly passed inspection")

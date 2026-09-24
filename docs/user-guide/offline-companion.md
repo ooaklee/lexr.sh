@@ -2,6 +2,18 @@
 
 An offline companion keeps the Linux ARM64 Lexr CLI, its matching maintained source, validated catalogues, and optionally the audited IPTSD release on the live image. It gives the booted session a verifiable local toolchain path when another download is unavailable or undesirable.
 
+## Choose the hardware target
+
+Save your device with `lexr init <profile>` before the hardware steps below.
+Use `lexr profile list` to find the ID, or pass global `--profile` for one
+command. These examples use `x1e80100-microsoft-denali-oled` for the X Elite
+OLED; choose `x1p64100-microsoft-denali` for an X Plus LCD where the workflow
+permits it. [Hardware profiles](../concepts/hardware-profiles.md) explains live
+detection and the explicit choice required for mounted or offline targets.
+
+Privileged examples pass the profile because `sudo` may read root's own
+configuration. You can instead pass an absolute `--config` path.
+
 ## Audience and context
 
 Use this option while creating installation media when you expect to diagnose userspace support or install pen and touchscreen support from the live session. This page covers only the companion payload; follow [Create and write installation media](installation-media.md) for the base remaster, validation, USB safety, and hardware compatibility gates.

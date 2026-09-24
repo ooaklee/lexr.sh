@@ -11,10 +11,16 @@ import (
 
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/profile"
 )
 
 // prepare builds a complete immutable preflight plan without target mutation.
-func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, error) {
+func (manager *Manager) prepare(ctx context.Context, request Request) (result Plan, resultErr error) {
+	defer func() {
+		if errors.Is(resultErr, os.ErrPermission) {
+			resultErr = fmt.Errorf("%w; read-only kernel checks need access to root-owned boot files: rerun with sudo, retaining --profile or an absolute --config path (a login shell is not required)", resultErr)
+		}
+	}()
 	if manager == nil || manager.runner == nil {
 		return Plan{}, errors.New("kernel installation manager is unavailable")
 	}
@@ -33,6 +39,10 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 	}
 	if request.Bundle.ABI == request.FallbackABI {
 		return Plan{}, fmt.Errorf("target ABI must differ from fallback ABI: %s", request.Bundle.ABI)
+	}
+	selected, err := installationProfile(request)
+	if err != nil {
+		return Plan{}, err
 	}
 	runningABI, err := manager.runningABI(ctx, root, request.RunningABI)
 	if err != nil {
@@ -59,7 +69,15 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 	if unverified && !request.AllowUnverified {
 		return Plan{}, errors.New("kernel bundle is not covered by an authoritative checksum manifest; explicitly allow an unverified local bundle to continue")
 	}
-	fallback, err := verifyFallback(ctx, root, request.FallbackABI)
+	fallback, err := verifyFallbackProfile(ctx, root, request.FallbackABI, selected.ID)
+	if err != nil {
+		return Plan{}, err
+	}
+	hookCleanup, err := planBootHookCleanup(root)
+	if err != nil {
+		return Plan{}, err
+	}
+	binding, err := planFallbackBinding(ctx, root, selected.ID, fallback)
 	if err != nil {
 		return Plan{}, err
 	}
@@ -85,6 +103,7 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 		// Return the partial plan with its evidence so both preflight and
 		// install receipts can expose structured blocker diagnostics.
 		return Plan{
+			Profile:                selected.ID,
 			Root:                   root,
 			TargetABI:              request.Bundle.ABI,
 			FallbackABI:            request.FallbackABI,
@@ -111,11 +130,19 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 	if err != nil {
 		return Plan{}, err
 	}
+	refresh, err := profileBootCommands(root, request.Bundle.ABI, selected.Platform, request.Bundle.EffectiveDTBDelivery)
+	if err != nil {
+		return Plan{}, err
+	}
+	commands = append(commands, refresh...)
 	conditionalCommands, err := ensureInitramfsCommands(root, request.Bundle.ABI)
 	if err != nil {
 		return Plan{}, err
 	}
 	return Plan{
+		Profile:                selected.ID,
+		BootHookCleanup:        hookCleanup,
+		FallbackBinding:        binding,
 		Root:                   root,
 		TargetABI:              request.Bundle.ABI,
 		FallbackABI:            request.FallbackABI,
@@ -216,7 +243,7 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 			return receipt, &TargetStateError{Evidence: recheckState}
 		}
 	}
-	currentFallback, err := verifyFallback(ctx, plan.Root, plan.FallbackABI)
+	currentFallback, err := verifyFallbackProfile(ctx, plan.Root, plan.FallbackABI, plan.Profile)
 	if err != nil {
 		return receipt, fmt.Errorf("fallback changed after preflight: %w", err)
 	}
@@ -229,6 +256,16 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 		return receipt, err
 	}
 	defer backupCleanup()
+	// Retire recognised competing hooks and preserve the proven fallback before
+	// a package script can regenerate GRUB. Both changes have recovery evidence.
+	defer func() {
+		if resultErr != nil {
+			resultErr = errors.Join(resultErr, restoreBootPreparation(&receipt))
+		}
+	}()
+	if err := prepareBootChanges(ctx, plan, &receipt); err != nil {
+		return receipt, err
+	}
 	commands, err := installationCommands(plan.Root, plan.TargetABI, staged.commandPaths)
 	if err != nil {
 		return receipt, err
@@ -240,7 +277,7 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 		}
 		receipt.Executed = append(receipt.Executed, cloneCommand(command))
 		mutationStarted = true
-		return manager.runMutationCommand(ctx, command)
+		return manager.runMutationCommand(ctx, command, plan.Profile)
 	}
 	for _, command := range commands {
 		if err := ctx.Err(); err != nil {
@@ -276,8 +313,21 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 		}
 	}
 
+	if err := rejectCompetingBootHooks(plan.Root); err != nil {
+		return manager.failAndRollback(plan, backup, receipt, err)
+	}
+	for _, command := range plan.Commands {
+		if command.Operation == OperationRefreshBoot {
+			if err := runCommand(command); err != nil {
+				return manager.failAndRollback(plan, backup, receipt, fmt.Errorf("%s: %w", command.Operation, err))
+			}
+		}
+	}
 	installed, trees, err := verifyInstalled(ctx, plan.Root, plan.TargetABI, plan.DeviceTrees)
 	if err != nil {
+		return manager.failAndRollback(plan, backup, receipt, err)
+	}
+	if err := verifyBootProfile(ctx, plan.Root, plan.TargetABI, plan.Profile, installed.DeviceTreeBoot); err != nil {
 		return manager.failAndRollback(plan, backup, receipt, err)
 	}
 	wantBootMode := DeviceTreeBootEmbedded
@@ -297,7 +347,7 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	if err != nil {
 		return manager.failAndRollback(plan, backup, receipt, err)
 	}
-	currentFallback, err = verifyFallback(ctx, plan.Root, plan.FallbackABI)
+	currentFallback, err = verifyFallbackProfile(ctx, plan.Root, plan.FallbackABI, plan.Profile)
 	if err != nil {
 		return manager.failAndRollback(plan, backup, receipt, err)
 	}
@@ -349,7 +399,7 @@ func cloneCommand(command Command) Command {
 // runMutationCommand preserves Lexr's stdout for its human or JSON result.
 // Child stderr remains inherited, while operational stdout is routed to the
 // manager's diagnostic sink, which defaults to the parent process's stderr.
-func (manager *Manager) runMutationCommand(ctx context.Context, command Command) error {
+func (manager *Manager) runMutationCommand(ctx context.Context, command Command, profileID string) error {
 	if err := validateCommand(command); err != nil {
 		return err
 	}
@@ -357,9 +407,21 @@ func (manager *Manager) runMutationCommand(ctx context.Context, command Command)
 	if diagnostics == nil {
 		diagnostics = os.Stderr
 	}
+	// Package lifecycle hooks run inside apt/dpkg, before the final explicit
+	// refresh. New boot-support helpers use this bounded transaction selection.
+	// Clear any inherited value when the caller supplied no profile.
+	environment := []string{"LEXR_KERNEL_PLATFORM="}
+	if profileID != "" {
+		selected, err := profile.Resolve(profileID)
+		if err != nil {
+			return err
+		}
+		environment[0] += selected.Platform
+	}
 	return manager.runner.Run(ctx, platform.Command{
 		Name:   command.Name,
 		Args:   append([]string(nil), command.Args...),
 		Stdout: diagnostics,
+		Env:    environment,
 	})
 }

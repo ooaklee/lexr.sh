@@ -234,7 +234,9 @@ func (a *application) newUserspacePullCommand() *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&cacheDirectory, "cache-dir", "", "verified userspace release cache (default: operating-system user cache)")
+	hostPathFlag(command, &cacheDirectory, "cache-dir", "verified userspace release cache (default: Lexr config home/caches/userspace)", func() (string, error) {
+		return a.configuration.ResolveCacheDir()
+	})
 	command.Flags().BoolVar(&asJSON, "json", false, "write machine-readable JSON")
 	return command
 }
@@ -338,20 +340,27 @@ func (a *application) newUserspaceInstallCommand() *cobra.Command {
 		Short: "Install an authenticated userspace input",
 		Long: "Install an authenticated userspace input through compiled policy. " +
 			"The recommended set contains audio and IPTSD; experimental camera support must be selected explicitly. " +
+			"When --from is omitted, downloaded bundles are resolved from the configured userspace directory; run userspace pull first. " +
 			"Wi-Fi derives its board fallback from distribution firmware under --root and does not use --from. " +
 			"Its optional --activate restarts only the running Surface Pro 11 X1E/OLED Wi-Fi driver.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
-			if strings.TrimSpace(from) == "" && !strings.EqualFold(strings.TrimSpace(args[0]), "wifi") {
-				return fmt.Errorf("verified userspace release directory is required; pass --from")
-			}
 			if !dryRun && !confirmed {
 				return fmt.Errorf("userspace installation changes the target filesystem; review --dry-run first, then pass --yes")
+			}
+			defaultCacheRoot := ""
+			if strings.TrimSpace(from) == "" && !strings.EqualFold(strings.TrimSpace(args[0]), "wifi") {
+				var err error
+				defaultCacheRoot, err = a.configuration.ResolveUserspaceDir()
+				if err != nil {
+					return fmt.Errorf("resolve default userspace directory: %w", err)
+				}
 			}
 			results, err := a.userspace.Install(command.Context(), userspacemanager.InstallRequest{
 				CatalogPath:           a.userspaceCatalogPath,
 				Selector:              args[0],
 				From:                  from,
+				DefaultCacheRoot:      defaultCacheRoot,
 				RepositoryRoot:        repositoryRoot,
 				CameraAuthoritySHA256: cameraAuthoritySHA256,
 				Root:                  root,

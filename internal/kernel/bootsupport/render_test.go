@@ -432,6 +432,25 @@ func TestLinuxHelperAutoSelectionUsesContainedCanonicalIdentity(t *testing.T) {
 		return exec.Command(helper, "refresh", "--root", root, "--abi", testABI, "--image", "/boot/vmlinuz-"+testABI, "--platform", "auto", "--defer-grub").CombinedOutput()
 	}
 
+	t.Run("guarded transaction selects without hardware probing", func(t *testing.T) {
+		root, helper, digest := prepare(t)
+		command := exec.Command(helper, "refresh", "--root", root, "--abi", testABI, "--image", "/boot/vmlinuz-"+testABI, "--platform", "auto", "--defer-grub")
+		command.Env = append(os.Environ(), "LEXR_KERNEL_PLATFORM=alpha-laptop")
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("transaction profile: %v\n%s", err, output)
+		}
+		assertDigest(t, filepath.Join(root, "boot", "dtb-"+testABI), digest)
+	})
+
+	t.Run("transaction selection must be declared", func(t *testing.T) {
+		root, helper, _ := prepare(t)
+		command := exec.Command(helper, "refresh", "--root", root, "--abi", testABI, "--image", "/boot/vmlinuz-"+testABI, "--platform", "auto", "--defer-grub")
+		command.Env = append(os.Environ(), "LEXR_KERNEL_PLATFORM=unknown-device")
+		if output, err := command.CombinedOutput(); err == nil || !strings.Contains(string(output), "undeclared platform") {
+			t.Fatalf("undeclared transaction profile: %v\n%s", err, output)
+		}
+	})
+
 	t.Run("canonical sysfs", func(t *testing.T) {
 		root, helper, digest := prepare(t)
 		writeCompatible(t, root, "sys/firmware/devicetree/base/compatible", "vendor,alpha-v1\x00")

@@ -4,6 +4,18 @@ Use the Windows hand-off to collect the authorised platform firmware and Bluetoo
 
 > A collected hand-off is private device data. Do not add its directory, manifest, or payloads to an image, release, issue, diagnostic archive, or source checkout.
 
+## Choose the hardware target
+
+Save your device with `lexr init <profile>` before the hardware steps below.
+Use `lexr profile list` to find the ID, or pass global `--profile` for one
+command. These examples use `x1e80100-microsoft-denali-oled` for the X Elite
+OLED; choose `x1p64100-microsoft-denali` for an X Plus LCD where the workflow
+permits it. [Hardware profiles](../concepts/hardware-profiles.md) explains live
+detection and the explicit choice required for mounted or offline targets.
+
+Privileged examples pass the profile because `sudo` may read root's own
+configuration. You can instead pass an absolute `--config` path.
+
 ## Audience and context
 
 This workflow is for an operator who can use an elevated Windows PowerShell 5.1 session on the target Surface Pro 11, transfer a private directory under physical control, and then manage it as an unprivileged Linux user. Applying or restoring the hand-off is a separate privileged transaction.
@@ -111,7 +123,7 @@ lexr handoff apply <id> \
   --adsp-policy enabled \
   --dry-run
 
-sudo lexr handoff apply <id> \
+sudo lexr --profile x1e80100-microsoft-denali-oled handoff apply <id> \
   --store "$HANDOFF_STORE" \
   --target-root /target \
   --feature firmware \

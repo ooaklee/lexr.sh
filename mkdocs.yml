@@ -38,8 +38,12 @@ nav:
   - Getting started:
       - Overview: getting-started/index.md
       - Install Lexr: getting-started/install.md
+  - Concepts:
+      - Hardware profiles: concepts/hardware-profiles.md
+      - How configuration works: concepts/configuration-binding.md
   - User guide:
       - Overview: user-guide/index.md
+      - Manage configuration: user-guide/configuration.md
       - Installation media: user-guide/installation-media.md
       - Install Arch alongside other OSes: user-guide/arch-linux-arm-quickstart.md
       - Offline companion: user-guide/offline-companion.md
@@ -57,6 +61,7 @@ nav:
   - Reference:
       - Overview: reference/index.md
       - Command reference: reference/command-reference.md
+      - Configuration reference: reference/configuration.md
       - Requirements: reference/requirements.md
       - Project boundaries: reference/project-boundaries.md
   - Developer guide:

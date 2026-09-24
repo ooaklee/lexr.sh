@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
@@ -29,6 +30,8 @@ const (
 	unameCommand = "/usr/bin/uname"
 	// updateInitramfsCommand is the trusted live-root initramfs generator.
 	updateInitramfsCommand = "/usr/sbin/update-initramfs"
+	// bootRefreshCommand is the package-owned exact-ABI boot lifecycle helper.
+	bootRefreshCommand = "/usr/libexec/lexr/kernel-boot-refresh"
 )
 
 // errCommandOutputLimit marks a child process that exceeded its capture budget.
@@ -52,6 +55,26 @@ var permittedCommands = map[string]bool{
 	dpkgDebCommand:         true,
 	unameCommand:           true,
 	updateInitramfsCommand: true,
+	bootRefreshCommand:     true,
+}
+
+// profileBootCommands uses the same package-owned helper as kernel boot refresh.
+// Embedded kernels retain their complete boot-time selector inventory.
+func profileBootCommands(root, abi, selected string, delivery kernel.DTBDelivery) ([]Command, error) {
+	if selected == "" || delivery != kernel.DTBDeliveryExternalRequired {
+		return nil, nil
+	}
+	command := Command{Operation: OperationRefreshBoot, Name: bootRefreshCommand, Args: []string{
+		"refresh", "--root", "/", "--abi", abi, "--image", "/boot/vmlinuz-" + abi, "--platform", selected,
+	}}
+	if root != string(filepath.Separator) {
+		command.Name = chrootCommand
+		command.Args = append([]string{root, bootRefreshCommand}, command.Args...)
+	}
+	if err := validateCommand(command); err != nil {
+		return nil, err
+	}
+	return []Command{command}, nil
 }
 
 // validateCommand enforces the closed executable set and bounded, control-free arguments.

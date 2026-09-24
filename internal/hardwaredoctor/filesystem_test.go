@@ -135,7 +135,7 @@ func TestPlatformInspectionAvoidsAbsoluteProcDeviceTreeLink(t *testing.T) {
 		t.Fatal("descriptor-rooted read followed an absolute proc device-tree link")
 	}
 	doctor := &Doctor{filesystem: filesystem}
-	check, matched := doctor.inspectPlatform(context.Background())
+	check, matched := doctor.inspectPlatform(context.Background(), "")
 	if !matched || check.State != StatePass {
 		t.Fatalf("canonical platform inspection = %#v, matched %t", check, matched)
 	}

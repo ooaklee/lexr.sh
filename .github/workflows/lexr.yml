@@ -91,6 +91,7 @@ jobs:
           "${RUNNER_TEMP}/lexr-linux-amd64" userspace install iptsd \
             --from "$bundle_root" \
             --root "$target_root" \
+            --profile x1e80100-microsoft-denali-oled \
             --dry-run
 
       - name: Build every remaining release target without CGO

@@ -456,6 +456,9 @@ type ValidationReport struct {
 	KernelABI string `json:"kernel_abi"`
 	// DeviceTrees lists the hardware identities declared by the kernel bundle.
 	DeviceTrees []string `json:"device_trees"`
+	// BootProfiles identifies platforms selected by the validated boot contract,
+	// excluding merely packaged DTBs and retaining adapter-specific restrictions.
+	BootProfiles []string `json:"boot_profiles,omitempty"`
 	// Checks contains the ordered validation evidence.
 	Checks []ValidationCheck `json:"checks"`
 }

@@ -23,6 +23,33 @@ wizard. They call the same feature services rather than implementing a second
 version of the workflow. The interactive and scriptable image paths therefore
 share one manager and operation plan.
 
+### Configuration and profile selection
+
+The root command loads and merges configuration once, binds ordinary defaults,
+then resolves the hardware profile before the command's own preflight runs.
+`internal/config` owns strict YAML, file selection and directory rules.
+`internal/profile` owns canonical hardware IDs, kernel platform aliases and
+bounded device-tree detection. Neither package depends on Cobra.
+
+The delivery layer keeps flag precedence in `internal/cli/defaults.go` and
+profile policy in `internal/cli/profile.go`. When adding a command, put its
+settings at the matching YAML command path and declare whether it needs an
+offline or live hardware target. `TestConfigurationSchemaNamesRealFlags`
+checks that accepted settings still name real flags. Consent and safety
+overrides remain explicit for each run: the schema accepts no YAML key that
+could confer permission from a file. Hardware selection has one route — the
+top-level `profile` and global `--profile`, including `auto`; the per-command
+selectors (`device.variant`, `doctor.boot.device`,
+`image.create.kernel_profile`, `kernel.boot.refresh.profile`, and the
+`doctor boot --device` and `image create --kernel-profile` flags) were removed
+in 0.5 rather than kept as compatibility scaffolding.
+
+A profile expresses intent; it cannot establish physical identity or hardware
+qualification. Domain services still validate their own roots, bundle bytes,
+boot bindings, same-device hand-offs and recovery records. Kernel and image
+profile checks use declared boot selection, not the presence of a packaged DTB.
+Build and release scope comes from source and bundle inventories.
+
 ## Feature ownership
 
 | Area | Primary packages | What the boundary owns |
