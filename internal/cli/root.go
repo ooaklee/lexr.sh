@@ -14,6 +14,7 @@ import (
 	lexr "github.com/ooaklee/lexr.sh"
 	"github.com/ooaklee/lexr.sh/internal/catalog"
 	lexrconfig "github.com/ooaklee/lexr.sh/internal/config"
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
 	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
 	"github.com/ooaklee/lexr.sh/internal/kernel/release"
 	"github.com/ooaklee/lexr.sh/internal/kernel/releaseprep"
@@ -47,6 +48,7 @@ type application struct {
 	kernelInstaller      kernelInstallationManager
 	kernelReleasePrep    kernelReleasePreparationManager
 	kernelBootRunner     platform.Runner
+	host                 hostcap.Host
 	userspace            *userspacemanager.Manager
 	mediaFactory         removableMediaFactory
 	imageValidator       imageValidationFunc
@@ -71,6 +73,7 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 		kernelInstaller:   kernelinstall.NewWithDiagnostics(nil, errorOutput),
 		kernelReleasePrep: releaseprep.New(),
 		kernelBootRunner:  platform.ExecRunner{},
+		host:              hostcap.Current(),
 	}
 	app.userspace = userspacemanager.New(
 		userspacecatalog.NewLoader(lexr.UserspaceCatalogFS(), "supported-userspace.json"),

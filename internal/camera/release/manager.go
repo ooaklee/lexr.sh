@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
@@ -34,12 +35,18 @@ var kernelABIExpression = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9.+_-]{0,191}
 // sha256Expression accepts one canonical independent authority digest.
 var sha256Expression = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
+// publicationRequirement describes hosts with atomic local camera publication.
+var publicationRequirement = hostcap.Requirement{
+	Operation:        "camera release publication",
+	OperatingSystems: []string{"linux", "darwin"},
+}
+
 // newManager supplies production static inspection and timestamps.
 func newManager(runner platform.Runner) *Manager {
 	if runner == nil {
 		runner = platform.ExecRunner{}
 	}
-	return &Manager{Runner: runner, now: time.Now, validate: camerabuild.ValidateBundleStatic}
+	return &Manager{Runner: runner, now: time.Now, host: hostcap.Current(), validate: camerabuild.ValidateBundleStatic}
 }
 
 // managerTime returns a stable UTC timestamp or the current time as fallback.
@@ -93,6 +100,7 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 	if containedBy(artifacts, output) || containedBy(output, artifacts) {
 		return Plan{}, errors.New("camera build and release directories must not overlap")
 	}
+	availability := publicationRequirement.Evaluate(manager.host)
 	return Plan{
 		RepositoryRoot:               root,
 		ArtifactsDirectory:           artifacts,
@@ -103,7 +111,8 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 		KernelABI:                    request.KernelABI,
 		ExpectedBuildAuthoritySHA256: request.ExpectedBuildAuthoritySHA256,
 		DryRun:                       request.DryRun,
-		Executable:                   true,
+		Executable:                   availability.Executable,
+		ExecutionBlocker:             availability.ExecutionBlocker,
 		MutatesRemote:                false,
 	}, nil
 }

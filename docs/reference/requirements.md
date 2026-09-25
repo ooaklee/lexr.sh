@@ -11,6 +11,16 @@ ARM64. The embedded image and userspace catalogues make catalogue-driven
 commands self-contained, but host integrations still fail closed when their
 required operating-system boundary is unavailable.
 
+Native camera build and capture, local kernel, audio and camera release
+publication, and GRUB registration report a static host blocker before
+expensive source inspection or filesystem mutation. Read-only planning remains
+available where it can produce a truthful result. Image inspection and
+validation remain portable read-only workflows. Tool availability, privilege,
+target-root compatibility, free space and input validity are checked by the
+workflow that owns them rather than by a duplicated global matrix.
+[ADR036](../adr/adr-036-operation-level-static-host-capability-guardrails.md)
+records this boundary and the criteria for adding another static guard.
+
 ## Workflow requirements
 
 | Workflow | Host and tools | Storage or network | Privilege |
@@ -21,12 +31,13 @@ required operating-system boundary is unavailable.
 | Add an offline companion | Image requirements plus Go for `--companion-source-dir` | Output and workspace must remain outside the clean source tree | Regular user |
 | Discover or write removable media | Linux: `lsblk`, `umount`, `udisksctl`; macOS: `diskutil`, `plutil` | A removable whole device large enough for the image | Discovery and dry run use a regular user; the real raw write needs elevation |
 | Prepare an image release | Linux or macOS plus host `zstd` | Space for the ISO, split parts and fresh release directory | Regular user |
+| Prepare a kernel, audio or camera release | Linux or macOS | Validated local build or source inputs and space for a fresh release directory | Regular user |
 | Build a kernel | Docker with Linux ARM64 execution | The managed build volume requires 40 GiB | Regular user with Docker access |
 | Install a kernel | Debian or Ubuntu target with `apt-get`, `dpkg`, `dpkg-deb`, `update-initramfs` and `chroot` as required | Complete bundle plus a proven bootable fallback ABI and either a fresh target ABI or explicit `--overwrite` consent | Preflight and dry run use a regular user; installation needs effective root and `--yes`; `--yes` alone never bypasses the fresh-target gate |
 | Inspect or pull userspace support | A readable live or mounted Linux target | Network only for pull | Regular user |
 | Install userspace support | Supported Linux target and its package tools | Verified component directory | Effective root and `--yes` for a real install |
 | Build camera packages | Native ARM64 Linux | 20 GiB working space by default and the authenticated OE checkout | Regular user for the build |
-| Capture experimental camera frames | Linux with `media-ctl`, `v4l2-ctl`, `journalctl` or `dmesg`, `uname` and `fuser` | Private space for raw frames and previews | Depends on access to the media devices and logs |
+| Capture experimental camera frames | Native ARM64 Linux with `media-ctl`, `v4l2-ctl`, `journalctl` or `dmesg`, `uname` and `fuser` | Private space for raw frames and previews | Depends on access to the media devices and logs |
 | Collect a Windows hand-off | Elevated Windows PowerShell 5.1 and the separate collector from tagged source or an offline companion | New protected fixed-NTFS parent and a physically controlled transfer medium | Elevated collection session |
 | Import and apply a hand-off | Linux for the target workflow; keep the same explicit private store path | Private hand-off directory and target filesystem | Import/list use the managing user; apply and restore need elevation and exact confirmation. A restore preview normally needs elevation because application creates its receipt directory as private root-owned state |
 | Scan and plan clean-up | Supported Linux target | Space for plans and later recovery records | Regular user |

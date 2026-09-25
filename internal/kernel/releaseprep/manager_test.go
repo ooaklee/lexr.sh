@@ -17,6 +17,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/kernel/build"
 )
@@ -92,6 +93,28 @@ func TestPreparePublishesAndRevalidatesClosedRelease(t *testing.T) {
 		if !strings.Contains(string(notes), expected) {
 			t.Errorf("release notes do not contain %q:\n%s", expected, notes)
 		}
+	}
+}
+
+// TestPrepareRejectsUnsupportedHostBeforeBuildInspection proves real
+// publication fails early while a complete read-only plan remains available.
+func TestPrepareRejectsUnsupportedHostBeforeBuildInspection(t *testing.T) {
+	t.Parallel()
+	manager := New()
+	manager.host = hostcap.Host{GOOS: "windows", GOARCH: "amd64"}
+	fixture := newReleaseFixture(t, false)
+	dryRequest := fixture.Request
+	dryRequest.DryRun = true
+	plan, err := manager.Plan(context.Background(), dryRequest)
+	if err != nil || plan.Executable || plan.ExecutionBlocker == "" {
+		t.Fatalf("unsupported read-only plan = %+v, error = %v", plan, err)
+	}
+	receipt, err := manager.Prepare(context.Background(), Request{BuildDirectory: "missing", ReleaseName: fixtureRelease})
+	if err == nil || !strings.Contains(err.Error(), "kernel release publication requires operating system linux or darwin") {
+		t.Fatalf("Prepare() error = %v", err)
+	}
+	if receipt.Plan.Executable || receipt.Plan.ExecutionBlocker == "" || receipt.Published {
+		t.Fatalf("unsupported receipt = %+v", receipt)
 	}
 }
 

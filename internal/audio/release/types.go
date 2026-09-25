@@ -2,7 +2,11 @@
 // FullIO audio release directories without changing a remote service.
 package release
 
-import "context"
+import (
+	"context"
+
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
+)
 
 const (
 	// SchemaVersion identifies the strict structured audio release contract.
@@ -151,6 +155,8 @@ type ValidationReceipt struct {
 type Manager struct {
 	// policy is the compiled release contract selected at construction.
 	policy policy
+	// host records the static publication capability for deterministic tests.
+	host hostcap.Host
 	// afterPlan is a test seam before any snapshotted source is copied.
 	afterPlan func(Plan) error
 	// beforePublish is a test seam immediately before cancellation and publication.
@@ -164,5 +170,5 @@ func New() *Manager {
 
 // newManagerWithPolicy constructs a manager around a complete immutable policy.
 func newManagerWithPolicy(selected policy) *Manager {
-	return &Manager{policy: selected}
+	return &Manager{policy: selected, host: hostcap.Current()}
 }

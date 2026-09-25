@@ -85,6 +85,11 @@ that do not apply.
 
 ### Fixed
 
+- Reject wholly unsupported host operations before expensive source inspection
+  or filesystem mutation, while retaining truthful read-only plans where the
+  workflow can produce them. Dynamic tool, privilege, target and input checks
+  remain with their owning workflows instead of a duplicated platform matrix;
+  native Surface camera capture now explicitly requires ARM64 Linux.
 - Use the selected hardware profile throughout kernel preflight, installation
   and boot verification. The shared `-qcom-x1e` ABI suffix no longer causes
   an X Plus LCD fallback to be mistaken for OLED. Kernel and image checks

@@ -338,6 +338,30 @@ func TestPlanIsDeterministicAndTruthful(t *testing.T) {
 	}
 }
 
+// TestRunRejectsUnsupportedHostBeforeGit proves real execution does not inspect
+// repository inputs after the static host policy has already made it impossible.
+func TestRunRejectsUnsupportedHostBeforeGit(t *testing.T) {
+	t.Parallel()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &fakeCameraRunner{}
+	manager := New(runner)
+	manager.hostOS = "windows"
+	manager.hostArchitecture = "amd64"
+	receipt, err := manager.Run(context.Background(), Request{RepositoryRoot: root})
+	if err == nil || !strings.Contains(err.Error(), "native camera build requires operating system linux and architecture arm64") {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if receipt.Plan.Executable || receipt.Plan.ExecutionBlocker == "" {
+		t.Fatalf("unsupported plan = %+v", receipt.Plan)
+	}
+	if len(runner.commands) != 0 {
+		t.Fatalf("unsupported run invoked commands: %#v", runner.commands)
+	}
+}
+
 // TestFakeRunnerEndToEndBuild verifies the closed native publication contract.
 func TestFakeRunnerEndToEndBuild(t *testing.T) {
 	root, tuning := makeCameraRepository(t)

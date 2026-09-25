@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
@@ -38,6 +39,13 @@ var imageIdentityExpression = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 // gitCommitExpression accepts the full support commit identity.
 var gitCommitExpression = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
+// nativeBuildRequirement describes the sole supported native build host.
+var nativeBuildRequirement = hostcap.Requirement{
+	Operation:        "native camera build",
+	OperatingSystems: []string{"linux"},
+	Architectures:    []string{"arm64"},
+}
+
 // preparedInputs contains HEAD-authenticated bytes and source authority.
 type preparedInputs struct {
 	commit     string
@@ -56,6 +64,19 @@ type dockerIdentity struct {
 
 // prepare validates request, paths, source authority, and deterministic policy.
 func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, error) {
+	plan, err := manager.basePlan(ctx, request)
+	if err != nil {
+		return Plan{}, err
+	}
+	if _, err := authenticateInputs(ctx, manager.Runner, plan.RepositoryRoot); err != nil {
+		return Plan{}, err
+	}
+	return plan, nil
+}
+
+// basePlan validates bounded local choices and static host availability without
+// invoking Git or Docker.
+func (manager *Manager) basePlan(ctx context.Context, request Request) (Plan, error) {
 	if manager == nil || manager.Runner == nil {
 		return Plan{}, errors.New("camera build runner is unavailable")
 	}
@@ -91,14 +112,7 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 	if minimumFree < 1 || minimumFree > 1024 {
 		return Plan{}, errors.New("camera minimum free space must be between 1 and 1024 GiB")
 	}
-	if _, err := authenticateInputs(ctx, manager.Runner, root); err != nil {
-		return Plan{}, err
-	}
-	executable := manager.hostOS == "linux" && manager.hostArchitecture == "arm64"
-	blocker := ""
-	if !executable {
-		blocker = fmt.Sprintf("native execution requires Linux arm64; this binary reports %s/%s", manager.hostOS, manager.hostArchitecture)
-	}
+	availability := nativeBuildRequirement.Evaluate(hostcap.Host{GOOS: manager.hostOS, GOARCH: manager.hostArchitecture})
 	plan := Plan{
 		RepositoryRoot:     root,
 		WorkDirectory:      work,
@@ -107,8 +121,8 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 		MinimumFreeGiB:     minimumFree,
 		NoPull:             request.NoPull,
 		DryRun:             request.DryRun,
-		Executable:         executable,
-		ExecutionBlocker:   blocker,
+		Executable:         availability.Executable,
+		ExecutionBlocker:   availability.ExecutionBlocker,
 		ContainerImage:     ContainerImage,
 		RecipeSHA256:       recipeSHA256(),
 		PublicationPattern: publicationPrefix + "<UTC-build-id>",
@@ -131,20 +145,20 @@ func (manager *Manager) Run(ctx context.Context, request Request) (receipt Execu
 	defer func() {
 		receipt.CompletedAt = managerTime(manager)
 	}()
-	plan, err := manager.prepare(ctx, request)
+	plan, err := manager.basePlan(ctx, request)
 	if err != nil {
 		return receipt, err
 	}
 	receipt.Plan = plan
-	if plan.DryRun {
-		return receipt, nil
-	}
-	if !plan.Executable {
+	if !plan.DryRun && !plan.Executable {
 		return receipt, errors.New(plan.ExecutionBlocker)
 	}
 	inputs, err := authenticateInputs(ctx, manager.Runner, plan.RepositoryRoot)
 	if err != nil {
 		return receipt, err
+	}
+	if plan.DryRun {
+		return receipt, nil
 	}
 	if manager.token == nil {
 		return receipt, errors.New("camera build identifier source is unavailable")
