@@ -17,10 +17,12 @@ import (
 // uses edp-panel; msm must not take over the firmware display without them.
 // QMI/PDR opens an AF_QIPCRTR socket, so its QRTR protocol and remote transport
 // must be available before the PMIC GLINK USB role service can initialise.
+// The SSAM keyboard also needs its DT UART parent and platform client registry;
+// neither is an ELF dependency of the aggregator hub.
 var earlyModules = []string{
 	"qcom_q6v5_pas", "qrtr", "qrtr_smd", "qcom_pd_mapper",
 	"msm", "panel_samsung_atna33xc20", "panel_edp",
-	"surface_aggregator_hub",
+	"qcom_geni_serial", "surface_aggregator_registry", "surface_aggregator_hub",
 }
 
 // EarlyModuleHook copies modules and their dependencies for normal coldplug.

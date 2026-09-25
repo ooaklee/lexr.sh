@@ -55,6 +55,16 @@ cmp /linux-work/live-initrd/main/conf/uuid.conf /work/disk/live-uuid
 regular /linux-work/live-initrd/main/scripts/live
 regular /linux-work/live-initrd/main/usr/bin/live-boot
 regular /linux-work/live-initrd/main/usr/lib/live/boot/9990-misc-helpers.sh
+regular /linux-work/live-initrd/main/scripts/live-bottom/lexr-verify-ram
+test -x /linux-work/live-initrd/main/scripts/live-bottom/lexr-verify-ram
+test -x /linux-work/live-initrd/main/usr/bin/md5sum
+test ! -e "$root/etc/initramfs-tools/scripts/live-bottom/lexr-verify-ram"
+test ! -L "$root/etc/initramfs-tools/scripts/live-bottom/lexr-verify-ram"
+for section in /linux-work/live-initrd/* /linux-work/installed-initrd/*; do
+    [ "$section" = /linux-work/live-initrd/main ] && continue
+    test ! -e "$section/scripts/live-bottom/lexr-verify-ram"
+    test ! -L "$section/scripts/live-bottom/lexr-verify-ram"
+done
 `
 	if err := v.Docker.RunInWorkspaceVolume(ctx, toolsImage, workspace, volume, "bash", "-ceu", extract, "lexr-debian-validate-root", abi); err != nil {
 		return err
@@ -71,6 +81,8 @@ regular() {
     test "$(realpath "$path")" = "$path"
 }
 mkdir /work/root-evidence /work/initrd-firmware
+cp /linux-work/live-initrd/main/scripts/live-bottom/lexr-verify-ram /work/ram-boot-script
+chmod a+r /work/ram-boot-script
 for relative in usr/sbin/update-grub etc/grub.d/10_linux etc/initramfs-tools/hooks/lexr-sp11-firmware etc/initramfs-tools/hooks/lexr-sp11-modules; do
     regular "$root/$relative"
     test -x "$root/$relative"
@@ -108,6 +120,13 @@ chmod -R a+rX /work/root-evidence /work/initrd-firmware
 `
 	if err := v.Docker.RunWithReadOnlyVolumeAsHostUser(ctx, toolsImage, workspace, volume, "bash", "-ceu", evidence); err != nil {
 		return err
+	}
+	ramScript, err := imagecontract.ReadBoundedExtractedFile(workspace, "ram-boot-script", 64<<10)
+	if err != nil {
+		return err
+	}
+	if string(ramScript) != ramBootScript {
+		return errors.New("Debian live initramfs RAM verification script differs")
 	}
 	// Compare all package-owned DTBs, kernel bytes and module objects to the
 	// independently extracted archives, not just a claimed ABI or directory.
@@ -234,7 +253,8 @@ done < <(find "$unpacked" -type f \( -name '*.ko' -o -name '*.ko.xz' -o -name '*
 // validateInitrdMembers requires exact-ABI modules and distinguishes live-boot's
 // live image from the installed-system image that must boot without the USB.
 func validateInitrdMembers(listing, abi string, live bool) error {
-	modules, liveScript, liveProgram, liveHelpers, uuid := false, false, false, false, false
+	modules, liveScript, liveProgram, liveHelpers, uuid, checksumTool := false, false, false, false, false, false
+	ramScripts := 0
 	for _, line := range strings.Split(listing, "\n") {
 		member := strings.TrimPrefix(strings.TrimSpace(line), "./")
 		if member == "scripts/live" {
@@ -248,6 +268,12 @@ func validateInitrdMembers(listing, abi string, live bool) error {
 		}
 		if member == "conf/uuid.conf" {
 			uuid = true
+		}
+		if member == ramBootScriptPath {
+			ramScripts++
+		}
+		if member == "usr/bin/md5sum" {
+			checksumTool = true
 		}
 		if !live && (strings.HasPrefix(member, "scripts/live") || member == "usr/bin/live-boot" || strings.HasPrefix(member, "usr/lib/live/boot") || member == "conf/uuid.conf") {
 			return errors.New("installed Debian initramfs still contains live-boot configuration")
@@ -268,7 +294,7 @@ func validateInitrdMembers(listing, abi string, live bool) error {
 			}
 		}
 	}
-	if !modules || live && (!liveScript || !liveProgram || !liveHelpers || !uuid) {
+	if !modules || live && (!liveScript || !liveProgram || !liveHelpers || !uuid || ramScripts != 1 || !checksumTool) {
 		return errors.New("Debian initramfs lacks its required exact-ABI modules or live-boot inputs")
 	}
 	return nil

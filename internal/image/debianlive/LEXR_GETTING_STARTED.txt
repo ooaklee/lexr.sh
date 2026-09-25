@@ -13,6 +13,25 @@ instead of the desktop; it does not intentionally pause at an initramfs prompt.
 If that entry also goes black, try "firmware display diagnostics". It disables
 only the msm graphics module for that boot and requests a text session using
 the firmware display. It is a diagnostic fallback, not an accelerated desktop.
+The "initramfs storage diagnostics" entry deliberately stops at an (initramfs)
+shell before Debian's services start. It disables msm for that boot and retains
+the Surface keyboard's UART transport and client registry. At the prompt, record:
+
+  uname -r
+  cat /proc/cmdline
+  cat /proc/mounts
+  cat /sys/block/loop*/loop/backing_file
+  dmesg | tail -n 100
+
+Type exit to continue booting. An initramfs prompt is expected for this entry;
+it does not establish that the desktop works. Keep raw captures private and
+remove personal information before sharing excerpts in an issue.
+
+The optional "copy to RAM" entry copies the whole medium using toram. It needs
+enough free memory for the medium and the live session. Do not change it to
+toram=filesystem.squashfs: that loses the /live and /sp11 companion layout used
+by these instructions and Calamares. Copy progress alone is not a successful
+RAM boot; the image checks its RAM backing and copied files before proceeding.
 All entries are experimental until qualified on your exact device.
 
 1. START THE LEXR INCLUDED ON THIS USB

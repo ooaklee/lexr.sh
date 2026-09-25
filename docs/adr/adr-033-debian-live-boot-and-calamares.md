@@ -12,6 +12,12 @@ checks have passed.
 Investigation was paused on 2026-09-07 after failed X1E/OLED live boots, including
 a reported blank screen when trying `toram`. Successful RAM-backed operation was
 not confirmed. Issue #50 retains the failure evidence and resumption plan.
+Investigation resumed in [PR #61](https://github.com/ooaklee/lexr.sh/pull/61).
+On 2026-09-25, photographs showed a USB device going offline, followed by loop
+and SquashFS read errors. Separate photographs showed a RAM copy in progress,
+without confirming completion or a RAM-backed root. The triggering driver or
+firmware failure has not been identified; a black screen alone does not isolate
+graphics from loss of the live filesystem.
 Physical live boot, installation and recovery remain unqualified; this proposal
 has not been accepted as a working Debian installation path.
 
@@ -72,6 +78,17 @@ live-media-path=/live`, paired custom kernel, modules and external device trees.
 Replace alternate menus and bind optical and USB boot to the same appended GPT
 EFI image containing the inspected direct ARM64 GRUB. Secure Boot remains
 unsupported for this custom unsigned kernel and external-DTB path.
+
+Keep RAM copying optional and use whole-medium `toram`, preserving `/live` and
+`/sp11` for Calamares and the companion. The pinned live-boot implementation
+does not reliably propagate copy errors, so verify RAM backing and copied media
+before allowing that entry to continue. Module-only `toram=filesystem.squashfs`
+changes the directory layout and is not an installer-compatible alternative.
+The separate initramfs storage diagnostic entry pauses at `break=bottom`, before
+root userspace starts, with only `msm` blacklisted for firmware-console access.
+Retain the SSAM UART parent and client registry, which the keyboard hub's ELF
+dependencies do not cover. Physical keyboard input and desktop boot still need
+testing with the rebuilt image.
 
 Retain Calamares's inspected unpack, partitioning, package-removal and bootloader
 sequence. Supply the missing GRUB packages offline. Add distribution-specific

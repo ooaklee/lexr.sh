@@ -53,7 +53,7 @@ menuentry "Debian for Surface Pro 11 X1P/LCD (%[1]s, hardware qualification pend
 }
 menuentry "Debian for Surface Pro 11 X1E/OLED (copy to RAM)" {
     set gfxpayload=keep
-    linux /live/vmlinuz boot=live components live-media-path=/live toram=filesystem.squashfs %[2]s quiet splash console=tty0 ---
+    linux /live/vmlinuz boot=live components live-media-path=/live toram %[2]s console=tty0 ---
     devicetree /sp11/dtb/x1e80100-microsoft-denali-oled.dtb
     initrd /live/initrd.img
 }
@@ -68,6 +68,14 @@ menuentry "Debian for Surface Pro 11 X1E/OLED (firmware display diagnostics)" {
     terminal_output console
     set gfxpayload=keep
     linux /live/vmlinuz boot=live components live-media-path=/live %[2]s module_blacklist=msm debug earlycon=efifb,ram loglevel=4 systemd.unit=multi-user.target plymouth.enable=0 console=tty0 ---
+    devicetree /sp11/dtb/x1e80100-microsoft-denali-oled.dtb
+    initrd /live/initrd.img
+}
+menuentry "Debian for Surface Pro 11 X1E/OLED (initramfs storage diagnostics)" {
+    terminal_output console
+    set gfxpayload=keep
+    echo 'Pausing before Debian starts: collect storage logs at the (initramfs) prompt.'
+    linux /live/vmlinuz boot=live components live-media-path=/live %[2]s break=bottom module_blacklist=msm debug earlycon=efifb,ram loglevel=7 log_buf_len=8M plymouth.enable=0 console=tty0 ---
     devicetree /sp11/dtb/x1e80100-microsoft-denali-oled.dtb
     initrd /live/initrd.img
 }

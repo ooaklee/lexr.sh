@@ -115,12 +115,21 @@ func TestDebianManifestRequiresAllBootContracts(t *testing.T) {
 func TestDebianInstalledInitramfsCannotRequireTheUSB(t *testing.T) {
 	const abi = "7.2.0-jg-0sp11v24-qcom-x1e"
 	installed := "usr/lib/modules/" + abi + "/kernel/drivers/usb/host/xhci-pci.ko\n"
-	live := installed + "scripts/live\nusr/bin/live-boot\nusr/lib/live/boot/9990-misc-helpers.sh\nconf/uuid.conf\n"
+	live := installed + "scripts/live\nusr/bin/live-boot\nusr/lib/live/boot/9990-misc-helpers.sh\nconf/uuid.conf\nusr/bin/md5sum\n" + ramBootScriptPath + "\n"
 	if err := validateInitrdMembers(installed, abi, false); err != nil {
 		t.Fatal(err)
 	}
 	if err := validateInitrdMembers(live, abi, true); err != nil {
 		t.Fatal(err)
+	}
+	for _, bad := range []string{
+		strings.ReplaceAll(live, ramBootScriptPath+"\n", ""),
+		live + ramBootScriptPath + "\n",
+		strings.ReplaceAll(live, "usr/bin/md5sum\n", ""),
+	} {
+		if err := validateInitrdMembers(bad, abi, true); err == nil {
+			t.Fatal("live initramfs accepted missing or duplicate RAM verification inputs")
+		}
 	}
 	for _, bad := range []string{live, installed + "usr/bin/live-boot\n", strings.ReplaceAll(installed, abi, "6.17.9-generic"), "scripts/local\n"} {
 		if err := validateInitrdMembers(bad, abi, false); err == nil {

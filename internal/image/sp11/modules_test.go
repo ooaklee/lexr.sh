@@ -18,9 +18,10 @@ func TestModuleClosureAcceptsBuiltinsAndDependencies(t *testing.T) {
 	const root, abi = "/inspection", "7.3.0-test-qcom-x1e"
 	dependency := "insmod " + root + "/lib/modules/" + abi + "/kernel/drivers/remoteproc/qcom_common.ko.zst \n"
 	output := dependency + "builtin qcom-q6v5-pas\n" + dependency +
+		"builtin qcom-geni-serial\nbuiltin surface_aggregator_registry\n" +
 		"insmod " + root + "/lib/modules/" + abi + "/kernel/drivers/gpu/drm/msm/msm.ko.xz\n"
 	got, err := moduleClosure(output, root, abi)
-	want := []string{"builtin qcom_q6v5_pas", "insmod kernel/drivers/gpu/drm/msm/msm.ko", "insmod kernel/drivers/remoteproc/qcom_common.ko"}
+	want := []string{"builtin qcom_geni_serial", "builtin qcom_q6v5_pas", "builtin surface_aggregator_registry", "insmod kernel/drivers/gpu/drm/msm/msm.ko", "insmod kernel/drivers/remoteproc/qcom_common.ko"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("closure=%v error=%v", got, err)
 	}
@@ -156,10 +157,14 @@ fi`, false},
 		{"missing QRTR socket protocol", `rm "$live/$qrtr"`, false},
 		{"missing QRTR remote transport", `rm "$live/$transport"`, false},
 		{"missing in-kernel domain mapper", `rm "$live/$mapper"`, false},
+		{"missing SSAM UART parent", `rm "$live/$uart"`, false},
+		{"missing SSAM client registry", `rm "$live/$registry"`, false},
 		{"missing transitive dependency", `rm "$live/$dependency"`, false},
 		{"corrupt dependency", `file="$live/$dependency"; rm "$file"; printf broken > "$file"`, false},
 		{"stale early override", `file="$live/$dsp"; cp --parents "${file#/linux-work/live-initrd/early2/}" /linux-work/live-initrd/main/; rm "$file"; printf stale > "$file"`, false},
 		{"installed DSP missing", `rm "$installed/$dsp"`, false},
+		{"installed SSAM UART parent missing", `rm "$installed/$uart"`, false},
+		{"installed SSAM client registry missing", `rm "$installed/$registry"`, false},
 	} {
 		t.Run(testcase.name, func(t *testing.T) {
 			const setup = `set -o pipefail
@@ -195,6 +200,8 @@ lcd=$(module_relative panel_edp)
 qrtr=$(module_relative qrtr)
 transport=$(module_relative qrtr_smd)
 mapper=$(module_relative qcom_pd_mapper)
+uart=$(module_relative qcom_geni_serial)
+registry=$(module_relative surface_aggregator_registry)
 test -f "$live/$dsp" && test -f "$live/$dependency"
 cd /linux-work/live-initrd/early2
 `

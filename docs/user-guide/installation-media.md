@@ -168,6 +168,54 @@ that folder through Files rather than desktop icons. The companion and its
 source/licences remain under `/usr/share/lexr/elementary-media/sp11/companion`
 after installation. Avoid restarting the audio DSP while using a live USB root.
 
+### Debian ARM64 GNOME live image
+
+Debian support in [PR #61](https://github.com/ooaklee/lexr.sh/pull/61) remains
+experimental under [issue #50](https://github.com/ooaklee/lexr.sh/issues/50).
+The catalogue entry `debian-live-testing-gnome-arm64-20240902` pins the official
+**2024-09-02** ARM64 live snapshot. Its weekly testing URL does not make those
+packages current. Use the live entry rather than Debian's separate installer
+DVD entry; the latter has a different boot and installation contract.
+
+```sh
+lexr image create \
+  --catalog-id debian-live-testing-gnome-arm64-20240902 \
+  --kernel-release <release-tag> \
+  --profile x1e80100-microsoft-denali-oled \
+  --companion-source-dir . \
+  --output ../lexr-build/lexr-debian-sp11.iso
+lexr image validate ../lexr-build/lexr-debian-sp11.iso
+```
+
+Run from the Lexr source tree when including its companion. Select the exact
+kernel release being tested and keep the generated manifest and journal.
+Structural validation does not establish successful hardware boot. Reported
+failures include USB disconnection followed by SquashFS read errors and a
+black screen; the triggering fault remains unresolved.
+
+The optional **copy to RAM** entry uses whole-medium `toram` to preserve the
+`/live/filesystem.squashfs` installer payload and `/sp11/companion` layout. It
+requires enough free memory for the medium and live session and checks the
+copied media before continuing. Do not substitute `toram=filesystem.squashfs`:
+Debian's module-only copy flattens those paths. Progress percentages alone do
+not confirm a completed RAM-backed boot.
+
+For a failed boot, **text diagnostics** requests a text session. **Firmware
+display diagnostics** additionally disables `msm` for that boot. The separate
+**initramfs storage diagnostics** entry deliberately pauses before root
+userspace starts, using `break=bottom` and the firmware display. At its
+`(initramfs)` prompt, collect `uname -r`, `cat /proc/cmdline`,
+`cat /proc/mounts`, `cat /sys/block/loop*/loop/backing_file` and
+`dmesg | tail -n 100`. Type `exit` to continue. The initramfs includes the Surface
+keyboard's UART parent and client registry, but physical input still needs
+testing with this image. Keep raw captures private and redact personal data
+before posting excerpts.
+
+The companion guide is `LEXR_GETTING_STARTED.txt` in the live user's Desktop
+folder. Its live root is `/run/live/medium/sp11/companion`; after installation,
+the retained path is `/usr/share/lexr/debian-media/sp11/companion`. Desktop boot,
+peripherals, installation, installed boot and recovery remain unqualified.
+
 ### Arch Linux ARM terminal image
 
 Download the [experimental Arch terminal image with v23](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-arch-linux-arm-terminal-v23-20260909)
@@ -251,7 +299,7 @@ sudo lexr --profile x1e80100-microsoft-denali-oled image write lexr-ubuntu-sp11.
 
 An interactive terminal can omit `--confirm` and type the displayed phrase at the protected prompt. Automation must pass the exact phrase explicitly. Because the phrase contains the opaque fingerprint, a confirmation obtained for a previous USB device is rejected after another device takes over the same `/dev` path. Immediately before mutation, the manager reopens and rehashes the source, re-inspects the target, compares the already-open source descriptor with target mounts, checks privilege, unmounts only approved removable-style target filesystems, and refuses to continue if any mount, host-storage classification, active storage consumer, or identity drift remains. The production raw opener rejects links and ordinary files, proves that ordinary and raw nodes address the same kernel device, opens with `O_NOFOLLOW`, and proves that its descriptor still denotes that inspected device. The manager then writes bounded chunks, flushes them, reads back exactly the source length, verifies the SHA-256, re-inspects once more, and ejects or powers off the target. A failure returns the exact not-started, prepared, writing, written, verifying, or verified receipt state, complete byte counts, and only complete digests; it never claims that writing, verification, or ejection began before the corresponding boundary was crossed.
 
-This writer is distribution-neutral. Its pre-write router accepts the implemented Lexr Ubuntu Casper, elementary Casper, Arch terminal and Fedora Live outputs only after dispatching each image to its adapter-owned structural validator. Future Debian, Pop!_OS, and raw-image adapters will retain their own validation and live-media contracts while reusing the removable-device manager.
+This writer is distribution-neutral. Its pre-write router accepts the implemented Lexr Ubuntu Casper, elementary Casper, Debian Live, Arch terminal and Fedora Live outputs only after dispatching each image to its adapter-owned structural validator. Future Pop!_OS and raw-image adapters will retain their own validation and live-media contracts while reusing the removable-device manager.
 
 ## Why Lexr remasters the live root
 

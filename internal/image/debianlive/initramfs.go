@@ -23,6 +23,9 @@ func buildInitramfs(ctx context.Context, docker *platform.Docker, image, workspa
 	if err := os.WriteFile(filepath.Join(workspace, "sp11-module-hook"), []byte(sp11.EarlyModuleHook()), 0o644); err != nil {
 		return err
 	}
+	if err := os.WriteFile(filepath.Join(workspace, "debian-verify-ram"), []byte(ramBootScript), 0o644); err != nil {
+		return err
+	}
 	const script = `set -o pipefail
 root=/linux-work/rootfs
 abi=$1
@@ -72,7 +75,14 @@ trap - EXIT HUP INT TERM
 # Debian's stock hook generates conf/uuid.conf only when this variable is set.
 # Do not persist it in /etc: installed kernel updates must never default to
 # live-boot or regenerate a requirement for installation media.
+ram_script="$root/etc/initramfs-tools/scripts/live-bottom/lexr-verify-ram"
+test ! -e "$ram_script"
+test ! -L "$ram_script"
+trap 'rm -f "$ram_script"' EXIT HUP INT TERM
+install -D -m 0755 /work/debian-verify-ram "$ram_script"
 chroot "$root" env LIVE_GENERATE_UUID=1 mkinitramfs -o /boot/lexr-live-initrd "$abi"
+rm "$ram_script"
+trap - EXIT HUP INT TERM
 cp "$root/boot/vmlinuz-$abi" /work/live-vmlinuz
 cp "$root/boot/initrd.img-$abi" /work/installed-initrd
 mv "$root/boot/lexr-live-initrd" /work/live-initrd

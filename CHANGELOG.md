@@ -81,10 +81,12 @@ that do not apply.
   `report.BootProfiles` for host profile auto-detection checks. Staged Debian
   kernel packages are now world-readable (0644), fixing `sudo lexr image write`
   validation failures with `Permission denied` on kernel .debs. The GRUB menu
-  now offers a copy-to-RAM boot choice (`toram=filesystem.squashfs`) so the
-  live medium is read sequentially into memory, working around unreliable
-  random reads deep in the 3&nbsp;GiB squashfs on some USB paths. Hardware boot
-  qualification remains pending.
+  offers a whole-medium copy-to-RAM choice that preserves the installer and
+  companion paths and checks the copied media before continuing. Restore the
+  initramfs storage diagnostic entry and retain the Surface keyboard's UART
+  transport and client registry in both live and installed initramfs images.
+  USB disconnection and black-screen reports remain under investigation;
+  hardware boot qualification remains pending.
 
 ### Removed
 
