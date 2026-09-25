@@ -38,6 +38,17 @@ The container verifies the archive digest, validates every extraction path,
 reconstructs the Git tree and commit object, and refuses any identity mismatch
 before compilation.
 
+The archive remains uncompressed so the bounded host capture, container
+validation and retained evidence all use the same exact bytes. It is created as
+`local-source.tar` in a private, per-build directory below the selected work
+directory. The transaction is bind-mounted at `/exchange`; the container
+extracts the verified tree into `/linux-work/source/kernel` in the managed
+Docker volume. Publication makes one verified copy named
+`lexr-kernel-source.tar` in a private sibling of the requested output, then
+atomically renames that complete staging directory into place. A successful
+publication removes the private transaction but deliberately keeps both the
+published archive and the managed-volume source tree.
+
 Build plans and provenance use a source-kind union. HTTPS builds retain their
 URL, ref and fetched-ref kind. Local builds instead record the common exact
 revision and tree plus `local_source_revision`, archive digest, archive size and
@@ -59,6 +70,12 @@ object is independently available.
 - The commit and tree identify the compiled source, and the retained archive
   preserves the exact corresponding bytes even if the local commit is later
   removed.
+- Retaining an uncompressed archive consumes approximately one committed-tree
+  size per local build. Publication briefly requires two host-side archive
+  copies, while a new managed Docker volume also stores the extracted tree.
+  This storage cost is documented with a measured default-SP11 example in the
+  kernel operator guide; provenance records the authoritative archive size for
+  each build.
 - New files must be committed before a build. Dirty working-tree snapshots are
   deliberately deferred rather than represented by incomplete provenance.
 - Existing HTTPS builds remain the default and keep their remote-fetch
