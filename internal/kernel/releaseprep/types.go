@@ -13,7 +13,7 @@ import (
 
 const (
 	// SchemaVersion identifies the native kernel release manifest contract.
-	SchemaVersion = 3
+	SchemaVersion = 4
 	// ChecksumFileName is the sole checksum authority in a prepared directory.
 	ChecksumFileName = "SHA256SUMS"
 	// BundleFileName is the path-independent kernel bundle manifest.
@@ -77,6 +77,8 @@ type PlannedAsset struct {
 // SourceProvenance is the public subset of native build provenance. It omits
 // the local Docker volume name and every host path.
 type SourceProvenance struct {
+	// SourceKind identifies the accepted remotely fetched source contract.
+	SourceKind build.SourceKind `json:"source_kind"`
 	// GitURL is the credential-free HTTPS source repository.
 	GitURL string `json:"git_url"`
 	// GitRef is the branch or tag selected for the build.
@@ -204,7 +206,7 @@ func (manager *Manager) Validate(ctx context.Context, directory string) (Manifes
 // publicProvenance removes local build-volume identity from a validated receipt.
 func publicProvenance(provenance build.Provenance) SourceProvenance {
 	return SourceProvenance{
-		GitURL: provenance.GitURL, GitRef: provenance.GitRef, BootImageMode: provenance.BootImageMode, RefKind: provenance.RefKind,
+		SourceKind: provenance.SourceKind, GitURL: provenance.GitURL, GitRef: provenance.GitRef, BootImageMode: provenance.BootImageMode, RefKind: provenance.RefKind,
 		EffectiveDTBDelivery: provenance.EffectiveDTBDelivery, EmbeddedDTBCount: provenance.EmbeddedDTBCount,
 		DeviceTrees: kernel.CloneDeviceTrees(provenance.DeviceTrees), DTBSelectionProvenance: provenance.DTBSelectionProvenance,
 		Revision: provenance.Revision, Tree: provenance.Tree, CommitTime: provenance.CommitTime,

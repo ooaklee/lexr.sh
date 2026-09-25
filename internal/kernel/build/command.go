@@ -149,6 +149,13 @@ func volumeInspectCommand(plan Plan) Command {
 
 // containerCommand constructs the direct Docker run invocation for one private transaction.
 func containerCommand(plan Plan, transactionDirectory, containerName string) Command {
+	archiveSHA256 := plan.SourceArchiveSHA256
+	archiveSize := strconv.FormatInt(plan.SourceArchiveSize, 10)
+	fileCount := strconv.Itoa(plan.SourceFileCount)
+	if plan.SourceKind == SourceKindLocalGitCommit && archiveSHA256 == "" {
+		archiveSHA256 = "<captured-source-archive-sha256>"
+		archiveSize = "<captured-source-archive-size>"
+	}
 	return Command{Name: dockerCommand, Args: []string{
 		"run", "--rm", "--name", containerName,
 		"--platform", dockerPlatform,
@@ -157,7 +164,9 @@ func containerCommand(plan Plan, transactionDirectory, containerName string) Com
 		"--env", "LEXR_RECIPE_SHA256=" + plan.RecipeSHA256,
 		plan.ContainerImage,
 		"/bin/bash", "/exchange/build-policy.sh",
-		plan.GitURL, plan.GitRef, strconv.Itoa(plan.Jobs), strconv.FormatBool(plan.ResetSource), strconv.FormatBool(plan.SkipClean), string(plan.BootImageMode),
+		string(plan.SourceKind), plan.GitURL, plan.GitRef,
+		plan.LocalSourceRevision, plan.SourceTree, archiveSHA256, archiveSize, fileCount,
+		strconv.Itoa(plan.Jobs), strconv.FormatBool(plan.ResetSource), strconv.FormatBool(plan.SkipClean), string(plan.BootImageMode),
 	}}
 }
 

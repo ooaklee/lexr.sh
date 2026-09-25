@@ -33,6 +33,10 @@ type resolvedRequest struct {
 	workDirectory string
 	// outputDirectory is the canonical new output directory.
 	outputDirectory string
+	// sourceKind selects exactly one source authority.
+	sourceKind SourceKind
+	// sourceDirectory is the canonical local Git worktree, when selected.
+	sourceDirectory string
 	// gitURL is the validated source repository.
 	gitURL string
 	// gitRef is the validated branch or tag.
@@ -55,19 +59,32 @@ func resolveRequest(request Request) (resolvedRequest, error) {
 	if err != nil {
 		return resolvedRequest{}, err
 	}
+	sourceKind := SourceKindHTTPSGit
 	gitURL := request.GitURL
-	if gitURL == "" {
-		gitURL = DefaultGitURL
-	}
-	if err := validateGitURL(gitURL); err != nil {
-		return resolvedRequest{}, err
-	}
 	gitRef := request.GitBranch
-	if gitRef == "" {
-		gitRef = DefaultGitBranch
-	}
-	if err := validateGitRef(gitRef); err != nil {
-		return resolvedRequest{}, err
+	sourceDirectory := ""
+	if strings.TrimSpace(request.SourceDirectory) != "" {
+		if gitURL != "" || gitRef != "" {
+			return resolvedRequest{}, errors.New("kernel build --source-dir is mutually exclusive with --git-url and --git-branch")
+		}
+		sourceKind = SourceKindLocalGitCommit
+		sourceDirectory, err = resolveSourceDirectory(request.SourceDirectory)
+		if err != nil {
+			return resolvedRequest{}, err
+		}
+	} else {
+		if gitURL == "" {
+			gitURL = DefaultGitURL
+		}
+		if err := validateGitURL(gitURL); err != nil {
+			return resolvedRequest{}, err
+		}
+		if gitRef == "" {
+			gitRef = DefaultGitBranch
+		}
+		if err := validateGitRef(gitRef); err != nil {
+			return resolvedRequest{}, err
+		}
 	}
 	bootImageMode := request.BootImageMode
 	if bootImageMode == "" {
@@ -98,6 +115,9 @@ func resolveRequest(request Request) (resolvedRequest, error) {
 	if pathsOverlap(work, output) {
 		return resolvedRequest{}, errors.New("kernel build work and output directories must not overlap")
 	}
+	if sourceDirectory != "" && (pathsOverlap(sourceDirectory, work) || pathsOverlap(sourceDirectory, output)) {
+		return resolvedRequest{}, errors.New("kernel build local source must not overlap the work or output directory")
+	}
 	if err := requireNewOutput(output); err != nil {
 		return resolvedRequest{}, err
 	}
@@ -105,6 +125,8 @@ func resolveRequest(request Request) (resolvedRequest, error) {
 		repositoryRoot:  root,
 		workDirectory:   work,
 		outputDirectory: output,
+		sourceKind:      sourceKind,
+		sourceDirectory: sourceDirectory,
 		gitURL:          gitURL,
 		gitRef:          gitRef,
 		bootImageMode:   bootImageMode,
@@ -113,6 +135,30 @@ func resolveRequest(request Request) (resolvedRequest, error) {
 		skipClean:       request.SkipClean,
 		dryRun:          request.DryRun,
 	}, nil
+}
+
+// resolveSourceDirectory returns one canonical, non-symbolic-link Git worktree root.
+func resolveSourceDirectory(configured string) (string, error) {
+	absolute, err := filepath.Abs(configured)
+	if err != nil {
+		return "", fmt.Errorf("resolve kernel local source directory: %w", err)
+	}
+	canonical, err := filepath.EvalSymlinks(absolute)
+	if err != nil {
+		return "", fmt.Errorf("resolve kernel local source directory %s: %w", absolute, err)
+	}
+	canonical = filepath.Clean(canonical)
+	if canonical == filepath.VolumeName(canonical)+string(filepath.Separator) {
+		return "", errors.New("kernel local source directory must not be a filesystem root")
+	}
+	if err := validateMountPath(canonical, "local source directory"); err != nil {
+		return "", err
+	}
+	info, err := os.Lstat(canonical)
+	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return "", fmt.Errorf("kernel local source is not a canonical directory: %s", canonical)
+	}
+	return canonical, nil
 }
 
 // validateBootImageMode accepts only the closed source, Stubble, and raw-image

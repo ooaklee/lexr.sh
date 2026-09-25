@@ -128,6 +128,7 @@ lexr kernel preflight <bundle-directory> --root <path> --fallback-abi <abi> [--f
 lexr kernel install <bundle-directory> --root <path> --fallback-abi <abi> --dry-run [--force]
 lexr kernel install <bundle-directory> --root <path> --fallback-abi <abi> --yes [--force]
 lexr kernel build
+lexr kernel build --source-dir <clean-kernel-worktree> --repository-root <build-root> --output-dir <new-directory>
 ```
 
 Kernel inspection and preflight are separate from installation. Protected

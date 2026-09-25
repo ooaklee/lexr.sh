@@ -96,6 +96,27 @@ func TestPreparePublishesAndRevalidatesClosedRelease(t *testing.T) {
 	}
 }
 
+// TestPlanRejectsLocalSourceSnapshot ensures local-only commit authority cannot
+// be promoted into a remotely publishable kernel release.
+func TestPlanRejectsLocalSourceSnapshot(t *testing.T) {
+	fixture := newReleaseFixture(t, false)
+	provenance := readProvenance(t, fixture.Build)
+	provenance.SourceKind = build.SourceKindLocalGitCommit
+	provenance.LocalSourceRevision = provenance.Revision
+	provenance.SourceArchiveName = build.LocalSourceArchiveName
+	provenance.SourceArchiveSHA256 = strings.Repeat("9", 64)
+	provenance.SourceArchiveSize = 1024
+	provenance.SourceFileCount = 1
+	provenance.GitURL = ""
+	provenance.GitRef = ""
+	provenance.RefKind = ""
+	mustWriteJSON(t, filepath.Join(fixture.Build, BuildProvenanceFileName), provenance)
+	_, err := New().Plan(context.Background(), fixture.Request)
+	if err == nil || !strings.Contains(err.Error(), "rejects local source snapshots") {
+		t.Fatalf("local source release error = %v", err)
+	}
+}
+
 // TestPrepareRejectsUnsupportedHostBeforeBuildInspection proves real
 // publication fails early while a complete read-only plan remains available.
 func TestPrepareRejectsUnsupportedHostBeforeBuildInspection(t *testing.T) {
@@ -624,7 +645,7 @@ func newReleaseFixtureWithIdentity(t *testing.T, headers bool, abi, version, rel
 	}
 	mustWriteJSON(t, filepath.Join(buildDirectory, BundleFileName), bundle)
 	mustWriteJSON(t, filepath.Join(buildDirectory, BuildProvenanceFileName), build.Provenance{
-		GitURL: fixtureGitURL, GitRef: "sp11/integration-7.2.x", BootImageMode: build.BootImageModeStubble, RefKind: "branch",
+		SourceKind: build.SourceKindHTTPSGit, GitURL: fixtureGitURL, GitRef: "sp11/integration-7.2.x", BootImageMode: build.BootImageModeStubble, RefKind: "branch",
 		EffectiveDTBDelivery: kernel.DTBDeliveryEmbedded, EmbeddedDTBCount: 2,
 		DeviceTrees: deviceTrees, DTBSelectionProvenance: selection,
 		Revision: revision, Tree: strings.Repeat("2", 40),

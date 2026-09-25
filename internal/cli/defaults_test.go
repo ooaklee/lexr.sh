@@ -33,6 +33,7 @@ func TestConfiguredCommandFlags(t *testing.T) {
 		{"safety overrides cannot come from YAML", "kernel: {install: {yes: true, force: true, overwrite: true, allow_unverified: true}}", []string{"kernel", "install"}, []string{"bundle"}, nil},
 		{"ordinary image write defaults bind", "image: {write: {dry_run: true}}", []string{"image", "write"}, []string{"test.iso"}, map[string]string{"dry-run": "true"}},
 		{"ordinary kernel install defaults bind", "kernel: {install: {root: /target, fallback_abi: old-qcom-x1e, package_set: runtime}}", []string{"kernel", "install"}, []string{"bundle"}, map[string]string{"root": "/target", "fallback-abi": "old-qcom-x1e", "package-set": "runtime"}},
+		{"kernel local source default binds", "kernel: {build: {source_dir: /kernel/source, dry_run: true}}", []string{"kernel", "build"}, nil, map[string]string{"source-dir": "/kernel/source", "dry-run": "true"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			path := configFixture(t, "profile: x1e80100-microsoft-denali-oled\n"+test.yaml+"\n")

@@ -46,25 +46,38 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 	if err != nil {
 		return Plan{}, err
 	}
+	var localIdentity localSourceIdentity
+	if resolved.sourceKind == SourceKindLocalGitCommit {
+		localIdentity, err = inspectLocalSource(ctx, resolved.sourceDirectory)
+		if err != nil {
+			return Plan{}, err
+		}
+	}
 	identity := workspaceIdentity(resolved.repositoryRoot, resolved.workDirectory)
 	plan := Plan{
-		SchemaVersion:     SchemaVersion,
-		RepositoryRoot:    resolved.repositoryRoot,
-		WorkDirectory:     resolved.workDirectory,
-		OutputDirectory:   resolved.outputDirectory,
-		GitURL:            resolved.gitURL,
-		GitRef:            resolved.gitRef,
-		BootImageMode:     resolved.bootImageMode,
-		Jobs:              resolved.jobs,
-		ResetSource:       resolved.resetSource,
-		SkipClean:         resolved.skipClean,
-		DryRun:            resolved.dryRun,
-		ContainerImage:    ContainerImage,
-		BuildTarget:       containerBuildTarget,
-		MinimumFreeGiB:    containerMinimumFreeGiB,
-		WorkVolume:        volumeName(identity),
-		WorkspaceIdentity: identity,
-		RecipeSHA256:      compiledRecipeSHA256(),
+		SchemaVersion:       SchemaVersion,
+		RepositoryRoot:      resolved.repositoryRoot,
+		WorkDirectory:       resolved.workDirectory,
+		OutputDirectory:     resolved.outputDirectory,
+		SourceKind:          resolved.sourceKind,
+		SourceDirectory:     resolved.sourceDirectory,
+		GitURL:              resolved.gitURL,
+		GitRef:              resolved.gitRef,
+		LocalSourceRevision: localIdentity.revision,
+		SourceTree:          localIdentity.tree,
+		SourceCommitTime:    localIdentity.commitTime,
+		SourceFileCount:     localIdentity.fileCount,
+		BootImageMode:       resolved.bootImageMode,
+		Jobs:                resolved.jobs,
+		ResetSource:         resolved.resetSource,
+		SkipClean:           resolved.skipClean,
+		DryRun:              resolved.dryRun,
+		ContainerImage:      ContainerImage,
+		BuildTarget:         containerBuildTarget,
+		MinimumFreeGiB:      containerMinimumFreeGiB,
+		WorkVolume:          volumeName(identity),
+		WorkspaceIdentity:   identity,
+		RecipeSHA256:        compiledRecipeSHA256(),
 	}
 	plan.Commands = []Command{volumeCreateCommand(plan), volumeInspectCommand(plan), previewContainerCommand(plan)}
 	plan.ConditionalCommands = []Command{previewBootSupportContainerCommand()}
@@ -137,6 +150,20 @@ func (manager *Manager) Run(ctx context.Context, request Request) (receipt Recei
 	if err := writeContainerRecipe(transaction, plan.RecipeSHA256); err != nil {
 		return receipt, errors.Join(err, cleanupTransaction())
 	}
+	if plan.SourceKind == SourceKindLocalGitCommit {
+		expected := localSourceIdentity{
+			revision: plan.LocalSourceRevision, tree: plan.SourceTree,
+			commitTime: plan.SourceCommitTime, fileCount: plan.SourceFileCount,
+		}
+		archive, captureErr := captureLocalSourceSnapshot(ctx, transaction, plan.SourceDirectory, expected)
+		if captureErr != nil {
+			return receipt, errors.Join(captureErr, cleanupTransaction())
+		}
+		plan.SourceArchiveSHA256 = archive.sha256
+		plan.SourceArchiveSize = archive.size
+		plan.Commands = []Command{volumeCreateCommand(plan), volumeInspectCommand(plan), previewContainerCommand(plan)}
+		receipt.Plan = plan
+	}
 	if err := manager.ensureWorkVolume(ctx, &receipt); err != nil {
 		return receipt, errors.Join(err, cleanupTransaction())
 	}
@@ -191,7 +218,7 @@ func (manager *Manager) Run(ctx context.Context, request Request) (receipt Recei
 	if err != nil {
 		return receipt, errors.Join(err, cleanupTransaction())
 	}
-	published, didPublish, err := publishArtifacts(ctx, plan, provenance, bundle, artifacts)
+	published, didPublish, err := publishArtifacts(ctx, transaction, plan, provenance, bundle, artifacts)
 	receipt.Artifacts = published
 	receipt.Published = didPublish
 	if err != nil {

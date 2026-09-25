@@ -495,6 +495,8 @@ type KernelBuildConfig struct {
 	GitURL string `yaml:"git_url"`
 	// GitBranch specifies the git branch.
 	GitBranch string `yaml:"git_branch"`
+	// SourceDir specifies a clean local Git worktree to snapshot.
+	SourceDir string `yaml:"source_dir" config:"verbatim"`
 	// BootImageMode specifies the boot image mode.
 	BootImageMode string `yaml:"boot_image_mode"`
 	// WorkDir specifies the work directory.

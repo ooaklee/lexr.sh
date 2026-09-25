@@ -329,6 +329,13 @@ func validLicenceText(contents []byte) bool {
 
 // validateBuildProvenance checks the public and omitted private fields before projection.
 func validateBuildProvenance(provenance build.Provenance) error {
+	if provenance.SourceKind != build.SourceKindHTTPSGit {
+		return errors.New("kernel release preparation rejects local source snapshots; publish the commit to an HTTPS Git ref and rebuild for release")
+	}
+	if provenance.LocalSourceRevision != "" || provenance.SourceArchiveName != "" || provenance.SourceArchiveSHA256 != "" ||
+		provenance.SourceArchiveSize != 0 || provenance.SourceFileCount != 0 {
+		return errors.New("native HTTPS build provenance contains mixed local source fields")
+	}
 	if len(provenance.GitURL) == 0 || len(provenance.GitURL) > maximumGitURLBytes || !utf8.ValidString(provenance.GitURL) {
 		return errors.New("native build provenance contains an unsafe source URL")
 	}

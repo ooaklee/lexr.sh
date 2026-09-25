@@ -42,6 +42,9 @@ const (
 // gitObjectExpression accepts SHA-1 or SHA-256 Git object identifiers.
 var gitObjectExpression = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 
+// sha256Expression accepts one lowercase full SHA-256 digest.
+var sha256Expression = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
 // packageFileNameExpression accepts only portable Debian package filename bytes.
 var packageFileNameExpression = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9.+_~%-]*\.deb$`)
 
@@ -49,13 +52,12 @@ var packageFileNameExpression = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9.+_~%-
 func readProvenance(transaction string, plan Plan) (Provenance, error) {
 	directory := filepath.Join(transaction, "provenance")
 	fields := map[string]*string{}
-	var gitURL, gitRef, bootImageMode, effectiveDelivery, embeddedDTBCount, refKind, revision, tree, commitTime, recipe, toolchain string
-	fields["git-url"] = &gitURL
-	fields["git-ref"] = &gitRef
+	var sourceKind, gitURL, gitRef, localRevision, archiveName, archiveSHA256, archiveSizeText, sourceFileCountText string
+	var bootImageMode, effectiveDelivery, embeddedDTBCount, refKind, revision, tree, commitTime, recipe, toolchain string
+	fields["source-kind"] = &sourceKind
 	fields["boot-image-mode"] = &bootImageMode
 	fields["effective-dtb-delivery"] = &effectiveDelivery
 	fields["embedded-dtb-count"] = &embeddedDTBCount
-	fields["ref-kind"] = &refKind
 	fields["revision"] = &revision
 	fields["tree"] = &tree
 	fields["commit-time"] = &commitTime
@@ -68,8 +70,65 @@ func readProvenance(transaction string, plan Plan) (Provenance, error) {
 		}
 		*destination = value
 	}
-	if gitURL != plan.GitURL || gitRef != plan.GitRef {
-		return Provenance{}, errors.New("container source remote or ref differs from the reviewed plan")
+	if SourceKind(sourceKind) != plan.SourceKind {
+		return Provenance{}, errors.New("container source kind differs from the reviewed plan")
+	}
+	var archiveSize int64
+	var sourceFileCount int
+	switch plan.SourceKind {
+	case SourceKindHTTPSGit:
+		for name, destination := range map[string]*string{"git-url": &gitURL, "git-ref": &gitRef, "ref-kind": &refKind} {
+			value, readErr := readIdentityFile(filepath.Join(directory, name))
+			if readErr != nil {
+				return Provenance{}, fmt.Errorf("read kernel build provenance %s: %w", name, readErr)
+			}
+			*destination = value
+		}
+		if gitURL != plan.GitURL || gitRef != plan.GitRef {
+			return Provenance{}, errors.New("container source remote or ref differs from the reviewed plan")
+		}
+		if refKind != "branch" && refKind != "tag" {
+			return Provenance{}, fmt.Errorf("container returned unsupported Git ref kind %q", refKind)
+		}
+		for _, name := range []string{"local-source-revision", "source-archive-name", "source-archive-sha256", "source-archive-size", "source-file-count"} {
+			if _, statErr := os.Lstat(filepath.Join(directory, name)); !errors.Is(statErr, os.ErrNotExist) {
+				return Provenance{}, fmt.Errorf("HTTPS source provenance contains mixed local field %s", name)
+			}
+		}
+	case SourceKindLocalGitCommit:
+		for name, destination := range map[string]*string{
+			"local-source-revision": &localRevision, "source-archive-name": &archiveName,
+			"source-archive-sha256": &archiveSHA256, "source-archive-size": &archiveSizeText,
+			"source-file-count": &sourceFileCountText,
+		} {
+			value, readErr := readIdentityFile(filepath.Join(directory, name))
+			if readErr != nil {
+				return Provenance{}, fmt.Errorf("read kernel build provenance %s: %w", name, readErr)
+			}
+			*destination = value
+		}
+		if archiveName != LocalSourceArchiveName || localRevision != plan.LocalSourceRevision ||
+			archiveSHA256 != plan.SourceArchiveSHA256 || !gitObjectExpression.MatchString(localRevision) ||
+			!sha256Expression.MatchString(archiveSHA256) {
+			return Provenance{}, errors.New("container local source identity differs from the reviewed plan")
+		}
+		parsedArchiveSize, sizeErr := parsePositiveIdentityInt(archiveSizeText, maximumSourceArchiveSize)
+		archiveSize = parsedArchiveSize
+		if sizeErr != nil || archiveSize != plan.SourceArchiveSize {
+			return Provenance{}, errors.New("container local source archive size differs from the reviewed plan")
+		}
+		fileCount, countErr := parsePositiveIdentityInt(sourceFileCountText, maximumSourceFiles)
+		if countErr != nil || int(fileCount) != plan.SourceFileCount {
+			return Provenance{}, errors.New("container local source file count differs from the reviewed plan")
+		}
+		sourceFileCount = int(fileCount)
+		for _, name := range []string{"git-url", "git-ref", "ref-kind"} {
+			if _, statErr := os.Lstat(filepath.Join(directory, name)); !errors.Is(statErr, os.ErrNotExist) {
+				return Provenance{}, fmt.Errorf("local source provenance contains mixed HTTPS field %s", name)
+			}
+		}
+	default:
+		return Provenance{}, fmt.Errorf("container returned unsupported source kind %q", sourceKind)
 	}
 	if BootImageMode(bootImageMode) != plan.BootImageMode {
 		return Provenance{}, errors.New("container boot-image mode differs from the reviewed plan")
@@ -122,9 +181,6 @@ func readProvenance(transaction string, plan Plan) (Provenance, error) {
 			UKifyVersion: identities["ukify-version"], UKifySHA256: identities["ukify-sha256"], Selections: selections,
 		}
 	}
-	if refKind != "branch" && refKind != "tag" {
-		return Provenance{}, fmt.Errorf("container returned unsupported Git ref kind %q", refKind)
-	}
 	if !gitObjectExpression.MatchString(revision) || !gitObjectExpression.MatchString(tree) {
 		return Provenance{}, errors.New("container returned malformed Git revision or tree identity")
 	}
@@ -138,8 +194,15 @@ func readProvenance(transaction string, plan Plan) (Provenance, error) {
 	if err != nil {
 		return Provenance{}, fmt.Errorf("parse kernel source commit time: %w", err)
 	}
+	if plan.SourceKind == SourceKindLocalGitCommit &&
+		(revision != plan.LocalSourceRevision || tree != plan.SourceTree || !committed.Equal(plan.SourceCommitTime)) {
+		return Provenance{}, errors.New("container built a different local commit or tree than the reviewed plan")
+	}
 	return Provenance{
-		GitURL: gitURL, GitRef: gitRef, BootImageMode: BootImageMode(bootImageMode),
+		SourceKind: SourceKind(sourceKind), GitURL: gitURL, GitRef: gitRef,
+		LocalSourceRevision: localRevision, SourceArchiveName: archiveName,
+		SourceArchiveSHA256: archiveSHA256, SourceArchiveSize: archiveSize, SourceFileCount: sourceFileCount,
+		BootImageMode:        BootImageMode(bootImageMode),
 		EffectiveDTBDelivery: kernel.DTBDelivery(effectiveDelivery), EmbeddedDTBCount: embeddedCount,
 		DeviceTrees: deviceTrees, RefKind: refKind, Revision: revision, Tree: tree,
 		DTBSelectionProvenance: selectionProvenance,
@@ -378,7 +441,7 @@ func copyWithContext(ctx context.Context, destination io.Writer, source io.Reade
 }
 
 // publishArtifacts atomically installs a new output directory on its filesystem.
-func publishArtifacts(ctx context.Context, plan Plan, provenance Provenance, bundle kernel.Bundle, artifacts []Artifact) ([]Artifact, bool, error) {
+func publishArtifacts(ctx context.Context, transaction string, plan Plan, provenance Provenance, bundle kernel.Bundle, artifacts []Artifact) ([]Artifact, bool, error) {
 	if err := requireNewOutput(plan.OutputDirectory); err != nil {
 		return nil, false, fmt.Errorf("output changed during kernel build: %w", err)
 	}
@@ -431,6 +494,13 @@ func publishArtifacts(ctx context.Context, plan Plan, provenance Provenance, bun
 		item.Verified = true
 		packageByName[artifact.Name] = item
 	}
+	if provenance.SourceKind == SourceKindLocalGitCommit {
+		source := filepath.Join(transaction, localSourceArchiveFile)
+		destination := filepath.Join(staging, LocalSourceArchiveName)
+		if err := copyVerifiedFile(ctx, source, destination, provenance.SourceArchiveSHA256, provenance.SourceArchiveSize, maximumSourceArchiveSize); err != nil {
+			return nil, false, fmt.Errorf("retain local kernel source snapshot: %w", err)
+		}
+	}
 	finalPackages := make([]kernel.Package, 0, len(bundle.Packages))
 	for _, item := range bundle.Packages {
 		finalPackages = append(finalPackages, packageByName[item.Name])
@@ -471,6 +541,38 @@ func publishArtifacts(ctx context.Context, plan Plan, provenance Provenance, bun
 		return published, true, fmt.Errorf("sync kernel output parent: %w", err)
 	}
 	return published, true, nil
+}
+
+// copyVerifiedFile copies one pre-hashed regular file and proves it did not
+// change before the destination became part of the closed output.
+func copyVerifiedFile(ctx context.Context, sourcePath, destinationPath, expectedDigest string, expectedSize, maximum int64) error {
+	sourceInfo, err := os.Lstat(sourcePath)
+	if err != nil || sourceInfo.Mode()&os.ModeSymlink != 0 || !sourceInfo.Mode().IsRegular() || sourceInfo.Size() != expectedSize {
+		return fmt.Errorf("source is not the expected regular file: %s", sourcePath)
+	}
+	source, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	destination, err := os.OpenFile(destinationPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	if err != nil {
+		_ = source.Close()
+		return err
+	}
+	hasher := sha256.New()
+	written, copyErr := copyWithContext(ctx, io.MultiWriter(destination, hasher), source, maximum)
+	syncErr := destination.Sync()
+	destinationCloseErr := destination.Close()
+	sourceCloseErr := source.Close()
+	current, statErr := os.Lstat(sourcePath)
+	if err := errors.Join(copyErr, syncErr, destinationCloseErr, sourceCloseErr, statErr); err != nil {
+		return err
+	}
+	if current.Mode()&os.ModeSymlink != 0 || !os.SameFile(sourceInfo, current) || written != expectedSize ||
+		hex.EncodeToString(hasher.Sum(nil)) != expectedDigest {
+		return errors.New("source changed while it was retained")
+	}
+	return nil
 }
 
 // copyVerifiedPackage copies one pre-inspected package and proves its identity again.
