@@ -76,6 +76,14 @@ that do not apply.
   `--from`.
 - Organise the documentation around first-time setup, hardware profiles,
   configuration, task guides and command and configuration references.
+- Add `lexr upgrade`, which checks GitHub for the newest published release,
+  downloads the matching binary for the platform, verifies the release
+  SHA-256 checksum, and atomically replaces the running executable. Without
+  a network connection it fails with a clear message instead of hanging.
+- Add an upgrade notice to `lexr version`: when a newer release is published
+  and the check succeeds, the command now prints the new version and the
+  `lexr upgrade` hint. Offline, rate-limited, and dev builds print the
+  version exactly as before, with no errors or delay.
 
 ### Removed
 
@@ -106,21 +114,6 @@ that do not apply.
   attempt to restore the retired hooks and retain their recovery receipt.
 - Explain when read-only kernel checks need `sudo` to read protected boot
   files, including how to retain the selected profile across privilege changes.
-
-## [0.5.0] - Unreleased
-
-### Added
-
-- Add `lexr upgrade`, which checks GitHub for the newest published release,
-  downloads the matching binary for the platform, verifies the release
-  SHA-256 checksum, and atomically replaces the running executable. Without
-  a network connection it fails with a clear message instead of hanging.
-- Add an upgrade notice to `lexr version`: when a newer release is published
-  and the check succeeds, the command now prints the new version and the
-  `lexr upgrade` hint. Offline, rate-limited, and dev builds print the
-  version exactly as before, with no errors or delay.
-
----
 
 ## [0.4.0] - Unreleased
 
