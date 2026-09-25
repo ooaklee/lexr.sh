@@ -115,7 +115,7 @@ func TestDebianManifestRequiresAllBootContracts(t *testing.T) {
 func TestDebianInstalledInitramfsCannotRequireTheUSB(t *testing.T) {
 	const abi = "7.2.0-jg-0sp11v24-qcom-x1e"
 	installed := "usr/lib/modules/" + abi + "/kernel/drivers/usb/host/xhci-pci.ko\n"
-	live := installed + "scripts/live\nusr/bin/live-boot\nusr/lib/live/boot/9990-misc-helpers.sh\nconf/uuid.conf\nusr/bin/md5sum\n" + ramBootScriptPath + "\n"
+	live := installed + "scripts/live\nusr/bin/live-boot\nusr/lib/live/boot/9990-misc-helpers.sh\nconf/uuid.conf\nusr/bin/md5sum\n" + ramBootScriptPath + "\n" + ramBootOrderPath + "\n"
 	if err := validateInitrdMembers(installed, abi, false); err != nil {
 		t.Fatal(err)
 	}
@@ -125,15 +125,52 @@ func TestDebianInstalledInitramfsCannotRequireTheUSB(t *testing.T) {
 	for _, bad := range []string{
 		strings.ReplaceAll(live, ramBootScriptPath+"\n", ""),
 		live + ramBootScriptPath + "\n",
+		strings.ReplaceAll(live, ramBootOrderPath+"\n", ""),
+		live + ramBootOrderPath + "\n",
 		strings.ReplaceAll(live, "usr/bin/md5sum\n", ""),
 	} {
 		if err := validateInitrdMembers(bad, abi, true); err == nil {
 			t.Fatal("live initramfs accepted missing or duplicate RAM verification inputs")
 		}
 	}
-	for _, bad := range []string{live, installed + "usr/bin/live-boot\n", strings.ReplaceAll(installed, abi, "6.17.9-generic"), "scripts/local\n"} {
+	for _, bad := range []string{live, installed + ramBootOrderPath + "\n", installed + "usr/bin/live-boot\n", strings.ReplaceAll(installed, abi, "6.17.9-generic"), "scripts/local\n"} {
 		if err := validateInitrdMembers(bad, abi, false); err == nil {
 			t.Fatalf("invalid installed initramfs accepted: %s", bad)
 		}
+	}
+}
+
+// TestRAMBootDispatchRejectsBypasses covers images that carry the correct hook
+// but omit, duplicate, suppress, or alter its cached runtime invocation.
+func TestRAMBootDispatchRejectsBypasses(t *testing.T) {
+	const parameters = "[ -e /conf/param.conf ] && . /conf/param.conf\n"
+	const verifier = "/scripts/live-bottom/lexr-verify-ram \"$@\"\n" + parameters
+	const before = "/scripts/live-bottom/10-stock-hook \"$@\"\n" + parameters
+	const after = "/scripts/live-bottom/zz-stock-hook \"$@\"\n" + parameters
+	for _, testcase := range []struct {
+		name, order string
+		valid       bool
+	}{
+		{"single verifier", verifier, true},
+		{"other stock hooks", before + verifier + after, true},
+		{"no final newline", strings.TrimSuffix(verifier, "\n"), true},
+		{"empty dispatcher", "", false},
+		{"omitted verifier", before + after, false},
+		{"duplicate verifier", verifier + before + verifier, false},
+		{"commented verifier", "#" + verifier, false},
+		{"conditional verifier", "false && " + verifier, false},
+		{"early exit", "exit 0\n" + parameters + verifier, false},
+		{"wrong path", strings.Replace(verifier, "/scripts/live-bottom/", "/scripts/init-bottom/", 1), false},
+		{"changed arguments", strings.Replace(verifier, "\"$@\"", "prereqs", 1), false},
+		{"missing parameter reload", "/scripts/live-bottom/lexr-verify-ram \"$@\"\n", false},
+		{"hidden command", strings.Replace(verifier, "&& . /conf/param.conf", "&& . /conf/param.conf; exit 0", 1), false},
+		{"directory invocation", "/scripts/live-bottom/.. \"$@\"\n" + parameters + verifier, false},
+	} {
+		t.Run(testcase.name, func(t *testing.T) {
+			err := validateRAMBootOrder(testcase.order)
+			if (err == nil) != testcase.valid {
+				t.Fatalf("valid=%v, error=%v, order=%q", testcase.valid, err, testcase.order)
+			}
+		})
 	}
 }

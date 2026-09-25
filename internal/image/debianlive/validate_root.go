@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
@@ -56,6 +57,7 @@ regular /linux-work/live-initrd/main/scripts/live
 regular /linux-work/live-initrd/main/usr/bin/live-boot
 regular /linux-work/live-initrd/main/usr/lib/live/boot/9990-misc-helpers.sh
 regular /linux-work/live-initrd/main/scripts/live-bottom/lexr-verify-ram
+regular /linux-work/live-initrd/main/scripts/live-bottom/ORDER
 test -x /linux-work/live-initrd/main/scripts/live-bottom/lexr-verify-ram
 test -x /linux-work/live-initrd/main/usr/bin/md5sum
 test ! -e "$root/etc/initramfs-tools/scripts/live-bottom/lexr-verify-ram"
@@ -64,6 +66,8 @@ for section in /linux-work/live-initrd/* /linux-work/installed-initrd/*; do
     [ "$section" = /linux-work/live-initrd/main ] && continue
     test ! -e "$section/scripts/live-bottom/lexr-verify-ram"
     test ! -L "$section/scripts/live-bottom/lexr-verify-ram"
+    test ! -e "$section/scripts/live-bottom/ORDER"
+    test ! -L "$section/scripts/live-bottom/ORDER"
 done
 `
 	if err := v.Docker.RunInWorkspaceVolume(ctx, toolsImage, workspace, volume, "bash", "-ceu", extract, "lexr-debian-validate-root", abi); err != nil {
@@ -82,7 +86,8 @@ regular() {
 }
 mkdir /work/root-evidence /work/initrd-firmware
 cp /linux-work/live-initrd/main/scripts/live-bottom/lexr-verify-ram /work/ram-boot-script
-chmod a+r /work/ram-boot-script
+cp /linux-work/live-initrd/main/scripts/live-bottom/ORDER /work/ram-boot-order
+chmod a+r /work/ram-boot-script /work/ram-boot-order
 for relative in usr/sbin/update-grub etc/grub.d/10_linux etc/initramfs-tools/hooks/lexr-sp11-firmware etc/initramfs-tools/hooks/lexr-sp11-modules; do
     regular "$root/$relative"
     test -x "$root/$relative"
@@ -127,6 +132,13 @@ chmod -R a+rX /work/root-evidence /work/initrd-firmware
 	}
 	if string(ramScript) != ramBootScript {
 		return errors.New("Debian live initramfs RAM verification script differs")
+	}
+	ramOrder, err := imagecontract.ReadBoundedExtractedFile(workspace, "ram-boot-order", 64<<10)
+	if err != nil {
+		return err
+	}
+	if err := validateRAMBootOrder(string(ramOrder)); err != nil {
+		return err
 	}
 	// Compare all package-owned DTBs, kernel bytes and module objects to the
 	// independently extracted archives, not just a claimed ABI or directory.
@@ -254,7 +266,7 @@ done < <(find "$unpacked" -type f \( -name '*.ko' -o -name '*.ko.xz' -o -name '*
 // live image from the installed-system image that must boot without the USB.
 func validateInitrdMembers(listing, abi string, live bool) error {
 	modules, liveScript, liveProgram, liveHelpers, uuid, checksumTool := false, false, false, false, false, false
-	ramScripts := 0
+	ramScripts, ramOrders := 0, 0
 	for _, line := range strings.Split(listing, "\n") {
 		member := strings.TrimPrefix(strings.TrimSpace(line), "./")
 		if member == "scripts/live" {
@@ -271,6 +283,9 @@ func validateInitrdMembers(listing, abi string, live bool) error {
 		}
 		if member == ramBootScriptPath {
 			ramScripts++
+		}
+		if member == ramBootOrderPath {
+			ramOrders++
 		}
 		if member == "usr/bin/md5sum" {
 			checksumTool = true
@@ -294,8 +309,40 @@ func validateInitrdMembers(listing, abi string, live bool) error {
 			}
 		}
 	}
-	if !modules || live && (!liveScript || !liveProgram || !liveHelpers || !uuid || ramScripts != 1 || !checksumTool) {
+	if !modules || live && (!liveScript || !liveProgram || !liveHelpers || !uuid || ramScripts != 1 || ramOrders != 1 || !checksumTool) {
 		return errors.New("Debian initramfs lacks its required exact-ABI modules or live-boot inputs")
+	}
+	return nil
+}
+
+// ramBootOrderPath is the cached dispatcher used by initramfs-tools at runtime.
+const ramBootOrderPath = "scripts/live-bottom/ORDER"
+
+// initramfsDispatch accepts the data-shaped dispatch emitted by mkinitramfs,
+// without interpreting image-provided shell commands in the validator.
+var initramfsDispatch = regexp.MustCompile(`^/scripts/live-bottom/([A-Za-z0-9_.-]+) "\$@"$`)
+
+// validateRAMBootOrder requires the verifier to be called exactly once by the
+// cached dispatcher. Script presence alone does not make run_scripts execute it.
+// Other stock hooks may appear before or after it, using the same generated
+// dispatch/parameter-reload pairs; conditionals or early exits are not accepted.
+func validateRAMBootOrder(order string) error {
+	lines := strings.Split(strings.TrimSuffix(order, "\n"), "\n")
+	if len(lines)%2 != 0 {
+		return errors.New("Debian live initramfs has malformed live-bottom dispatch")
+	}
+	verifiers := 0
+	for index := 0; index < len(lines); index += 2 {
+		match := initramfsDispatch.FindStringSubmatch(lines[index])
+		if len(match) != 2 || match[1] == "." || match[1] == ".." || lines[index+1] != "[ -e /conf/param.conf ] && . /conf/param.conf" {
+			return errors.New("Debian live initramfs has malformed live-bottom dispatch")
+		}
+		if match[1] == "lexr-verify-ram" {
+			verifiers++
+		}
+	}
+	if verifiers != 1 {
+		return errors.New("Debian live initramfs must dispatch RAM verification exactly once")
 	}
 	return nil
 }
