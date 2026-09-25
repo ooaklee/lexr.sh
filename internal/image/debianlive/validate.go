@@ -92,6 +92,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 		return report, err
 	}
 	report.KernelABI = manifest.KernelBundle.ABI
+	report.BootProfiles = manifest.KernelBundle.BootPlatforms()
 	for _, tree := range manifest.KernelBundle.DeviceTrees {
 		report.DeviceTrees = append(report.DeviceTrees, tree.Device)
 	}
