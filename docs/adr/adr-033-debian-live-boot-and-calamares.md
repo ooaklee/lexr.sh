@@ -18,6 +18,12 @@ and SquashFS read errors. Separate photographs showed a RAM copy in progress,
 without confirming completion or a RAM-backed root. The triggering driver or
 firmware failure has not been identified; a black screen alone does not isolate
 graphics from loss of the live filesystem.
+Later that day, Ooaklee confirmed that adding `regulator_ignore_unused` to the
+MSM-blacklisted initramfs diagnostic kept the screen visible and keyboard input
+working. Without it, the display went black while typing before root userspace
+started. This supports suppressing unused-regulator cleanup for the firmware
+display diagnostics; it does not identify a particular failing supply or
+explain the normal desktop and USB failures.
 Physical live boot, installation and recovery remain unqualified; this proposal
 has not been accepted as a working Debian installation path.
 
@@ -86,9 +92,12 @@ before allowing that entry to continue. Module-only `toram=filesystem.squashfs`
 changes the directory layout and is not an installer-compatible alternative.
 The separate initramfs storage diagnostic entry pauses at `break=bottom`, before
 root userspace starts, with only `msm` blacklisted for firmware-console access.
+Both MSM-blacklisted diagnostics set `regulator_ignore_unused` for that boot,
+preserving unused supplies while the firmware display has no native graphics
+driver. Keep ordinary desktop, RAM and native text boot regulator policy unchanged.
 Retain the SSAM UART parent and client registry, which the keyboard hub's ELF
-dependencies do not cover. Physical keyboard input and desktop boot still need
-testing with the rebuilt image.
+dependencies do not cover. Keyboard input has been confirmed in the v23
+initramfs diagnostic; desktop boot still needs qualification.
 
 Retain Calamares's inspected unpack, partitioning, package-removal and bootloader
 sequence. Supply the missing GRUB packages offline. Add distribution-specific

@@ -93,7 +93,7 @@ func TestStorageDiagnosticStopsBeforeRootUserspace(t *testing.T) {
 				}
 			}
 		}
-		for _, required := range strings.Fields(surfaceKernelArguments + " break=bottom module_blacklist=msm debug earlycon=efifb,ram loglevel=7 log_buf_len=8M plymouth.enable=0 console=tty0") {
+		for _, required := range strings.Fields(surfaceKernelArguments + " break=bottom module_blacklist=msm regulator_ignore_unused debug earlycon=efifb,ram loglevel=7 log_buf_len=8M plymouth.enable=0 console=tty0") {
 			if counts[required] != 1 {
 				t.Fatalf("storage diagnostic requires one %q, got %d", required, counts[required])
 			}
@@ -104,5 +104,81 @@ func TestStorageDiagnosticStopsBeforeRootUserspace(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("storage diagnostic entry is absent")
+	}
+}
+
+// TestFirmwareDiagnosticsPreserveUnusedRegulators confines the global regulator
+// cleanup bypass to diagnostics that leave the native display driver unloaded.
+func TestFirmwareDiagnosticsPreserveUnusedRegulators(t *testing.T) {
+	const abi = "7.2.0-jg-0sp11v23-qcom-x1e"
+	config, err := grubConfig(outputLayout, abi)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateGRUBConfig([]byte(config), outputLayout, abi); err != nil {
+		t.Fatal(err)
+	}
+	diagnostics := 0
+	for _, entry := range strings.Split(config, "menuentry ")[1:] {
+		if !strings.Contains(entry, "linux ") {
+			continue
+		}
+		title, _, _ := strings.Cut(entry, "\n")
+		diagnostic := title == `"Debian for Surface Pro 11 X1E/OLED (firmware display diagnostics)" {` ||
+			title == `"Debian for Surface Pro 11 X1E/OLED (initramfs storage diagnostics)" {`
+		want := 0
+		if diagnostic {
+			want = 1
+			diagnostics++
+		}
+		counts := make(map[string]int)
+		for _, line := range strings.Split(entry, "\n") {
+			if !strings.HasPrefix(strings.TrimSpace(line), "linux ") {
+				continue
+			}
+			for _, argument := range strings.Fields(line) {
+				counts[argument]++
+				if strings.HasPrefix(argument, "regulator_ignore_unused=") {
+					t.Fatalf("regulator cleanup bypass must be a bare flag: %s", title)
+				}
+			}
+		}
+		for _, argument := range []string{"regulator_ignore_unused", "module_blacklist=msm"} {
+			if counts[argument] != want {
+				t.Fatalf("%s: want %d %q, got %d", title, want, argument, counts[argument])
+			}
+		}
+		if !diagnostic {
+			continue
+		}
+		t.Run(title, func(t *testing.T) {
+			removed := strings.Replace(entry, " regulator_ignore_unused ", " ", 1)
+			for name, altered := range map[string]string{
+				"removed":          removed,
+				"duplicated":       strings.Replace(entry, " regulator_ignore_unused ", " regulator_ignore_unused regulator_ignore_unused ", 1),
+				"after separator":  strings.Replace(removed, " ---", " --- regulator_ignore_unused", 1),
+				"assigned a value": strings.Replace(entry, " regulator_ignore_unused ", " regulator_ignore_unused=1 ", 1),
+			} {
+				t.Run(name, func(t *testing.T) {
+					mutated := strings.Replace(config, entry, altered, 1)
+					if err := validateGRUBConfig([]byte(mutated), outputLayout, abi); err == nil {
+						t.Fatal("accepted altered diagnostic regulator policy")
+					}
+				})
+			}
+			t.Run("moved to desktop", func(t *testing.T) {
+				mutated := strings.Replace(config, entry, removed, 1)
+				if !strings.Contains(mutated, " quiet splash ") {
+					t.Fatal("desktop fixture lacks the expected kernel argument anchor")
+				}
+				mutated = strings.Replace(mutated, " quiet splash ", " regulator_ignore_unused quiet splash ", 1)
+				if err := validateGRUBConfig([]byte(mutated), outputLayout, abi); err == nil {
+					t.Fatal("accepted regulator bypass moved from diagnostics to the desktop")
+				}
+			})
+		})
+	}
+	if diagnostics != 2 {
+		t.Fatalf("want two firmware display diagnostics, got %d", diagnostics)
 	}
 }

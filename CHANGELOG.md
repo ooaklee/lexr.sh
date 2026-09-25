@@ -85,6 +85,9 @@ that do not apply.
   companion paths and checks the copied media before continuing. Restore the
   initramfs storage diagnostic entry and retain the Surface keyboard's UART
   transport and client registry in both live and installed initramfs images.
+  Keep unused power supplies enabled in the two Debian firmware-display
+  diagnostic entries so regulator cleanup cannot blank the firmware display
+  while collecting evidence. Normal desktop and copy-to-RAM policy is unchanged.
   USB disconnection and black-screen reports remain under investigation;
   hardware boot qualification remains pending.
 

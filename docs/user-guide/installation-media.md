@@ -203,13 +203,21 @@ not confirm a completed RAM-backed boot.
 For a failed boot, **text diagnostics** requests a text session. **Firmware
 display diagnostics** additionally disables `msm` for that boot. The separate
 **initramfs storage diagnostics** entry deliberately pauses before root
-userspace starts, using `break=bottom` and the firmware display. At its
-`(initramfs)` prompt, collect `uname -r`, `cat /proc/cmdline`,
+userspace starts, using `break=bottom` and the firmware display. Both entries
+that disable `msm` set `regulator_ignore_unused` to keep unused power supplies
+enabled during that diagnostic boot. This prevents regulator cleanup from
+switching off supplies needed by the firmware display. Normal desktop,
+copy-to-RAM and native graphics text entries retain their usual regulator policy.
+
+At the `(initramfs)` prompt, run `dmesg -n 1` to quieten new console messages
+without clearing the log, then collect `echo "$REASON"`, `uname -r`, `cat /proc/cmdline`,
 `cat /proc/mounts`, `cat /sys/block/loop*/loop/backing_file` and
-`dmesg | tail -n 100`. Type `exit` to continue. The initramfs includes the Surface
-keyboard's UART parent and client registry, but physical input still needs
-testing with this image. Keep raw captures private and redact personal data
-before posting excerpts.
+`dmesg | tail -n 100 | more`. Press Space to page through the output or `q` to
+leave the pager. Type `exit` to continue booting after collecting the evidence.
+Ooaklee confirmed that the v23 X1E/OLED initramfs diagnostic retained its display
+and accepted keyboard input after adding `regulator_ignore_unused`. This does
+not qualify a desktop boot or identify the cause of the USB read errors.
+Keep raw captures private and redact personal data before posting excerpts.
 
 The companion guide is `LEXR_GETTING_STARTED.txt` in the live user's Desktop
 folder. Its live root is `/run/live/medium/sp11/companion`; after installation,

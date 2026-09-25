@@ -17,11 +17,20 @@ The "initramfs storage diagnostics" entry deliberately stops at an (initramfs)
 shell before Debian's services start. It disables msm for that boot and retains
 the Surface keyboard's UART transport and client registry. At the prompt, record:
 
+  dmesg -n 1
+  echo "$REASON"
   uname -r
   cat /proc/cmdline
   cat /proc/mounts
   cat /sys/block/loop*/loop/backing_file
-  dmesg | tail -n 100
+  dmesg | tail -n 100 | more
+
+Both entries that disable msm also set regulator_ignore_unused for that boot.
+This keeps unused power supplies enabled while the firmware display is in use;
+otherwise its panel supply can be switched off while you are typing. This
+diagnostic setting does not apply to the normal desktop or copy-to-RAM entries.
+The dmesg -n command above quietens new console messages without discarding the
+kernel log. Press Space to page through more, or q to leave it.
 
 Type exit to continue booting. An initramfs prompt is expected for this entry;
 it does not establish that the desktop works. Keep raw captures private and
