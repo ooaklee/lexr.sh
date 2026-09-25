@@ -286,6 +286,7 @@ component name or receipt ID remain command-line arguments.
 | `kernel.build.repository_root` | string | `--repository-root` |
 | `kernel.build.git_url` | string | `--git-url` |
 | `kernel.build.git_branch` | string | `--git-branch` |
+| `kernel.build.source_dir` | string | `--source-dir` |
 | `kernel.build.boot_image_mode` | string | `--boot-image-mode` |
 | `kernel.build.work_dir` | string | `--work-dir` |
 | `kernel.build.output_dir` | string | `--output-dir` |

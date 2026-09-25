@@ -768,7 +768,8 @@ func TestCompiledRecipeContainsOnlyNativeBuildPolicy(t *testing.T) {
 	if strings.Contains(containerRecipe, `[ "$boot_image_mode" != source ]`) {
 		t.Error("compiled recipe skips effective-delivery inspection for source mode")
 	}
-	if strings.Count(containerRecipe, "rm -rf") != 1 || !strings.Contains(containerRecipe, `rm -rf -- "$source_dir"`) {
+	if !strings.Contains(containerRecipe, `rm -rf -- "$source_dir"`) ||
+		!strings.Contains(containerRecipe, `rm -rf -- "$candidate"`) {
 		t.Errorf("compiled recipe has an unexpected reset boundary")
 	}
 	if !strings.Contains(containerRecipe, `find "$source_parent" -mindepth 1 -maxdepth 1`) || strings.Contains(containerRecipe, `find "$work_root"`) {
@@ -785,14 +786,17 @@ func TestCompiledRecipeContainsOnlyNativeBuildPolicy(t *testing.T) {
 // authorised reset can cross shallow fetch boundaries while ordinary builds
 // still reject commits outside the requested remote ref.
 func TestCompiledRecipeProtectsLocalCommitsWithoutReset(t *testing.T) {
-	const guardedCheck = `if [ "$reset_source" != true ] &&
-   git -C "$source_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
-  local_commits="$(git -C "$source_dir" rev-list --count "$revision..HEAD")"`
+	const guardedCheck = `if [ "$reset_source" != true ] && git -C "$source_dir" rev-parse --verify HEAD >/dev/null 2>&1; then`
 	if !strings.Contains(containerRecipe, guardedCheck) {
 		t.Fatal("compiled recipe does not limit the local-commit guard to non-reset builds")
 	}
 	if strings.Count(containerRecipe, "Managed source contains commits outside the requested remote ref") != 1 {
 		t.Fatal("compiled recipe does not retain exactly one local-commit rejection")
+	}
+	archiveVerification := strings.Index(containerRecipe, `sha256sum "$source_archive"`)
+	reuseDecision := strings.Index(containerRecipe, `reuse_local=false`)
+	if archiveVerification < 0 || reuseDecision < 0 || archiveVerification >= reuseDecision {
+		t.Fatal("compiled recipe does not verify the local archive before managed-volume reuse")
 	}
 }
 
@@ -860,12 +864,18 @@ func writeFakeContainerOutput(command platform.Command, transaction string) erro
 			break
 		}
 	}
-	if scriptIndex < 0 || scriptIndex+6 >= len(arguments) {
+	if scriptIndex < 0 || scriptIndex+12 >= len(arguments) {
 		return errors.New("fake Docker command has incomplete recipe arguments")
 	}
-	gitURL := arguments[scriptIndex+1]
-	gitRef := arguments[scriptIndex+2]
-	bootImageMode := arguments[scriptIndex+6]
+	sourceKind := arguments[scriptIndex+1]
+	gitURL := arguments[scriptIndex+2]
+	gitRef := arguments[scriptIndex+3]
+	localRevision := arguments[scriptIndex+4]
+	sourceTree := arguments[scriptIndex+5]
+	archiveSHA256 := arguments[scriptIndex+6]
+	archiveSize := arguments[scriptIndex+7]
+	sourceFileCount := arguments[scriptIndex+8]
+	bootImageMode := arguments[scriptIndex+12]
 	recipe := valueFollowing(arguments, "--env", "LEXR_RECIPE_SHA256=")
 	provenance := filepath.Join(transaction, "provenance")
 	artifacts := filepath.Join(transaction, "artifacts")
@@ -876,8 +886,7 @@ func writeFakeContainerOutput(command platform.Command, transaction string) erro
 		return err
 	}
 	fields := map[string]string{
-		"git-url":                gitURL,
-		"git-ref":                gitRef,
+		"source-kind":            sourceKind,
 		"boot-image-mode":        bootImageMode,
 		"effective-dtb-delivery": string(kernel.DTBDeliveryEmbedded),
 		"embedded-dtb-count":     "2",
@@ -891,12 +900,24 @@ func writeFakeContainerOutput(command platform.Command, transaction string) erro
 		"ukify-package":          "systemd-ukify",
 		"ukify-version":          "258.1-1",
 		"ukify-sha256":           strings.Repeat("4", 64),
-		"ref-kind":               "branch",
-		"revision":               strings.Repeat("a", 40),
-		"tree":                   strings.Repeat("b", 40),
 		"commit-time":            "2026-08-30T10:00:00+00:00",
 		"recipe-sha256":          recipe,
 		"toolchain-sha256":       strings.Repeat("c", 64),
+	}
+	if SourceKind(sourceKind) == SourceKindLocalGitCommit {
+		fields["local-source-revision"] = localRevision
+		fields["source-archive-name"] = LocalSourceArchiveName
+		fields["source-archive-sha256"] = archiveSHA256
+		fields["source-archive-size"] = archiveSize
+		fields["source-file-count"] = sourceFileCount
+		fields["revision"] = localRevision
+		fields["tree"] = sourceTree
+	} else {
+		fields["git-url"] = gitURL
+		fields["git-ref"] = gitRef
+		fields["ref-kind"] = "branch"
+		fields["revision"] = strings.Repeat("a", 40)
+		fields["tree"] = strings.Repeat("b", 40)
 	}
 	for name, value := range fields {
 		if err := os.WriteFile(filepath.Join(provenance, name), []byte(value), 0o644); err != nil {

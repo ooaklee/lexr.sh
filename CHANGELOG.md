@@ -54,6 +54,11 @@ that do not apply.
 
 ### Added
 
+- Build an exact clean local kernel commit with `kernel build --source-dir`
+  without pushing a temporary branch. Lexr snapshots immutable Git objects,
+  verifies the commit and tree inside the container, retains the source archive
+  with local build output, and rejects local provenance from release
+  preparation.
 - Save your hardware choice with `lexr init <profile>` and reuse it across
   images, diagnostics and installation. `lexr profile list` shows the available
   choices, and global `--profile` overrides your saved choice for one command.

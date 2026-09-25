@@ -18,6 +18,45 @@ import (
 // recipeScannerABI is the synthetic exact ABI used by DTB archive scanner tests.
 const recipeScannerABI = "7.2.0-jg-0sp11v23-qcom-x1e"
 
+// TestRecipeLocalSourceExtractorAcceptsOnlyContainedMembers executes the exact
+// container-side extractor against safe, traversal, and escaping-link inputs.
+func TestRecipeLocalSourceExtractorAcceptsOnlyContainedMembers(t *testing.T) {
+	tests := []struct {
+		name    string
+		member  recipeTarMember
+		wantErr string
+	}{
+		{name: "regular", member: recipeTarMember{name: "README", data: []byte("source\n")}},
+		{name: "traversal", member: recipeTarMember{name: "../escape", data: []byte("unsafe")}, wantErr: "unsafe path"},
+		{name: "escaping symlink", member: recipeTarMember{name: "link", typeflag: tar.TypeSymlink, linkname: "../../escape"}, wantErr: "symbolic link escapes"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			archive := filepath.Join(root, "source.tar")
+			writeRecipeTar(t, archive, []recipeTarMember{test.member})
+			destination := filepath.Join(root, "destination")
+			if err := os.Mkdir(destination, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			output, err := executeRecipeLocalSourceExtractor(t, archive, destination, "1")
+			if test.wantErr != "" {
+				if err == nil || !strings.Contains(string(output), test.wantErr) {
+					t.Fatalf("extractor error = %v, output %q", err, output)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("extract safe archive: %v\n%s", err, output)
+			}
+			contents, err := os.ReadFile(filepath.Join(destination, "README"))
+			if err != nil || string(contents) != "source\n" {
+				t.Fatalf("extracted contents = %q, %v", contents, err)
+			}
+		})
+	}
+}
+
 // TestRecipeDTBScannerRetainsOnlyExternalPlatformsFromGenericInventory proves
 // a normal Ubuntu ARM64 inventory can exceed the historical 1,024-member cap
 // without making every unrelated DTB part of Lexr's retained working set.
@@ -677,6 +716,26 @@ func writeRecipeTar(t *testing.T, path string, members []recipeTarMember) {
 func executeRecipeDTBScanner(t *testing.T, arguments ...string) ([]byte, error) {
 	t.Helper()
 	return executeRecipeDTBScannerScript(t, recipeDTBScannerScript(t), arguments...)
+}
+
+// executeRecipeLocalSourceExtractor runs the exact Python archive boundary
+// embedded in the container recipe.
+func executeRecipeLocalSourceExtractor(t *testing.T, arguments ...string) ([]byte, error) {
+	t.Helper()
+	const startMarker = "<<'PY_LOCAL_SOURCE'\n"
+	const endMarker = "\nPY_LOCAL_SOURCE\n"
+	start := strings.Index(containerRecipe, startMarker)
+	if start < 0 {
+		t.Fatal(os.ErrNotExist)
+	}
+	start += len(startMarker)
+	end := strings.Index(containerRecipe[start:], endMarker)
+	if end < 0 {
+		t.Fatal(os.ErrInvalid)
+	}
+	command := exec.Command("python3", append([]string{"-"}, arguments...)...)
+	command.Stdin = strings.NewReader(containerRecipe[start : start+end])
+	return command.CombinedOutput()
 }
 
 // recipeDTBScannerScript extracts the exact Python scanner embedded in the

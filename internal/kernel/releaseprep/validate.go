@@ -176,7 +176,7 @@ func validateManifest(manifest Manifest) error {
 // validatePublicProvenance rejects local paths, credentials, mutable images, and malformed identities.
 func validatePublicProvenance(provenance SourceProvenance) error {
 	private := build.Provenance{
-		GitURL: provenance.GitURL, GitRef: provenance.GitRef, BootImageMode: provenance.BootImageMode, RefKind: provenance.RefKind,
+		SourceKind: provenance.SourceKind, GitURL: provenance.GitURL, GitRef: provenance.GitRef, BootImageMode: provenance.BootImageMode, RefKind: provenance.RefKind,
 		EffectiveDTBDelivery: provenance.EffectiveDTBDelivery, EmbeddedDTBCount: provenance.EmbeddedDTBCount,
 		DeviceTrees: kernel.CloneDeviceTrees(provenance.DeviceTrees), DTBSelectionProvenance: provenance.DTBSelectionProvenance,
 		Revision: provenance.Revision, Tree: provenance.Tree, CommitTime: provenance.CommitTime,

@@ -147,9 +147,34 @@ lexr kernel build \
   --output-dir build/lexr/kernel-v19
 ```
 
+To test a commit before publishing a branch, commit every intended change in
+the kernel checkout and select that clean worktree:
+
+```sh
+git -C <kernel-checkout> status --short
+lexr kernel build \
+  --source-dir <kernel-checkout> \
+  --repository-root <build-root> \
+  --output-dir build/lexr/kernel-local-test
+```
+
+Local mode rejects staged, unstaged and untracked files and is mutually
+exclusive with `--git-url` and `--git-branch`. The commit does not need to be
+pushed. Lexr archives the immutable commit rather than mounting the checkout,
+verifies the same commit and tree inside the container, and retains
+`lexr-kernel-source.tar` beside the packages. Provenance labels the build
+`local-git-commit` and records the optional local revision plus the retained
+archive digest and size without exposing the checkout path.
+
+Use a local-source build for inspection and guarded local installation only.
+Kernel release preparation rejects it; publish the commit to an HTTPS branch or
+tag and rebuild before preparing or publishing a release. [ADR037](../adr/adr-037-committed-local-kernel-source-snapshots.md)
+records why the first local-source contract requires a commit instead of
+capturing mutable working-tree bytes.
+
 The private transaction and new output directory must be relative to the selected containment root, and the output directory must not already exist. Source data persists in a Docker volume labelled for that exact work boundary; generated packages cross through a private host transaction. `--reset-source` can clean only that managed volume's source tree.
 
-The policy pins its Ubuntu 26.04 ARM64 base image by digest. Beside the packages it records the exact fetched revision and tree, the compiled recipe digest, and the installed-toolchain digest. Successful output contains the coherent signed image and modules pair, complete common and ABI-specific headers, `SHA256SUMS`, the normal kernel bundle manifest, and a source-provenance manifest.
+The policy pins its Ubuntu 26.04 ARM64 base image by digest. Beside the packages it records the exact selected revision and tree, the compiled recipe digest, and the installed-toolchain digest. Successful output contains the coherent signed image and modules pair, complete common and ABI-specific headers, `SHA256SUMS`, the normal kernel bundle manifest, and a source-provenance manifest. Local mode also retains its exact source archive.
 
 The build never installs a package, elevates privilege, reboots the host, or publishes a release.
 
