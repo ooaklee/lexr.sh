@@ -40,6 +40,7 @@ lexr --catalog ./supported-isos.json catalog list
 lexr profile list [--json]
 lexr init <profile> [--force]
 lexr version
+lexr upgrade
 lexr completion <bash|fish|powershell|zsh>
 ```
 
@@ -47,6 +48,13 @@ lexr completion <bash|fish|powershell|zsh>
 configuration. `init` validates the value against the registry, stores the
 canonical ID as the primary file's top-level `profile`, and adds `version: 1`
 if absent; replacing a different non-empty profile requires `--force`.
+
+`version` prints the build metadata; when a newer release is published and
+the release check succeeds within its short budget, it also prints an
+upgrade notice. `upgrade` checks GitHub for the newest release, verifies
+the release SHA-256 checksum, and atomically replaces the running
+executable; it requires a network connection and reports a clear error
+when offline.
 
 ## Configuration
 
