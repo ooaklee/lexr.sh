@@ -48,8 +48,15 @@ func stageKernelBundle(ctx context.Context, bundle kernel.Bundle, workspace stri
 		if pkg.Role != kernel.RoleImage && pkg.Role != kernel.RoleModules && pkg.Role != kernel.RoleBootSupport {
 			continue
 		}
-		digest, size, err := imagecontract.SnapshotFile(ctx, pkg.Path, filepath.Join(workspace, "kernel", pkg.Name), maximumISOBytes, nil)
+		staged := filepath.Join(workspace, "kernel", pkg.Name)
+		digest, size, err := imagecontract.SnapshotFile(ctx, pkg.Path, staged, maximumISOBytes, nil)
 		if err != nil {
+			return err
+		}
+		// The kernel cache may hold private (0600) files. Published media must
+		// stay world-readable so root-privileged validation, which re-reads the
+		// staged copies as the host user, never loses access to them.
+		if err := os.Chmod(staged, 0o644); err != nil {
 			return err
 		}
 		if digest != pkg.SHA256 || size != pkg.Size {

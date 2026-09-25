@@ -1,11 +1,45 @@
 package debianlive
 
 import (
+	"context"
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
+
+// TestStagedKernelPackagesAreWorldReadable catches privately cached (0600)
+// kernel packages from leaking their restrictive modes into published media,
+// which breaks root-run validation that re-reads the staged copies as the
+// host user.
+func TestStagedKernelPackagesAreWorldReadable(t *testing.T) {
+	cache := t.TempDir()
+	contents := []byte("kernel-package-bytes")
+	digest := sha256.Sum256(contents)
+	source := filepath.Join(cache, "linux-image.deb")
+	if err := os.WriteFile(source, contents, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	workspace := t.TempDir()
+	bundle := kernel.Bundle{Packages: []kernel.Package{{
+		Role: kernel.RoleImage, Name: "linux-image.deb", Path: source,
+		SHA256: fmt.Sprintf("%x", digest), Size: int64(len(contents)),
+	}}}
+	if err := stageKernelBundle(context.Background(), bundle, workspace); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(filepath.Join(workspace, "kernel", "linux-image.deb"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o644 {
+		t.Fatalf("staged kernel package mode is %04o, want 0644", info.Mode().Perm())
+	}
+}
 
 // TestMediaChecksumsPreserveUnchangedSourceMembers checks Debian's legacy media
 // inventory after a root replacement and addition of Lexr support files.
