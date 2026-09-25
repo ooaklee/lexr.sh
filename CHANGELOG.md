@@ -74,7 +74,7 @@ that do not apply.
 - Add experimental Debian ARM64 live media support for Surface Pro 11 with
   GNOME desktop. Port the legacy Debian live adapter work and reconcile with
   main's layered defaults and profile-resolved external DTBs. Register
-  `AdapterDebianLive` in the catalog model/validate/artifact mapping, wire
+  `AdapterDebianLive` in the catalog model/validate/artefact mapping, wire
   release-prep Debian step IDs, and connect the generated-image validator
   factory. Include a new catalog entry `debian-live-testing-gnome-arm64-20240902`
   for the verified weekly-live-build snapshot. Validation now surfaces
