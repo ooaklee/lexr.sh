@@ -80,7 +80,10 @@ that do not apply.
   for the verified weekly-live-build snapshot. Validation now surfaces
   `report.BootProfiles` for host profile auto-detection checks. Staged Debian
   kernel packages are now world-readable (0644), fixing `sudo lexr image write`
-  validation failures with `Permission denied` on kernel .debs. Hardware boot
+  validation failures with `Permission denied` on kernel .debs. The GRUB menu
+  now offers a copy-to-RAM boot choice (`toram=filesystem.squashfs`) so the
+  live medium is read sequentially into memory, working around unreliable
+  random reads deep in the 3&nbsp;GiB squashfs on some USB paths. Hardware boot
   qualification remains pending.
 
 ### Removed

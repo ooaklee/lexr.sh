@@ -29,8 +29,11 @@ func TestDebianLiveEntriesRetainDiscoveryAndDeviceTrees(t *testing.T) {
 			}
 		}
 	}
-	if count != 4 {
+	if count != 5 {
 		t.Fatalf("live entries=%d", count)
+	}
+	if !strings.Contains(config, "toram=filesystem.squashfs") {
+		t.Fatal("copy-to-RAM entry missing toram selector")
 	}
 	for _, bad := range []sourceLayout{{"casper", "casper/vmlinuz", "casper/initrd"}, {"live", "live/vmlinuz-6.10.6-arm64", "live/initrd.img-6.10.6-arm64"}} {
 		if _, err := grubConfig(bad, "7.2.2-jg-0sp11v3-qcom-x1e"); err == nil {

@@ -51,6 +51,12 @@ menuentry "Debian for Surface Pro 11 X1P/LCD (%[1]s, hardware qualification pend
     devicetree /sp11/dtb/x1p64100-microsoft-denali.dtb
     initrd /live/initrd.img
 }
+menuentry "Debian for Surface Pro 11 X1E/OLED (copy to RAM)" {
+    set gfxpayload=keep
+    linux /live/vmlinuz boot=live components live-media-path=/live toram=filesystem.squashfs %[2]s quiet splash console=tty0 ---
+    devicetree /sp11/dtb/x1e80100-microsoft-denali-oled.dtb
+    initrd /live/initrd.img
+}
 menuentry "Debian for Surface Pro 11 X1E/OLED (text diagnostics)" {
     terminal_output console
     set gfxpayload=keep
