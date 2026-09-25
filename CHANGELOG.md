@@ -71,6 +71,17 @@ that do not apply.
   `--from`.
 - Organise the documentation around first-time setup, hardware profiles,
   configuration, task guides and command and configuration references.
+- Add experimental Debian ARM64 live media support for Surface Pro 11 with
+  GNOME desktop. Port the legacy Debian live adapter work and reconcile with
+  main's layered defaults and profile-resolved external DTBs. Register
+  `AdapterDebianLive` in the catalog model/validate/artifact mapping, wire
+  release-prep Debian step IDs, and connect the generated-image validator
+  factory. Include a new catalog entry `debian-live-testing-gnome-arm64-20240902`
+  for the verified weekly-live-build snapshot. Validation now surfaces
+  `report.BootProfiles` for host profile auto-detection checks. Staged Debian
+  kernel packages are now world-readable (0644), fixing `sudo lexr image write`
+  validation failures with `Permission denied` on kernel .debs. Hardware boot
+  qualification remains pending.
 
 ### Removed
 
