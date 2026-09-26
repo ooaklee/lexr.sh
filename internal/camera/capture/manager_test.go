@@ -53,6 +53,7 @@ func TestManagerDryRunValidatesRouteWithoutConfiguringIt(t *testing.T) {
 	runner := &captureRunnerFixture{}
 	manager := New(runner)
 	manager.hostOS = "linux"
+	manager.hostArchitecture = "arm64"
 	manager.mediaDevices = func() ([]string, error) { return []string{"/dev/media0"}, nil }
 	manager.runningRelease = func(context.Context) (string, error) {
 		return "7.2.0-jg-0sp11v19-qcom-x1e", nil
@@ -69,6 +70,23 @@ func TestManagerDryRunValidatesRouteWithoutConfiguringIt(t *testing.T) {
 	}
 	if result.Evidence.Raw != "" || len(runner.commands) != 3 {
 		t.Fatalf("dry-run produced evidence or extra commands: result=%#v commands=%#v", result, runner.commands)
+	}
+}
+
+// TestManagerRejectsUnsupportedHostBeforeInspection proves an unavailable
+// native capture cannot invoke host inspection tools.
+func TestManagerRejectsUnsupportedHostBeforeInspection(t *testing.T) {
+	t.Parallel()
+	runner := &captureRunnerFixture{}
+	manager := New(runner)
+	manager.hostOS = "darwin"
+	manager.hostArchitecture = "arm64"
+	_, err := manager.Run(context.Background(), Options{DryRun: true})
+	if err == nil || !strings.Contains(err.Error(), "native Surface camera capture requires operating system linux and architecture arm64") {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if len(runner.commands) != 0 {
+		t.Fatalf("unsupported capture invoked commands: %#v", runner.commands)
 	}
 }
 

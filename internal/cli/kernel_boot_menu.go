@@ -4,11 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/ooaklee/lexr.sh/internal/bootmenu"
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
 	"github.com/spf13/cobra"
 )
+
+// grubRegistrationRequirement describes the GRUB host integration boundary.
+var grubRegistrationRequirement = hostcap.Requirement{
+	Operation:        "GRUB registration",
+	OperatingSystems: []string{"linux"},
+}
 
 // newArchGRUBRegistrationCommand exposes an optional, repeatable post-install
 // action usable from the existing Linux OS or explicitly mounted live targets.
@@ -27,8 +33,9 @@ func (a *application) newArchGRUBRegistrationCommand() *cobra.Command {
 			if options.DryRun && yes {
 				return errors.New("choose --dry-run or --yes, not both")
 			}
-			if runtime.GOOS != "linux" {
-				return errors.New("GRUB registration requires Linux")
+			availability := grubRegistrationRequirement.Evaluate(a.host)
+			if !availability.Executable {
+				return errors.New(availability.ExecutionBlocker)
 			}
 			if !options.DryRun && os.Geteuid() != 0 {
 				return errors.New("applying GRUB registration requires sudo")

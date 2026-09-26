@@ -5,6 +5,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
 )
 
 // TestArchRegistrationRequiresExplicitAction proves invoking the command without
@@ -21,6 +23,26 @@ func TestArchRegistrationRequiresExplicitAction(t *testing.T) {
 		if len(runner.commands) != 0 {
 			t.Fatal("ran a command before checking the action")
 		}
+	}
+}
+
+// TestArchRegistrationRejectsUnsupportedHostBeforeInspection proves the CLI
+// rejects unavailable host integration before reading mounted targets.
+func TestArchRegistrationRejectsUnsupportedHostBeforeInspection(t *testing.T) {
+	t.Parallel()
+	runner := &recordingKernelBootRunner{}
+	app := &application{
+		out: &bytes.Buffer{}, errOut: &bytes.Buffer{}, kernelBootRunner: runner,
+		host: hostcap.Host{GOOS: "darwin", GOARCH: "arm64"},
+	}
+	command := app.newKernelBootCommand()
+	command.SetArgs([]string{"register-arch", "--arch-root", "/mnt/arch", "--grub-directory", "/boot/grub", "--dry-run"})
+	err := command.ExecuteContext(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "GRUB registration requires operating system linux") {
+		t.Fatalf("ExecuteContext() error = %v", err)
+	}
+	if len(runner.commands) != 0 {
+		t.Fatalf("unsupported registration invoked commands: %#v", runner.commands)
 	}
 }
 

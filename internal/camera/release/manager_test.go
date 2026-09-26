@@ -14,6 +14,7 @@ import (
 	"time"
 
 	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
@@ -161,6 +162,33 @@ func TestPlanIsDeterministicLocalAndExplicit(t *testing.T) {
 	emptyPairing.KernelTag = ""
 	if _, err := manager.Plan(context.Background(), emptyPairing); err == nil {
 		t.Fatal("missing explicit kernel pairing passed")
+	}
+}
+
+// TestPrepareRejectsUnsupportedHostBeforeBundleValidation proves real
+// publication stops before package inspection while planning remains usable.
+func TestPrepareRejectsUnsupportedHostBeforeBundleValidation(t *testing.T) {
+	t.Parallel()
+	fixture := makeReleaseFixture(t)
+	manager := executableReleaseManager(fixture.bundle)
+	manager.host = hostcap.Host{GOOS: "windows", GOARCH: "amd64"}
+	dryRequest := fixtureRequest(fixture)
+	dryRequest.DryRun = true
+	plan, err := manager.Plan(context.Background(), dryRequest)
+	if err != nil || plan.Executable || plan.ExecutionBlocker == "" {
+		t.Fatalf("unsupported read-only plan = %+v, error = %v", plan, err)
+	}
+	validated := false
+	manager.validate = func(context.Context, platform.Runner, camerabuild.ValidationRequest) (camerabuild.BundleReceipt, error) {
+		validated = true
+		return fixture.bundle, nil
+	}
+	receipt, err := manager.Prepare(context.Background(), fixtureRequest(fixture))
+	if err == nil || !strings.Contains(err.Error(), "camera release publication requires operating system linux or darwin") {
+		t.Fatalf("Prepare() error = %v", err)
+	}
+	if validated || receipt.Published || receipt.Plan.Executable {
+		t.Fatalf("unsupported preparation crossed validation boundary: validated=%v receipt=%+v", validated, receipt)
 	}
 }
 

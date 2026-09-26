@@ -14,12 +14,14 @@ import (
 	lexr "github.com/ooaklee/lexr.sh"
 	"github.com/ooaklee/lexr.sh/internal/catalog"
 	lexrconfig "github.com/ooaklee/lexr.sh/internal/config"
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
 	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
 	"github.com/ooaklee/lexr.sh/internal/kernel/release"
 	"github.com/ooaklee/lexr.sh/internal/kernel/releaseprep"
 	"github.com/ooaklee/lexr.sh/internal/manager"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 	"github.com/ooaklee/lexr.sh/internal/profile"
+	"github.com/ooaklee/lexr.sh/internal/update"
 	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
 	userspacemanager "github.com/ooaklee/lexr.sh/internal/userspace/manager"
 	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
@@ -47,9 +49,11 @@ type application struct {
 	kernelInstaller      kernelInstallationManager
 	kernelReleasePrep    kernelReleasePreparationManager
 	kernelBootRunner     platform.Runner
+	host                 hostcap.Host
 	userspace            *userspacemanager.Manager
 	mediaFactory         removableMediaFactory
 	imageValidator       imageValidationFunc
+	updater              updateClient
 }
 
 // NewRootCommand assembles a fully isolated command tree around the supplied
@@ -71,6 +75,7 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 		kernelInstaller:   kernelinstall.NewWithDiagnostics(nil, errorOutput),
 		kernelReleasePrep: releaseprep.New(),
 		kernelBootRunner:  platform.ExecRunner{},
+		host:              hostcap.Current(),
 	}
 	app.userspace = userspacemanager.New(
 		userspacecatalog.NewLoader(lexr.UserspaceCatalogFS(), "supported-userspace.json"),
@@ -78,6 +83,7 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 	)
 	app.images = manager.NewImageManager(loader, errorOutput)
 	app.images.Userspace = app.userspace
+	app.updater = update.NewClient(updateRepository)
 	buildVersion, _, _ := version.Info()
 	root := &cobra.Command{
 		Use:           "lexr",
@@ -127,6 +133,7 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 		app.newCleanCommand(),
 		app.newWizardCommand(),
 		app.newVersionCommand(),
+		app.newUpgradeCommand(),
 	)
 	return root
 }
@@ -175,16 +182,25 @@ func (a *application) writeJSON(value any) error {
 	return encoder.Encode(value)
 }
 
-// newVersionCommand reports the version metadata injected into release builds.
+// newVersionCommand reports the version metadata injected into release builds
+// and appends an upgrade notice when a newer release is published and the
+// release check succeeds within a short budget. Offline and rate-limited
+// checks stay quiet so this command always prints the local version.
 func (a *application) newVersionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print build version information",
 		Args:  cobra.NoArgs,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			buildVersion, commit, date := version.Info()
+		RunE: func(command *cobra.Command, _ []string) error {
+			buildVersion, commit, date := currentBuildVersion()
 			_, err := fmt.Fprintf(a.out, "lexr %s\ncommit: %s\nbuilt: %s\n", buildVersion, commit, date)
-			return err
+			if err != nil {
+				return err
+			}
+			if a.updater != nil {
+				noticeForLatestRelease(command.Context(), a.updater, buildVersion, a.out)
+			}
+			return nil
 		},
 	}
 }

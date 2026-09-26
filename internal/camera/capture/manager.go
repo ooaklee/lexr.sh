@@ -9,12 +9,20 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
 )
+
+// captureRequirement describes the Surface camera's native execution host.
+var captureRequirement = hostcap.Requirement{
+	Operation:        "native Surface camera capture",
+	OperatingSystems: []string{"linux"},
+	Architectures:    []string{"arm64"},
+}
 
 // compiled validation expressions recognise supported Surface kernel ABIs,
 // safe media names, negotiated video fields, bytes-used reports, and emitted
@@ -40,7 +48,8 @@ func New(runner Runner) *Manager {
 	if runner == nil {
 		runner = ExecRunner{}
 	}
-	manager := &Manager{Runner: runner, now: time.Now, hostOS: runtime.GOOS}
+	host := hostcap.Current()
+	manager := &Manager{Runner: runner, now: time.Now, hostOS: host.GOOS, hostArchitecture: host.GOARCH}
 	manager.mediaDevices = func() ([]string, error) {
 		devices, err := filepath.Glob("/dev/media[0-9]*")
 		sort.Strings(devices)
@@ -71,11 +80,12 @@ func (manager *Manager) Run(ctx context.Context, options Options) (Result, error
 	}
 	if manager == nil || manager.Runner == nil || manager.mediaDevices == nil ||
 		manager.runningRelease == nil || manager.modulePresent == nil ||
-		manager.validateDevice == nil || manager.now == nil || manager.hostOS == "" {
+		manager.validateDevice == nil || manager.now == nil || manager.hostOS == "" || manager.hostArchitecture == "" {
 		return Result{}, fmt.Errorf("camera capture manager is not initialised")
 	}
-	if manager.hostOS != "linux" {
-		return Result{}, fmt.Errorf("native Surface camera capture requires Linux")
+	availability := captureRequirement.Evaluate(hostcap.Host{GOOS: manager.hostOS, GOARCH: manager.hostArchitecture})
+	if !availability.Executable {
+		return Result{}, errors.New(availability.ExecutionBlocker)
 	}
 	frames, err := normaliseFrames(options.Frames)
 	if err != nil {

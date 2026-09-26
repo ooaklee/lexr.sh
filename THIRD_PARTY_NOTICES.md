@@ -62,6 +62,7 @@ identities are recorded in the Arch image package lock and build manifest.
 | [`github.com/spf13/cobra`](https://github.com/spf13/cobra) | `v1.10.2` | `Apache-2.0` | `Copyright 2013-2023 The Cobra Authors` |
 | [`github.com/spf13/pflag`](https://github.com/spf13/pflag) | `v1.0.9` | `BSD-3-Clause` | `Copyright (c) 2012 Alex Ogier. All rights reserved.`<br>`Copyright (c) 2012 The Go Authors. All rights reserved.` |
 | [`github.com/xo/terminfo`](https://github.com/xo/terminfo) | `v0.0.0-20220910002029-abceb7e1c41e` | `MIT` | `Copyright (c) 2016 Anmol Sethi` |
+| [`golang.org/x/mod`](https://github.com/golang/mod) | `v0.41.0` | `BSD-3-Clause` | `Copyright 2009 The Go Authors.` |
 | [`golang.org/x/sync`](https://github.com/golang/sync) | `v0.22.0` | `BSD-3-Clause` | `Copyright 2009 The Go Authors.` |
 | [`golang.org/x/sys`](https://github.com/golang/sys) | `v0.47.0` | `BSD-3-Clause` | `Copyright 2009 The Go Authors.` |
 
@@ -157,7 +158,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ## Go BSD terms
 
 The following terms apply to the Go runtime and standard library,
-`golang.org/x/sync`, and `golang.org/x/sys`.
+`golang.org/x/mod`, `golang.org/x/sync`, and `golang.org/x/sys`.
 
 ```text
 Copyright 2009 The Go Authors.

@@ -21,12 +21,18 @@ const (
 set -euo pipefail
 umask 022
 
-git_url="$1"
-git_ref="$2"
-jobs="$3"
-reset_source="$4"
-skip_clean="$5"
-boot_image_mode="$6"
+source_kind="$1"
+git_url="$2"
+git_ref="$3"
+local_revision="$4"
+expected_tree="$5"
+source_archive_sha256="$6"
+source_archive_size="$7"
+source_file_count="$8"
+jobs="$9"
+reset_source="${10}"
+skip_clean="${11}"
+boot_image_mode="${12}"
 recipe_sha256="${LEXR_RECIPE_SHA256:?}"
 
 case "$boot_image_mode" in
@@ -54,70 +60,187 @@ apt-get install -y --no-install-recommends \
   device-tree-compiler dwarves equivs flex git kmod libelf-dev libssl-dev python3 python3-dev rsync tar
 
 mkdir -p "$source_parent" "$artifact_dir" "$provenance_dir"
-if [ -e "$source_dir" ] && [ ! -d "$source_dir" ]; then
-  echo "Managed source path is not a directory: $source_dir" >&2
-  exit 1
-fi
-if [ -d "$source_dir" ] && [ ! -d "$source_dir/.git" ]; then
-  if [ "$reset_source" = true ]; then
-    rm -rf -- "$source_dir"
-  else
-    echo "Managed source path is not a Git work tree; use --reset-source." >&2
-    exit 1
-  fi
-fi
-if [ ! -d "$source_dir" ]; then
-  mkdir -p "$source_dir"
-  git -C "$source_dir" init
-  git -C "$source_dir" remote add origin "$git_url"
-else
-  actual_remote="$(git -C "$source_dir" remote get-url origin)"
-  if [ "$actual_remote" != "$git_url" ]; then
-    echo "Managed source remote differs from the requested HTTPS repository." >&2
-    exit 1
-  fi
-  if [ "$reset_source" = true ]; then
-    git -C "$source_dir" reset --hard
-    git -C "$source_dir" clean -ffdx
-  else
+ref_kind=""
+revision=""
+tree=""
+commit_time=""
+case "$source_kind" in
+  https-git)
+    if [ "$reset_source" = true ] && [ -e "$source_dir" ]; then
+      rm -rf -- "$source_dir"
+    fi
+    if [ -e "$source_dir" ] && [ ! -d "$source_dir" ]; then
+      echo "Managed source path is not a directory: $source_dir" >&2
+      exit 1
+    fi
+    if [ -d "$source_dir" ] && [ ! -d "$source_dir/.git" ]; then
+      if [ "$reset_source" = true ]; then
+        rm -rf -- "$source_dir"
+      else
+        echo "Managed source path is not a Git work tree; use --reset-source." >&2
+        exit 1
+      fi
+    fi
+    if [ ! -d "$source_dir" ]; then
+      mkdir -p "$source_dir"
+      git -C "$source_dir" init
+      git -C "$source_dir" remote add origin "$git_url"
+    else
+      actual_remote="$(git -C "$source_dir" remote get-url origin)"
+      if [ "$actual_remote" != "$git_url" ]; then
+        echo "Managed source remote differs from the requested HTTPS repository." >&2
+        exit 1
+      fi
+      git -C "$source_dir" diff --quiet
+      git -C "$source_dir" diff --cached --quiet
+      test -z "$(git -C "$source_dir" ls-files --others --exclude-standard)"
+    fi
+    if git ls-remote --exit-code --heads "$git_url" "refs/heads/$git_ref" >/dev/null; then
+      ref_kind=branch
+      git -C "$source_dir" fetch --force --depth=1 origin "refs/heads/$git_ref"
+    elif git ls-remote --exit-code --tags "$git_url" "refs/tags/$git_ref" >/dev/null; then
+      ref_kind=tag
+      git -C "$source_dir" fetch --force --depth=1 origin "refs/tags/$git_ref"
+    else
+      echo "Requested Git ref is not a branch or tag: $git_ref" >&2
+      exit 1
+    fi
+    revision="$(git -C "$source_dir" rev-parse --verify 'FETCH_HEAD^{commit}')"
+    if [ "$reset_source" != true ] && git -C "$source_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
+      local_commits="$(git -C "$source_dir" rev-list --count "$revision..HEAD")"
+      if [ "$local_commits" != 0 ]; then
+        echo "Managed source contains commits outside the requested remote ref; use --reset-source." >&2
+        exit 1
+      fi
+    fi
+    git -C "$source_dir" checkout --detach "$revision"
+    git -C "$source_dir" reset --hard "$revision"
+    test -z "$(git -C "$source_dir" status --porcelain)"
+    tree="$(git -C "$source_dir" rev-parse --verify 'HEAD^{tree}')"
+    commit_time="$(git -C "$source_dir" show -s --format=%cI HEAD)"
+    actual_remote="$(git -C "$source_dir" remote get-url origin)"
+    printf '%s' "$actual_remote" > "$provenance_dir/git-url"
+    printf '%s' "$git_ref" > "$provenance_dir/git-ref"
+    printf '%s' "$ref_kind" > "$provenance_dir/ref-kind"
+    ;;
+  local-git-commit)
+    case "$local_revision:$expected_tree:$source_archive_sha256:$source_archive_size:$source_file_count" in
+      *[!0-9a-f:]*|*::*|:*|*:) echo "Local source identity is malformed." >&2; exit 1 ;;
+    esac
+    if { [ "${#local_revision}" -ne 40 ] && [ "${#local_revision}" -ne 64 ]; } ||
+       { [ "${#expected_tree}" -ne 40 ] && [ "${#expected_tree}" -ne 64 ]; } ||
+       [ "${#source_archive_sha256}" -ne 64 ] ||
+       [ "$source_archive_size" -lt 1 ] || [ "$source_archive_size" -gt 17179869184 ] ||
+       [ "$source_file_count" -lt 1 ] || [ "$source_file_count" -gt 2000000 ]; then
+      echo "Local source identity is outside the compiled bounds." >&2
+      exit 1
+    fi
+    source_archive=/exchange/local-source.tar
+    source_commit=/exchange/local-source.commit
+    if [ ! -f "$source_archive" ] || [ -L "$source_archive" ] ||
+       [ "$(stat -c %s "$source_archive")" != "$source_archive_size" ] ||
+       [ "$(sha256sum "$source_archive" | awk '{print $1}')" != "$source_archive_sha256" ] ||
+       [ ! -f "$source_commit" ] || [ -L "$source_commit" ] || [ ! -s "$source_commit" ]; then
+      echo "Local source payload differs from the reviewed identity." >&2
+      exit 1
+    fi
+    reuse_local=false
+    if [ "$reset_source" = true ]; then
+      rm -rf -- "$source_dir"
+    elif [ -d "$source_dir/.git" ] &&
+         [ "$(cat "$source_dir/.git/lexr-source-kind" 2>/dev/null || true)" = local-git-commit ] &&
+         [ "$(cat "$source_dir/.git/lexr-source-archive-sha256" 2>/dev/null || true)" = "$source_archive_sha256" ] &&
+         [ "$(git -C "$source_dir" rev-parse --verify HEAD 2>/dev/null || true)" = "$local_revision" ] &&
+         [ "$(git -C "$source_dir" rev-parse --verify 'HEAD^{tree}' 2>/dev/null || true)" = "$expected_tree" ]; then
+      reuse_local=true
+    elif [ -e "$source_dir" ] && [ "$skip_clean" = true ]; then
+      echo "--skip-clean cannot reuse a different local source snapshot; omit it or use --reset-source." >&2
+      exit 1
+    elif [ -e "$source_dir" ]; then
+      rm -rf -- "$source_dir"
+    fi
+    if [ "$reuse_local" = false ]; then
+      candidate="$source_parent/.local-source-staging"
+      rm -rf -- "$candidate"
+      mkdir -m 0700 "$candidate"
+      python3 - "$source_archive" "$candidate" "$source_file_count" <<'PY_LOCAL_SOURCE'
+import posixpath
+import sys
+import tarfile
+
+archive_path, destination, expected_text = sys.argv[1:]
+expected_files = int(expected_text)
+seen = set()
+folded = {}
+members = []
+files = 0
+with tarfile.open(archive_path, "r:") as archive:
+    for member in archive:
+        name = member.name
+        if not name or name.startswith("/") or name != posixpath.normpath(name):
+            raise ValueError("local source archive contains a non-canonical path")
+        parts = name.split("/")
+        if any(part in {"", ".", ".."} for part in parts) or len(name.encode("utf-8")) > 4096:
+            raise ValueError("local source archive contains an unsafe path")
+        if name in seen or (name.casefold() in folded and folded[name.casefold()] != name):
+            raise ValueError("local source archive contains a duplicate or case-folded collision")
+        seen.add(name)
+        folded[name.casefold()] = name
+        if member.isfile():
+            if member.size < 0 or member.size > 17179869184:
+                raise ValueError("local source archive member is oversized")
+            files += 1
+        elif member.issym():
+            target = member.linkname
+            if not target or target.startswith("/") or len(target.encode("utf-8")) > 4096:
+                raise ValueError("local source archive contains an unsafe symbolic link")
+            resolved = posixpath.normpath(posixpath.join(posixpath.dirname(name), target))
+            if resolved == ".." or resolved.startswith("../") or resolved.startswith("/"):
+                raise ValueError("local source archive symbolic link escapes the source tree")
+            files += 1
+        elif not member.isdir():
+            raise ValueError("local source archive contains an unsupported member type")
+        members.append(member)
+    if files != expected_files:
+        raise ValueError("local source archive file count differs from the reviewed tree")
+    archive.extractall(destination, members=members, filter="data")
+PY_LOCAL_SOURCE
+      git -C "$candidate" init
+      git -C "$candidate" add -A
+      tree="$(git -C "$candidate" write-tree)"
+      if [ "$tree" != "$expected_tree" ]; then
+        echo "Extracted local source tree differs from the reviewed Git tree." >&2
+        exit 1
+      fi
+      revision="$(git -C "$candidate" hash-object -t commit -w "$source_commit")"
+      if [ "$revision" != "$local_revision" ]; then
+        echo "Local source commit object differs from the reviewed revision." >&2
+        exit 1
+      fi
+      git -C "$candidate" update-ref refs/heads/lexr-local "$revision"
+      git -C "$candidate" symbolic-ref HEAD refs/heads/lexr-local
+      git -C "$candidate" reset --hard "$revision"
+      printf '%s' local-git-commit > "$candidate/.git/lexr-source-kind"
+      printf '%s' "$source_archive_sha256" > "$candidate/.git/lexr-source-archive-sha256"
+      mv "$candidate" "$source_dir"
+    fi
     git -C "$source_dir" diff --quiet
     git -C "$source_dir" diff --cached --quiet
     test -z "$(git -C "$source_dir" ls-files --others --exclude-standard)"
-  fi
-fi
+    revision="$(git -C "$source_dir" rev-parse --verify HEAD)"
+    tree="$(git -C "$source_dir" rev-parse --verify 'HEAD^{tree}')"
+    commit_time="$(git -C "$source_dir" show -s --format=%cI HEAD)"
+    printf '%s' "$local_revision" > "$provenance_dir/local-source-revision"
+    printf '%s' "{{LOCAL_SOURCE_ARCHIVE_NAME}}" > "$provenance_dir/source-archive-name"
+    printf '%s' "$source_archive_sha256" > "$provenance_dir/source-archive-sha256"
+    printf '%s' "$source_archive_size" > "$provenance_dir/source-archive-size"
+    printf '%s' "$source_file_count" > "$provenance_dir/source-file-count"
+    ;;
+  *) echo "Invalid compiled source kind." >&2; exit 1 ;;
+esac
 
-ref_kind=""
-if git ls-remote --exit-code --heads "$git_url" "refs/heads/$git_ref" >/dev/null; then
-  ref_kind=branch
-  git -C "$source_dir" fetch --force --depth=1 origin "refs/heads/$git_ref"
-elif git ls-remote --exit-code --tags "$git_url" "refs/tags/$git_ref" >/dev/null; then
-  ref_kind=tag
-  git -C "$source_dir" fetch --force --depth=1 origin "refs/tags/$git_ref"
-else
-  echo "Requested Git ref is not a branch or tag: $git_ref" >&2
-  exit 1
-fi
-
-revision="$(git -C "$source_dir" rev-parse --verify 'FETCH_HEAD^{commit}')"
-if [ "$reset_source" != true ] &&
-   git -C "$source_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
-  local_commits="$(git -C "$source_dir" rev-list --count "$revision..HEAD")"
-  if [ "$local_commits" != 0 ]; then
-    echo "Managed source contains commits outside the requested remote ref; use --reset-source." >&2
-    exit 1
-  fi
-fi
-git -C "$source_dir" checkout --detach "$revision"
-git -C "$source_dir" reset --hard "$revision"
-test -z "$(git -C "$source_dir" status --porcelain)"
-
-tree="$(git -C "$source_dir" rev-parse --verify 'HEAD^{tree}')"
-commit_time="$(git -C "$source_dir" show -s --format=%cI HEAD)"
-actual_remote="$(git -C "$source_dir" remote get-url origin)"
-printf '%s' "$actual_remote" > "$provenance_dir/git-url"
-printf '%s' "$git_ref" > "$provenance_dir/git-ref"
+printf '%s' "$source_kind" > "$provenance_dir/source-kind"
 printf '%s' "$boot_image_mode" > "$provenance_dir/boot-image-mode"
-printf '%s' "$ref_kind" > "$provenance_dir/ref-kind"
 printf '%s' "$revision" > "$provenance_dir/revision"
 printf '%s' "$tree" > "$provenance_dir/tree"
 printf '%s' "$commit_time" > "$provenance_dir/commit-time"
@@ -941,6 +1064,7 @@ var containerRecipe = strings.NewReplacer(
 	"{{COMMON_HEADERS_TARGET}}", containerCommonHeadersTarget,
 	"{{FLAVOUR_TARGET}}", containerFlavourTarget,
 	"{{MINIMUM_FREE_GIB}}", strconv.Itoa(containerMinimumFreeGiB),
+	"{{LOCAL_SOURCE_ARCHIVE_NAME}}", LocalSourceArchiveName,
 ).Replace(containerRecipeTemplate)
 
 // compiledRecipeSHA256 returns the stable identity of the embedded build policy.

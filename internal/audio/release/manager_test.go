@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
 )
 
 // releaseFixture contains one complete small source tree and matching policy.
@@ -79,6 +81,31 @@ func TestPrepareValidateAndDeterminism(t *testing.T) {
 		if !bytes.Equal(firstData, secondData) {
 			t.Errorf("%s differs across host roots", name)
 		}
+	}
+}
+
+// TestPrepareRejectsUnsupportedHostBeforeSourceSnapshot proves real execution
+// avoids pinned-source reads while read-only planning remains available.
+func TestPrepareRejectsUnsupportedHostBeforeSourceSnapshot(t *testing.T) {
+	t.Parallel()
+	fixture := newReleaseFixture(t)
+	manager := newManagerWithPolicy(fixture.policy)
+	manager.host = hostcap.Host{GOOS: "windows", GOARCH: "amd64"}
+	dryRequest := fixture.request
+	dryRequest.DryRun = true
+	plan, err := manager.Plan(context.Background(), dryRequest)
+	if err != nil || plan.Executable || plan.ExecutionBlocker == "" {
+		t.Fatalf("unsupported read-only plan = %+v, error = %v", plan, err)
+	}
+	if err := os.Remove(filepath.Join(fixture.sourceRoot, filepath.FromSlash(manager.policy.sources[0].relativePath))); err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := manager.Prepare(context.Background(), fixture.request)
+	if err == nil || !strings.Contains(err.Error(), "audio release publication requires operating system linux or darwin") {
+		t.Fatalf("Prepare() error = %v", err)
+	}
+	if receipt.Plan.Executable || receipt.Plan.ExecutionBlocker == "" || receipt.Published {
+		t.Fatalf("unsupported receipt = %+v", receipt)
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/kernel/build"
 )
@@ -31,6 +32,12 @@ var sourceArchiveExpression = regexp.MustCompile(`(?i)\.(?:tar|tar\.gz|tgz|tar\.
 
 // licenceNameExpression accepts explicit redistribution and source-licence evidence.
 var licenceNameExpression = regexp.MustCompile(`(?i)^(?:licen[cs]e|copying|copyright|notice)(?:[._-].*)?$`)
+
+// publicationRequirement describes hosts with atomic local kernel publication.
+var publicationRequirement = hostcap.Requirement{
+	Operation:        "kernel release publication",
+	OperatingSystems: []string{"linux", "darwin"},
+}
 
 // retiredTouchscreenABI is the exact historical kernel whose touchscreen
 // stack was delivered as out-of-tree modules. Later patch lines may reuse the
@@ -95,9 +102,11 @@ func (manager *Manager) plan(ctx context.Context, request Request) (Plan, error)
 		Source: publicProvenance(provenance), Assets: assets,
 		BundleFile: BundleFileName, ChecksumFile: ChecksumFileName, NotesFile: ReleaseNotesFileName,
 	}
+	availability := publicationRequirement.Evaluate(manager.host)
 	return Plan{
 		BuildDirectory: buildDirectory, OutputDirectory: outputDirectory,
-		DryRun: request.DryRun, Bundle: bundle, Manifest: manifest, Inputs: inputs,
+		DryRun: request.DryRun, Executable: availability.Executable, ExecutionBlocker: availability.ExecutionBlocker,
+		Bundle: bundle, Manifest: manifest, Inputs: inputs,
 		BuildProvenance: provenance,
 	}, nil
 }
@@ -320,6 +329,13 @@ func validLicenceText(contents []byte) bool {
 
 // validateBuildProvenance checks the public and omitted private fields before projection.
 func validateBuildProvenance(provenance build.Provenance) error {
+	if provenance.SourceKind != build.SourceKindHTTPSGit {
+		return errors.New("kernel release preparation rejects local source snapshots; publish the commit to an HTTPS Git ref and rebuild for release")
+	}
+	if provenance.LocalSourceRevision != "" || provenance.SourceArchiveName != "" || provenance.SourceArchiveSHA256 != "" ||
+		provenance.SourceArchiveSize != 0 || provenance.SourceFileCount != 0 {
+		return errors.New("native HTTPS build provenance contains mixed local source fields")
+	}
 	if len(provenance.GitURL) == 0 || len(provenance.GitURL) > maximumGitURLBytes || !utf8.ValidString(provenance.GitURL) {
 		return errors.New("native build provenance contains an unsafe source URL")
 	}

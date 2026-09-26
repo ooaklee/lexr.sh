@@ -54,6 +54,11 @@ that do not apply.
 
 ### Added
 
+- Build an exact clean local kernel commit with `kernel build --source-dir`
+  without pushing a temporary branch. Lexr snapshots immutable Git objects,
+  verifies the commit and tree inside the container, retains the source archive
+  with local build output, and rejects local provenance from release
+  preparation.
 - Save your hardware choice with `lexr init <profile>` and reuse it across
   images, diagnostics and installation. `lexr profile list` shows the available
   choices, and global `--profile` overrides your saved choice for one command.
@@ -90,6 +95,14 @@ that do not apply.
   while collecting evidence. Normal desktop and copy-to-RAM policy is unchanged.
   USB disconnection and black-screen reports remain under investigation;
   hardware boot qualification remains pending.
+- Add `lexr upgrade`, which checks GitHub for the newest published release,
+  downloads the matching binary for the platform, verifies the release
+  SHA-256 checksum, and atomically replaces the running executable. Without
+  a network connection it fails with a clear message instead of hanging.
+- Add an upgrade notice to `lexr version`: when a newer release is published
+  and the check succeeds, the command now prints the new version and the
+  `lexr upgrade` hint. Offline, rate-limited, and dev builds print the
+  version exactly as before, with no errors or delay.
 
 ### Removed
 
@@ -109,6 +122,11 @@ that do not apply.
   Debian's source initramfs omitted these drivers, deferring Type-C setup until
   after mounting the live USB. Logs show a USB reset and lost filesystem reads
   during that late setup; hardware validation of earlier loading remains pending.
+- Reject wholly unsupported host operations before expensive source inspection
+  or filesystem mutation, while retaining truthful read-only plans where the
+  workflow can produce them. Dynamic tool, privilege, target and input checks
+  remain with their owning workflows instead of a duplicated platform matrix;
+  native Surface camera capture now explicitly requires ARM64 Linux.
 - Use the selected hardware profile throughout kernel preflight, installation
   and boot verification. The shared `-qcom-x1e` ABI suffix no longer causes
   an X Plus LCD fallback to be mistaken for OLED. Kernel and image checks

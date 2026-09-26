@@ -147,9 +147,71 @@ lexr kernel build \
   --output-dir build/lexr/kernel-v19
 ```
 
+To test a commit before publishing a branch, commit every intended change in
+the kernel checkout and select that clean worktree:
+
+```sh
+git -C <kernel-checkout> status --short
+lexr kernel build \
+  --source-dir <kernel-checkout> \
+  --repository-root <build-root> \
+  --output-dir build/lexr/kernel-local-test
+```
+
+Local mode rejects staged, unstaged and untracked files and is mutually
+exclusive with `--git-url` and `--git-branch`. The commit does not need to be
+pushed. Lexr archives the immutable commit rather than mounting the checkout,
+verifies the same commit and tree inside the container, and retains
+`lexr-kernel-source.tar` beside the packages. Provenance labels the build
+`local-git-commit` and records the optional local revision plus the retained
+archive digest and size without exposing the checkout path.
+
+### Allow for the local snapshot
+
+The snapshot is an uncompressed Git tar archive, so allow approximately the
+size of the committed source tree for each retained local build. As a concrete
+reference, [commit `2cbd1ec3`](https://github.com/ooaklee/linux_ms_dev_kit-sp11/commit/2cbd1ec3e2da385e7bd91fd65c63ba5a8fb5b865)
+of the default SP11 integration branch contains about 1.51 GiB of file data and
+produces a 1.58 GiB archive. Later commits may differ; the authoritative size is
+recorded as `source_archive_size_bytes` in the completed build provenance.
+
+During a successful build the archive has this lifecycle:
+
+1. Lexr creates `<work-dir>/.lexr-kernel-build-<random>/local-source.tar` with
+   private host permissions. With the default work directory, this is below
+   `<repository-root>/build/lexr/kernel-build/`.
+2. That private transaction is bind-mounted into the build container, where
+   the same archive is visible as `/exchange/local-source.tar`. The bind mount
+   does not create another archive copy. The verified source is extracted to
+   `/linux-work/source/kernel` in the managed `lexr-kernel-build-*` Docker
+   volume.
+3. Lexr copies and re-verifies the archive as
+   `<output-parent>/.lexr-kernel-output-<random>/lexr-kernel-source.tar`, then
+   atomically renames that staging directory to `--output-dir`.
+4. After durable publication, Lexr removes the private transaction. The
+   retained copy remains at `<output-dir>/lexr-kernel-source.tar`; the managed
+   Docker volume remains available for controlled reuse or reset.
+
+For the measured SP11 commit, budget 1.58 GiB of lasting output storage and up
+to 3.16 GiB for the two host-side archive copies which coexist briefly during
+publication. The extracted source adds at least 1.51 GiB of logical file data
+to a new Docker volume, plus reconstructed Git metadata, compiler outputs and
+filesystem allocation overhead. A remote-source build also needs an extracted
+working tree, so this is not an additional local-snapshot cost. The existing
+40 GiB free-space guard for the managed Docker volume still applies. The
+snapshot contains only the committed tree: it does not copy Git history, the
+checkout's `.git` object database, ignored files or uncommitted changes, and it
+requires no source upload or download.
+
+Use a local-source build for inspection and guarded local installation only.
+Kernel release preparation rejects it; publish the commit to an HTTPS branch or
+tag and rebuild before preparing or publishing a release. [ADR037](../adr/adr-037-committed-local-kernel-source-snapshots.md)
+records why the first local-source contract requires a commit instead of
+capturing mutable working-tree bytes.
+
 The private transaction and new output directory must be relative to the selected containment root, and the output directory must not already exist. Source data persists in a Docker volume labelled for that exact work boundary; generated packages cross through a private host transaction. `--reset-source` can clean only that managed volume's source tree.
 
-The policy pins its Ubuntu 26.04 ARM64 base image by digest. Beside the packages it records the exact fetched revision and tree, the compiled recipe digest, and the installed-toolchain digest. Successful output contains the coherent signed image and modules pair, complete common and ABI-specific headers, `SHA256SUMS`, the normal kernel bundle manifest, and a source-provenance manifest.
+The policy pins its Ubuntu 26.04 ARM64 base image by digest. Beside the packages it records the exact selected revision and tree, the compiled recipe digest, and the installed-toolchain digest. Successful output contains the coherent signed image and modules pair, complete common and ABI-specific headers, `SHA256SUMS`, the normal kernel bundle manifest, and a source-provenance manifest. Local mode also retains its exact source archive.
 
 The build never installs a package, elevates privilege, reboots the host, or publishes a release.
 

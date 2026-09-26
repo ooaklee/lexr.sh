@@ -7,8 +7,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
+
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
 )
+
+// publicationRequirement describes hosts with atomic local audio publication.
+var publicationRequirement = hostcap.Requirement{
+	Operation:        "audio release publication",
+	OperatingSystems: []string{"linux", "darwin"},
+}
 
 // Plan validates all source bytes and returns a truthful local-only decision.
 func (manager *Manager) Plan(ctx context.Context, request Request) (Plan, error) {
@@ -18,72 +25,89 @@ func (manager *Manager) Plan(ctx context.Context, request Request) (Plan, error)
 
 // plan resolves paths, validates pairing, and snapshots all pinned sources.
 func (manager *Manager) plan(ctx context.Context, request Request) (Plan, sourceSnapshot, error) {
+	plan, err := manager.basePlan(ctx, request)
+	if err != nil {
+		return Plan{}, sourceSnapshot{}, err
+	}
+	return manager.snapshotPlan(ctx, plan)
+}
+
+// snapshotPlan completes a base plan by authenticating all pinned source bytes.
+func (manager *Manager) snapshotPlan(ctx context.Context, plan Plan) (Plan, sourceSnapshot, error) {
+	snapshot, err := snapshotSource(ctx, plan.SourceRoot, manager.policy)
+	if err != nil {
+		return Plan{}, sourceSnapshot{}, fmt.Errorf("validate pinned FullIO v19c sources: %w", err)
+	}
+	plan.Source = snapshot.provenance
+	return plan, snapshot, nil
+}
+
+// basePlan resolves bounded paths and static host availability without reading
+// the potentially large pinned source set.
+func (manager *Manager) basePlan(ctx context.Context, request Request) (Plan, error) {
 	if manager == nil || len(manager.policy.sources) != 4 || len(manager.policy.artefacts) != 4 {
-		return Plan{}, sourceSnapshot{}, errors.New("audio release policy is unavailable or incomplete")
+		return Plan{}, errors.New("audio release policy is unavailable or incomplete")
 	}
 	if err := ctx.Err(); err != nil {
-		return Plan{}, sourceSnapshot{}, err
+		return Plan{}, err
 	}
 	repositoryRoot, err := canonicalDirectory(request.RepositoryRoot, "repository root")
 	if err != nil {
-		return Plan{}, sourceSnapshot{}, err
+		return Plan{}, err
 	}
 	sourceRoot, err := canonicalDirectory(request.SourceRoot, "audio source root")
 	if err != nil {
-		return Plan{}, sourceSnapshot{}, err
+		return Plan{}, err
 	}
 	if request.Tag != manager.policy.tag || !safePortableName(request.Tag) {
-		return Plan{}, sourceSnapshot{}, fmt.Errorf("audio release tag must be the reviewed %q identity", manager.policy.tag)
+		return Plan{}, fmt.Errorf("audio release tag must be the reviewed %q identity", manager.policy.tag)
 	}
 	kernelGeneration, err := parseKernelPair(request.KernelTag, request.KernelABI)
 	if err != nil {
-		return Plan{}, sourceSnapshot{}, err
+		return Plan{}, err
 	}
 	outputDirectory := filepath.Join(repositoryRoot, filepath.FromSlash(DefaultOutputDirectory))
 	releaseDirectory := filepath.Join(outputDirectory, request.Tag)
 	if !containedBy(repositoryRoot, outputDirectory) || outputDirectory == repositoryRoot {
-		return Plan{}, sourceSnapshot{}, errors.New("audio release output escapes the repository root")
+		return Plan{}, errors.New("audio release output escapes the repository root")
 	}
 	if containedBy(sourceRoot, outputDirectory) || containedBy(outputDirectory, sourceRoot) {
-		return Plan{}, sourceSnapshot{}, errors.New("audio source and release output directories must not overlap")
+		return Plan{}, errors.New("audio source and release output directories must not overlap")
 	}
 	if err := rejectSymbolicRoute(repositoryRoot, releaseDirectory); err != nil {
-		return Plan{}, sourceSnapshot{}, err
+		return Plan{}, err
 	}
 	if _, err := os.Lstat(releaseDirectory); err == nil {
-		return Plan{}, sourceSnapshot{}, errors.New("audio release destination already exists")
+		return Plan{}, errors.New("audio release destination already exists")
 	} else if !errors.Is(err, os.ErrNotExist) {
-		return Plan{}, sourceSnapshot{}, fmt.Errorf("inspect audio release destination: %w", err)
+		return Plan{}, fmt.Errorf("inspect audio release destination: %w", err)
 	}
-	snapshot, err := snapshotSource(ctx, sourceRoot, manager.policy)
-	if err != nil {
-		return Plan{}, sourceSnapshot{}, fmt.Errorf("validate pinned FullIO v19c sources: %w", err)
-	}
-	executable := publicationSupported()
-	blocker := ""
-	if !executable {
-		blocker = fmt.Sprintf("atomic no-replace audio release publication is unavailable on %s", runtime.GOOS)
-	}
+	availability := publicationRequirement.Evaluate(manager.host)
 	return Plan{
 		RepositoryRoot: repositoryRoot, SourceRoot: sourceRoot, ReleaseDirectory: releaseDirectory,
 		Tag: request.Tag, KernelTag: request.KernelTag, KernelABI: request.KernelABI,
-		KernelGeneration: kernelGeneration, Source: snapshot.provenance, DryRun: request.DryRun,
-		Executable: executable, ExecutionBlocker: blocker, MutatesRemote: false,
-	}, snapshot, nil
+		KernelGeneration: kernelGeneration, DryRun: request.DryRun,
+		Executable: availability.Executable, ExecutionBlocker: availability.ExecutionBlocker, MutatesRemote: false,
+	}, nil
 }
 
 // Prepare validates and atomically installs one fresh local release directory.
 func (manager *Manager) Prepare(ctx context.Context, request Request) (receipt Receipt, resultErr error) {
-	plan, snapshot, err := manager.plan(ctx, request)
+	plan, err := manager.basePlan(ctx, request)
+	if err != nil {
+		return receipt, err
+	}
+	receipt.Plan = plan
+	if !plan.DryRun && !plan.Executable {
+		return receipt, errors.New(plan.ExecutionBlocker)
+	}
+	plan, snapshot, err := manager.snapshotPlan(ctx, plan)
 	if err != nil {
 		return receipt, err
 	}
 	receipt.Plan = plan
 	if plan.DryRun {
 		return receipt, nil
-	}
-	if !plan.Executable {
-		return receipt, errors.New(plan.ExecutionBlocker)
 	}
 	if err := ctx.Err(); err != nil {
 		return receipt, err

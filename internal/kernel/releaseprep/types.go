@@ -6,13 +6,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/ooaklee/lexr.sh/internal/hostcap"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/kernel/build"
 )
 
 const (
 	// SchemaVersion identifies the native kernel release manifest contract.
-	SchemaVersion = 3
+	SchemaVersion = 4
 	// ChecksumFileName is the sole checksum authority in a prepared directory.
 	ChecksumFileName = "SHA256SUMS"
 	// BundleFileName is the path-independent kernel bundle manifest.
@@ -76,6 +77,8 @@ type PlannedAsset struct {
 // SourceProvenance is the public subset of native build provenance. It omits
 // the local Docker volume name and every host path.
 type SourceProvenance struct {
+	// SourceKind identifies the accepted remotely fetched source contract.
+	SourceKind build.SourceKind `json:"source_kind"`
 	// GitURL is the credential-free HTTPS source repository.
 	GitURL string `json:"git_url"`
 	// GitRef is the branch or tag selected for the build.
@@ -144,6 +147,10 @@ type Plan struct {
 	OutputDirectory string `json:"-"`
 	// DryRun reports whether no filesystem changes may occur.
 	DryRun bool `json:"dry_run"`
+	// Executable reports whether this host supports atomic local publication.
+	Executable bool `json:"executable"`
+	// ExecutionBlocker explains why publication is unavailable when applicable.
+	ExecutionBlocker string `json:"execution_blocker,omitempty"`
 	// Bundle is the path-independent package contract written on success.
 	Bundle kernel.Bundle `json:"bundle"`
 	// Manifest is the public release contract written on success.
@@ -168,6 +175,8 @@ type Receipt struct {
 type Manager struct {
 	// now supplies deterministic manifest times in tests.
 	now func() time.Time
+	// host records the static publication capability for deterministic tests.
+	host hostcap.Host
 	// beforeCopy is an internal test seam run immediately before each verified copy.
 	beforeCopy func(PlannedAsset)
 	// beforePublish is an internal test seam run immediately before atomic publication.
@@ -176,7 +185,7 @@ type Manager struct {
 
 // New constructs a kernel release-preparation manager.
 func New() *Manager {
-	return &Manager{now: time.Now}
+	return &Manager{now: time.Now, host: hostcap.Current()}
 }
 
 // Plan validates every input and returns a path-safe, non-mutating decision.
@@ -197,7 +206,7 @@ func (manager *Manager) Validate(ctx context.Context, directory string) (Manifes
 // publicProvenance removes local build-volume identity from a validated receipt.
 func publicProvenance(provenance build.Provenance) SourceProvenance {
 	return SourceProvenance{
-		GitURL: provenance.GitURL, GitRef: provenance.GitRef, BootImageMode: provenance.BootImageMode, RefKind: provenance.RefKind,
+		SourceKind: provenance.SourceKind, GitURL: provenance.GitURL, GitRef: provenance.GitRef, BootImageMode: provenance.BootImageMode, RefKind: provenance.RefKind,
 		EffectiveDTBDelivery: provenance.EffectiveDTBDelivery, EmbeddedDTBCount: provenance.EmbeddedDTBCount,
 		DeviceTrees: kernel.CloneDeviceTrees(provenance.DeviceTrees), DTBSelectionProvenance: provenance.DTBSelectionProvenance,
 		Revision: provenance.Revision, Tree: provenance.Tree, CommitTime: provenance.CommitTime,

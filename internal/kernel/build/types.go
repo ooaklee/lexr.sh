@@ -12,7 +12,7 @@ import (
 
 const (
 	// SchemaVersion identifies the native kernel build plan and receipt contract.
-	SchemaVersion = 3
+	SchemaVersion = 4
 	// DefaultGitURL is the maintained Surface Pro 11 kernel source.
 	DefaultGitURL = "https://github.com/ooaklee/linux_ms_dev_kit-sp11"
 	// DefaultGitBranch is the maintained integration branch used by default.
@@ -23,6 +23,20 @@ const (
 	DefaultOutputDirectory = "build/lexr/kernel"
 	// ContainerImage is the immutable Ubuntu 26.04 ARM64 userspace selected for builds.
 	ContainerImage = "docker.io/library/ubuntu@sha256:61b65dc6bddff5e68c552f22126fe77496395f956ff2e983e05d8a52efd63e55"
+)
+
+// SourceKind identifies the mutually exclusive kernel source authority.
+type SourceKind string
+
+// Supported source kinds distinguish remotely fetched refs from local commits.
+const (
+	SourceKindHTTPSGit       SourceKind = "https-git"
+	SourceKindLocalGitCommit SourceKind = "local-git-commit"
+)
+
+const (
+	// LocalSourceArchiveName is retained beside local-commit build outputs.
+	LocalSourceArchiveName = "lexr-kernel-source.tar"
 )
 
 // BootImageMode is retained as the build-domain name for the shared requested
@@ -44,6 +58,8 @@ type Request struct {
 	GitURL string
 	// GitBranch selects one branch or tag from the source repository.
 	GitBranch string
+	// SourceDirectory selects the clean HEAD commit from one local Git worktree.
+	SourceDirectory string
 	// BootImageMode selects source policy or an explicit Stubble override.
 	BootImageMode BootImageMode
 	// WorkDirectory stores private transactions relative to RepositoryRoot.
@@ -78,10 +94,26 @@ type Plan struct {
 	WorkDirectory string `json:"work_directory"`
 	// OutputDirectory is the canonical, initially absent publication directory.
 	OutputDirectory string `json:"output_directory"`
+	// SourceKind distinguishes the HTTPS and local-commit source contracts.
+	SourceKind SourceKind `json:"source_kind"`
+	// SourceDirectory is private host context and is never serialised.
+	SourceDirectory string `json:"-"`
 	// GitURL is the validated HTTPS source repository.
-	GitURL string `json:"git_url"`
+	GitURL string `json:"git_url,omitempty"`
 	// GitRef is the validated requested branch or tag.
-	GitRef string `json:"git_ref"`
+	GitRef string `json:"git_ref,omitempty"`
+	// LocalSourceRevision is the exact unpushed-or-pushed commit selected locally.
+	LocalSourceRevision string `json:"local_source_revision,omitempty"`
+	// SourceTree is the immutable Git tree selected before any local archive is made.
+	SourceTree string `json:"source_tree,omitempty"`
+	// SourceCommitTime is the selected commit timestamp.
+	SourceCommitTime time.Time `json:"source_commit_time,omitempty"`
+	// SourceFileCount is the number of entries in the selected committed tree.
+	SourceFileCount int `json:"source_file_count,omitempty"`
+	// SourceArchiveSHA256 identifies the captured local source archive.
+	SourceArchiveSHA256 string `json:"source_archive_sha256,omitempty"`
+	// SourceArchiveSize is the captured local source archive length.
+	SourceArchiveSize int64 `json:"source_archive_size_bytes,omitempty"`
 	// BootImageMode records the reviewed source policy or explicit override.
 	BootImageMode BootImageMode `json:"requested_boot_image_mode"`
 	// Jobs is the requested parallelism, or zero for container auto-detection.
@@ -114,10 +146,22 @@ type Plan struct {
 
 // Provenance records the exact source object and compiled policy used by Docker.
 type Provenance struct {
+	// SourceKind distinguishes the HTTPS and local-commit source contracts.
+	SourceKind SourceKind `json:"source_kind"`
 	// GitURL is the source remote verified inside the container.
-	GitURL string `json:"git_url"`
+	GitURL string `json:"git_url,omitempty"`
 	// GitRef is the caller-selected branch or tag.
-	GitRef string `json:"git_ref"`
+	GitRef string `json:"git_ref,omitempty"`
+	// LocalSourceRevision records the local commit used without implying it was pushed.
+	LocalSourceRevision string `json:"local_source_revision,omitempty"`
+	// SourceArchiveName names the retained exact-tree payload for local builds.
+	SourceArchiveName string `json:"source_archive_name,omitempty"`
+	// SourceArchiveSHA256 identifies the retained local source payload.
+	SourceArchiveSHA256 string `json:"source_archive_sha256,omitempty"`
+	// SourceArchiveSize is the retained local source payload length.
+	SourceArchiveSize int64 `json:"source_archive_size_bytes,omitempty"`
+	// SourceFileCount is the committed-tree entry count checked during capture.
+	SourceFileCount int `json:"source_file_count,omitempty"`
 	// BootImageMode records the source policy or validated explicit override.
 	BootImageMode BootImageMode `json:"requested_boot_image_mode"`
 	// EffectiveDTBDelivery is the structurally verified generated-image result.
@@ -130,7 +174,7 @@ type Provenance struct {
 	// embedded delivery; it is absent for external-required delivery.
 	DTBSelectionProvenance *kernel.DTBSelectionProvenance `json:"dtb_selection_provenance,omitempty"`
 	// RefKind distinguishes a fetched branch from a fetched tag.
-	RefKind string `json:"ref_kind"`
+	RefKind string `json:"ref_kind,omitempty"`
 	// Revision is the exact fetched commit object.
 	Revision string `json:"revision"`
 	// Tree is the exact Git tree compiled by the Debian package rules.
