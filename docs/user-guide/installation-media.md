@@ -190,8 +190,11 @@ lexr image validate ../lexr-build/lexr-debian-sp11.iso
 Run from the Lexr source tree when including its companion. Select the exact
 kernel release being tested and keep the generated manifest and journal.
 Structural validation does not establish successful hardware boot. Reported
-failures include USB disconnection followed by SquashFS read errors and a
-black screen; the triggering fault remains unresolved.
+failures include USB resets followed by SquashFS read errors and a black screen.
+Saved logs show storage loss immediately after late USB-C initialisation. The current
+candidate includes the UCSI service and PS883x retimers in the early initramfs,
+matching their presence in working Ubuntu and elementary images. This change
+still needs a physical boot test; it is not a confirmed desktop fix.
 
 The optional **copy to RAM** entry uses whole-medium `toram` to preserve the
 `/live/filesystem.squashfs` installer payload and `/sp11/companion` layout. It
@@ -215,8 +218,9 @@ without clearing the log, then collect `echo "$REASON"`, `uname -r`, `cat /proc/
 `dmesg | tail -n 100 | more`. Press Space to page through the output or `q` to
 leave the pager. Type `exit` to continue booting after collecting the evidence.
 Ooaklee confirmed that the v23 X1E/OLED initramfs diagnostic retained its display
-and accepted keyboard input after adding `regulator_ignore_unused`. This does
-not qualify a desktop boot or identify the cause of the USB read errors.
+and accepted keyboard input after adding `regulator_ignore_unused`. A subsequent
+firmware-display boot reached a text login and working D-Bus, but USB read errors
+still prevented loading some commands. This does not qualify a desktop boot.
 Keep raw captures private and redact personal data before posting excerpts.
 
 The companion guide is `LEXR_GETTING_STARTED.txt` in the live user's Desktop

@@ -16,15 +16,22 @@ Investigation resumed in [PR #61](https://github.com/ooaklee/lexr.sh/pull/61).
 On 2026-09-25, photographs showed a USB device going offline, followed by loop
 and SquashFS read errors. Separate photographs showed a RAM copy in progress,
 without confirming completion or a RAM-backed root. The triggering driver or
-firmware failure has not been identified; a black screen alone does not isolate
+firmware failure had not been identified; a black screen alone does not isolate
 graphics from loss of the live filesystem.
-Later that day, Ooaklee confirmed that adding `regulator_ignore_unused` to the
+On 2026-09-26, Ooaklee confirmed that adding `regulator_ignore_unused` to the
 MSM-blacklisted initramfs diagnostic kept the screen visible and keyboard input
 working. Without it, the display went black while typing before root userspace
 started. This supports suppressing unused-regulator cleanup for the firmware
 display diagnostics; it does not identify a particular failing supply or
-explain the normal desktop and USB failures.
-Physical live boot, installation and recovery remain unqualified; this proposal
+explain the normal desktop and USB failures. A subsequent firmware-display boot
+reached a text login and working D-Bus, but lost access to USB-backed executables.
+Saved logs place UCSI initialisation and a USB PHY mode change immediately before
+a SuperSpeed reset, disk read errors and SquashFS failures. The USB's complete
+image bytes still match the original ISO. The tested Debian initramfs omits
+`ucsi_glink`, `typec_ucsi` and `ps883x`, which are present in the working Ubuntu
+and elementary images. Earlier Type-C setup is the next candidate fix; the
+specific reset trigger and successful desktop operation remain unconfirmed.
+Physical desktop boot, installation and recovery remain unqualified; this proposal
 has not been accepted as a working Debian installation path.
 
 ## Context
@@ -72,6 +79,16 @@ checks, offline companion, immutable publication and identity-bound USB writer.
 Move the proven elementary early-module closure and public GPU firmware
 supplement into shared SP11 helpers. Preserve their existing regression tests
 and check the closure against the actual selected kernel package.
+
+Include `ucsi_glink` and `ps883x` in this early module closure so normal initramfs
+coldplug can configure the USB-C service and retimers before mounting the live
+filesystem. Their auxiliary-bus and device-tree relationships are not ELF
+dependencies of the USB host controller. Resolve `typec_ucsi` and other module
+dependencies with the selected kernel's metadata, accepting built-in drivers.
+Verify both live and installed initramfs images. Do not force module loads or add
+a fixed delay: module presence alone does not prove asynchronous Type-C setup
+has completed. Hardware validation must check that initialisation happens before
+live-root access and that no later reset makes the backing device unavailable.
 
 Generate separate installed and live initramfs images. Temporarily hide only
 live-boot's hook and script for the installed image, restoring them on failure

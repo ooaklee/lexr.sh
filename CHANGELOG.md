@@ -104,6 +104,11 @@ that do not apply.
 
 ### Fixed
 
+- Include the PMIC GLINK UCSI service and PS883x USB-C retimers in the shared
+  Surface initramfs module closure, including their transitive dependencies.
+  Debian's source initramfs omitted these drivers, deferring Type-C setup until
+  after mounting the live USB. Logs show a USB reset and lost filesystem reads
+  during that late setup; hardware validation of earlier loading remains pending.
 - Use the selected hardware profile throughout kernel preflight, installation
   and boot verification. The shared `-qcom-x1e` ABI suffix no longer causes
   an X Plus LCD fallback to be mistaken for OLED. Kernel and image checks

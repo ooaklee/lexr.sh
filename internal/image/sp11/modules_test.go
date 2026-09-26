@@ -19,9 +19,10 @@ func TestModuleClosureAcceptsBuiltinsAndDependencies(t *testing.T) {
 	dependency := "insmod " + root + "/lib/modules/" + abi + "/kernel/drivers/remoteproc/qcom_common.ko.zst \n"
 	output := dependency + "builtin qcom-q6v5-pas\n" + dependency +
 		"builtin qcom-geni-serial\nbuiltin surface_aggregator_registry\n" +
+		"builtin ucsi_glink\nbuiltin ps883x\nbuiltin typec_ucsi\n" +
 		"insmod " + root + "/lib/modules/" + abi + "/kernel/drivers/gpu/drm/msm/msm.ko.xz\n"
 	got, err := moduleClosure(output, root, abi)
-	want := []string{"builtin qcom_geni_serial", "builtin qcom_q6v5_pas", "builtin surface_aggregator_registry", "insmod kernel/drivers/gpu/drm/msm/msm.ko", "insmod kernel/drivers/remoteproc/qcom_common.ko"}
+	want := []string{"builtin ps883x", "builtin qcom_geni_serial", "builtin qcom_q6v5_pas", "builtin surface_aggregator_registry", "builtin typec_ucsi", "builtin ucsi_glink", "insmod kernel/drivers/gpu/drm/msm/msm.ko", "insmod kernel/drivers/remoteproc/qcom_common.ko"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("closure=%v error=%v", got, err)
 	}
@@ -61,7 +62,8 @@ func TestModuleClosureRejectsForeignPathsAndCommands(t *testing.T) {
 }
 
 // TestEarlyModuleClosureIntegration exercises trusted kmod and actual kernel
-// objects, including absent DSP/dependencies and corrupt concatenated archives.
+// objects, including absent DSP/Type-C dependencies and corrupt concatenated
+// archives.
 // Supply a local redistributable linux-modules Debian package; no download or
 // host module load is performed, and all mutations stay in a disposable volume.
 func TestEarlyModuleClosureIntegration(t *testing.T) {
@@ -157,12 +159,18 @@ fi`, false},
 		{"missing QRTR socket protocol", `rm "$live/$qrtr"`, false},
 		{"missing QRTR remote transport", `rm "$live/$transport"`, false},
 		{"missing in-kernel domain mapper", `rm "$live/$mapper"`, false},
+		{"missing live UCSI service", `rm "$live/$ucsi"`, false},
+		{"missing live Type-C retimer", `rm "$live/$retimer"`, false},
+		{"missing live UCSI protocol dependency", `rm "$live/$ucsiProtocol"`, false},
 		{"missing SSAM UART parent", `rm "$live/$uart"`, false},
 		{"missing SSAM client registry", `rm "$live/$registry"`, false},
 		{"missing transitive dependency", `rm "$live/$dependency"`, false},
 		{"corrupt dependency", `file="$live/$dependency"; rm "$file"; printf broken > "$file"`, false},
 		{"stale early override", `file="$live/$dsp"; cp --parents "${file#/linux-work/live-initrd/early2/}" /linux-work/live-initrd/main/; rm "$file"; printf stale > "$file"`, false},
 		{"installed DSP missing", `rm "$installed/$dsp"`, false},
+		{"installed UCSI service missing", `rm "$installed/$ucsi"`, false},
+		{"installed Type-C retimer missing", `rm "$installed/$retimer"`, false},
+		{"installed UCSI protocol dependency missing", `rm "$installed/$ucsiProtocol"`, false},
 		{"installed SSAM UART parent missing", `rm "$installed/$uart"`, false},
 		{"installed SSAM client registry missing", `rm "$installed/$registry"`, false},
 	} {
@@ -200,6 +208,9 @@ lcd=$(module_relative panel_edp)
 qrtr=$(module_relative qrtr)
 transport=$(module_relative qrtr_smd)
 mapper=$(module_relative qcom_pd_mapper)
+ucsi=$(module_relative ucsi_glink)
+ucsiProtocol=$(module_relative typec_ucsi)
+retimer=$(module_relative ps883x)
 uart=$(module_relative qcom_geni_serial)
 registry=$(module_relative surface_aggregator_registry)
 test -f "$live/$dsp" && test -f "$live/$dependency"
