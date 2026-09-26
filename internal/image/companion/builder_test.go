@@ -133,8 +133,9 @@ func TestBuilderIncludesMaintainedEmbeddedInputs(t *testing.T) {
 
 		"internal/image/ubuntu/LEXR_GETTING_STARTED.txt",
 		"internal/image/elementary/LEXR_GETTING_STARTED.txt",
+		"internal/image/fedora/LEXR_GETTING_STARTED.txt",
 	}
-	excluded := []string{"internal/image/archlinux/scripts/private.sh", "internal/image/archlinux/private.json", "internal/image/ubuntu/private.txt", "internal/image/elementary/private.txt", "internal/image/elementary/unlisted_helper.py", "internal/other/LEXR_GETTING_STARTED.txt"}
+	excluded := []string{"internal/image/archlinux/scripts/private.sh", "internal/image/archlinux/private.json", "internal/image/ubuntu/private.txt", "internal/image/elementary/private.txt", "internal/image/elementary/unlisted_helper.py", "internal/image/fedora/private.txt", "internal/other/LEXR_GETTING_STARTED.txt"}
 	for _, name := range append(append([]string(nil), admitted...), excluded...) {
 		file := filepath.Join(source, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {

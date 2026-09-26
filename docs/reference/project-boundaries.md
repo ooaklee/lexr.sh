@@ -62,8 +62,10 @@ the private hand-off workflow.
 The `ubuntu-concept-resolute-x1e`, `elementary-os-8-1-20260219`,
 `debian-live-testing-gnome-arm64-20240902` and `fedora-workstation-live-44`
 entries have implemented image adapters.
-Pop!_OS and Fedora's compressed raw disk entry are `catalog-only`: they are
-discoverable metadata, not buildable promises. Fedora's custom live and installed path is scoped to
+Pop!_OS remains `catalog-only`: it is discoverable metadata, not a buildable
+promise. Fedora Workstation Live 44 is the sole Fedora catalogue entry;
+compressed raw disk media has no adapter and is not offered. Fedora's custom
+live and installed path is scoped to
 X1E/OLED. Its X1P/LCD entry retains a manifest-bound stock-kernel,
 explicit-DTB live troubleshooting path only and must not be treated as an
 installed-system promise.

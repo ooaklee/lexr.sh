@@ -7,6 +7,29 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
 
+// TestBuildPlanSelectsOnlyTheDeclaredX1EExternalProfile checks the public request
+// boundary before any source download or RPM staging can begin.
+func TestBuildPlanSelectsOnlyTheDeclaredX1EExternalProfile(t *testing.T) {
+	for _, test := range []struct {
+		profile  string
+		delivery kernel.DTBDelivery
+		wantOK   bool
+	}{
+		{"surface-pro-11-x1e-oled", kernel.DTBDeliveryExternalRequired, true},
+		{"", kernel.DTBDeliveryExternalRequired, false},
+		{"surface-pro-11-x1p-lcd", kernel.DTBDeliveryExternalRequired, false},
+		{"surface-pro-11-x1e-oled", kernel.DTBDeliveryEmbedded, false},
+		{"", kernel.DTBDeliveryEmbedded, true},
+	} {
+		request := Request{SourceISO: "source.iso", OutputISO: "output.iso", KernelProfile: test.profile,
+			Bundle: kernel.Bundle{ABI: "7.2.0-jg-0sp11v23-qcom-x1e", EffectiveDTBDelivery: test.delivery}}
+		_, err := BuildPlan(request)
+		if (err == nil) != test.wantOK {
+			t.Fatalf("profile %q delivery %s: error = %v", test.profile, test.delivery, err)
+		}
+	}
+}
+
 // TestRequireSupportedKernelEnforcesPatchLineFloor locks the Fedora adapter to
 // explicitly qualified patch-line generations and rejects every unknown base.
 func TestRequireSupportedKernelEnforcesPatchLineFloor(t *testing.T) {
@@ -98,7 +121,7 @@ func TestBuildPlanDeclaresTheCompleteFedoraWorkflow(t *testing.T) {
 		}
 		steps[step.ID] = step.Inputs
 	}
-	if got := operationPlan.Steps[1].Description; got != "Verify a patch-line-qualified Stubble kernel bundle" {
+	if got := operationPlan.Steps[1].Description; got != "Verify a patch-line-qualified kernel and DTB delivery contract" {
 		t.Errorf("verify-kernel description = %q", got)
 	}
 	for _, expected := range []struct{ step, key, value string }{

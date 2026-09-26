@@ -201,6 +201,7 @@ func TestSecurityXattrWorkspaceAddsOnlyTheDeclaredCapabilities(t *testing.T) {
 		"SYS_ADMIN",
 		"MAC_ADMIN",
 		"label=disable",
+		"apparmor=unconfined",
 		"MKNOD",
 		name + ":/linux-work",
 		"fedora-builder:test",
@@ -223,8 +224,16 @@ func TestFedoraToolsDefinitionPinsTheEROFSContract(t *testing.T) {
 
 	for _, required := range []string{
 		"fedora@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80",
-		"erofs-utils-1.9.2-2.fc44",
-		"erofs-utils-1.9.2-2.fc44.aarch64",
+		"erofs-utils-1.9.4-1.fc44",
+		"erofs-utils-1.9.4-1.fc44.aarch64",
+		"ADD --checksum=sha256:d39cf093760c8f22c20038f20fd094bc1f5a7edf70923f8db21f01c13dc24da5",
+		"https://kojipkgs.fedoraproject.org/packages/erofs-utils/1.9.4/1.fc44/data/signed/6d9f90a6/aarch64/",
+		"--setopt=localpkg_gpgcheck=True",
+		"rpm --checksig /tmp/lexr-erofs.rpm",
+		"ADD --checksum=sha256:45cc43606bddd4a5642871d94d9269721131c289dc52267c982682b097248d5b",
+		"rpm --checksig /tmp/lexr-erofs.src.rpm",
+		"/usr/local/libexec/lexr/fsck.erofs",
+		"fsck.erofs (erofs-utils) 1.9.4-lexr1",
 		"--path=X",
 		"gcc-c++",
 		"meson",
@@ -264,8 +273,30 @@ func TestFedoraToolsImageIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := strings.TrimSpace(string(output)), "erofs-utils-1.9.2-2.fc44.aarch64"; got != want {
+	if got, want := strings.TrimSpace(string(output)), "erofs-utils-1.9.4-1.fc44.aarch64"; got != want {
 		t.Fatalf("Fedora EROFS tool = %q, want %q", got, want)
+	}
+	output, err = docker.Runner.Capture(ctx, Command{
+		Name: "docker",
+		Args: []string{
+			"run", "--rm", "--network", "none", "--platform", "linux/arm64", image,
+			"/usr/local/libexec/lexr/fsck.erofs", "--version",
+		},
+	})
+	if err != nil || !strings.HasPrefix(string(output), "fsck.erofs (erofs-utils) 1.9.4-lexr1\n") {
+		t.Fatalf("patched Fedora extractor = %q, error = %v", output, err)
+	}
+	// Applying the source transformation again must fail: every binary is
+	// built from precisely the reviewed source, never an already altered tree.
+	output, err = docker.Runner.Capture(ctx, Command{
+		Name: "docker",
+		Args: []string{
+			"run", "--rm", "--network", "none", "--platform", "linux/arm64", image,
+			"python3", "-c", fedoraEROFSExtractorPatch,
+		},
+	})
+	if err == nil || !strings.Contains(err.Error(), "differs from the reviewed Fedora 1.9.4 source") {
+		t.Fatalf("reapplying extractor patch = %q, error = %v; want source-drift rejection", output, err)
 	}
 }
 

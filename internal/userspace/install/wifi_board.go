@@ -130,9 +130,9 @@ func (output *wifiLimitedOutput) Write(data []byte) (int, error) {
 }
 
 // readWiFiDatabase snapshots a bounded regular distribution input. Decompression
-// invokes only the host's fixed zstd binary with stdin, never a downloaded helper.
+// invokes only the host's fixed decoder with stdin, never a downloaded helper.
 func (installer *Installer) readWiFiDatabase(ctx context.Context, root string) ([]byte, string, error) {
-	for _, suffix := range []string{"", ".zst"} {
+	for _, suffix := range []string{"", ".zst", ".xz"} {
 		path, err := resolveTarget(root, wifiFirmwareDirectory+"board-2.bin"+suffix)
 		if err != nil {
 			return nil, "", err
@@ -163,15 +163,21 @@ func (installer *Installer) readWiFiDatabase(ctx context.Context, root string) (
 		boundedContext, cancel := context.WithTimeout(ctx, 15*time.Second)
 		var output wifiLimitedOutput
 		var diagnostic boundedActivationOutput
+		decoder := "zstd"
+		arguments := []string{"--decompress", "--stdout", "--quiet", "--memory=32MB"}
+		if suffix == ".xz" {
+			decoder = "xz"
+			arguments = []string{"--decompress", "--stdout", "--memlimit-decompress=32MiB"}
+		}
 		err = installer.runner.Run(boundedContext, platform.Command{
-			Name: "/usr/bin/zstd", Args: []string{"--decompress", "--stdout", "--quiet", "--memory=32MB"},
+			Name: "/usr/bin/" + decoder, Args: arguments,
 			Stdin: bytes.NewReader(data), Stdout: &output, Stderr: &diagnostic,
 		})
 		cancel()
 		if err != nil {
-			return nil, "", fmt.Errorf("decode distribution Wi-Fi database (install zstd if unavailable): %w: %s", err, diagnostic.String())
+			return nil, "", fmt.Errorf("decode distribution Wi-Fi database (install %s if unavailable): %w: %s", decoder, err, diagnostic.String())
 		}
 		return output.Bytes(), path, nil
 	}
-	return nil, "", errors.New("distribution WCN7850 board-2.bin or board-2.bin.zst is missing; install the distribution Atheros firmware package")
+	return nil, "", errors.New("distribution WCN7850 board-2.bin, board-2.bin.zst or board-2.bin.xz is missing; install the distribution Atheros firmware package")
 }

@@ -42,6 +42,25 @@ uses its guided interfaces; it does not replace upstream copyright notices or
 relicense that dependency. Package versions, archive digests and signing
 identities are recorded in the Arch image package lock and build manifest.
 
+## Fedora EROFS build tooling
+
+Fedora image creation and validation use a locally built extractor derived from
+[erofs-utils 1.9.4](https://git.kernel.org/pub/scm/linux/kernel/git/xiang/erofs-utils.git/tag/?h=v1.9.4).
+It is built from the checksum-pinned, signature-verified Fedora
+`erofs-utils-1.9.4-1.fc44.src.rpm`. Lexr changes metadata restoration order so
+ownership and mode updates precede extended attributes, preserving capabilities
+and ACLs. The extractor identifies itself as `1.9.4-lexr1` and is installed
+separately from Fedora's original tools. The patched executable is not signed
+by Fedora, linked into Lexr, or copied into the generated installation medium.
+
+The source package declares `GPL-2.0-only AND (BSD-2-Clause OR GPL-2.0-only) AND
+(BSD-2-Clause OR GPL-2.0-or-later) AND (GPL-2.0-or-later OR MIT) AND MIT AND
+Unlicense`. Upstream per-file copyright and licence notices remain in the
+complete source under `/usr/local/src/lexr-erofs` in the tool image, alongside
+the original signed source RPM, the generated patch and Lexr's modification
+notice. Its `LICENSES` directory retains the upstream licence texts. These are
+build-tool terms, separate from the Go dependencies linked into Lexr below.
+
 ## Components in every release target
 
 | Component | Version | Licence | Copyright notice |

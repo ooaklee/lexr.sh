@@ -59,31 +59,6 @@
       "last_verified": "2026-09-06"
     },
     {
-      "id": "fedora-workstation-44-raw",
-      "name": "Fedora Workstation 44 Raw Disk Image",
-      "distribution": "Fedora",
-      "release": "44 (1.7)",
-      "filename": "Fedora-Workstation-Disk-44-1.7.aarch64.raw.xz",
-      "architecture": "arm64",
-      "artifact_kind": "raw-xz",
-      "url": "https://download.fedoraproject.org/pub/fedora/linux/releases/44/Workstation/aarch64/images/Fedora-Workstation-Disk-44-1.7.aarch64.raw.xz",
-      "homepage": "https://fedoraproject.org/workstation/download/",
-      "adapter": "none",
-      "support_level": "catalog-only",
-      "experimental": true,
-      "mutable": false,
-      "checksum": {
-        "algorithm": "sha256",
-        "value": "0361c13141e6f57e24d6ee5227066c33a45f7f92a95f41d0bbd343e4fd05da18"
-      },
-      "compatibility_notes": [
-        "No lexr image adapter is implemented yet.",
-        "This is a compressed raw disk image, not an ISO, and requires a raw-image-specific workflow.",
-        "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
-      ],
-      "last_verified": "2026-08-30"
-    },
-    {
       "id": "fedora-workstation-live-44",
       "name": "Fedora Workstation Live 44",
       "distribution": "Fedora",

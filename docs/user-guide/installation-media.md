@@ -281,7 +281,8 @@ identifies the tested v23 image and remaining qualification work.
 ### Fedora Workstation Live 44
 
 Select Fedora's implemented ARM64 Live ISO explicitly and provide either a
-local patch-line-qualified bundle or a corresponding verified release:
+local patch-line-qualified bundle or a corresponding verified release. For
+an external-DTB bundle such as v23, select the X1E/OLED profile explicitly:
 
 ```sh
 KERNEL_BUNDLE=/path/to/verified-patch-line-kernel-bundle
@@ -289,12 +290,14 @@ KERNEL_BUNDLE=/path/to/verified-patch-line-kernel-bundle
 lexr image create \
   --catalog-id fedora-workstation-live-44 \
   --kernel-dir "$KERNEL_BUNDLE" \
-  --output lexr-fedora-44-sp11-7.2.2-v1.iso
+  --profile x1e80100-microsoft-denali-oled \
+  --output lexr-fedora-44-sp11-v23.iso
 
-lexr image validate lexr-fedora-44-sp11-7.2.2-v1.iso
+lexr image validate lexr-fedora-44-sp11-v23.iso
 ```
 
-To use a published bundle instead, set `KERNEL_RELEASE` to its exact tag and
+Embedded Stubble bundles select their device tree at boot. The same global
+`--profile` identifies the intended hardware for either delivery mode. To use a published bundle instead, set `KERNEL_RELEASE` to its exact tag and
 replace the `--kernel-dir` line with `--kernel-release "$KERNEL_RELEASE"`.
 Without either flag, Lexr selects the latest candidate release; the Fedora
 adapter still rejects an unknown patch line, a generation below that line's
@@ -303,7 +306,7 @@ floor, or an incomplete bundle.
 The catalogue supplies Fedora's publisher SHA-256. The adapter accepts the
 explicit 7.2.0/sp11v19 and 7.2.2/sp11v1 lines, applies each line's generation
 floor, and rejects unknown, mixed, or incomplete ABIs. Secure Boot must be
-disabled for the unsigned custom Stubble kernel. X1P custom Stubble auto-DTB selection and
+disabled for the unsigned custom EFI kernel. X1P custom kernel selection and
 installed-system hand-off are not supported; use its explicit-DTB stock entry
 for live investigation only. Physical USB boot, an X1E installation,
 installed-system boot, pen/touch, audio, and suspend/resume remain hardware
@@ -314,13 +317,26 @@ the emergency path, and removing `quiet` revealed early console output before a
 persistent black screen. Preserve the generated manifest and journal when
 reporting a reproduction; the follow-up work must find the first failing boot
 boundary rather than treating structural validation as proof of bootability.
+The custom kernel now retains DSP/QRTR services for USB discovery and includes
+platform drivers, public GPU firmware and source-derived Wi-Fi board data before
+the initial udev probe. Fedora's compressed WCN7850 database is preserved. These
+changes still require a new physical test. Use the text diagnostics entry to
+expose dracut messages, or firmware display diagnostics to isolate DRM takeover;
+retain `/run/initramfs/rdsosreport.txt` if the emergency shell becomes usable.
+
+The live user's Desktop folder contains `LEXR_GETTING_STARTED.txt`, accessible
+through Files. Add the [offline companion](offline-companion.md) at image
+creation to carry the matching Lexr CLI and optional native IPTSD runtime.
+The prepared root retains the guide and requested companion for installation;
+the guide separates supported Fedora commands from still-unqualified userspace
+setup.
 
 ## 2. Review the USB target
 
 `image devices` is read-only and lists every whole physical device with the evidence needed to review it, including whether the disk has an active non-mount consumer. It does not present an internal, non-removable, non-USB, read-only, system-backed, in-use, weakly identified, or undersized device as an acceptable target merely because its path was supplied explicitly.
 
 The commands below use the Ubuntu filename from the shortest example. Replace
-it with `lexr-fedora-44-sp11-7.2.2-v1.iso` when writing the Fedora output.
+it with `lexr-fedora-44-sp11-v23.iso` when writing the Fedora output.
 
 ```sh
 lexr image devices
@@ -399,7 +415,10 @@ initramfs, and recreates EROFS with SELinux labels and extended attributes
 intact. Anaconda sees only the custom `/boot/vmlinuz-*` candidate. The
 installed-system contract includes a one-shot finalizer which restores the
 package-owned stock image and its BLS fallback after the first non-live X1E
-boot while keeping the custom kernel as the default.
+boot while keeping the custom kernel as the default. External-DTB custom kernels
+use an RPM-owned hook after Fedora creates the BLS entry. The hook binds the
+selected X1E DTB using the actual GRUB path for either a separate `/boot`
+filesystem or `/boot` on the root filesystem.
 
 [ADR027](../adr/adr-027-fedora-erofs-remaster-and-installed-handoff.md) records
 the complete EROFS, RPM, Anaconda, boot-policy, and validation decision.
@@ -415,9 +434,10 @@ identities together with the boot records, kernel, initramfs, module tree,
 device trees, package ownership, manifests, and EFI locations before the
 manifest and journal are published and the ISO becomes the final commit marker.
 
-The Fedora live policy still blacklists `qcom_q6v5_pas`; its hardware
-qualification is separate from the Ubuntu fix above. Installed systems must
-not retain a live-only DSP blacklist. Ubuntu omits the retired
+Fedora custom-kernel entries allow `qcom_q6v5_pas` and normal coldplug. The
+untouched stock-kernel troubleshooting entries retain Fedora's documented DSP
+blacklist; custom-kernel evidence does not qualify the stock driver's USB reset
+behaviour. Installed systems must not retain that live-only blacklist. Ubuntu omits the retired
 `soundwire_qcom.sp11_feedback_active_offset2_zero=1` parameter.
 A directly written hybrid ISO does not use `iso-scan/filename`, which belongs
 to a labelled outer-disk loopback workflow.
