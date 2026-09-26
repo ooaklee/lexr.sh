@@ -55,7 +55,9 @@ testing distribution. The 3,598,430,208-byte ISO has SHA-256
 Its publisher checksum signature was verified against the Debian Testing CDs
 key fingerprint `F41D30342F3546695F65C66942468F4009EA8AC3`, independently
 published on [Debian's verification page](https://www.debian.org/CD/verify).
-The Debian Installer DVD catalogue entry is a separate product.
+Debian Installer DVD media is a separate product and is not offered in the
+catalogue. The live entry uses the release label `Debian 13 (2024-09-02)` while
+retaining its verified testing-snapshot ID, source bytes and provenance.
 
 Actual source inspection found AArch64 kernel, executable and EFI files, one
 `/live/filesystem.squashfs`, live-boot 1:20240525, Calamares 3.3.9-1 and

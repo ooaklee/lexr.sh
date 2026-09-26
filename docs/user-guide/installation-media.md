@@ -173,9 +173,10 @@ after installation. Avoid restarting the audio DSP while using a live USB root.
 Debian support in [PR #61](https://github.com/ooaklee/lexr.sh/pull/61) remains
 experimental under [issue #50](https://github.com/ooaklee/lexr.sh/issues/50).
 The catalogue entry `debian-live-testing-gnome-arm64-20240902` pins the official
-**2024-09-02** ARM64 live snapshot. Its weekly testing URL does not make those
-packages current. Use the live entry rather than Debian's separate installer
-DVD entry; the latter has a different boot and installation contract.
+**2024-09-02** ARM64 live snapshot, with the catalogue release label
+**Debian 13 (2024-09-02)**. Its weekly testing URL does not make those packages
+current. Debian Installer DVD media has a different boot and installation
+contract and is not offered in the catalogue.
 
 ```sh
 lexr image create \

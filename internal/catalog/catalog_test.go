@@ -834,7 +834,6 @@ func TestShippedCatalogContract(t *testing.T) {
 
 	wantURLs := map[string]string{
 		"arch-linux-arm-aarch64-20260805":          "https://ca.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
-		"debian-13-6-0-dvd-1":                      "https://cdimage.debian.org/debian-cd/13.6.0/arm64/iso-dvd/debian-13.6.0-arm64-DVD-1.iso",
 		"debian-live-testing-gnome-arm64-20240902": "https://cdimage.debian.org/cdimage/weekly-live-builds/arm64/iso-hybrid/debian-live-testing-arm64-gnome.iso",
 		"elementary-os-8-1-20260219":               "https://dl.sda1.eu/linux/elementary/elementaryos-8.1-stable-arm64.20260219.iso",
 		"fedora-workstation-44-raw":                "https://download.fedoraproject.org/pub/fedora/linux/releases/44/Workstation/aarch64/images/Fedora-Workstation-Disk-44-1.7.aarch64.raw.xz",
@@ -844,7 +843,6 @@ func TestShippedCatalogContract(t *testing.T) {
 	}
 	wantFilenames := map[string]string{
 		"arch-linux-arm-aarch64-20260805":          "ArchLinuxARM-aarch64-latest.tar.gz",
-		"debian-13-6-0-dvd-1":                      "debian-13.6.0-arm64-DVD-1.iso",
 		"debian-live-testing-gnome-arm64-20240902": "debian-live-testing-arm64-gnome.iso",
 		"elementary-os-8-1-20260219":               "elementaryos-8.1-stable-arm64.20260219.iso",
 		"fedora-workstation-44-raw":                "Fedora-Workstation-Disk-44-1.7.aarch64.raw.xz",
@@ -854,7 +852,6 @@ func TestShippedCatalogContract(t *testing.T) {
 	}
 	wantChecksums := map[string]string{
 		"arch-linux-arm-aarch64-20260805":          "42a4eeaa038994ffd31fa173256ef2f0ef511358eeb41b9ea1f8626391b9b319",
-		"debian-13-6-0-dvd-1":                      "0e170d9ff0c53f7b59c8d35793b8ce308ceffd519f8370b949995634e22f5b09",
 		"debian-live-testing-gnome-arm64-20240902": "3260c69821f85464974e2136a0cda5d3954818467dda168bdfcb69547c4d7abc",
 		"elementary-os-8-1-20260219":               "85116d48c406ae7cd60c936050a099d4b8610321273f6f0a694796db4d4e86ba",
 		"fedora-workstation-44-raw":                "0361c13141e6f57e24d6ee5227066c33a45f7f92a95f41d0bbd343e4fd05da18",

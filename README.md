@@ -55,8 +55,8 @@ on X1E/OLED using v23, with touchscreen input and Wi-Fi after reconnecting.
 See the [hardware test record](docs/operator-manual/arch-linux-arm-install.md#hardware-test-record)
 for the tested image and remaining checks.
 The custom live and installed Fedora path is limited to the Surface Pro 11 Qualcomm Snapdragon X Elite model; its X Plus
-entry is a stock-kernel, explicit-DTB live troubleshooting path only. Debian's
-separate installer DVD, Pop!_OS and Fedora's compressed raw disk image remain
+entry is a stock-kernel, explicit-DTB live troubleshooting path only. Pop!_OS
+and Fedora's compressed raw disk image remain
 `catalog-only` until their layouts have dedicated adapters. Here, `implemented`
 means the adapter can create and structurally validate media; `experimental`
 means complete end-to-end qualification is still pending. Ubuntu Concept

@@ -99,6 +99,8 @@ that do not apply.
   displayed Debian 13 and reached location and partition selection on the
   rebuilt image. Audio still shows Dummy Output and awaits setup and verification;
   installation, installed boot and recovery remain unqualified.
+  Remove the unused Debian Installer DVD entry from the catalogue and label the
+  pinned live snapshot `Debian 13 (2024-09-02)`.
 - Add `lexr upgrade`, which checks GitHub for the newest published release,
   downloads the matching binary for the platform, verifies the release
   SHA-256 checksum, and atomically replaces the running executable. Without
