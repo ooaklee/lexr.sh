@@ -45,6 +45,8 @@ const (
 	AdapterFedoraLive Adapter = "fedora-live"
 	// AdapterElementaryCasper selects elementary OS's Casper and GRUB implementation.
 	AdapterElementaryCasper Adapter = "elementary-casper"
+	// AdapterDebianLive selects Debian live-boot and Calamares image preparation.
+	AdapterDebianLive Adapter = "debian-live"
 	// AdapterArchLinuxARM creates ARM64 terminal live media from a root filesystem.
 	AdapterArchLinuxARM Adapter = "archlinux-arm-live"
 )
@@ -55,7 +57,7 @@ func AdapterSupportsArtifact(adapter Adapter, kind ArtifactKind) bool {
 	switch adapter {
 	case AdapterArchLinuxARM:
 		return kind == ArtifactKindRootfsTarGZ
-	case AdapterUbuntuCasper, AdapterFedoraLive, AdapterElementaryCasper:
+	case AdapterUbuntuCasper, AdapterFedoraLive, AdapterElementaryCasper, AdapterDebianLive:
 		return kind == ArtifactKindISO
 	default:
 		return false

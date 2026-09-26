@@ -76,6 +76,31 @@ that do not apply.
   `--from`.
 - Organise the documentation around first-time setup, hardware profiles,
   configuration, task guides and command and configuration references.
+- Add experimental Debian ARM64 live media support for Surface Pro 11 with
+  GNOME desktop. Port the legacy Debian live adapter work and reconcile with
+  main's layered defaults and profile-resolved external DTBs. Register
+  `AdapterDebianLive` in the catalog model/validate/artefact mapping, wire
+  release-prep Debian step IDs, and connect the generated-image validator
+  factory. Include a new catalog entry `debian-live-testing-gnome-arm64-20240902`
+  for the verified weekly-live-build snapshot. Validation now surfaces
+  `report.BootProfiles` for host profile auto-detection checks. Staged Debian
+  kernel packages are now world-readable (0644), fixing `sudo lexr image write`
+  validation failures with `Permission denied` on kernel .debs. The GRUB menu
+  offers a whole-medium copy-to-RAM choice that preserves the installer and
+  companion paths and checks the copied media before continuing. Restore the
+  initramfs storage diagnostic entry and retain the Surface keyboard's UART
+  transport and client registry in both live and installed initramfs images.
+  Keep unused power supplies enabled in the two Debian firmware-display
+  diagnostic entries so regulator cleanup cannot blank the firmware display
+  while collecting evidence. Normal desktop and copy-to-RAM policy is unchanged.
+  Ooaklee confirmed first-entry X1E/OLED live desktop boot with Lexr `3339659`
+  and the rebuilt `37c21ca` candidate with v23, including the main-branch updates,
+  with Wi-Fi, internet access, power profiles and Bluetooth working. Calamares
+  displayed Debian 13 and reached location and partition selection on the
+  rebuilt image. Audio still shows Dummy Output and awaits setup and verification;
+  installation, installed boot and recovery remain unqualified.
+  Remove the unused Debian Installer DVD entry from the catalogue and label the
+  pinned live snapshot `Debian 13 (2024-09-02)`.
 - Add `lexr upgrade`, which checks GitHub for the newest published release,
   downloads the matching binary for the platform, verifies the release
   SHA-256 checksum, and atomically replaces the running executable. Without
@@ -98,6 +123,13 @@ that do not apply.
 
 ### Fixed
 
+- Include the PMIC GLINK UCSI service and PS883x USB-C retimers in the shared
+  Surface initramfs module closure, including their transitive dependencies.
+  Debian's source initramfs omitted these drivers, deferring Type-C setup until
+  after mounting the live USB. Logs show a USB reset and lost filesystem reads
+  during that late setup. Candidates `3339659` and `37c21ca` reached the X1E/OLED
+  live desktop with v23 in Ooaklee's tests; the exact reset cause and controlled
+  cold-boot repeatability remain unconfirmed.
 - Reject wholly unsupported host operations before expensive source inspection
   or filesystem mutation, while retaining truthful read-only plans where the
   workflow can produce them. Dynamic tool, privilege, target and input checks

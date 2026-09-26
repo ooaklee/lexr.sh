@@ -26,3 +26,12 @@ func CatalogFS() fs.FS {
 func UserspaceCatalogFS() fs.FS {
 	return embeddedUserspaceCatalog
 }
+
+// embeddedProjectTerms keeps generated support packages on the repository's
+// single legal-document authority.
+//
+//go:embed LICENSE NOTICE
+var embeddedProjectTerms embed.FS
+
+// ProjectTermsFS returns the complete Apache-2.0 licence and project notice.
+func ProjectTermsFS() fs.FS { return embeddedProjectTerms }

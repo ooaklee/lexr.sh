@@ -45,8 +45,9 @@ redistribute restricted firmware. You can also use
 ## What works today
 
 Dedicated image adapters support the experimental Ubuntu Concept Resolute
-Desktop image, elementary OS 8.1 ARM64, Fedora Workstation Live 44 ARM64 and
-an Arch Linux ARM terminal live ISO. Arch includes a
+Desktop image, elementary OS 8.1 ARM64, the Debian ARM64 GNOME live snapshot
+dated 2024-09-02, Fedora Workstation Live 44 ARM64 and an Arch Linux ARM terminal
+live ISO. Arch includes a
 [step-by-step installation guide](docs/user-guide/arch-linux-arm-quickstart.md)
 with the Surface kernel and GRUB; no desktop is preselected. On 2026-09-08,
 Ooaklee confirmed installation and boot from the internal ext4 partition
@@ -54,8 +55,8 @@ on X1E/OLED using v23, with touchscreen input and Wi-Fi after reconnecting.
 See the [hardware test record](docs/operator-manual/arch-linux-arm-install.md#hardware-test-record)
 for the tested image and remaining checks.
 The custom live and installed Fedora path is limited to the Surface Pro 11 Qualcomm Snapdragon X Elite model; its X Plus
-entry is a stock-kernel, explicit-DTB live troubleshooting path only. Debian,
-Pop!_OS and Fedora's compressed raw disk image remain
+entry is a stock-kernel, explicit-DTB live troubleshooting path only. Pop!_OS
+and Fedora's compressed raw disk image remain
 `catalog-only` until their layouts have dedicated adapters. Here, `implemented`
 means the adapter can create and structurally validate media; `experimental`
 means complete end-to-end qualification is still pending. Ubuntu Concept
@@ -66,6 +67,15 @@ remastered with Lexr `927d00e` and v23 reached the same X1E/OLED live desktop;
 Wi-Fi, web browsing and the language/try/install chooser were confirmed on
 2026-09-06 ([issue #49](https://github.com/ooaklee/lexr.sh/issues/49)). Installation,
 recovery and remaining hardware checks still need qualification for both images.
+On 2026-09-26, Ooaklee confirmed that Debian remastered with Lexr `3339659` and
+v23 reached the X1E/OLED live desktop using the first GRUB entry. The rebuilt
+`37c21ca` image, including the main-branch updates, also booted with Wi-Fi,
+internet access, power profiles and Bluetooth working. Calamares displayed
+Debian 13 and reached location and partition selection; no installation was
+performed. Audio still shows Dummy Output; Lexr audio setup and sound verification
+remain pending. See the
+[Debian test record](docs/user-guide/installation-media.md#debian-arm64-gnome-live-image)
+for the remaining qualification limits and source identity.
 The current Fedora candidate passed structural validation and USB read-back, but a physical Surface Pro 11
 test reached the emergency boot path and then a persistent black screen. That
 failure is tracked in [issue #17](https://github.com/ooaklee/lexr.sh/issues/17),

@@ -51,6 +51,10 @@ func TestDocumentationUsesBritishEnglish(t *testing.T) {
 			}
 			for _, group := range parsed.Comments {
 				for _, comment := range group.List {
+					// Compiler directives name paths and symbols, not public prose.
+					if strings.HasPrefix(comment.Text, "//go:") {
+						continue
+					}
 					text := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(comment.Text, "//"), "/*"))
 					// Stable Go identifiers must begin their documentation with their
 					// exact source spelling even when the public prose uses another form.

@@ -113,7 +113,7 @@ func selectWiFiBoard(data []byte) (wifiBoardSelection, error) {
 			return wifiBoardSelection{name: name, data: bytes.Clone(payload)}, nil
 		}
 	}
-	return wifiBoardSelection{}, errors.New("distribution board database contains neither the native SP11 entry nor its qualified fallback; update linux-firmware")
+	return wifiBoardSelection{}, errors.New("distribution board database contains neither the native SP11 entry nor its qualified fallback; update the distribution Atheros firmware package")
 }
 
 // wifiLimitedOutput fails once decompression crosses its retained-output limit.
@@ -173,5 +173,5 @@ func (installer *Installer) readWiFiDatabase(ctx context.Context, root string) (
 		}
 		return output.Bytes(), path, nil
 	}
-	return nil, "", errors.New("distribution WCN7850 board-2.bin or board-2.bin.zst is missing; install linux-firmware")
+	return nil, "", errors.New("distribution WCN7850 board-2.bin or board-2.bin.zst is missing; install the distribution Atheros firmware package")
 }

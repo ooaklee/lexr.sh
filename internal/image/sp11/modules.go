@@ -1,4 +1,4 @@
-package elementary
+package sp11
 
 import (
 	"context"
@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
 // earlyModules includes platform dependencies which ELF module dependencies
@@ -15,15 +17,21 @@ import (
 // uses edp-panel; msm must not take over the firmware display without them.
 // QMI/PDR opens an AF_QIPCRTR socket, so its QRTR protocol and remote transport
 // must be available before the PMIC GLINK USB role service can initialise.
+// UCSI binds through the PMIC GLINK auxiliary bus, and the PS8830 retimers bind
+// through DT links. Neither is an ELF dependency of the USB host controller;
+// leave their initial Type-C configuration to coldplug before live-root access.
+// The SSAM keyboard also needs its DT UART parent and platform client registry;
+// neither is an ELF dependency of the aggregator hub.
 var earlyModules = []string{
 	"qcom_q6v5_pas", "qrtr", "qrtr_smd", "qcom_pd_mapper",
+	"ucsi_glink", "ps883x",
 	"msm", "panel_samsung_atna33xc20", "panel_edp",
-	"surface_aggregator_hub",
+	"qcom_geni_serial", "surface_aggregator_registry", "surface_aggregator_hub",
 }
 
-// earlyModuleHook copies modules and their dependencies for normal coldplug.
+// EarlyModuleHook copies modules and their dependencies for normal coldplug.
 // It neither forces a load nor restarts the DSP, and remains useful after install.
-func earlyModuleHook() string {
+func EarlyModuleHook() string {
 	return `#!/bin/sh
 set -e
 case "${1:-}" in
@@ -41,6 +49,7 @@ var modulePathPattern = regexp.MustCompile(`^[a-zA-Z0-9_./+-]+$`)
 func moduleClosure(output, root, abi string) ([]string, error) {
 	var records []string
 	seen := make(map[string]bool)
+	variants := make(map[string]string)
 	for _, line := range strings.Split(output, "\n") {
 		fields := strings.Fields(line)
 		if len(fields) == 0 {
@@ -65,7 +74,13 @@ func moduleClosure(output, root, abi string) ([]string, error) {
 				!(strings.HasSuffix(relative, ".ko") || strings.HasSuffix(relative, ".ko.zst") || strings.HasSuffix(relative, ".ko.xz")) {
 				return nil, fmt.Errorf("module dependency escapes the selected kernel: %q", fields[1])
 			}
-			record = "insmod " + relative
+			// Debian decompresses modules inside its initramfs. Compare the
+			// kernel object identity here and its complete decoded bytes below.
+			record = "insmod " + strings.TrimSuffix(strings.TrimSuffix(relative, ".zst"), ".xz")
+			if previous, exists := variants[record]; exists && previous != relative {
+				return nil, fmt.Errorf("ambiguous module representations for %q", record)
+			}
+			variants[record] = relative
 		default:
 			return nil, fmt.Errorf("module query returned a non-data action %q", fields[0])
 		}
@@ -84,12 +99,12 @@ func moduleClosure(output, root, abi string) ([]string, error) {
 	return records, nil
 }
 
-// validateEarlyModules resolves dependencies from freshly indexed kernel package
+// ValidateEarlyModules resolves dependencies from freshly indexed kernel package
 // bytes, then compares the shipped initramfs indices and objects. Only container
 // kmod runs; image executables and modprobe configuration are never executed.
-func (v *Validator) validateEarlyModules(ctx context.Context, image, workspace, volume, abi string) error {
-	if !kernelABIPattern.MatchString(abi) {
-		return fmt.Errorf("invalid elementary early module kernel ABI")
+func ValidateEarlyModules(ctx context.Context, docker *platform.Docker, image, workspace, volume, abi string) error {
+	if !SafeKernelABI(abi) {
+		return fmt.Errorf("invalid SP11 early module kernel ABI")
 	}
 	expected := "/linux-work/package-linux-modules-" + abi
 	const prepare = `set -o pipefail
@@ -105,13 +120,15 @@ depmod -C /dev/null -b "$expected" "$abi"
 for kind in live installed; do
     unpacked="/linux-work/$kind-initrd"
     merged="/linux-work/$kind-module-view"
-    test ! -e "$merged" && test ! -L "$merged"
+    test ! -e "$merged"
+    test ! -L "$merged"
     mkdir -p "$merged/lib/modules/$abi"
     # unmkinitramfs emits early, early2 ... earlyN, then main. Reproduce
     # that overlay in an isolated view using links to data, never executables.
     while IFS= read -r section; do
         [[ "$section" = early || "$section" = main || "$section" =~ ^early([2-9]|[1-9][0-9]+)$ ]]
-        test -d "$unpacked/$section" && test ! -L "$unpacked/$section"
+        test -d "$unpacked/$section"
+        test ! -L "$unpacked/$section"
         directory="$unpacked/$section/usr/lib/modules/$abi"
         if [ -d "$directory" ]; then
             test "$(realpath "$directory")" = "$directory"
@@ -120,12 +137,13 @@ for kind in live installed; do
     done < <(find "$unpacked" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort -V)
     for metadata in modules.dep modules.dep.bin modules.builtin modules.builtin.bin; do
         file="$merged/lib/modules/$abi/$metadata"
-        test -f "$file" && test ! -L "$file"
+        test -f "$file"
+        test ! -L "$file"
         test "$(realpath "$file")" = "$file"
     done
 done
 `
-	if err := v.Docker.RunInWorkspaceVolume(ctx, image, workspace, volume, "bash", "-ceu", prepare, "lexr-early-module-view", expected, abi); err != nil {
+	if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume, "bash", "-ceu", prepare, "lexr-early-module-view", expected, abi); err != nil {
 		return fmt.Errorf("prepare early module validation: %w", err)
 	}
 	query := `root=$1
@@ -137,7 +155,7 @@ done
 `
 	queryClosure := func(root string) ([]string, error) {
 		args := append([]string{"bash", "-ceu", query, "lexr-early-module-query", root, abi}, earlyModules...)
-		output, err := v.Docker.CaptureInWorkspaceVolume(ctx, image, workspace, volume, args...)
+		output, err := docker.CaptureInWorkspaceVolume(ctx, image, workspace, volume, args...)
 		if err != nil {
 			return nil, err
 		}
@@ -156,27 +174,58 @@ done
 		if !reflect.DeepEqual(want, got) {
 			return fmt.Errorf("%s initramfs early driver dependencies differ from the kernel package", kind)
 		}
-		const compare = `expected=$1
+		const compare = `set -o pipefail
+expected=$1
 merged=$2
 unpacked=$3
 abi=$4
 shift 4
-for relative in "$@"; do
-    source="$expected/usr/lib/modules/$abi/$relative"
-    target="$merged/lib/modules/$abi/$relative"
-    for file in "$source" "$target"; do
-        test -f "$file" && test ! -L "$file"
-        test "$(realpath "$file")" = "$file"
-    done
-    cmp "$source" "$target"
-    # A stale copy in an earlier CPIO section must not silently survive.
-    for section in "$unpacked"/*; do
-        file="$section/usr/lib/modules/$abi/$relative"
-        if [ -e "$file" ] || [ -L "$file" ]; then
-            test -f "$file" && test ! -L "$file"
-            test "$(realpath "$file")" = "$file"
-            cmp "$source" "$file"
+scratch=$(mktemp -d /linux-work/module-compare.XXXXXX)
+trap 'rm -rf -- "$scratch"' EXIT
+module_file() {
+    local base=$1 selected= candidate
+    for candidate in "$base" "$base.xz" "$base.zst"; do
+        if [ -e "$candidate" ] || [ -L "$candidate" ]; then
+            test -z "$selected" || return 1
+            test -s "$candidate" || return 1
+            test -f "$candidate" || return 1
+            test ! -L "$candidate" || return 1
+            test "$(realpath "$candidate")" = "$candidate" || return 1
+            test "$(stat -c %s "$candidate")" -le 134217728 || return 1
+            selected=$candidate
         fi
+    done
+    test -n "$selected" || return 1
+    printf '%s\n' "$selected"
+}
+decode_module() {
+    local input=$1 output=$2
+    case "$input" in
+        *.ko.zst) timeout 30 zstd -dcq --memory=256MB "$input" | head -c 134217729 > "$output" ;;
+        *.ko.xz) timeout 30 xz -dc --memlimit-decompress=256MiB "$input" | head -c 134217729 > "$output" ;;
+        *.ko) head -c 134217729 "$input" > "$output" ;;
+        *) return 1 ;;
+    esac
+    test "$(stat -c %s "$output")" -le 134217728
+}
+for relative in "$@"; do
+    source=$(module_file "$expected/usr/lib/modules/$abi/$relative")
+    target=$(module_file "$merged/lib/modules/$abi/$relative")
+    decode_module "$source" "$scratch/source"
+    decode_module "$target" "$scratch/target"
+    cmp "$scratch/source" "$scratch/target"
+    # A stale copy in an earlier CPIO section must not silently survive,
+    # including a copy using a different compression representation.
+    for section in "$unpacked"/*; do
+        base="$section/usr/lib/modules/$abi/$relative"
+        for file in "$base" "$base.xz" "$base.zst"; do
+            if [ -e "$file" ] || [ -L "$file" ]; then
+                previous=$(module_file "$base")
+                decode_module "$previous" "$scratch/previous"
+                cmp "$scratch/source" "$scratch/previous"
+                break
+            fi
+        done
     done
 done
 `
@@ -186,7 +235,7 @@ done
 				args = append(args, relative)
 			}
 		}
-		if err := v.Docker.RunInWorkspaceVolume(ctx, image, workspace, volume, args...); err != nil {
+		if err := docker.RunInWorkspaceVolume(ctx, image, workspace, volume, args...); err != nil {
 			return fmt.Errorf("%s initramfs early driver bytes differ from the kernel package: %w", kind, err)
 		}
 	}

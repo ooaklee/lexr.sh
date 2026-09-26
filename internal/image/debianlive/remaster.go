@@ -1,4 +1,4 @@
-package elementary
+package debianlive
 
 import (
 	"context"
@@ -12,14 +12,13 @@ import (
 	"time"
 
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
-	"github.com/ooaklee/lexr.sh/internal/image/caspermedia"
 	"github.com/ooaklee/lexr.sh/internal/image/companion"
 	"github.com/ooaklee/lexr.sh/internal/image/debian"
 	"github.com/ooaklee/lexr.sh/internal/image/sp11"
 	"github.com/ooaklee/lexr.sh/internal/plan"
 )
 
-// Create prepares elementary's single installer filesystem, creates a USB-visible
+// Create prepares Debian's single installer filesystem, creates a USB-visible
 // EFI partition, and publishes only after independent image validation.
 func (r *Remasterer) Create(ctx context.Context, request Request) (result Result, resultErr error) {
 	operation, err := BuildPlan(request)
@@ -44,7 +43,7 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 		return result, err
 	}
 	for _, suffix := range []string{"", ".manifest.json", ".journal.json"} {
-		if err := imagecontract.RequireAbsentPublication(output+suffix, "elementary image output"); err != nil {
+		if err := imagecontract.RequireAbsentPublication(output+suffix, "Debian image output"); err != nil {
 			return result, err
 		}
 	}
@@ -58,7 +57,7 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err := os.MkdirAll(parent, 0o755); err != nil {
 		return result, err
 	}
-	workspace, err := os.MkdirTemp(parent, ".lexr-elementary-")
+	workspace, err := os.MkdirTemp(parent, ".lexr-debian-")
 	if err != nil {
 		return result, err
 	}
@@ -71,10 +70,13 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 		return journal.Save(filepath.Join(workspace, "image-create.journal.json"))
 	}
 	progress := func(message string) { fmt.Fprintln(r.Out, message) }
-	progress("Verifying private copies of the elementary source and kernel packages")
+	progress("Verifying private copies of the Debian source and kernel packages")
 	digest, size, err := imagecontract.SnapshotFile(ctx, source, filepath.Join(workspace, "source.iso"), maximumISOBytes, nil)
 	if err != nil {
 		return result, err
+	}
+	if digest != inspectedSourceISOHash {
+		return result, errors.New("source ISO differs from the inspected Debian live snapshot")
 	}
 	if request.SourceSHA256 != "" && !strings.EqualFold(request.SourceSHA256, digest) {
 		return result, fmt.Errorf("source ISO SHA-256 mismatch: expected %s, got %s", request.SourceSHA256, digest)
@@ -122,13 +124,13 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 		cleanup, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if err := r.Docker.RemoveWorkVolume(cleanup, volume); err != nil {
-			resultErr = errors.Join(resultErr, fmt.Errorf("remove elementary workspace volume %s: %w", volume, err))
+			resultErr = errors.Join(resultErr, fmt.Errorf("remove Debian workspace volume %s: %w", volume, err))
 		}
 	}()
 	if err := checkpoint("prepare-tools", nil); err != nil {
 		return result, err
 	}
-	progress("Inspecting elementary's fixed Casper directory and installer filesystem")
+	progress("Inspecting Debian's pinned live-boot directory and installer filesystem")
 	layout, err := r.extractSource(ctx, toolsImage, workspace, volume)
 	if err != nil {
 		return result, err
@@ -148,7 +150,13 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err := checkpoint("prepare-wifi", map[string]string{sp11.WiFiBoard: wifiDigest}); err != nil {
 		return result, err
 	}
-	progress("Installing the custom kernel and elementary installed-system support")
+	progress("Installing the custom kernel and Debian installed-system support")
+	if err := prepareInstalledPackages(ctx, r.Docker, toolsImage, workspace, volume); err != nil {
+		return result, err
+	}
+	if err := checkpoint("prepare-installed-grub", nil); err != nil {
+		return result, err
+	}
 	if err := debian.InstallKernelPackages(ctx, r.Docker, toolsImage, workspace, volume, request.Bundle); err != nil {
 		return result, err
 	}
@@ -218,7 +226,7 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err := installRetainedMedia(ctx, r.Docker, toolsImage, workspace, volume); err != nil {
 		return result, err
 	}
-	progress("Repacking elementary's installer filesystem, recovery support and package inventory")
+	progress("Repacking Debian's installer filesystem, recovery support and package inventory")
 	if err := r.repackRoot(ctx, toolsImage, workspace, volume); err != nil {
 		return result, err
 	}
@@ -228,15 +236,14 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	progress("Creating matching optical and USB EFI boot paths")
 	mappings := map[string]string{
 		layout.member("filesystem.squashfs"): filepath.Join(workspace, "remastered.squashfs"),
-		layout.member("filesystem.manifest"): filepath.Join(workspace, "filesystem.manifest"),
+		layout.member("filesystem.packages"): filepath.Join(workspace, "filesystem.packages"),
 		layout.member("filesystem.size"):     filepath.Join(workspace, "filesystem.size"),
-		layout.kernel:                        filepath.Join(workspace, "casper-vmlinuz"),
-		layout.initrd:                        filepath.Join(workspace, "casper-initrd"),
-		caspermedia.MediumIdentityPath:       filepath.Join(workspace, "casper-uuid-generic"),
+		layout.kernel:                        filepath.Join(workspace, "live-vmlinuz"),
+		layout.initrd:                        filepath.Join(workspace, "live-initrd"),
+		mediumIdentityPath:                   filepath.Join(workspace, "live-uuid"),
 		"boot/grub/arm64-efi/grub.cfg":       filepath.Join(workspace, "forwarding-grub.cfg"),
 		"boot/grub/loopback.cfg":             filepath.Join(workspace, "forwarding-grub.cfg"),
 		"efi.img":                            filepath.Join(workspace, "esp.img"),
-		"live/vmlinuz":                       filepath.Join(workspace, "casper-vmlinuz"),
 		"boot/grub/grub.cfg":                 filepath.Join(workspace, "grub.cfg"),
 		"boot/grub/efi.img":                  filepath.Join(workspace, "esp.img"),
 		"EFI/boot/bootaa64.efi":              filepath.Join(workspace, "grubaa64.efi"),
@@ -284,14 +291,14 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err := checkpoint("create-hybrid-boot", nil); err != nil {
 		return result, err
 	}
-	progress("Independently validating the complete elementary image")
+	progress("Independently validating the complete Debian image")
 	partial := filepath.Join(workspace, "output.partial.iso")
 	validation, err := NewValidator(r.Docker).Validate(ctx, partial)
 	if err != nil {
 		return result, err
 	}
 	if !validation.Valid {
-		return result, errors.New("elementary image validation did not pass")
+		return result, errors.New("Debian image validation did not pass")
 	}
 	manifestIdentity := imagecontract.IdentifyBytes(encoded)
 	if validation.ManifestSHA256 != manifestIdentity.SHA256 || validation.ManifestSize != manifestIdentity.Size {
