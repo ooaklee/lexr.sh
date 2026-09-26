@@ -29,10 +29,16 @@ Saved logs place UCSI initialisation and a USB PHY mode change immediately befor
 a SuperSpeed reset, disk read errors and SquashFS failures. The USB's complete
 image bytes still match the original ISO. The tested Debian initramfs omits
 `ucsi_glink`, `typec_ucsi` and `ps883x`, which are present in the working Ubuntu
-and elementary images. Earlier Type-C setup is the next candidate fix; the
-specific reset trigger and successful desktop operation remain unconfirmed.
-Physical desktop boot, installation and recovery remain unqualified; this proposal
-has not been accepted as a working Debian installation path.
+and elementary images. Candidate `3339659` includes those drivers in the early
+initramfs. On 2026-09-26, Ooaklee reported that this candidate with v23 reached
+the X1E/OLED live desktop through the first GRUB entry, with Wi-Fi, internet
+access, power profiles and Bluetooth working. Audio exposed Dummy Output and
+the installer did not appear to work; its failure cause remains unverified.
+See the [hardware test record](../user-guide/installation-media.md#debian-arm64-gnome-live-image)
+for the tested scope and source identity. The specific USB reset trigger and
+repeatability remain unconfirmed. Installation, installed boot and recovery
+remain unqualified; this proposal has not been accepted as a working Debian
+installation path.
 
 ## Context
 
@@ -114,7 +120,7 @@ preserving unused supplies while the firmware display has no native graphics
 driver. Keep ordinary desktop, RAM and native text boot regulator policy unchanged.
 Retain the SSAM UART parent and client registry, which the keyboard hub's ELF
 dependencies do not cover. Keyboard input has been confirmed in the v23
-initramfs diagnostic; desktop boot still needs qualification.
+initramfs diagnostic; that observation does not qualify all input devices.
 
 Retain Calamares's inspected unpack, partitioning, package-removal and bootloader
 sequence. Supply the missing GRUB packages offline. Add distribution-specific

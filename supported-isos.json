@@ -49,7 +49,8 @@
         "Historical official ARM64 GNOME testing snapshot dated 2024-09-02; the testing filename does not imply current packages.",
         "Publisher SHA-256 and its Debian Testing CDs signature were verified before source inspection; the mutable URL is pinned to these exact bytes.",
         "Uses Debian live-boot, Calamares and GRUB with an exact-ABI external Surface device tree; disable Secure Boot.",
-        "Live desktop, Wi-Fi, input, installation, installed boot and recovery require physical qualification.",
+        "The maintainer reported desktop, Wi-Fi/internet, Bluetooth and power profiles working on Surface Pro 11 X1E/OLED with candidate 3339659 and kernel 7.2.0-jg-0sp11v23-qcom-x1e on 2026-09-26.",
+        "Audio showed Dummy Output and the installer reportedly did not work; their causes remain unverified. Cold-boot repeatability, full input support, installation, installed boot and recovery still require qualification.",
         "The Debian Installer DVD catalogue entry is separate and has no live-image adapter.",
         "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
       ],

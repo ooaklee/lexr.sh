@@ -189,12 +189,25 @@ lexr image validate ../lexr-build/lexr-debian-sp11.iso
 
 Run from the Lexr source tree when including its companion. Select the exact
 kernel release being tested and keep the generated manifest and journal.
-Structural validation does not establish successful hardware boot. Reported
-failures include USB resets followed by SquashFS read errors and a black screen.
-Saved logs show storage loss immediately after late USB-C initialisation. The current
-candidate includes the UCSI service and PS883x retimers in the early initramfs,
-matching their presence in working Ubuntu and elementary images. This change
-still needs a physical boot test; it is not a confirmed desktop fix.
+Structural validation does not establish successful hardware boot. Earlier
+failures included USB resets followed by SquashFS read errors and a black screen.
+Saved logs showed storage loss immediately after late USB-C initialisation.
+Lexr `3339659` includes the UCSI service and PS883x retimers in the early
+initramfs, matching their presence in working Ubuntu and elementary images.
+
+On **2026-09-26**, Ooaklee confirmed that the image produced with Lexr `3339659`
+and kernel `7.2.0-jg-0sp11v23-qcom-x1e` reached the Surface Pro 11 X1E/OLED live
+desktop using the first GRUB entry. Wi-Fi, internet access, power profiles and
+Bluetooth were reported working. Audio exposed only **Dummy Output**, and the
+installer did not appear to work; the installer failure's cause has not been
+established. These observations qualify that live boot on that device, without
+proving repeatability, a RAM-backed boot or independence from firmware state
+left by an earlier operating-system boot. Images rebuilt from later Lexr
+commits need their own test.
+
+The displayed Debian version was reported as Debian 12, but the accepted source
+bytes remain identified as the 2024-09-02 testing snapshot. Confirm the live
+system's `/etc/os-release` and source metadata before changing that identity.
 
 The optional **copy to RAM** entry uses whole-medium `toram` to preserve the
 `/live/filesystem.squashfs` installer payload and `/sp11/companion` layout. It
@@ -218,15 +231,17 @@ without clearing the log, then collect `echo "$REASON"`, `uname -r`, `cat /proc/
 `dmesg | tail -n 100 | more`. Press Space to page through the output or `q` to
 leave the pager. Type `exit` to continue booting after collecting the evidence.
 Ooaklee confirmed that the v23 X1E/OLED initramfs diagnostic retained its display
-and accepted keyboard input after adding `regulator_ignore_unused`. A subsequent
+and accepted keyboard input after adding `regulator_ignore_unused`. An earlier
 firmware-display boot reached a text login and working D-Bus, but USB read errors
-still prevented loading some commands. This does not qualify a desktop boot.
+still prevented loading some commands. That diagnostic result is separate from
+the successful live desktop test recorded above.
 Keep raw captures private and redact personal data before posting excerpts.
 
 The companion guide is `LEXR_GETTING_STARTED.txt` in the live user's Desktop
 folder. Its live root is `/run/live/medium/sp11/companion`; after installation,
-the retained path is `/usr/share/lexr/debian-media/sp11/companion`. Desktop boot,
-peripherals, installation, installed boot and recovery remain unqualified.
+the retained path is `/usr/share/lexr/debian-media/sp11/companion`. Installation,
+installed boot, recovery and hardware features beyond the observations above
+remain unqualified.
 
 ### Arch Linux ARM terminal image
 
