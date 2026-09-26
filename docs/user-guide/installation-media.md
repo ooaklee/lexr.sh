@@ -198,16 +198,32 @@ initramfs, matching their presence in working Ubuntu and elementary images.
 On **2026-09-26**, Ooaklee confirmed that the image produced with Lexr `3339659`
 and kernel `7.2.0-jg-0sp11v23-qcom-x1e` reached the Surface Pro 11 X1E/OLED live
 desktop using the first GRUB entry. Wi-Fi, internet access, power profiles and
-Bluetooth were reported working. Audio exposed only **Dummy Output**, and the
-installer did not appear to work; the installer failure's cause has not been
-established. These observations qualify that live boot on that device, without
-proving repeatability, a RAM-backed boot or independence from firmware state
-left by an earlier operating-system boot. Images rebuilt from later Lexr
-commits need their own test.
+Bluetooth were reported working. Ooaklee then confirmed the same live desktop
+and hardware behaviour with rebuilt candidate `37c21ca`, which includes main
+through `15a236b`. The rebuilt ISO passed structural validation and complete USB
+write/read-back verification before this boot test.
 
-The displayed Debian version was reported as Debian 12, but the accepted source
-bytes remain identified as the 2024-09-02 testing snapshot. Confirm the live
-system's `/etc/os-release` and source metadata before changing that identity.
+| Rebuilt test image | Value |
+| --- | --- |
+| Lexr source | `37c21ca` |
+| Kernel | `7.2.0-jg-0sp11v23-qcom-x1e` |
+| ISO size | 4,328,849,408 bytes |
+| ISO SHA-256 | `eeab864d023de5560a124926e3b7cdd4df891d76150c23e9fa73334007ba1452` |
+
+On that rebuilt image, Calamares launched, displayed **Debian 13**, and reached
+the location and partition selection pages. It detected existing Windows,
+Ubuntu and Arch partitions and showed install-alongside and erase previews.
+No installation was performed; those previews do not verify partition changes,
+payload deployment or installed boot. This supersedes the earlier report that
+the installer did not appear to work. The accepted source bytes remain the
+**2024-09-02 testing snapshot**; Debian 13 branding does not make them a current
+Debian 13 release.
+
+Audio still exposes only **Dummy Output**. Lexr audio setup and subsequent sound
+verification remain pending; see [userspace support](userspace-support.md#released-audio-iptsd-and-camera-support)
+and the bundled getting-started guide for the setup flow. These live boot tests
+do not establish controlled cold-boot repeatability, a RAM-backed boot or
+independence from firmware state left by an earlier operating-system boot.
 
 The optional **copy to RAM** entry uses whole-medium `toram` to preserve the
 `/live/filesystem.squashfs` installer payload and `/sp11/companion` layout. It

@@ -32,13 +32,18 @@ image bytes still match the original ISO. The tested Debian initramfs omits
 and elementary images. Candidate `3339659` includes those drivers in the early
 initramfs. On 2026-09-26, Ooaklee reported that this candidate with v23 reached
 the X1E/OLED live desktop through the first GRUB entry, with Wi-Fi, internet
-access, power profiles and Bluetooth working. Audio exposed Dummy Output and
-the installer did not appear to work; its failure cause remains unverified.
+access, power profiles and Bluetooth working. Rebuilt candidate `37c21ca`,
+including main through `15a236b`, subsequently booted with the same reported
+behaviour. Its Calamares installer displayed Debian 13, reached location and
+partition selection, and detected existing Windows, Ubuntu and Arch partitions;
+no installation was performed. This supersedes the initial installer-startup
+concern. Audio still exposes Dummy Output, with Lexr setup and sound verification
+pending. The accepted source remains the 2024-09-02 testing snapshot.
 See the [hardware test record](../user-guide/installation-media.md#debian-arm64-gnome-live-image)
 for the tested scope and source identity. The specific USB reset trigger and
-repeatability remain unconfirmed. Installation, installed boot and recovery
-remain unqualified; this proposal has not been accepted as a working Debian
-installation path.
+controlled cold-boot repeatability remain unconfirmed. Installation, installed
+boot and recovery remain unqualified; this proposal has not been accepted as a
+working Debian installation path.
 
 ## Context
 

@@ -93,10 +93,12 @@ that do not apply.
   Keep unused power supplies enabled in the two Debian firmware-display
   diagnostic entries so regulator cleanup cannot blank the firmware display
   while collecting evidence. Normal desktop and copy-to-RAM policy is unchanged.
-  Ooaklee confirmed a first-entry X1E/OLED live desktop boot with Lexr `3339659`
-  and v23 on 2026-09-26, with Wi-Fi, internet access, power profiles and Bluetooth
-  reported working. Audio still shows Dummy Output and the installer did not
-  appear to work; installation, installed boot and recovery remain unqualified.
+  Ooaklee confirmed first-entry X1E/OLED live desktop boot with Lexr `3339659`
+  and the rebuilt `37c21ca` candidate with v23, including the main-branch updates,
+  with Wi-Fi, internet access, power profiles and Bluetooth working. Calamares
+  displayed Debian 13 and reached location and partition selection on the
+  rebuilt image. Audio still shows Dummy Output and awaits setup and verification;
+  installation, installed boot and recovery remain unqualified.
 - Add `lexr upgrade`, which checks GitHub for the newest published release,
   downloads the matching binary for the platform, verifies the release
   SHA-256 checksum, and atomically replaces the running executable. Without
@@ -123,9 +125,9 @@ that do not apply.
   Surface initramfs module closure, including their transitive dependencies.
   Debian's source initramfs omitted these drivers, deferring Type-C setup until
   after mounting the live USB. Logs show a USB reset and lost filesystem reads
-  during that late setup. The resulting `3339659` candidate reached the X1E/OLED
-  live desktop with v23 in Ooaklee's test; the exact reset cause and boot
-  repeatability remain unconfirmed.
+  during that late setup. Candidates `3339659` and `37c21ca` reached the X1E/OLED
+  live desktop with v23 in Ooaklee's tests; the exact reset cause and controlled
+  cold-boot repeatability remain unconfirmed.
 - Reject wholly unsupported host operations before expensive source inspection
   or filesystem mutation, while retaining truthful read-only plans where the
   workflow can produce them. Dynamic tool, privilege, target and input checks

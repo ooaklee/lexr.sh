@@ -68,9 +68,12 @@ Wi-Fi, web browsing and the language/try/install chooser were confirmed on
 2026-09-06 ([issue #49](https://github.com/ooaklee/lexr.sh/issues/49)). Installation,
 recovery and remaining hardware checks still need qualification for both images.
 On 2026-09-26, Ooaklee confirmed that Debian remastered with Lexr `3339659` and
-v23 reached the X1E/OLED live desktop using the first GRUB entry, with Wi-Fi,
-internet access, power profiles and Bluetooth reported working. Audio showed
-only Dummy Output, and the installer did not appear to work. See the
+v23 reached the X1E/OLED live desktop using the first GRUB entry. The rebuilt
+`37c21ca` image, including the main-branch updates, also booted with Wi-Fi,
+internet access, power profiles and Bluetooth working. Calamares displayed
+Debian 13 and reached location and partition selection; no installation was
+performed. Audio still shows Dummy Output; Lexr audio setup and sound verification
+remain pending. See the
 [Debian test record](docs/user-guide/installation-media.md#debian-arm64-gnome-live-image)
 for the remaining qualification limits and source identity.
 The current Fedora candidate passed structural validation and USB read-back, but a physical Surface Pro 11

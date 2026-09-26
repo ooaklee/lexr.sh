@@ -898,15 +898,19 @@ func TestShippedCatalogContract(t *testing.T) {
 		} else if entry.Adapter != AdapterNone || entry.SupportLevel != SupportLevelCatalogOnly {
 			t.Errorf("entry %q adapter/support = %q/%q, want none/catalog-only", entry.ID, entry.Adapter, entry.SupportLevel)
 		}
+		wantQualificationNote := qualificationNote
+		if entry.ID == "debian-live-testing-gnome-arm64-20240902" {
+			wantQualificationNote = "Complete end-to-end testing is still required for this image, including completed installation, installed boot, recovery and full hardware qualification."
+		}
 		hasQualificationNote := false
 		for _, note := range entry.CompatibilityNotes {
-			if note == qualificationNote {
+			if note == wantQualificationNote {
 				hasQualificationNote = true
 				break
 			}
 		}
 		if !hasQualificationNote {
-			t.Errorf("entry %q omits the shared end-to-end qualification note", entry.ID)
+			t.Errorf("entry %q omits its end-to-end qualification note", entry.ID)
 		}
 	}
 

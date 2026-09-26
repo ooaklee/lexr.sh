@@ -49,10 +49,11 @@
         "Historical official ARM64 GNOME testing snapshot dated 2024-09-02; the testing filename does not imply current packages.",
         "Publisher SHA-256 and its Debian Testing CDs signature were verified before source inspection; the mutable URL is pinned to these exact bytes.",
         "Uses Debian live-boot, Calamares and GRUB with an exact-ABI external Surface device tree; disable Secure Boot.",
-        "The maintainer reported desktop, Wi-Fi/internet, Bluetooth and power profiles working on Surface Pro 11 X1E/OLED with candidate 3339659 and kernel 7.2.0-jg-0sp11v23-qcom-x1e on 2026-09-26.",
-        "Audio showed Dummy Output and the installer reportedly did not work; their causes remain unverified. Cold-boot repeatability, full input support, installation, installed boot and recovery still require qualification.",
+        "Ooaklee confirmed desktop, Wi-Fi/internet, Bluetooth and power profiles on Surface Pro 11 X1E/OLED with candidates 3339659 and 37c21ca using kernel 7.2.0-jg-0sp11v23-qcom-x1e. The rebuilt 37c21ca image includes main through 15a236b and passed complete USB write/read-back verification before its boot test.",
+        "Calamares on candidate 37c21ca displayed Debian 13 and reached location and partition selection, detecting existing Windows, Ubuntu and Arch partitions. No installation was performed; the source remains the pinned 2024-09-02 testing snapshot.",
+        "Audio still shows Dummy Output; Lexr audio setup and sound verification remain pending. Controlled cold-boot repeatability, full input support, installation, installed boot and recovery still require qualification.",
         "The Debian Installer DVD catalogue entry is separate and has no live-image adapter.",
-        "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
+        "Complete end-to-end testing is still required for this image, including completed installation, installed boot, recovery and full hardware qualification."
       ],
       "last_verified": "2026-09-06"
     },
