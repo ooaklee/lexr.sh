@@ -1,4 +1,4 @@
-package elementary
+package sp11
 
 import (
 	"context"
@@ -22,7 +22,7 @@ func (f firmwareTransport) RoundTrip(r *http.Request) (*http.Response, error) { 
 // before any upstream binary or licence is admitted to the image.
 func TestFirmwareDownloadRejectsChangedBytes(t *testing.T) {
 	expected := "firmware bytes"
-	pin := firmwareInput{Path: "qcom/test.bin", File: "test.bin", SHA256: fmt.Sprintf("%x", sha256.Sum256([]byte(expected))), Size: int64(len(expected))}
+	pin := FirmwareInput{Path: "qcom/test.bin", File: "test.bin", SHA256: fmt.Sprintf("%x", sha256.Sum256([]byte(expected))), Size: int64(len(expected))}
 	for _, tt := range []struct {
 		name, body string
 		status     int
@@ -77,7 +77,7 @@ func TestFirmwareCopiesRejectStaleOverrides(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			err := validateFirmwareCopies(root, []string{"main", "early"}, "test-abi", "qcom/test.bin", digest, int64(len(data)))
+			err := ValidateFirmwareCopies(root, []string{"main", "early"}, "test-abi", "qcom/test.bin", digest, int64(len(data)))
 			if (err == nil) != tt.ok {
 				t.Fatalf("error=%v wantOK=%v", err, tt.ok)
 			}

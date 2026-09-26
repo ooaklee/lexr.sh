@@ -1,4 +1,4 @@
-package elementary
+package sp11
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/platform"
 	"io"
 	"net/http"
 	"os"
@@ -20,9 +21,9 @@ const firmwareRevision = "599764611a8ac213c6aa6dad17c941c2f46b53cb"
 // firmwareBaseURL supplies redistributable GPU data and its required notices.
 const firmwareBaseURL = "https://gitlab.com/kernel-firmware/linux-firmware/-/raw/" + firmwareRevision + "/"
 
-// firmwareInput identifies one data-only input. Neither executable helpers nor
+// FirmwareInput identifies one data-only input. Neither executable helpers nor
 // private platform firmware can be requested through this closed list.
-type firmwareInput struct {
+type FirmwareInput struct {
 	Path   string `json:"upstream_path"`
 	File   string `json:"media_file"`
 	SHA256 string `json:"sha256"`
@@ -30,7 +31,7 @@ type firmwareInput struct {
 }
 
 // firmwareInputs includes the complete redistribution licence and notices.
-var firmwareInputs = []firmwareInput{
+var firmwareInputs = []FirmwareInput{
 	{Path: "WHENCE", File: "WHENCE", SHA256: "f347586920c214293245169711f81ef837d9c37410a04bddb44a583e2883c2f9", Size: 381885},
 	{Path: "LICENSE.qcom", File: "LICENSE.qcom.txt", SHA256: "be904cd28cb292b80cdb6cf412ab0d9159d431671e987ad433c1f62e0988a9bc", Size: 13962},
 	{Path: "qcom/NOTICE.txt", File: "qcom_NOTICE.txt", SHA256: "fa43e1b9a13b341a07adca9dbe73d0f9072d7966fdfe811c01f0dd2872d7309a", Size: 23966},
@@ -43,12 +44,12 @@ func firmwareProvenance() ([]byte, error) {
 	return json.MarshalIndent(struct {
 		Repository string          `json:"repository"`
 		Revision   string          `json:"revision"`
-		Files      []firmwareInput `json:"files"`
+		Files      []FirmwareInput `json:"files"`
 	}{"https://gitlab.com/kernel-firmware/linux-firmware", firmwareRevision, firmwareInputs}, "", "  ")
 }
 
 // downloadFirmwareInput bounds time and bytes before checking the full digest.
-func downloadFirmwareInput(ctx context.Context, client *http.Client, input firmwareInput) ([]byte, error) {
+func downloadFirmwareInput(ctx context.Context, client *http.Client, input FirmwareInput) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, firmwareBaseURL+input.Path, nil)
@@ -73,10 +74,10 @@ func downloadFirmwareInput(ctx context.Context, client *http.Client, input firmw
 	return data, nil
 }
 
-// prepareGPUFirmware adds the two public GPU files absent from this source and
+// PrepareGPUFirmware adds the two public GPU files absent from this source and
 // preserves their complete upstream provenance, licence and notices in both
 // the medium and installer root. It never reads firmware from the host.
-func (r *Remasterer) prepareGPUFirmware(ctx context.Context, toolsImage, workspace, volume string) error {
+func PrepareGPUFirmware(ctx context.Context, docker *platform.Docker, toolsImage, workspace, volume string) error {
 	directory := filepath.Join(workspace, "sp11", "firmware")
 	if err := os.MkdirAll(directory, 0755); err != nil {
 		return err
@@ -111,18 +112,21 @@ done
 install -d -m 0755 "$root/usr/share/lexr/firmware"
 cp /work/sp11/firmware/* "$root/usr/share/lexr/firmware/"
 `
-	if err := r.Docker.RunInWorkspaceVolume(ctx, toolsImage, workspace, volume, "bash", "-ceu", script); err != nil {
-		return fmt.Errorf("stage missing elementary GPU firmware: %w", err)
+	if err := docker.RunInWorkspaceVolume(ctx, toolsImage, workspace, volume, "bash", "-ceu", script); err != nil {
+		return fmt.Errorf("stage missing SP11 GPU firmware: %w", err)
 	}
 	return nil
 }
 
-// validateFirmwareDirectory checks every expected data file and its provenance.
-func validateFirmwareDirectory(workspace, relative string) error {
+// ValidateGPUFirmwareDirectory checks every expected data file and its provenance.
+func ValidateGPUFirmwareDirectory(workspace, relative string) error {
 	for _, input := range firmwareInputs {
-		expected := imagecontract.ArtifactRecord{Path: input.File, SHA256: input.SHA256, Size: input.Size}
-		if err := verifyRecord(workspace, filepath.ToSlash(filepath.Join(relative, input.File)), expected); err != nil {
+		data, err := imagecontract.ReadBoundedExtractedFile(workspace, filepath.ToSlash(filepath.Join(relative, input.File)), input.Size)
+		if err != nil {
 			return err
+		}
+		if int64(len(data)) != input.Size || fmt.Sprintf("%x", sha256.Sum256(data)) != input.SHA256 {
+			return fmt.Errorf("supplemental GPU firmware input %s differs", input.File)
 		}
 	}
 	expected, err := firmwareProvenance()
@@ -134,15 +138,15 @@ func validateFirmwareDirectory(workspace, relative string) error {
 		return err
 	}
 	if string(actual) != string(expected) {
-		return errors.New("elementary GPU firmware provenance differs from the pinned input set")
+		return errors.New("SP11 GPU firmware provenance differs from the pinned input set")
 	}
 	return nil
 }
 
-// validateFirmwareCopies checks every loader search location and CPIO section
+// ValidateFirmwareCopies checks every loader search location and CPIO section
 // for a prepared file. Unrelated source firmware remains permitted, while an
 // override or stale duplicate cannot replace the bytes validation attests to.
-func validateFirmwareCopies(root string, sections []string, abi, firmware, digest string, size int64) error {
+func ValidateFirmwareCopies(root string, sections []string, abi, firmware, digest string, size int64) error {
 	found := false
 	for _, section := range sections {
 		for _, prefix := range []string{"updates/" + abi, "updates", abi, ""} {
@@ -166,4 +170,9 @@ func validateFirmwareCopies(root string, sections []string, abi, firmware, diges
 		return fmt.Errorf("prepared firmware %s is absent", firmware)
 	}
 	return nil
+}
+
+// SupplementalGPUFirmwareInputs returns a copy of the pinned data and notice inventory.
+func SupplementalGPUFirmwareInputs() []FirmwareInput {
+	return append([]FirmwareInput(nil), firmwareInputs...)
 }

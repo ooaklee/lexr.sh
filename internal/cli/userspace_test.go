@@ -208,12 +208,12 @@ func TestUserspaceInstallRecommendedDryRunEmitsStructuredReport(t *testing.T) {
 }
 
 // TestUserspaceInstallWithoutFromUsesDefaultBundle verifies the command
-// resolves a single downloaded release beneath the default userspace cache root.
+// resolves a single downloaded release beneath its configured pull cache.
 func TestUserspaceInstallWithoutFromUsesDefaultBundle(t *testing.T) {
 	installer := &cliFakeInstaller{}
 	app, _ := newUserspaceInstallTestApplication(installer)
-	t.Setenv("XDG_CACHE_HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	// macOS ignores XDG_CONFIG_HOME; never discover the developer's real cache.
+	app.configuration.Userspace.Pull.CacheDir = t.TempDir()
 	cache, err := app.configuration.ResolveUserspaceDir()
 	if err != nil {
 		t.Fatal(err)
@@ -236,12 +236,11 @@ func TestUserspaceInstallWithoutFromUsesDefaultBundle(t *testing.T) {
 }
 
 // TestUserspaceInstallWithoutFromExplainsMissingBundle verifies the command
-// provides both supported recovery paths when the default cache is empty.
+// provides both supported recovery paths when the configured cache is empty.
 func TestUserspaceInstallWithoutFromExplainsMissingBundle(t *testing.T) {
 	installer := &cliFakeInstaller{}
 	app, _ := newUserspaceInstallTestApplication(installer)
-	t.Setenv("XDG_CACHE_HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	app.configuration.Userspace.Pull.CacheDir = t.TempDir()
 	command := app.newUserspaceInstallCommand()
 	command.SetArgs([]string{"audio", "--dry-run"})
 	command.SilenceUsage = true

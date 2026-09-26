@@ -269,7 +269,7 @@ func TestImageManagerPlanValidatesCatalogueSelection(t *testing.T) {
 	t.Run("catalogue-only entry", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := newImagePlanTestManager().Plan(CreateImageRequest{CatalogID: "debian-13-6-0-dvd-1", Output: "/output/result.iso"})
+		_, err := newImagePlanTestManager().Plan(CreateImageRequest{CatalogID: "pop-os-24-04-arm64-generic-3", Output: "/output/result.iso"})
 		if err == nil || !strings.Contains(err.Error(), "catalog-only and cannot yet be created") {
 			t.Fatalf("Plan(catalogue-only entry) error = %v", err)
 		}
@@ -368,7 +368,7 @@ func TestImageManagerCreateRejectsCatalogOnlyEntryBeforeExecution(t *testing.T) 
 	loader := catalog.NewLoader(lexr.CatalogFS(), "supported-isos.json")
 	manager := NewImageManager(loader, io.Discard)
 	_, err := manager.Create(context.Background(), CreateImageRequest{
-		CatalogID: "debian-13-6-0-dvd-1",
+		CatalogID: "pop-os-24-04-arm64-generic-3",
 		Output:    filepath.Join(t.TempDir(), "output.iso"),
 	})
 	if err == nil || !strings.Contains(err.Error(), "catalog-only and cannot yet be created") {

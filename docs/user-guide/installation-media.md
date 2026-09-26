@@ -168,6 +168,98 @@ that folder through Files rather than desktop icons. The companion and its
 source/licences remain under `/usr/share/lexr/elementary-media/sp11/companion`
 after installation. Avoid restarting the audio DSP while using a live USB root.
 
+### Debian ARM64 GNOME live image
+
+Debian support in [PR #61](https://github.com/ooaklee/lexr.sh/pull/61) remains
+experimental under [issue #50](https://github.com/ooaklee/lexr.sh/issues/50).
+The catalogue entry `debian-live-testing-gnome-arm64-20240902` pins the official
+**2024-09-02** ARM64 live snapshot, with the catalogue release label
+**Debian 13 (2024-09-02)**. Its weekly testing URL does not make those packages
+current. Debian Installer DVD media has a different boot and installation
+contract and is not offered in the catalogue.
+
+```sh
+lexr image create \
+  --catalog-id debian-live-testing-gnome-arm64-20240902 \
+  --kernel-release <release-tag> \
+  --profile x1e80100-microsoft-denali-oled \
+  --companion-source-dir . \
+  --output ../lexr-build/lexr-debian-sp11.iso
+lexr image validate ../lexr-build/lexr-debian-sp11.iso
+```
+
+Run from the Lexr source tree when including its companion. Select the exact
+kernel release being tested and keep the generated manifest and journal.
+Structural validation does not establish successful hardware boot. Earlier
+failures included USB resets followed by SquashFS read errors and a black screen.
+Saved logs showed storage loss immediately after late USB-C initialisation.
+Lexr `3339659` includes the UCSI service and PS883x retimers in the early
+initramfs, matching their presence in working Ubuntu and elementary images.
+
+On **2026-09-26**, Ooaklee confirmed that the image produced with Lexr `3339659`
+and kernel `7.2.0-jg-0sp11v23-qcom-x1e` reached the Surface Pro 11 X1E/OLED live
+desktop using the first GRUB entry. Wi-Fi, internet access, power profiles and
+Bluetooth were reported working. Ooaklee then confirmed the same live desktop
+and hardware behaviour with rebuilt candidate `37c21ca`, which includes main
+through `15a236b`. The rebuilt ISO passed structural validation and complete USB
+write/read-back verification before this boot test.
+
+| Rebuilt test image | Value |
+| --- | --- |
+| Lexr source | `37c21ca` |
+| Kernel | `7.2.0-jg-0sp11v23-qcom-x1e` |
+| ISO size | 4,328,849,408 bytes |
+| ISO SHA-256 | `eeab864d023de5560a124926e3b7cdd4df891d76150c23e9fa73334007ba1452` |
+
+On that rebuilt image, Calamares launched, displayed **Debian 13**, and reached
+the location and partition selection pages. It detected existing Windows,
+Ubuntu and Arch partitions and showed install-alongside and erase previews.
+No installation was performed; those previews do not verify partition changes,
+payload deployment or installed boot. This supersedes the earlier report that
+the installer did not appear to work. The accepted source bytes remain the
+**2024-09-02 testing snapshot**; Debian 13 branding does not make them a current
+Debian 13 release.
+
+Audio still exposes only **Dummy Output**. Lexr audio setup and subsequent sound
+verification remain pending; see [userspace support](userspace-support.md#released-audio-iptsd-and-camera-support)
+and the bundled getting-started guide for the setup flow. These live boot tests
+do not establish controlled cold-boot repeatability, a RAM-backed boot or
+independence from firmware state left by an earlier operating-system boot.
+
+The optional **copy to RAM** entry uses whole-medium `toram` to preserve the
+`/live/filesystem.squashfs` installer payload and `/sp11/companion` layout. It
+requires enough free memory for the medium and live session and checks the
+copied media before continuing. Do not substitute `toram=filesystem.squashfs`:
+Debian's module-only copy flattens those paths. Progress percentages alone do
+not confirm a completed RAM-backed boot.
+
+For a failed boot, **text diagnostics** requests a text session. **Firmware
+display diagnostics** additionally disables `msm` for that boot. The separate
+**initramfs storage diagnostics** entry deliberately pauses before root
+userspace starts, using `break=bottom` and the firmware display. Both entries
+that disable `msm` set `regulator_ignore_unused` to keep unused power supplies
+enabled during that diagnostic boot. This prevents regulator cleanup from
+switching off supplies needed by the firmware display. Normal desktop,
+copy-to-RAM and native graphics text entries retain their usual regulator policy.
+
+At the `(initramfs)` prompt, run `dmesg -n 1` to quieten new console messages
+without clearing the log, then collect `echo "$REASON"`, `uname -r`, `cat /proc/cmdline`,
+`cat /proc/mounts`, `cat /sys/block/loop*/loop/backing_file` and
+`dmesg | tail -n 100 | more`. Press Space to page through the output or `q` to
+leave the pager. Type `exit` to continue booting after collecting the evidence.
+Ooaklee confirmed that the v23 X1E/OLED initramfs diagnostic retained its display
+and accepted keyboard input after adding `regulator_ignore_unused`. An earlier
+firmware-display boot reached a text login and working D-Bus, but USB read errors
+still prevented loading some commands. That diagnostic result is separate from
+the successful live desktop test recorded above.
+Keep raw captures private and redact personal data before posting excerpts.
+
+The companion guide is `LEXR_GETTING_STARTED.txt` in the live user's Desktop
+folder. Its live root is `/run/live/medium/sp11/companion`; after installation,
+the retained path is `/usr/share/lexr/debian-media/sp11/companion`. Installation,
+installed boot, recovery and hardware features beyond the observations above
+remain unqualified.
+
 ### Arch Linux ARM terminal image
 
 Download the [experimental Arch terminal image with v23](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-arch-linux-arm-terminal-v23-20260909)
@@ -251,7 +343,7 @@ sudo lexr --profile x1e80100-microsoft-denali-oled image write lexr-ubuntu-sp11.
 
 An interactive terminal can omit `--confirm` and type the displayed phrase at the protected prompt. Automation must pass the exact phrase explicitly. Because the phrase contains the opaque fingerprint, a confirmation obtained for a previous USB device is rejected after another device takes over the same `/dev` path. Immediately before mutation, the manager reopens and rehashes the source, re-inspects the target, compares the already-open source descriptor with target mounts, checks privilege, unmounts only approved removable-style target filesystems, and refuses to continue if any mount, host-storage classification, active storage consumer, or identity drift remains. The production raw opener rejects links and ordinary files, proves that ordinary and raw nodes address the same kernel device, opens with `O_NOFOLLOW`, and proves that its descriptor still denotes that inspected device. The manager then writes bounded chunks, flushes them, reads back exactly the source length, verifies the SHA-256, re-inspects once more, and ejects or powers off the target. A failure returns the exact not-started, prepared, writing, written, verifying, or verified receipt state, complete byte counts, and only complete digests; it never claims that writing, verification, or ejection began before the corresponding boundary was crossed.
 
-This writer is distribution-neutral. Its pre-write router accepts the implemented Lexr Ubuntu Casper, elementary Casper, Arch terminal and Fedora Live outputs only after dispatching each image to its adapter-owned structural validator. Future Debian, Pop!_OS, and raw-image adapters will retain their own validation and live-media contracts while reusing the removable-device manager.
+This writer is distribution-neutral. Its pre-write router accepts the implemented Lexr Ubuntu Casper, elementary Casper, Debian Live, Arch terminal and Fedora Live outputs only after dispatching each image to its adapter-owned structural validator. Future Pop!_OS and raw-image adapters will retain their own validation and live-media contracts while reusing the removable-device manager.
 
 ## Why Lexr remasters the live root
 

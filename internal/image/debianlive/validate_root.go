@@ -1,4 +1,4 @@
-package elementary
+package debianlive
 
 import (
 	"bytes"
@@ -7,10 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
-	"github.com/ooaklee/lexr.sh/internal/image/caspermedia"
 	"github.com/ooaklee/lexr.sh/internal/image/sp11"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	userspaceinstall "github.com/ooaklee/lexr.sh/internal/userspace/install"
@@ -19,15 +19,17 @@ import (
 // validateRoot inspects the actual installer payload without executing any
 // program supplied by the image. dpkg-query and archive tools are container
 // tools, and all Linux extraction remains in the private work volume.
-func (v *Validator) validateRoot(ctx context.Context, toolsImage, workspace, volume string, manifest imagecontract.Manifest, contract caspermedia.Contract) error {
+func (v *Validator) validateRoot(ctx context.Context, toolsImage, workspace, volume string, manifest imagecontract.Manifest, contract mediaContract) error {
 	abi := manifest.KernelBundle.ABI
-	const extract = `set -o pipefail
+	const extract = unpackInitramfsScript + `set -o pipefail
 unsquashfs -no-progress -xattrs-exclude '^trusted\.' -d /linux-work/rootfs /work/live/filesystem.squashfs
 root=/linux-work/rootfs
 abi=$1
 regular() {
     path=$1
-    test -s "$path" && test -f "$path" && test ! -L "$path"
+    test -s "$path" || return 1
+    test -f "$path" || return 1
+    test ! -L "$path" || return 1
     test "$(realpath "$path")" = "$path"
 }
 regular "$root/boot/vmlinuz-$abi"
@@ -35,29 +37,40 @@ regular "$root/boot/initrd.img-$abi"
 cmp "$root/boot/vmlinuz-$abi" /work/live/vmlinuz
 regular "$root/var/lib/dpkg/status"
 dpkg-query --admindir="$root/var/lib/dpkg" -W -f='${Package} ${Version}\n' > /work/actual.manifest
-cmp /work/live/filesystem.manifest /work/actual.manifest
-test -x "$root/usr/bin/io.elementary.installer"
+cmp /work/live/filesystem.packages /work/actual.manifest
+test -x "$root/usr/bin/calamares"
 test -x "$root/usr/sbin/update-grub"
-grep -qx ID=elementary "$root/usr/lib/os-release"
-test "$(readlink "$root/vmlinuz")" = "boot/vmlinuz-$abi"
-test "$(readlink "$root/initrd.img")" = "boot/initrd.img-$abi"
-test "$(readlink "$root/boot/vmlinuz")" = "vmlinuz-$abi"
-test "$(readlink "$root/boot/initrd.img")" = "initrd.img-$abi"
+grep -qx ID=debian "$root/usr/lib/os-release"
 regular "$root/boot/dtb-$abi"
 test -d "$root/var/lib/lexr/kernel-boot/$abi"
 test ! -e "$root/boot/efi/EFI/lexr"
 test ! -e "$root/boot/lexr-live-initrd"
 regular "$root/usr/lib/modules/$abi/modules.dep"
 
-unmkinitramfs /work/live/initrd.lz /linux-work/live-initrd
-unmkinitramfs "$root/boot/initrd.img-$abi" /linux-work/installed-initrd
-lsinitramfs /work/live/initrd.lz > /work/live-initrd.members
+unpack_image /work/live/initrd.img /linux-work/live-initrd
+unpack_image "$root/boot/initrd.img-$abi" /linux-work/installed-initrd
+lsinitramfs /work/live/initrd.img > /work/live-initrd.members
 lsinitramfs "$root/boot/initrd.img-$abi" > /work/installed-initrd.members
 regular /linux-work/live-initrd/main/conf/uuid.conf
-cmp /linux-work/live-initrd/main/conf/uuid.conf /work/disk/casper-uuid-generic
-regular /linux-work/live-initrd/main/scripts/casper
+cmp /linux-work/live-initrd/main/conf/uuid.conf /work/disk/live-uuid
+regular /linux-work/live-initrd/main/scripts/live
+regular /linux-work/live-initrd/main/usr/bin/live-boot
+regular /linux-work/live-initrd/main/usr/lib/live/boot/9990-misc-helpers.sh
+regular /linux-work/live-initrd/main/scripts/live-bottom/lexr-verify-ram
+regular /linux-work/live-initrd/main/scripts/live-bottom/ORDER
+test -x /linux-work/live-initrd/main/scripts/live-bottom/lexr-verify-ram
+test -x /linux-work/live-initrd/main/usr/bin/md5sum
+test ! -e "$root/etc/initramfs-tools/scripts/live-bottom/lexr-verify-ram"
+test ! -L "$root/etc/initramfs-tools/scripts/live-bottom/lexr-verify-ram"
+for section in /linux-work/live-initrd/* /linux-work/installed-initrd/*; do
+    [ "$section" = /linux-work/live-initrd/main ] && continue
+    test ! -e "$section/scripts/live-bottom/lexr-verify-ram"
+    test ! -L "$section/scripts/live-bottom/lexr-verify-ram"
+    test ! -e "$section/scripts/live-bottom/ORDER"
+    test ! -L "$section/scripts/live-bottom/ORDER"
+done
 `
-	if err := v.Docker.RunInWorkspaceVolume(ctx, toolsImage, workspace, volume, "bash", "-ceu", extract, "lexr-elementary-validate-root", abi); err != nil {
+	if err := v.Docker.RunInWorkspaceVolume(ctx, toolsImage, workspace, volume, "bash", "-ceu", extract, "lexr-debian-validate-root", abi); err != nil {
 		return err
 	}
 	// Root extraction needs Linux file ownership; evidence copied to the host
@@ -66,10 +79,15 @@ regular /linux-work/live-initrd/main/scripts/casper
 root=/linux-work/rootfs
 regular() {
     path=$1
-    test -s "$path" && test -f "$path" && test ! -L "$path"
+    test -s "$path" || return 1
+    test -f "$path" || return 1
+    test ! -L "$path" || return 1
     test "$(realpath "$path")" = "$path"
 }
 mkdir /work/root-evidence /work/initrd-firmware
+cp /linux-work/live-initrd/main/scripts/live-bottom/lexr-verify-ram /work/ram-boot-script
+cp /linux-work/live-initrd/main/scripts/live-bottom/ORDER /work/ram-boot-order
+chmod a+r /work/ram-boot-script /work/ram-boot-order
 for relative in usr/sbin/update-grub etc/grub.d/10_linux etc/initramfs-tools/hooks/lexr-sp11-firmware etc/initramfs-tools/hooks/lexr-sp11-modules; do
     regular "$root/$relative"
     test -x "$root/$relative"
@@ -97,7 +115,8 @@ else
 fi
 test "$(stat -c %s "$output")" -le 16777216
 for section in /linux-work/live-initrd/*; do
-    test -d "$section" && test ! -L "$section"
+    test -d "$section"
+    test ! -L "$section"
     if [ -d "$section/usr/lib/firmware" ]; then
         (cd /linux-work/live-initrd && find "${section##*/}/usr/lib/firmware" -type f -exec cp --parents '{}' /work/initrd-firmware/ \;)
     fi
@@ -105,6 +124,20 @@ done
 chmod -R a+rX /work/root-evidence /work/initrd-firmware
 `
 	if err := v.Docker.RunWithReadOnlyVolumeAsHostUser(ctx, toolsImage, workspace, volume, "bash", "-ceu", evidence); err != nil {
+		return err
+	}
+	ramScript, err := imagecontract.ReadBoundedExtractedFile(workspace, "ram-boot-script", 64<<10)
+	if err != nil {
+		return err
+	}
+	if string(ramScript) != ramBootScript {
+		return errors.New("Debian live initramfs RAM verification script differs")
+	}
+	ramOrder, err := imagecontract.ReadBoundedExtractedFile(workspace, "ram-boot-order", 64<<10)
+	if err != nil {
+		return err
+	}
+	if err := validateRAMBootOrder(string(ramOrder)); err != nil {
 		return err
 	}
 	// Compare all package-owned DTBs, kernel bytes and module objects to the
@@ -131,13 +164,14 @@ unpacked=/linux-work/package-$package
 dpkg-deb -x "$archive" "$unpacked"
 while IFS= read -r -d '' file; do
     relative=${file#"$unpacked/"}
-    test -f "$root/$relative" && test ! -L "$root/$relative"
+    test -f "$root/$relative"
+    test ! -L "$root/$relative"
     resolved=$(realpath "$root/$relative")
     case "$resolved" in "$root/"*) ;; *) exit 65 ;; esac
     cmp "$file" "$root/$relative"
 done < <(find "$unpacked" -type f \( -name '*.ko' -o -name '*.ko.xz' -o -name '*.ko.zst' -o -name '*.dtb' -o -path '*/boot/vmlinuz-*' -o -path '*/usr/libexec/lexr/*' -o -path '*/etc/kernel/*' \) -print0)
 `
-		if err := v.Docker.RunInWorkspaceVolume(ctx, toolsImage, workspace, volume, "bash", "-ceu", script, "lexr-elementary-package-validation", "/work/"+pkg.Path, name, manifest.KernelBundle.Version, architecture); err != nil {
+		if err := v.Docker.RunInWorkspaceVolume(ctx, toolsImage, workspace, volume, "bash", "-ceu", script, "lexr-debian-package-validation", "/work/"+pkg.Path, name, manifest.KernelBundle.Version, architecture); err != nil {
 			return err
 		}
 	}
@@ -159,20 +193,14 @@ done < <(find "$unpacked" -type f \( -name '*.ko' -o -name '*.ko.xz' -o -name '*
 			return err
 		}
 		if string(data) != member.expected {
-			return fmt.Errorf("elementary installed support differs at %s", member.path)
+			return fmt.Errorf("Debian installed support differs at %s", member.path)
 		}
 	}
-	for _, native := range []struct{ path, digest string }{
-		{"usr/sbin/update-grub", inspectedUpdateGRUBSHA256},
-		{"etc/grub.d/10_linux", inspectedLinuxGeneratorSHA256},
-	} {
-		data, err := imagecontract.ReadBoundedExtractedFile(workspace, "root-evidence/"+native.path, 1<<20)
-		if err != nil {
-			return err
-		}
-		if fmt.Sprintf("%x", sha256.Sum256(data)) != native.digest {
-			return fmt.Errorf("native elementary GRUB support changed at %s", native.path)
-		}
+	if err := validateInstalledGRUB(ctx, v.Docker, toolsImage, workspace, volume, abi); err != nil {
+		return err
+	}
+	if err := validateInstallerInputs(ctx, v.Docker, toolsImage, workspace, volume); err != nil {
+		return err
 	}
 	if manifest.CompanionBundle.Included {
 		data, err := imagecontract.ReadBoundedExtractedFile(workspace, "root-evidence/etc/skel/Desktop/LEXR_GETTING_STARTED.txt", 64<<10)
@@ -180,7 +208,7 @@ done < <(find "$unpacked" -type f \( -name '*.ko' -o -name '*.ko.xz' -o -name '*
 			return err
 		}
 		if string(data) != liveGettingStarted {
-			return errors.New("elementary desktop guide differs from the supported commands")
+			return errors.New("Debian desktop guide differs from the supported commands")
 		}
 	}
 	for _, kind := range []string{"live", "installed"} {
@@ -192,13 +220,13 @@ done < <(find "$unpacked" -type f \( -name '*.ko' -o -name '*.ko.xz' -o -name '*
 			return err
 		}
 	}
-	marker, err := imagecontract.ReadBoundedExtractedFile(workspace, "disk/casper-uuid-generic", 64)
+	marker, err := imagecontract.ReadBoundedExtractedFile(workspace, "disk/live-uuid", 64)
 	if err != nil {
 		return err
 	}
-	actualUUID, err := caspermedia.ParseUUID(marker)
+	actualUUID, err := parseUUID(marker)
 	if err != nil || actualUUID != contract.UUID {
-		return errors.New("elementary media UUID differs from its recorded discovery contract")
+		return errors.New("Debian media UUID differs from its recorded discovery contract")
 	}
 	database, err := imagecontract.ReadBoundedExtractedFile(workspace, "root-evidence/usr/lib/firmware/ath12k/WCN7850/hw2.0/board-2.bin", 16<<20)
 	if err != nil {
@@ -213,7 +241,7 @@ done < <(find "$unpacked" -type f \( -name '*.ko' -o -name '*.ko.xz' -o -name '*
 		return err
 	}
 	if !bytes.Equal(board, expectedBoard) {
-		return errors.New("elementary Wi-Fi board does not match the distribution's SP11 data")
+		return errors.New("Debian Wi-Fi board does not match the distribution's SP11 data")
 	}
 	firmwareRoot := filepath.Join(workspace, "initrd-firmware")
 	if err := sp11.ValidateLiveGPUFirmware(firmwareRoot, abi); err != nil {
@@ -234,20 +262,36 @@ done < <(find "$unpacked" -type f \( -name '*.ko' -o -name '*.ko.xz' -o -name '*
 	return sp11.ValidateFirmwareCopies(firmwareRoot, sections, abi, sp11.WiFiBoard, fmt.Sprintf("%x", sha256.Sum256(expectedBoard)), int64(len(expectedBoard)))
 }
 
-// validateInitrdMembers requires exact-ABI modules and distinguishes Casper's
+// validateInitrdMembers requires exact-ABI modules and distinguishes live-boot's
 // live image from the installed-system image that must boot without the USB.
 func validateInitrdMembers(listing, abi string, live bool) error {
-	modules, casper, uuid := false, false, false
+	modules, liveScript, liveProgram, liveHelpers, uuid, checksumTool := false, false, false, false, false, false
+	ramScripts, ramOrders := 0, 0
 	for _, line := range strings.Split(listing, "\n") {
 		member := strings.TrimPrefix(strings.TrimSpace(line), "./")
-		if member == "scripts/casper" {
-			casper = true
+		if member == "scripts/live" {
+			liveScript = true
+		}
+		if member == "usr/bin/live-boot" {
+			liveProgram = true
+		}
+		if member == "usr/lib/live/boot/9990-misc-helpers.sh" {
+			liveHelpers = true
 		}
 		if member == "conf/uuid.conf" {
 			uuid = true
 		}
-		if !live && (strings.HasPrefix(member, "scripts/casper") || member == "conf/conf.d/default-boot-to-casper.conf" || member == "conf/uuid.conf") {
-			return errors.New("installed elementary initramfs still contains Casper live-boot configuration")
+		if member == ramBootScriptPath {
+			ramScripts++
+		}
+		if member == ramBootOrderPath {
+			ramOrders++
+		}
+		if member == "usr/bin/md5sum" {
+			checksumTool = true
+		}
+		if !live && (strings.HasPrefix(member, "scripts/live") || member == "usr/bin/live-boot" || strings.HasPrefix(member, "usr/lib/live/boot") || member == "conf/uuid.conf") {
+			return errors.New("installed Debian initramfs still contains live-boot configuration")
 		}
 		for _, prefix := range []string{"lib/modules/", "usr/lib/modules/"} {
 			if !strings.HasPrefix(member, prefix) {
@@ -258,15 +302,47 @@ func validateInitrdMembers(listing, abi string, live bool) error {
 				continue
 			}
 			if relative != abi && !strings.HasPrefix(relative, abi+"/") {
-				return errors.New("elementary initramfs contains modules from another kernel ABI")
+				return errors.New("Debian initramfs contains modules from another kernel ABI")
 			}
 			if strings.HasSuffix(relative, ".ko") || strings.HasSuffix(relative, ".ko.zst") || strings.HasSuffix(relative, ".ko.xz") {
 				modules = true
 			}
 		}
 	}
-	if !modules || live && (!casper || !uuid) {
-		return errors.New("elementary initramfs lacks its required exact-ABI modules or live Casper inputs")
+	if !modules || live && (!liveScript || !liveProgram || !liveHelpers || !uuid || ramScripts != 1 || ramOrders != 1 || !checksumTool) {
+		return errors.New("Debian initramfs lacks its required exact-ABI modules or live-boot inputs")
+	}
+	return nil
+}
+
+// ramBootOrderPath is the cached dispatcher used by initramfs-tools at runtime.
+const ramBootOrderPath = "scripts/live-bottom/ORDER"
+
+// initramfsDispatch accepts the data-shaped dispatch emitted by mkinitramfs,
+// without interpreting image-provided shell commands in the validator.
+var initramfsDispatch = regexp.MustCompile(`^/scripts/live-bottom/([A-Za-z0-9_.-]+) "\$@"$`)
+
+// validateRAMBootOrder requires the verifier to be called exactly once by the
+// cached dispatcher. Script presence alone does not make run_scripts execute it.
+// Other stock hooks may appear before or after it, using the same generated
+// dispatch/parameter-reload pairs; conditionals or early exits are not accepted.
+func validateRAMBootOrder(order string) error {
+	lines := strings.Split(strings.TrimSuffix(order, "\n"), "\n")
+	if len(lines)%2 != 0 {
+		return errors.New("Debian live initramfs has malformed live-bottom dispatch")
+	}
+	verifiers := 0
+	for index := 0; index < len(lines); index += 2 {
+		match := initramfsDispatch.FindStringSubmatch(lines[index])
+		if len(match) != 2 || match[1] == "." || match[1] == ".." || lines[index+1] != "[ -e /conf/param.conf ] && . /conf/param.conf" {
+			return errors.New("Debian live initramfs has malformed live-bottom dispatch")
+		}
+		if match[1] == "lexr-verify-ram" {
+			verifiers++
+		}
+	}
+	if verifiers != 1 {
+		return errors.New("Debian live initramfs must dispatch RAM verification exactly once")
 	}
 	return nil
 }

@@ -3,29 +3,33 @@
   "description": "Curated ARM64 installation media for Surface Pro 11. Entries with implemented support have runnable image adapters; entries also marked experimental still require complete end-to-end boot and installation testing.",
   "entries": [
     {
-      "id": "debian-13-6-0-dvd-1",
-      "name": "Debian 13.6.0 DVD 1",
+      "id": "debian-live-testing-gnome-arm64-20240902",
+      "name": "Debian Live GNOME ARM64 (2024-09-02 snapshot)",
       "distribution": "Debian",
-      "release": "13.6.0",
-      "filename": "debian-13.6.0-arm64-DVD-1.iso",
+      "release": "Debian 13 (2024-09-02)",
+      "filename": "debian-live-testing-arm64-gnome.iso",
       "architecture": "arm64",
       "artifact_kind": "iso",
-      "url": "https://cdimage.debian.org/debian-cd/13.6.0/arm64/iso-dvd/debian-13.6.0-arm64-DVD-1.iso",
-      "homepage": "https://cdimage.debian.org/debian-cd/13.6.0/arm64/iso-dvd/",
-      "adapter": "none",
-      "support_level": "catalog-only",
+      "url": "https://cdimage.debian.org/cdimage/weekly-live-builds/arm64/iso-hybrid/debian-live-testing-arm64-gnome.iso",
+      "homepage": "https://www.debian.org/CD/live/",
+      "adapter": "debian-live",
+      "support_level": "implemented",
       "experimental": true,
-      "mutable": false,
+      "mutable": true,
       "checksum": {
         "algorithm": "sha256",
-        "value": "0e170d9ff0c53f7b59c8d35793b8ce308ceffd519f8370b949995634e22f5b09"
+        "value": "3260c69821f85464974e2136a0cda5d3954818467dda168bdfcb69547c4d7abc"
       },
       "compatibility_notes": [
-        "No lexr image adapter is implemented yet.",
-        "The versioned release URL and publisher checksum pin the upstream bytes.",
-        "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
+        "Historical official ARM64 GNOME testing snapshot dated 2024-09-02; the testing filename does not imply current packages.",
+        "Publisher SHA-256 and its Debian Testing CDs signature were verified before source inspection; the mutable URL is pinned to these exact bytes.",
+        "Uses Debian live-boot, Calamares and GRUB with an exact-ABI external Surface device tree; disable Secure Boot.",
+        "Ooaklee confirmed desktop, Wi-Fi/internet, Bluetooth and power profiles on Surface Pro 11 X1E/OLED with candidates 3339659 and 37c21ca using kernel 7.2.0-jg-0sp11v23-qcom-x1e. The rebuilt 37c21ca image includes main through 15a236b and passed complete USB write/read-back verification before its boot test.",
+        "Calamares on candidate 37c21ca displayed Debian 13 and reached location and partition selection, detecting existing Windows, Ubuntu and Arch partitions. No installation was performed; the source remains the pinned 2024-09-02 testing snapshot.",
+        "Audio still shows Dummy Output; Lexr audio setup and sound verification remain pending. Controlled cold-boot repeatability, full input support, installation, installed boot and recovery still require qualification.",
+        "Complete end-to-end testing is still required for this image, including completed installation, installed boot, recovery and full hardware qualification."
       ],
-      "last_verified": "2026-08-30"
+      "last_verified": "2026-09-06"
     },
     {
       "id": "elementary-os-8-1-20260219",

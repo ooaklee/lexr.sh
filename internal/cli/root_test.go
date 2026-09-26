@@ -194,7 +194,8 @@ func TestCatalogListDelivery(t *testing.T) {
 			t.Fatalf("catalog table does not expose checksum-pin states:\n%s", output)
 		}
 		orderedIDs := []string{
-			"debian-13-6-0-dvd-1",
+			"arch-linux-arm-aarch64-20260805",
+			"debian-live-testing-gnome-arm64-20240902",
 			"elementary-os-8-1-20260219",
 			"fedora-workstation-44-raw",
 			"fedora-workstation-live-44",
