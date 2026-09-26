@@ -73,10 +73,15 @@ installed-system promise.
 Structural image, package and release validation proves the recorded bytes and
 layout. It does not replace a boot, device or lifecycle test on a physical
 Surface Pro 11. `support_level: implemented` therefore means the named adapter
-is runnable, while `experimental: true` signals that the resulting media is not
-yet hardware-qualified. In the first Fedora 44 physical test, the image passed
-structural validation and USB read-back but reached the emergency boot path and
-then remained at a black screen after `quiet` was removed.
+is runnable, while `experimental: true` signals that complete hardware and
+lifecycle qualification is pending. The earlier Fedora 44 candidate reached an
+emergency boot path and black screen. On 2026-09-26, Ooaklee confirmed the
+`b0ec686`/v23 X1E/OLED candidate reached GNOME with Wi-Fi, touchscreen input and
+power/performance controls working; the Anaconda wizard reached storage
+selection. This qualifies the reported live-session checks, while completed
+installation, installed boot, recovery, audio and Bluetooth operation remain
+unverified. See the
+[Fedora test record](../user-guide/installation-media.md#fedora-hardware-test-record).
 
 ## What must stay private
 

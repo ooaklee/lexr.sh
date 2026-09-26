@@ -77,11 +77,13 @@
         "value": "162ba3c552a2d241c7c63ec26777af0255ee1b5a135adc0be986ceed999933ef"
       },
       "compatibility_notes": [
-        "The experimental Fedora Live adapter can create and structurally validate a remastered image; this does not establish hardware bootability.",
-        "A generated Fedora 44 image passed structural validation and USB read-back verification, but a Surface Pro 11 boot reached the emergency path and then remained at a black screen.",
-        "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
+        "Ooaklee confirmed Fedora 44 X1E/OLED live desktop boot with Lexr b0ec686 and v23 on 2026-09-26, with Wi-Fi, touchscreen input and power/performance controls working immediately.",
+        "The Anaconda installation wizard reached destination and storage selection; completed installation, installed boot, rescue and fallback remain untested.",
+        "Audio shows Dummy Output and Bluetooth needs configuration. Follow the Fedora getting-started guide for post-install setup; successful audio and Bluetooth operation remain unverified.",
+        "An earlier candidate reached the emergency path and a persistent black screen. The successful v23 test does not qualify other kernel bundles, X1P/LCD or remaining peripherals.",
+        "Complete end-to-end testing is still required for this image, including completed installation, installed boot, recovery and full hardware qualification."
       ],
-      "last_verified": "2026-08-30"
+      "last_verified": "2026-09-26"
     },
     {
       "id": "pop-os-24-04-arm64-generic-3",

@@ -3,7 +3,12 @@ Lexr Fedora Live for Surface Pro 11
 Open this guide in Files → Home → Desktop. Its canonical copy and any requested
 companion are also retained under /usr/share/lexr/fedora-media. Fedora creates
 the live user's home at boot; Anaconda carries the prepared guide and companion
-in the installed root. Physical Fedora boot and installation remain experimental.
+in the installed root. Fedora support remains experimental. On 2026-09-26,
+Ooaklee confirmed Fedora 44 with Lexr b0ec686 and v23 reached the X1E/OLED live
+desktop with Wi-Fi, touchscreen input and power/performance controls working.
+The Anaconda wizard reached destination and storage selection. Completed
+installation, installed boot and recovery remain untested. Audio showed Dummy
+Output and Bluetooth needed configuration; see the post-install steps below.
 
 1. Open the companion
 
@@ -123,6 +128,19 @@ Fedora qualification. Do not restart the audio DSP while the root is on USB.
 
 Private firmware guide:
 https://github.com/ooaklee/lexr.sh/blob/main/docs/user-guide/windows-handoff.md
+
+Bluetooth also needs post-install configuration and verification on the tested
+Fedora candidate. First inspect the installed firmware and controller:
+
+  "$TOOL" doctor userspace --feature bluetooth --feature firmware
+  "$TOOL" doctor hardware bluetooth
+
+Use the same-device Windows hand-off guide above for the Bluetooth controller
+address and any missing private platform firmware, with its separate import,
+validation and apply steps. There is no 'userspace install bluetooth' command.
+Confirm controller availability and
+pairing in GNOME Settings after the documented setup and reboot; the live test
+did not establish Bluetooth operation. Keep private hand-offs out of shared ISOs.
 
 Camera support is still experimental. Inspect the component contract:
 

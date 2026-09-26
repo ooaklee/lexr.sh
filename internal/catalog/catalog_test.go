@@ -893,7 +893,7 @@ func TestShippedCatalogContract(t *testing.T) {
 			t.Errorf("entry %q adapter/support = %q/%q, want none/catalog-only", entry.ID, entry.Adapter, entry.SupportLevel)
 		}
 		wantQualificationNote := qualificationNote
-		if entry.ID == "debian-live-testing-gnome-arm64-20240902" {
+		if entry.ID == "debian-live-testing-gnome-arm64-20240902" || entry.ID == "fedora-workstation-live-44" {
 			wantQualificationNote = "Complete end-to-end testing is still required for this image, including completed installation, installed boot, recovery and full hardware qualification."
 		}
 		hasQualificationNote := false

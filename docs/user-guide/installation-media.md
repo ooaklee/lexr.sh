@@ -3,7 +3,7 @@
 Lexr turns a supported upstream image into live media with the selected Surface
 Pro 11 kernel on a structurally validated boot path. It checks that result
 before it can be written to a reviewed removable device. This page covers the
-implemented Ubuntu Concept, elementary OS, Arch Linux ARM and Fedora Workstation Live adapters, from image
+implemented Ubuntu Concept, elementary OS, Debian Live, Arch Linux ARM and Fedora Workstation Live adapters, from image
 creation to a verified USB write and the physical test which must follow.
 
 > [!CAUTION]
@@ -12,11 +12,12 @@ creation to a verified USB write and the physical test which must follow.
 > need separate evidence. The Ubuntu candidate built
 > with Lexr `384f2c0` and v23 reached the X1E/OLED live desktop; the tester
 > confirmed Wi-Fi connected without a live-session repair. Installation and
-> remaining hardware checks still need qualification. A Fedora 44 candidate passed
-> structural validation and USB read-back, but a Surface Pro 11 boot reached the
-> emergency path. Removing `quiet` exposed early text before the display remained
-> black for hours. Reproduction and diagnosis continue in
-> [issue #17](https://github.com/ooaklee/lexr.sh/issues/17); Ubuntu's separate
+> remaining hardware checks still need qualification. Ooaklee confirmed Fedora
+> 44 built with Lexr `b0ec686` and v23 reached the X1E/OLED live desktop with
+> Wi-Fi, touchscreen input and power/performance controls working, and the
+> Anaconda wizard reached storage selection. Completed installation and installed
+> boot remain untested. See the [Fedora test record](#fedora-hardware-test-record)
+> and [issue #17](https://github.com/ooaklee/lexr.sh/issues/17); Ubuntu's separate
 > end-to-end qualification is tracked in
 > [issue #16](https://github.com/ooaklee/lexr.sh/issues/16).
 
@@ -308,21 +309,19 @@ explicit 7.2.0/sp11v19 and 7.2.2/sp11v1 lines, applies each line's generation
 floor, and rejects unknown, mixed, or incomplete ABIs. Secure Boot must be
 disabled for the unsigned custom EFI kernel. X1P custom kernel selection and
 installed-system hand-off are not supported; use its explicit-DTB stock entry
-for live investigation only. Physical USB boot, an X1E installation,
-installed-system boot, pen/touch, audio, and suspend/resume remain hardware
-qualification gates.
+for live investigation only. The v23 X1E/OLED live-session result below does
+not qualify completed installation, installed-system boot, recovery, pen,
+audio, Bluetooth or suspend/resume.
 
-The known Fedora physical result is not a successful boot: the candidate reached
-the emergency path, and removing `quiet` revealed early console output before a
-persistent black screen. Preserve the generated manifest and journal when
-reporting a reproduction; the follow-up work must find the first failing boot
-boundary rather than treating structural validation as proof of bootability.
+An earlier candidate reached the emergency path and then a persistent black
+screen. The `b0ec686`/v23 candidate reached the live desktop in the test below.
 The custom kernel now retains DSP/QRTR services for USB discovery and includes
 platform drivers, public GPU firmware and source-derived Wi-Fi board data before
-the initial udev probe. Fedora's compressed WCN7850 database is preserved. These
-changes still require a new physical test. Use the text diagnostics entry to
-expose dracut messages, or firmware display diagnostics to isolate DRM takeover;
-retain `/run/initramfs/rdsosreport.txt` if the emergency shell becomes usable.
+the initial udev probe. Fedora's compressed WCN7850 database is preserved. If a
+new test fails, preserve the image manifest and journal. Use the text diagnostics
+entry to expose dracut messages, or firmware display diagnostics to isolate DRM
+takeover; retain `/run/initramfs/rdsosreport.txt` if the emergency shell becomes
+usable.
 
 The live user's Desktop folder contains `LEXR_GETTING_STARTED.txt`, accessible
 through Files. Add the [offline companion](offline-companion.md) at image
@@ -330,6 +329,43 @@ creation to carry the matching Lexr CLI and optional native IPTSD runtime.
 The prepared root retains the guide and requested companion for installation;
 the guide separates supported Fedora commands from still-unqualified userspace
 setup.
+
+#### Fedora hardware test record
+
+On 2026-09-26, Ooaklee tested the first X1E/OLED entry on a Surface Pro 11 with
+Snapdragon X Elite. The candidate was built from Lexr `b0ec686` with the offline
+companion and native IPTSD runtime. The screenshots identify Fedora Linux 44
+Workstation Edition and the running kernel `7.2.0-jg-0sp11v23-qcom-x1e`.
+
+| Evidence | Recorded identity |
+| --- | --- |
+| Source | `Fedora-Workstation-Live-44-1.7.aarch64.iso` |
+| Source SHA-256 | `162ba3c552a2d241c7c63ec26777af0255ee1b5a135adc0be986ceed999933ef` |
+| Output | `lexr-fedora-44-sp11-v23.iso` (3,928,686,592 bytes) |
+| Output SHA-256 | `2306e68da63f0cfed4565e55610abfa4e653d5f7859b9281176bc7f3c0b1238b` |
+| Kernel and device tree | v23, paired external X1E/OLED DTB |
+| USB preparation | All 45 structural checks passed; full ISO readback matched; safe ejection completed |
+
+| Check | Result |
+| --- | --- |
+| Live boot | GNOME desktop reached |
+| Wi-Fi and touchscreen | Reported working immediately, without a live-session repair |
+| Power controls | Reported working; screenshots show Performance selected and the Balanced/Power Saver choices |
+| Anaconda wizard | Welcome, destination selection and storage/reclaim-space views worked |
+| Audio | Dummy Output; post-install setup and sound verification remain pending |
+| Bluetooth | Configuration and operation verification remain pending |
+| Completed installation, installed boot, rescue and stock fallback | Untested |
+
+The wizard recognised the existing internal disk layout; the screenshots do not
+show a completed installation. Use `LEXR_GETTING_STARTED.txt` for post-install
+audio setup and Bluetooth diagnostics, including the
+[same-device Windows hand-off](windows-handoff.md) where private firmware is
+required. Neither successful audio playback nor Bluetooth pairing has been
+confirmed on this Fedora candidate. Power controls do not establish battery life
+or suspend/resume behaviour, and touchscreen input does not qualify pen pressure
+or palm rejection. These checks, X1P/LCD and other kernel bundles remain outside
+this test's evidence. Follow [issue #17](https://github.com/ooaklee/lexr.sh/issues/17)
+for installation and recovery qualification.
 
 ## 2. Review the USB target
 

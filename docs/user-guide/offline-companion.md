@@ -142,12 +142,17 @@ path above because writable temporary mounts can still have `noexec` set.
 Fedora provides its own `LEXR_GETTING_STARTED.txt` through Files → Home →
 Desktop, with a canonical copy under `/usr/share/lexr/fedora-media`. The guide
 covers native IPTSD verification, Wi-Fi, TuneD power checks, the latest Lexr
-installer, and the current limits of audio and camera setup. Anaconda's copied
+installer, post-install audio and Bluetooth guidance, and the current limits of
+camera setup. Anaconda's copied
 root retains the companion and the same image manifest; the user skeleton
 supplies the guide to newly created users. Create a fresh writable CLI copy
 after installation. An image built without a companion still includes the
-guide, but requires an online CLI download. Physical Fedora live boot and
-installation remain unqualified.
+guide, but requires an online CLI download. Ooaklee confirmed Fedora 44 live
+boot, Wi-Fi, touchscreen input, power/performance controls and the Anaconda
+wizard with the `b0ec686`/v23 X1E/OLED candidate on 2026-09-26. Completed
+installation and installed boot remain untested; audio shows Dummy Output and
+Bluetooth still needs configuration. See the
+[Fedora test record](installation-media.md#fedora-hardware-test-record).
 
 ## 4. Use the included IPTSD support
 

@@ -17,6 +17,15 @@ claim that the physical boot and installation gates have passed. Diagnosis and
 end-to-end qualification continue in
 [#17](https://github.com/ooaklee/lexr.sh/issues/17).
 
+Hardware status on 2026-09-26: Ooaklee confirmed the `b0ec686`/v23 X1E/OLED
+candidate reaches the Fedora 44 GNOME desktop with Wi-Fi, touchscreen input,
+power/performance controls and the Anaconda wizard working. Completed
+installation, installed boot and recovery remain untested; audio and Bluetooth
+need post-install configuration and verification. The
+[hardware test record](../user-guide/installation-media.md#fedora-hardware-test-record)
+identifies the tested bytes and the limits of this result. The earlier failed
+candidate remains part of the investigation history below.
+
 ## Context
 
 Fedora Workstation Live 44 for ARM64 is a directly writable hybrid ISO. Its
@@ -44,9 +53,10 @@ to avoid resetting USB Type-C muxes during a DSP restart. The maintained custom
 kernel has a different contract: the working v23 Ubuntu, elementary and Arch
 paths need DSP/QRTR services available during normal coldplug. Applying the
 stock workaround to the custom Fedora entry blocks those services. The earlier
-Fedora report does not establish which physical boundary failed first, so this
-policy correction still requires a new hardware test. Anaconda can retain a
-live-session denylist, which must be removed after installation.
+Fedora report does not establish which physical boundary failed first. The
+2026-09-26 successful live test covers the combined `b0ec686`/v23 candidate;
+it does not isolate this policy correction as the cause of success. Anaconda
+can retain a live-session denylist, which must be removed after installation.
 
 The optional `sp11-iptsd-v2` companion is a source-required release. Its
 verified archive contains the complete pinned upstream source, Meson fallback
@@ -196,8 +206,9 @@ WCN7850 `board-2.bin` database using the shared Surface selector. Bounded XZ and
 Zstandard inputs are supported. The source database is preserved; validation
 independently derives the expected board again and compares the root and
 initramfs bytes. The selected kernel's PCI transport is included whether it is
-part of `ath12k` or a separate `ath12k_pci` module. Wi-Fi still requires hardware
-qualification on the Fedora candidate.
+part of `ath12k` or a separate `ath12k_pci` module. Ooaklee confirmed live-session
+Wi-Fi on the `b0ec686`/v23 X1E/OLED candidate on 2026-09-26; installed-system
+Wi-Fi and other hardware/kernel combinations remain unqualified.
 
 Only the untouched stock-kernel live troubleshooting entries carry both
 `modprobe.blacklist=qcom_q6v5_pas` and `rd.driver.blacklist=qcom_q6v5_pas`.

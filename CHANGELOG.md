@@ -57,7 +57,8 @@ that do not apply.
 - Include Fedora getting-started instructions in the live user's Desktop folder
   and retain the guide, requested offline companion and matching image manifest
   in the root copied by Anaconda. Validate retained contents and SELinux labels;
-  physical boot and installation remain unqualified
+  the v23 X1E/OLED live desktop and installer wizard are confirmed, while
+  completed installation and installed boot remain unqualified
   ([#17](https://github.com/ooaklee/lexr.sh/issues/17)).
 - Build an exact clean local kernel commit with `kernel build --source-dir`
   without pushing a temporary branch. Lexr snapshots immutable Git objects,
@@ -138,8 +139,13 @@ that do not apply.
   the shipped initramfs module dependency data and payload bytes, and publisher
   marker/volume agreement. Include the Surface keyboard UART and client registry
   explicitly; retain unused regulators only in firmware-display diagnostics. Keep
-  Fedora experimental while physical boot and installation qualification remain
-  open ([#17](https://github.com/ooaklee/lexr.sh/issues/17)).
+  Fedora experimental. On 2026-09-26, Ooaklee confirmed that Lexr `b0ec686`
+  with v23 reached the X1E/OLED GNOME desktop with Wi-Fi, touchscreen input
+  and power/performance controls working immediately; Anaconda reached
+  destination and storage selection. Audio shows Dummy Output and Bluetooth
+  needs configuration through the documented post-install workflow. Completed
+  installation, installed boot and recovery remain untested
+  ([#17](https://github.com/ooaklee/lexr.sh/issues/17)).
 - Reserve Fedora exchange directories with host ownership before container
   exports and allow the isolated EROFS/dracut mount operations on AppArmor hosts.
 - Pin available signed Fedora EROFS tools and source packages, and build a
