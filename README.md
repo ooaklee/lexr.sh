@@ -55,9 +55,11 @@ on X1E/OLED using v23, with touchscreen input and Wi-Fi after reconnecting.
 See the [hardware test record](docs/operator-manual/arch-linux-arm-install.md#hardware-test-record)
 for the tested image and remaining checks.
 The custom live and installed Fedora path is limited to the Surface Pro 11 Qualcomm Snapdragon X Elite model; its X Plus
-entry is a stock-kernel, explicit-DTB live troubleshooting path only. Pop!_OS
-and Fedora's compressed raw disk image remain
-`catalog-only` until their layouts have dedicated adapters. Here, `implemented`
+entry is a stock-kernel, explicit-DTB live troubleshooting path only. Pop!_OS is
+omitted from the shipped catalogue until its image workflow is implemented in
+[issue #48](https://github.com/ooaklee/lexr.sh/issues/48). Fedora development
+focuses on the Workstation Live ISO; the compressed raw image is no longer
+listed in the shipped catalogue. Here, `implemented`
 means the adapter can create and structurally validate media; `experimental`
 means complete end-to-end qualification is still pending. Ubuntu Concept
 remastered with Lexr `384f2c0` and v23 reached the Surface Pro 11 X1E/OLED live
@@ -76,11 +78,18 @@ performed. Audio still shows Dummy Output; Lexr audio setup and sound verificati
 remain pending. See the
 [Debian test record](docs/user-guide/installation-media.md#debian-arm64-gnome-live-image)
 for the remaining qualification limits and source identity.
-The current Fedora candidate passed structural validation and USB read-back, but a physical Surface Pro 11
-test reached the emergency boot path and then a persistent black screen. That
-failure is tracked in [issue #17](https://github.com/ooaklee/lexr.sh/issues/17),
-while [issue #16](https://github.com/ooaklee/lexr.sh/issues/16) tracks the
-separate Ubuntu end-to-end qualification.
+On 2026-09-26, Ooaklee confirmed that Fedora Workstation Live 44 built with
+Lexr `b0ec686` and v23 reached the X1E/OLED GNOME desktop with Wi-Fi,
+touchscreen input and power/performance controls working immediately. The
+Anaconda installation wizard reached destination and storage selection.
+Audio shows Dummy Output and Bluetooth needs configuration; follow the
+getting-started guide for post-install setup. Completed installation, installed
+boot and recovery remain untested. See the
+[Fedora test record](docs/user-guide/installation-media.md#fedora-hardware-test-record)
+and [issue #17](https://github.com/ooaklee/lexr.sh/issues/17).
+The earlier emergency/black-screen result belongs to a previous candidate;
+[issue #16](https://github.com/ooaklee/lexr.sh/issues/16) tracks the separate
+Ubuntu end-to-end qualification.
 
 The experimental [Arch terminal image](docs/operator-manual/arch-linux-arm-source.md)
 includes the custom kernel, networking tools and a terminal setup menu. Users
@@ -196,9 +205,10 @@ that the image will boot or install on physical hardware.
 
 Fedora requires the explicit `fedora-workstation-live-44` catalogue ID and a
 patch-line-qualified verified kernel bundle. The accepted floors are
-7.2.0/sp11v19 and 7.2.2/sp11v1. The
+7.2.0/sp11v19 and 7.2.2/sp11v1. External-DTB bundles, including v23, require
+`--profile x1e80100-microsoft-denali-oled`. The
 [installation-media guide](docs/user-guide/installation-media.md) shows the implemented
-distribution paths, the Fedora boot failure already observed, their hardware
+distribution paths, the recorded Fedora live-boot results, their hardware
 limits, and how to review a USB write safely.
 
 Running `lexr` in an interactive terminal opens the guided image wizard. Every

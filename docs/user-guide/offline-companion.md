@@ -85,8 +85,15 @@ Debian Live uses its own live-boot mount:
 COMPANION_ROOT=/run/live/medium/sp11/companion
 ```
 
-On Fedora, ask the mount table for the exact catalogue-bound volume label rather
-than guessing its path:
+On Fedora, the prepared root retains the requested companion for both live and
+installed sessions:
+
+```sh
+COMPANION_ROOT=/usr/share/lexr/fedora-media/sp11/companion
+```
+
+If that copy is unavailable, recover it from the USB using the exact
+catalogue-bound volume label:
 
 ```sh
 MEDIA_ROOT="$(
@@ -94,6 +101,12 @@ MEDIA_ROOT="$(
     --source LABEL=Fedora-WS-Live-44 \
     --output TARGET
 )"
+test -n "$MEDIA_ROOT" && test -f "$MEDIA_ROOT/sp11/companion/bin/linux-arm64/lexr"
+```
+
+Continue only if that check succeeds, then set:
+
+```sh
 COMPANION_ROOT="$MEDIA_ROOT/sp11/companion"
 ```
 
@@ -125,6 +138,21 @@ desktop icons.
 It includes these bootstrap commands, native Wi-Fi board setup, the optional
 IPTSD install, and steps to repeat after installation. Use the home-directory
 path above because writable temporary mounts can still have `noexec` set.
+
+Fedora provides its own `LEXR_GETTING_STARTED.txt` through Files → Home →
+Desktop, with a canonical copy under `/usr/share/lexr/fedora-media`. The guide
+covers native IPTSD verification, Wi-Fi, TuneD power checks, the latest Lexr
+installer, post-install audio and Bluetooth guidance, and the current limits of
+camera setup. Anaconda's copied
+root retains the companion and the same image manifest; the user skeleton
+supplies the guide to newly created users. Create a fresh writable CLI copy
+after installation. An image built without a companion still includes the
+guide, but requires an online CLI download. Ooaklee confirmed Fedora 44 live
+boot, Wi-Fi, touchscreen input, power/performance controls and the Anaconda
+wizard with the `b0ec686`/v23 X1E/OLED candidate on 2026-09-26. Completed
+installation and installed boot remain untested; audio shows Dummy Output and
+Bluetooth still needs configuration. See the
+[Fedora test record](installation-media.md#fedora-hardware-test-record).
 
 ## 4. Use the included IPTSD support
 

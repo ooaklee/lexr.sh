@@ -389,8 +389,9 @@ func (m *ImageManager) prepareImageOperation(request CreateImageRequest) (imageO
 			return imageOperation{}, fmt.Errorf("Fedora custom-kernel media is available only for the Surface Pro 11 X Elite OLED profile; %q is a stock-kernel troubleshooting path only", selected.ID)
 		}
 	}
-	// Fedora accepts only embedded delivery; its boot-time selection remains
-	// inside Stubble after the manager checks the requested hardware profile.
+	// Defer Fedora's external platform until Create resolves the bundle.
+	// Embedded delivery keeps Stubble selection; external delivery receives
+	// the selected platform after the manager projects its DTB inventory.
 	if entry.Adapter == catalog.AdapterFedoraLive {
 		selectedPlatform = ""
 	}

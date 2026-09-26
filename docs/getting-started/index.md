@@ -70,11 +70,14 @@ validation alone does not establish full hardware support. The Ubuntu candidate
 built with Lexr `384f2c0` and v23 reached the X1E/OLED live desktop with Wi-Fi
 working without a live-session repair
 ([live-boot evidence](https://github.com/ooaklee/lexr.sh/issues/41)); installation
-and remaining hardware checks still need qualification. The known Fedora
-candidate reached an emergency boot path and then a persistent black screen on
-Surface Pro 11. Follow [the Ubuntu qualification](https://github.com/ooaklee/lexr.sh/issues/16)
-or [the Fedora boot investigation](https://github.com/ooaklee/lexr.sh/issues/17)
-before interpreting a structurally valid image as supported hardware.
+and remaining hardware checks still need qualification. Ooaklee confirmed
+Fedora 44 built with Lexr `b0ec686` and v23 on 2026-09-26: the X1E/OLED live
+desktop, Wi-Fi, touchscreen input, power/performance controls and Anaconda
+wizard worked. Audio and Bluetooth require post-install setup; completed
+installation, installed boot and recovery remain untested. See the
+[Fedora hardware test record](../user-guide/installation-media.md#fedora-hardware-test-record)
+and [Ubuntu qualification](https://github.com/ooaklee/lexr.sh/issues/16)
+for the scope of the available hardware evidence.
 
 ## 5. Review the USB write
 

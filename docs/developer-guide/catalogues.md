@@ -50,8 +50,11 @@ its hardware qualification, and record known outcomes in `compatibility_notes`
 instead of hiding them behind a generic warning. The
 `ubuntu-concept-resolute-x1e`, `elementary-os-8-1-20260219`,
 `debian-live-testing-gnome-arm64-20240902` and `fedora-workstation-live-44`
-entries are implemented and experimental. Fedora's compressed raw disk image
-and the Pop!_OS entries remain catalogue-only.
+entries are implemented and experimental. Pop!_OS is omitted from the shipped
+catalogue until its image workflow is implemented in
+[issue #48](https://github.com/ooaklee/lexr.sh/issues/48).
+The Fedora catalogue offers only Workstation Live 44; the raw disk entry was
+removed because it had no image adapter.
 The Arch Linux ARM rootfs entry is implemented and experimental. Its rolling URL is marked
 mutable while its dated snapshot and SHA-256 remain fixed. See
 [Arch source intake](../operator-manual/arch-linux-arm-source.md) before accepting

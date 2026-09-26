@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -337,6 +338,37 @@ func TestWiFiRejectsUnsafeTargetsAndPreservesNativeBoards(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(native, wifiFirmwareDirectory, "board.bin")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("native board did not suppress fallback creation")
+	}
+}
+
+// TestWiFiXZDatabaseDecoding checks fixed decoder selection, bounded stdin and
+// source preservation for Fedora's compressed distribution database.
+func TestWiFiXZDatabaseDecoding(t *testing.T) {
+	compressed := []byte("compressed-XZ-fixture")
+	root := prepareWiFiTestRoot(t, compressed)
+	path := filepath.Join(root, wifiFirmwareDirectory, "board-2.bin")
+	if err := os.Rename(path, path+".xz"); err != nil {
+		t.Fatal(err)
+	}
+	expected := wifiTestDatabase(wifiFallbackBoard)
+	runner := &fakeRunner{inspect: func(command platform.Command) error {
+		if command.Name != "/usr/bin/xz" || !reflect.DeepEqual(command.Args, []string{"--decompress", "--stdout", "--memlimit-decompress=32MiB"}) {
+			t.Fatalf("unexpected decoder: %+v", command)
+		}
+		input, err := io.ReadAll(command.Stdin)
+		if err != nil || !bytes.Equal(input, compressed) {
+			t.Fatalf("unexpected decoder input: %q, %v", input, err)
+		}
+		_, err = command.Stdout.Write(expected)
+		return err
+	}}
+	actual, source, err := New(runner).readWiFiDatabase(context.Background(), root)
+	if err != nil || source != path+".xz" || !bytes.Equal(actual, expected) {
+		t.Fatalf("source=%q error=%v", source, err)
+	}
+	retained, err := os.ReadFile(source)
+	if err != nil || !bytes.Equal(retained, compressed) {
+		t.Fatalf("source changed: %v", err)
 	}
 }
 

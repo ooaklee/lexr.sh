@@ -27,19 +27,22 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 `
 
-// fedoraToolsDockerfile uses Fedora's current EROFS extractor because Ubuntu
-// 24.04's version cannot preserve the capabilities and SELinux xattrs carried
-// by Fedora 44 live roots.
+// fedoraToolsDockerfile retains Fedora's signed EROFS creation tools and builds
+// a separately identified extractor whose metadata ordering preserves source
+// capabilities, ACLs and SELinux xattrs.
 const fedoraToolsDockerfile = `FROM fedora@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
-RUN dnf install -y --setopt=install_weak_deps=False \
-	  attr binutils bzip2 coreutils cpio diffutils dpkg erofs-utils-1.9.2-2.fc44 file findutils gawk gcc-c++ grep \
+ADD --checksum=sha256:d39cf093760c8f22c20038f20fd094bc1f5a7edf70923f8db21f01c13dc24da5 https://kojipkgs.fedoraproject.org/packages/erofs-utils/1.9.4/1.fc44/data/signed/6d9f90a6/aarch64/erofs-utils-1.9.4-1.fc44.aarch64.rpm /tmp/lexr-erofs.rpm
+RUN rpm --checksig /tmp/lexr-erofs.rpm \
+ && dnf install -y --setopt=install_weak_deps=False --setopt=localpkg_gpgcheck=True \
+	  /tmp/lexr-erofs.rpm attr binutils bzip2 coreutils cpio diffutils dpkg file findutils gawk gcc-c++ grep \
 	  grub2-tools grub2-tools-extra gzip kmod meson mtools ninja-build pkgconf-pkg-config python3 rpm-build sed \
 	  systemd systemd-devel systemd-rpm-macros tar unzip util-linux-core xorriso xz zstd \
  && test "$(rpm -q --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}' erofs-utils)" = \
-	  erofs-utils-1.9.2-2.fc44.aarch64 \
+	  erofs-utils-1.9.4-1.fc44.aarch64 \
  && fsck.erofs --help 2>&1 | grep -F -- '--path=X' \
+ && rm /tmp/lexr-erofs.rpm \
  && dnf clean all
-`
+` + fedoraEROFSExtractorDockerfile
 
 // Docker provides the narrowly scoped container operations needed by image
 // workflows through an injectable command runner.
@@ -321,7 +324,7 @@ func (d *Docker) RunInWorkspaceVolumePreservingXattrs(ctx context.Context, image
 	if err != nil {
 		return err
 	}
-	capabilities := []string{"--cap-add", "SYS_ADMIN", "--cap-add", "MAC_ADMIN", "--security-opt", "label=disable"}
+	capabilities := []string{"--cap-add", "SYS_ADMIN", "--cap-add", "MAC_ADMIN", "--security-opt", "label=disable", "--security-opt", "apparmor=unconfined"}
 	dockerArgs = append(dockerArgs[:4], append(capabilities, dockerArgs[4:]...)...)
 	dockerArgs = append(dockerArgs, args...)
 	return d.Runner.Run(ctx, Command{Name: "docker", Args: dockerArgs})

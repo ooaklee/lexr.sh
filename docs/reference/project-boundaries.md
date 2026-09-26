@@ -62,8 +62,11 @@ the private hand-off workflow.
 The `ubuntu-concept-resolute-x1e`, `elementary-os-8-1-20260219`,
 `debian-live-testing-gnome-arm64-20240902` and `fedora-workstation-live-44`
 entries have implemented image adapters.
-Pop!_OS and Fedora's compressed raw disk entry are `catalog-only`: they are
-discoverable metadata, not buildable promises. Fedora's custom live and installed path is scoped to
+Pop!_OS is omitted from the shipped catalogue pending its image implementation
+in [issue #48](https://github.com/ooaklee/lexr.sh/issues/48).
+Fedora Workstation Live 44 is the sole Fedora catalogue entry;
+compressed raw disk media has no adapter and is not offered. Fedora's custom
+live and installed path is scoped to
 X1E/OLED. Its X1P/LCD entry retains a manifest-bound stock-kernel,
 explicit-DTB live troubleshooting path only and must not be treated as an
 installed-system promise.
@@ -71,10 +74,15 @@ installed-system promise.
 Structural image, package and release validation proves the recorded bytes and
 layout. It does not replace a boot, device or lifecycle test on a physical
 Surface Pro 11. `support_level: implemented` therefore means the named adapter
-is runnable, while `experimental: true` signals that the resulting media is not
-yet hardware-qualified. In the first Fedora 44 physical test, the image passed
-structural validation and USB read-back but reached the emergency boot path and
-then remained at a black screen after `quiet` was removed.
+is runnable, while `experimental: true` signals that complete hardware and
+lifecycle qualification is pending. The earlier Fedora 44 candidate reached an
+emergency boot path and black screen. On 2026-09-26, Ooaklee confirmed the
+`b0ec686`/v23 X1E/OLED candidate reached GNOME with Wi-Fi, touchscreen input and
+power/performance controls working; the Anaconda wizard reached storage
+selection. This qualifies the reported live-session checks, while completed
+installation, installed boot, recovery, audio and Bluetooth operation remain
+unverified. See the
+[Fedora test record](../user-guide/installation-media.md#fedora-hardware-test-record).
 
 ## What must stay private
 

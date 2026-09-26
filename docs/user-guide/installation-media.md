@@ -3,7 +3,7 @@
 Lexr turns a supported upstream image into live media with the selected Surface
 Pro 11 kernel on a structurally validated boot path. It checks that result
 before it can be written to a reviewed removable device. This page covers the
-implemented Ubuntu Concept, elementary OS, Arch Linux ARM and Fedora Workstation Live adapters, from image
+implemented Ubuntu Concept, elementary OS, Debian Live, Arch Linux ARM and Fedora Workstation Live adapters, from image
 creation to a verified USB write and the physical test which must follow.
 
 > [!CAUTION]
@@ -12,11 +12,12 @@ creation to a verified USB write and the physical test which must follow.
 > need separate evidence. The Ubuntu candidate built
 > with Lexr `384f2c0` and v23 reached the X1E/OLED live desktop; the tester
 > confirmed Wi-Fi connected without a live-session repair. Installation and
-> remaining hardware checks still need qualification. A Fedora 44 candidate passed
-> structural validation and USB read-back, but a Surface Pro 11 boot reached the
-> emergency path. Removing `quiet` exposed early text before the display remained
-> black for hours. Reproduction and diagnosis continue in
-> [issue #17](https://github.com/ooaklee/lexr.sh/issues/17); Ubuntu's separate
+> remaining hardware checks still need qualification. Ooaklee confirmed Fedora
+> 44 built with Lexr `b0ec686` and v23 reached the X1E/OLED live desktop with
+> Wi-Fi, touchscreen input and power/performance controls working, and the
+> Anaconda wizard reached storage selection. Completed installation and installed
+> boot remain untested. See the [Fedora test record](#fedora-hardware-test-record)
+> and [issue #17](https://github.com/ooaklee/lexr.sh/issues/17); Ubuntu's separate
 > end-to-end qualification is tracked in
 > [issue #16](https://github.com/ooaklee/lexr.sh/issues/16).
 
@@ -281,7 +282,8 @@ identifies the tested v23 image and remaining qualification work.
 ### Fedora Workstation Live 44
 
 Select Fedora's implemented ARM64 Live ISO explicitly and provide either a
-local patch-line-qualified bundle or a corresponding verified release:
+local patch-line-qualified bundle or a corresponding verified release. For
+an external-DTB bundle such as v23, select the X1E/OLED profile explicitly:
 
 ```sh
 KERNEL_BUNDLE=/path/to/verified-patch-line-kernel-bundle
@@ -289,12 +291,14 @@ KERNEL_BUNDLE=/path/to/verified-patch-line-kernel-bundle
 lexr image create \
   --catalog-id fedora-workstation-live-44 \
   --kernel-dir "$KERNEL_BUNDLE" \
-  --output lexr-fedora-44-sp11-7.2.2-v1.iso
+  --profile x1e80100-microsoft-denali-oled \
+  --output lexr-fedora-44-sp11-v23.iso
 
-lexr image validate lexr-fedora-44-sp11-7.2.2-v1.iso
+lexr image validate lexr-fedora-44-sp11-v23.iso
 ```
 
-To use a published bundle instead, set `KERNEL_RELEASE` to its exact tag and
+Embedded Stubble bundles select their device tree at boot. The same global
+`--profile` identifies the intended hardware for either delivery mode. To use a published bundle instead, set `KERNEL_RELEASE` to its exact tag and
 replace the `--kernel-dir` line with `--kernel-release "$KERNEL_RELEASE"`.
 Without either flag, Lexr selects the latest candidate release; the Fedora
 adapter still rejects an unknown patch line, a generation below that line's
@@ -303,24 +307,72 @@ floor, or an incomplete bundle.
 The catalogue supplies Fedora's publisher SHA-256. The adapter accepts the
 explicit 7.2.0/sp11v19 and 7.2.2/sp11v1 lines, applies each line's generation
 floor, and rejects unknown, mixed, or incomplete ABIs. Secure Boot must be
-disabled for the unsigned custom Stubble kernel. X1P custom Stubble auto-DTB selection and
+disabled for the unsigned custom EFI kernel. X1P custom kernel selection and
 installed-system hand-off are not supported; use its explicit-DTB stock entry
-for live investigation only. Physical USB boot, an X1E installation,
-installed-system boot, pen/touch, audio, and suspend/resume remain hardware
-qualification gates.
+for live investigation only. The v23 X1E/OLED live-session result below does
+not qualify completed installation, installed-system boot, recovery, pen,
+audio, Bluetooth or suspend/resume.
 
-The known Fedora physical result is not a successful boot: the candidate reached
-the emergency path, and removing `quiet` revealed early console output before a
-persistent black screen. Preserve the generated manifest and journal when
-reporting a reproduction; the follow-up work must find the first failing boot
-boundary rather than treating structural validation as proof of bootability.
+An earlier candidate reached the emergency path and then a persistent black
+screen. The `b0ec686`/v23 candidate reached the live desktop in the test below.
+The custom kernel now retains DSP/QRTR services for USB discovery and includes
+platform drivers, public GPU firmware and source-derived Wi-Fi board data before
+the initial udev probe. Fedora's compressed WCN7850 database is preserved. If a
+new test fails, preserve the image manifest and journal. Use the text diagnostics
+entry to expose dracut messages, or firmware display diagnostics to isolate DRM
+takeover; retain `/run/initramfs/rdsosreport.txt` if the emergency shell becomes
+usable.
+
+The live user's Desktop folder contains `LEXR_GETTING_STARTED.txt`, accessible
+through Files. Add the [offline companion](offline-companion.md) at image
+creation to carry the matching Lexr CLI and optional native IPTSD runtime.
+The prepared root retains the guide and requested companion for installation;
+the guide separates supported Fedora commands from still-unqualified userspace
+setup.
+
+#### Fedora hardware test record
+
+On 2026-09-26, Ooaklee tested the first X1E/OLED entry on a Surface Pro 11 with
+Snapdragon X Elite. The candidate was built from Lexr `b0ec686` with the offline
+companion and native IPTSD runtime. The screenshots identify Fedora Linux 44
+Workstation Edition and the running kernel `7.2.0-jg-0sp11v23-qcom-x1e`.
+
+| Evidence | Recorded identity |
+| --- | --- |
+| Source | `Fedora-Workstation-Live-44-1.7.aarch64.iso` |
+| Source SHA-256 | `162ba3c552a2d241c7c63ec26777af0255ee1b5a135adc0be986ceed999933ef` |
+| Output | `lexr-fedora-44-sp11-v23.iso` (3,928,686,592 bytes) |
+| Output SHA-256 | `2306e68da63f0cfed4565e55610abfa4e653d5f7859b9281176bc7f3c0b1238b` |
+| Kernel and device tree | v23, paired external X1E/OLED DTB |
+| USB preparation | All 45 structural checks passed; full ISO readback matched; safe ejection completed |
+
+| Check | Result |
+| --- | --- |
+| Live boot | GNOME desktop reached |
+| Wi-Fi and touchscreen | Reported working immediately, without a live-session repair |
+| Power controls | Reported working; screenshots show Performance selected and the Balanced/Power Saver choices |
+| Anaconda wizard | Welcome, destination selection and storage/reclaim-space views worked |
+| Audio | Dummy Output; post-install setup and sound verification remain pending |
+| Bluetooth | Configuration and operation verification remain pending |
+| Completed installation, installed boot, rescue and stock fallback | Untested |
+
+The wizard recognised the existing internal disk layout; the screenshots do not
+show a completed installation. Use `LEXR_GETTING_STARTED.txt` for post-install
+audio setup and Bluetooth diagnostics, including the
+[same-device Windows hand-off](windows-handoff.md) where private firmware is
+required. Neither successful audio playback nor Bluetooth pairing has been
+confirmed on this Fedora candidate. Power controls do not establish battery life
+or suspend/resume behaviour, and touchscreen input does not qualify pen pressure
+or palm rejection. These checks, X1P/LCD and other kernel bundles remain outside
+this test's evidence. Follow [issue #17](https://github.com/ooaklee/lexr.sh/issues/17)
+for installation and recovery qualification.
 
 ## 2. Review the USB target
 
 `image devices` is read-only and lists every whole physical device with the evidence needed to review it, including whether the disk has an active non-mount consumer. It does not present an internal, non-removable, non-USB, read-only, system-backed, in-use, weakly identified, or undersized device as an acceptable target merely because its path was supplied explicitly.
 
 The commands below use the Ubuntu filename from the shortest example. Replace
-it with `lexr-fedora-44-sp11-7.2.2-v1.iso` when writing the Fedora output.
+it with `lexr-fedora-44-sp11-v23.iso` when writing the Fedora output.
 
 ```sh
 lexr image devices
@@ -399,7 +451,10 @@ initramfs, and recreates EROFS with SELinux labels and extended attributes
 intact. Anaconda sees only the custom `/boot/vmlinuz-*` candidate. The
 installed-system contract includes a one-shot finalizer which restores the
 package-owned stock image and its BLS fallback after the first non-live X1E
-boot while keeping the custom kernel as the default.
+boot while keeping the custom kernel as the default. External-DTB custom kernels
+use an RPM-owned hook after Fedora creates the BLS entry. The hook binds the
+selected X1E DTB using the actual GRUB path for either a separate `/boot`
+filesystem or `/boot` on the root filesystem.
 
 [ADR027](../adr/adr-027-fedora-erofs-remaster-and-installed-handoff.md) records
 the complete EROFS, RPM, Anaconda, boot-policy, and validation decision.
@@ -415,9 +470,10 @@ identities together with the boot records, kernel, initramfs, module tree,
 device trees, package ownership, manifests, and EFI locations before the
 manifest and journal are published and the ISO becomes the final commit marker.
 
-The Fedora live policy still blacklists `qcom_q6v5_pas`; its hardware
-qualification is separate from the Ubuntu fix above. Installed systems must
-not retain a live-only DSP blacklist. Ubuntu omits the retired
+Fedora custom-kernel entries allow `qcom_q6v5_pas` and normal coldplug. The
+untouched stock-kernel troubleshooting entries retain Fedora's documented DSP
+blacklist; custom-kernel evidence does not qualify the stock driver's USB reset
+behaviour. Installed systems must not retain that live-only blacklist. Ubuntu omits the retired
 `soundwire_qcom.sp11_feedback_active_offset2_zero=1` parameter.
 A directly written hybrid ISO does not use `iso-scan/filename`, which belongs
 to a labelled outer-disk loopback workflow.

@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	lexr "github.com/ooaklee/lexr.sh"
 	"github.com/ooaklee/lexr.sh/internal/catalog"
@@ -87,6 +88,28 @@ func newCompanionTestManager(runner *companionProbeRunner) *ImageManager {
 // wiring needed for side-effect-free image planning tests.
 func newImagePlanTestManager() *ImageManager {
 	return NewImageManager(catalog.NewLoader(lexr.CatalogFS(), "supported-isos.json"), io.Discard)
+}
+
+// newCatalogOnlyTestManager exercises unsupported media independently of the
+// shipped catalogue inventory.
+func newCatalogOnlyTestManager() *ImageManager {
+	fixture := fstest.MapFS{
+		"catalog.json": {Data: []byte(`{
+  "schema_version": 3,
+  "description": "Catalogue-only test fixture",
+  "entries": [{
+    "id": "pending-image", "name": "Pending Image",
+    "distribution": "Test", "release": "1", "filename": "pending.iso",
+    "architecture": "arm64", "artifact_kind": "iso",
+    "url": "https://example.test/pending.iso", "homepage": "https://example.test/",
+    "adapter": "none", "support_level": "catalog-only",
+    "experimental": true, "mutable": false,
+    "compatibility_notes": ["No image adapter is implemented yet."],
+    "last_verified": "2026-09-27"
+  }]
+}`)},
+	}
+	return NewImageManager(catalog.NewLoader(fixture, "catalog.json"), io.Discard)
 }
 
 // TestImageManagerPlanDefaultsAndDeterminism verifies default source and kernel
@@ -269,7 +292,7 @@ func TestImageManagerPlanValidatesCatalogueSelection(t *testing.T) {
 	t.Run("catalogue-only entry", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := newImagePlanTestManager().Plan(CreateImageRequest{CatalogID: "pop-os-24-04-arm64-generic-3", Output: "/output/result.iso"})
+		_, err := newCatalogOnlyTestManager().Plan(CreateImageRequest{CatalogID: "pending-image", Output: "/output/result.iso"})
 		if err == nil || !strings.Contains(err.Error(), "catalog-only and cannot yet be created") {
 			t.Fatalf("Plan(catalogue-only entry) error = %v", err)
 		}
@@ -365,10 +388,9 @@ func TestImageManagerPlanRejectsNonPortableISOOutput(t *testing.T) {
 func TestImageManagerCreateRejectsCatalogOnlyEntryBeforeExecution(t *testing.T) {
 	t.Parallel()
 
-	loader := catalog.NewLoader(lexr.CatalogFS(), "supported-isos.json")
-	manager := NewImageManager(loader, io.Discard)
+	manager := newCatalogOnlyTestManager()
 	_, err := manager.Create(context.Background(), CreateImageRequest{
-		CatalogID: "pop-os-24-04-arm64-generic-3",
+		CatalogID: "pending-image",
 		Output:    filepath.Join(t.TempDir(), "output.iso"),
 	})
 	if err == nil || !strings.Contains(err.Error(), "catalog-only and cannot yet be created") {

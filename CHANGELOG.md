@@ -54,6 +54,12 @@ that do not apply.
 
 ### Added
 
+- Include Fedora getting-started instructions in the live user's Desktop folder
+  and retain the guide, requested offline companion and matching image manifest
+  in the root copied by Anaconda. Validate retained contents and SELinux labels;
+  the v23 X1E/OLED live desktop and installer wizard are confirmed, while
+  completed installation and installed boot remain unqualified
+  ([#17](https://github.com/ooaklee/lexr.sh/issues/17)).
 - Build an exact clean local kernel commit with `kernel build --source-dir`
   without pushing a temporary branch. Lexr snapshots immutable Git objects,
   verifies the commit and tree inside the container, retains the source archive
@@ -112,6 +118,10 @@ that do not apply.
 
 ### Removed
 
+- Remove `pop-os-24-04-arm64-generic-3` from the shipped catalogue until its
+  image workflow is implemented in [#48](https://github.com/ooaklee/lexr.sh/issues/48).
+- Remove the unused Fedora Workstation 44 compressed raw disk entry from the
+  catalogue. Retain Fedora Workstation Live 44 for the ISO installation workflow.
 - Remove the hardware flags `doctor boot --device` and
   `image create --kernel-profile`, and the configuration keys `device.variant`,
   `doctor.boot.device`, `image.create.kernel_profile` and
@@ -123,6 +133,37 @@ that do not apply.
 
 ### Fixed
 
+- Prepare Fedora custom live images with early DSP/QRTR, USB, panel and public
+  GPU-firmware dependencies, prepare Wi-Fi board data from Fedora's compressed
+  source database, and preserve the stock kernel's separate DSP
+  workaround. Add explicit external-DTB X1E boot support, diagnostic entries
+  and an exact-ABI installed BLS DTB binding for both `/boot` layouts. Validate
+  the shipped initramfs module dependency data and payload bytes, and publisher
+  marker/volume agreement. Include the Surface keyboard UART and client registry
+  explicitly; retain unused regulators only in firmware-display diagnostics. Keep
+  Fedora experimental. On 2026-09-26, Ooaklee confirmed that Lexr `b0ec686`
+  with v23 reached the X1E/OLED GNOME desktop with Wi-Fi, touchscreen input
+  and power/performance controls working immediately; Anaconda reached
+  destination and storage selection. Audio shows Dummy Output and Bluetooth
+  needs configuration through the documented post-install workflow. Completed
+  installation, installed boot and recovery remain untested
+  ([#17](https://github.com/ooaklee/lexr.sh/issues/17)).
+- Reserve Fedora exchange directories with host ownership before container
+  exports and allow the isolated EROFS/dracut mount operations on AppArmor hosts.
+- Pin available signed Fedora EROFS tools and source packages, and build a
+  separately identified extractor that restores extended attributes after
+  ownership and mode changes. Preserve file capabilities and ACLs, including
+  files outside RPM ownership, through extraction and repacking.
+- Preserve every declared Surface boot argument through Anaconda's own GRUB
+  default generation, so the first installed boot retains the TPM-wait and
+  soundwire arguments before the one-shot finalizer runs.
+- Bind Fedora's generated rescue entry to a durable external DTB after proving
+  that its EFI bytes match the selected RPM-owned Surface kernel. Preserve
+  unrelated rescue images and reject unsupported rescue layouts.
+- Recognise Fedora's complete TuneD and `tuned-ppd` power-profile provider in
+  static userspace diagnostics, preserving the distribution's service choice.
+  Reject partial provider layouts and report runtime and package-ownership
+  limits explicitly ([#17](https://github.com/ooaklee/lexr.sh/issues/17)).
 - Include the PMIC GLINK UCSI service and PS883x USB-C retimers in the shared
   Surface initramfs module closure, including their transitive dependencies.
   Debian's source initramfs omitted these drivers, deferring Type-C setup until
