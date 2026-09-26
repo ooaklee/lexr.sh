@@ -118,6 +118,8 @@ that do not apply.
 
 ### Removed
 
+- Remove `pop-os-24-04-arm64-generic-3` from the shipped catalogue until its
+  image workflow is implemented in [#48](https://github.com/ooaklee/lexr.sh/issues/48).
 - Remove the unused Fedora Workstation 44 compressed raw disk entry from the
   catalogue. Retain Fedora Workstation Live 44 for the ISO installation workflow.
 - Remove the hardware flags `doctor boot --device` and

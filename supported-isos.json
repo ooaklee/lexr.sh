@@ -86,31 +86,6 @@
       "last_verified": "2026-09-26"
     },
     {
-      "id": "pop-os-24-04-arm64-generic-3",
-      "name": "Pop!_OS 24.04 ARM64 Generic 3",
-      "distribution": "Pop!_OS",
-      "release": "24.04 (generic 3)",
-      "filename": "pop-os_24.04_arm64_generic_3.iso",
-      "architecture": "arm64",
-      "artifact_kind": "iso",
-      "url": "https://iso.pop-os.org/24.04/arm64/generic/3/pop-os_24.04_arm64_generic_3.iso",
-      "homepage": "https://system76.com/download-pop/",
-      "adapter": "none",
-      "support_level": "catalog-only",
-      "experimental": true,
-      "mutable": false,
-      "checksum": {
-        "algorithm": "sha256",
-        "value": "7b4cce0e92dc5c903464e7e7c33760c4417f1400165e9ecfcd064fbceb68ef22"
-      },
-      "compatibility_notes": [
-        "No lexr image adapter is implemented yet.",
-        "Surface Pro 11 boot and device-tree integration have not yet been automated for this image.",
-        "Complete end-to-end testing is still required for this image, especially to confirm its image structure and bootability."
-      ],
-      "last_verified": "2026-08-30"
-    },
-    {
       "id": "ubuntu-concept-resolute-x1e",
       "name": "Ubuntu Concept Resolute Desktop for X1E (2026-03-26)",
       "distribution": "Ubuntu",

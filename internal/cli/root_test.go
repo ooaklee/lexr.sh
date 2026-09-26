@@ -198,7 +198,6 @@ func TestCatalogListDelivery(t *testing.T) {
 			"debian-live-testing-gnome-arm64-20240902",
 			"elementary-os-8-1-20260219",
 			"fedora-workstation-live-44",
-			"pop-os-24-04-arm64-generic-3",
 			"ubuntu-concept-resolute-x1e",
 		}
 		previous := -1
@@ -225,8 +224,8 @@ func TestCatalogListDelivery(t *testing.T) {
 		if err := json.Unmarshal([]byte(output), &entries); err != nil {
 			t.Fatalf("catalog list JSON cannot be decoded: %v\n%s", err, output)
 		}
-		if len(entries) != 6 {
-			t.Fatalf("catalog list JSON entries = %d, want 6", len(entries))
+		if len(entries) != 5 {
+			t.Fatalf("catalog list JSON entries = %d, want 5", len(entries))
 		}
 		for index := 1; index < len(entries); index++ {
 			if entries[index-1].ID >= entries[index].ID {
@@ -270,13 +269,13 @@ func TestCatalogShowDelivery(t *testing.T) {
 	t.Run("pinned entry", func(t *testing.T) {
 		t.Parallel()
 
-		output, _, err := executeCLI(t, "catalog", "show", "pop-os-24-04-arm64-generic-3")
+		output, _, err := executeCLI(t, "catalog", "show", "fedora-workstation-live-44")
 		if err != nil {
 			t.Fatalf("catalog show pinned entry error = %v", err)
 		}
 		for _, text := range []string{
 			"Experimental: true", "Mutable: false",
-			"Checksum: sha256:7b4cce0e92dc5c903464e7e7c33760c4417f1400165e9ecfcd064fbceb68ef22",
+			"Checksum: sha256:162ba3c552a2d241c7c63ec26777af0255ee1b5a135adc0be986ceed999933ef",
 		} {
 			if !strings.Contains(output, text) {
 				t.Errorf("catalog show pinned output does not contain %q:\n%s", text, output)
@@ -287,7 +286,7 @@ func TestCatalogShowDelivery(t *testing.T) {
 	t.Run("JSON entry", func(t *testing.T) {
 		t.Parallel()
 
-		output, _, err := executeCLI(t, "catalog", "show", "pop-os-24-04-arm64-generic-3", "--json")
+		output, _, err := executeCLI(t, "catalog", "show", "fedora-workstation-live-44", "--json")
 		if err != nil {
 			t.Fatalf("catalog show --json error = %v", err)
 		}
@@ -295,7 +294,7 @@ func TestCatalogShowDelivery(t *testing.T) {
 		if err := json.Unmarshal([]byte(output), &entry); err != nil {
 			t.Fatalf("catalog show JSON cannot be decoded: %v\n%s", err, output)
 		}
-		if entry.ID != "pop-os-24-04-arm64-generic-3" || entry.ArtifactKind != catalog.ArtifactKindISO || entry.SupportLevel != catalog.SupportLevelCatalogOnly {
+		if entry.ID != "fedora-workstation-live-44" || entry.ArtifactKind != catalog.ArtifactKindISO || entry.SupportLevel != catalog.SupportLevelImplemented {
 			t.Fatalf("catalog show JSON entry = %#v", entry)
 		}
 	})
@@ -322,7 +321,7 @@ func TestCatalogValidateDelivery(t *testing.T) {
 		if err != nil {
 			t.Fatalf("catalog validate error = %v", err)
 		}
-		if output != "catalog valid: schema 3, 6 entries\n" {
+		if output != "catalog valid: schema 3, 5 entries\n" {
 			t.Fatalf("catalog validate output = %q", output)
 		}
 	})
@@ -343,7 +342,7 @@ func TestCatalogValidateDelivery(t *testing.T) {
 		if err := json.Unmarshal([]byte(output), &result); err != nil {
 			t.Fatalf("catalog validate JSON cannot be decoded: %v\n%s", err, output)
 		}
-		if !result.Valid || result.SchemaVersion != 3 || result.Entries != 6 || result.Description == "" {
+		if !result.Valid || result.SchemaVersion != 3 || result.Entries != 5 || result.Description == "" {
 			t.Fatalf("catalog validate result = %#v", result)
 		}
 	})

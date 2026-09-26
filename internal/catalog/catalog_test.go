@@ -837,7 +837,6 @@ func TestShippedCatalogContract(t *testing.T) {
 		"debian-live-testing-gnome-arm64-20240902": "https://cdimage.debian.org/cdimage/weekly-live-builds/arm64/iso-hybrid/debian-live-testing-arm64-gnome.iso",
 		"elementary-os-8-1-20260219":               "https://dl.sda1.eu/linux/elementary/elementaryos-8.1-stable-arm64.20260219.iso",
 		"fedora-workstation-live-44":               "https://download.fedoraproject.org/pub/fedora/linux/releases/44/Workstation/aarch64/iso/Fedora-Workstation-Live-44-1.7.aarch64.iso",
-		"pop-os-24-04-arm64-generic-3":             "https://iso.pop-os.org/24.04/arm64/generic/3/pop-os_24.04_arm64_generic_3.iso",
 		"ubuntu-concept-resolute-x1e":              "https://people.canonical.com/~platform/images/ubuntu-concept/resolute-desktop-arm64+x1e-20260326.iso",
 	}
 	wantFilenames := map[string]string{
@@ -845,7 +844,6 @@ func TestShippedCatalogContract(t *testing.T) {
 		"debian-live-testing-gnome-arm64-20240902": "debian-live-testing-arm64-gnome.iso",
 		"elementary-os-8-1-20260219":               "elementaryos-8.1-stable-arm64.20260219.iso",
 		"fedora-workstation-live-44":               "Fedora-Workstation-Live-44-1.7.aarch64.iso",
-		"pop-os-24-04-arm64-generic-3":             "pop-os_24.04_arm64_generic_3.iso",
 		"ubuntu-concept-resolute-x1e":              "resolute-desktop-arm64+x1e-20260326.iso",
 	}
 	wantChecksums := map[string]string{
@@ -853,7 +851,6 @@ func TestShippedCatalogContract(t *testing.T) {
 		"debian-live-testing-gnome-arm64-20240902": "3260c69821f85464974e2136a0cda5d3954818467dda168bdfcb69547c4d7abc",
 		"elementary-os-8-1-20260219":               "85116d48c406ae7cd60c936050a099d4b8610321273f6f0a694796db4d4e86ba",
 		"fedora-workstation-live-44":               "162ba3c552a2d241c7c63ec26777af0255ee1b5a135adc0be986ceed999933ef",
-		"pop-os-24-04-arm64-generic-3":             "7b4cce0e92dc5c903464e7e7c33760c4417f1400165e9ecfcd064fbceb68ef22",
 		"ubuntu-concept-resolute-x1e":              "",
 	}
 	if loaded.Len() != len(wantURLs) {

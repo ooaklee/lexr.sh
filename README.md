@@ -55,8 +55,9 @@ on X1E/OLED using v23, with touchscreen input and Wi-Fi after reconnecting.
 See the [hardware test record](docs/operator-manual/arch-linux-arm-install.md#hardware-test-record)
 for the tested image and remaining checks.
 The custom live and installed Fedora path is limited to the Surface Pro 11 Qualcomm Snapdragon X Elite model; its X Plus
-entry is a stock-kernel, explicit-DTB live troubleshooting path only. Pop!_OS remains
-`catalog-only` until its layout has a dedicated adapter. Fedora development
+entry is a stock-kernel, explicit-DTB live troubleshooting path only. Pop!_OS is
+omitted from the shipped catalogue until its image workflow is implemented in
+[issue #48](https://github.com/ooaklee/lexr.sh/issues/48). Fedora development
 focuses on the Workstation Live ISO; the compressed raw image is no longer
 listed in the shipped catalogue. Here, `implemented`
 means the adapter can create and structurally validate media; `experimental`
