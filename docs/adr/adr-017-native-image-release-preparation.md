@@ -55,3 +55,14 @@ Both commands are local-only. Their structured results explicitly state that no 
 - The public release omits the original path-bearing journal while preserving its ordered, immutable evidence in a path-free projection.
 - Very small part sizes can create too many files and are rejected by a fixed part-count safety bound.
 - Release preparation cannot update an existing directory in place; operators choose a fresh release identity for a new byte set.
+
+## 2026-09-27: release presentation compatibility
+
+New notes omit a top-level title because GitHub supplies the release title
+separately, and add a short link to the Windows image download and USB guide.
+Validation also accepts the exact historical heading
+`# Surface Pro 11 ARM64 installation image` followed by two newline characters
+and the original rc.3 manifest-derived body, without the new Windows footer.
+The original renderer remains frozen so new guidance cannot change historical
+acceptance. This preserves existing prepared assets without broadening
+acceptance to arbitrary headings or edited bodies.

@@ -1,0 +1,22 @@
+# Surface Pro 11 ARM64 installation image
+
+This local release contains an experimental, unsigned `ubuntu-casper` hybrid ISO for the Surface Pro 11. It is not hardware-qualified merely because structural validation passed. Disable Secure Boot before using its unsigned custom kernel.
+
+Kernel ABI: `1.0-test-qcom-x1e`
+
+## Verify the release directory
+
+```bash
+lexr image release validate .
+```
+
+`SHA256SUMS` covers the copied image manifest, this note, the release manifest, and every compressed part. `image-release-manifest.json` records the path-free image, build, validation, companion-bundle, compression, and part provenance.
+
+## Reconstruct the ISO
+
+```bash
+cat lexr-test.iso.zst.part-* | zstd --decompress --stdout > lexr-test.iso
+printf '%s  %s\n' '7c297fad4f3d2f6eb6daa3d8203f502992f745f870efb2acfcbb7b9c519f6f86' 'lexr-test.iso' | sha256sum --check -
+```
+
+Use `lexr image write lexr-test.iso --device <reviewed-device>` for identity-bound removable-media writing. The release preparation command performs no remote publication.

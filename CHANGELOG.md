@@ -133,6 +133,10 @@ that do not apply.
 
 ### Fixed
 
+- Remove the duplicate title from generated image release notes and link to
+  the canonical Windows preparation and Etcher guide. Continue validating
+  unchanged release notes produced by Lexr 0.5.0-rc.3.
+
 - Prepare Fedora custom live images with early DSP/QRTR, USB, panel and public
   GPU-firmware dependencies, prepare Wi-Fi board data from Fedora's compressed
   source database, and preserve the stock kernel's separate DSP

@@ -161,21 +161,27 @@ containing repository.
 
 You can start with a prebuilt Linux image from the OE repository:
 
-- [Ubuntu Concept 26.04 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-ubuntu-concept-26.04-v23-20260905).
-- [elementary OS 8.1 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-elementary-os-8.1-v23-20260906).
-- [Arch Linux ARM terminal image with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-arch-linux-arm-terminal-v23-20260909).
+- [Ubuntu Concept 26.04 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-ubuntu-concept-26.04-v23-20260927).
+- [elementary OS 8.1 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-elementary-os-8.1-v23-20260927).
+- [Debian Live GNOME (2024-09-02 snapshot) with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-debian-13-gnome-v23-20260927).
+- [Fedora Workstation Live 44 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-fedora-workstation-44-v23-20260927).
+- [Arch Linux ARM terminal image with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-arch-linux-arm-terminal-v23-20260927).
 
 These experimental ARM64 images include Lexr and a getting-started guide.
 Ubuntu and elementary include prepared Wi-Fi board data and the IPTSD bundle.
 Arch starts in a terminal with networking and a guided installer; follow its
 [installation walkthrough](docs/user-guide/arch-linux-arm-quickstart.md) to
 choose your partitions and optional desktop. Follow each release's
-**Download, verify and write with Lexr** instructions to install the latest Lexr,
-download and reconstruct the split ISO, verify its checksum and write it to USB.
-The elementary and Arch releases also provide pinned source builds for use until
-their adapters are available in a stable Lexr release; v0.3.0 cannot validate or
-write these images. The notes distinguish each published image's validation from
-earlier hardware tests and record remaining limitations.
+download, verification and writing instructions using the released
+[Lexr v0.5.0-rc.3](https://github.com/ooaklee/lexr.sh/releases/tag/v0.5.0-rc.3)
+for your host. Download and reconstruct the split ISO, verify its checksum and
+write it to USB. The release notes distinguish each rebuilt image's validation
+from earlier hardware tests and record remaining limitations.
+
+On Windows, follow [Prepare a USB image with Etcher](docs/user-guide/windows-image-usb.md)
+to join the release parts, extract and verify the ISO, flash the USB, and set
+Surface UEFI boot options. On Linux, use the release commands and
+[Lexr USB workflow](docs/user-guide/installation-media.md#2-review-the-usb-target).
 
 To create your own experimental Ubuntu image, you need Docker with a running daemon
 and Linux ARM64 container support, at least 24 GiB of free workspace storage,
@@ -221,6 +227,7 @@ can start interactively and move to repeatable commands later.
 | --- | --- |
 | Download or build the CLI | [Install Lexr](docs/getting-started/install.md) |
 | Create, validate and write an image | [Installation media](docs/user-guide/installation-media.md) |
+| Prepare a prebuilt image and USB on Windows | [Windows USB preparation](docs/user-guide/windows-image-usb.md) |
 | Carry Lexr and IPTSD on the live medium | [Offline companion](docs/user-guide/offline-companion.md) |
 | Check or add hardware support | [Userspace support](docs/user-guide/userspace-support.md) |
 | Use private evidence collected from Windows | [Windows hand-offs](docs/user-guide/windows-handoff.md) |

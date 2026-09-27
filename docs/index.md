@@ -27,6 +27,9 @@ The example selects the Surface Pro 11 X Elite OLED. Choose the LCD profile
 from the list for an X Plus device. A profile identifies your target; it does
 not mean every workflow has been tested on that hardware.
 
+Starting with a prebuilt image on Windows? Follow [Windows USB preparation](user-guide/windows-image-usb.md)
+for joining downloads, flashing with Etcher and choosing Surface boot settings.
+
 ## Choose the documentation for your job
 
 | You are… | Documentation | What it covers |

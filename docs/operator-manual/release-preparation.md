@@ -52,6 +52,15 @@ Here `--repository-root` is the containment root which already holds the ISO and
 
 After reviewing the source identity and fresh destination, remove `--dry-run` to create the release. Independent validation checks the exact member and checksum set, verifies every ordered compressed part, and reconstructs the complete ISO digest and size without publishing it. The closed directory contains only the copied image-manifest sidecar, `image-release-manifest.json`, `RELEASE-NOTES.md`, `SHA256SUMS`, and the declared parts.
 
+Set the release title in GitHub's title field. Newly generated `RELEASE-NOTES.md`
+starts directly with the introduction so the body does not repeat that title.
+It also links to the Windows image download and USB guide; Linux and macOS users
+follow the Lexr commands in the notes. Existing prepared rc.3 assets remain valid
+with the exact historical `# Surface Pro 11 ARM64 installation image` heading
+and original manifest-derived body, without the new Windows footer. Keep those
+checksummed assets unchanged; validation does not permit other headings or
+edited guidance merely because their checksums were recalculated.
+
 This is structural evidence, not proof that the image booted on physical hardware. [ADR017](../adr/adr-017-native-image-release-preparation.md) records the image release and recovery contract.
 
 ## Prepare an audio release
