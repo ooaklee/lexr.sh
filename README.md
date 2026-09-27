@@ -18,6 +18,23 @@ curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/ins
 [Contribute](CONTRIBUTING.md)
 
 
+## Prebuilt Linux images
+
+Start with a prebuilt ARM64 Linux image for Surface Pro 11 from the OE repository.
+These experimental images include Lexr and the SP11 v23 kernel:
+
+- [Ubuntu Concept 26.04](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-ubuntu-concept-26.04-v23-20260927)
+- [elementary OS 8.1](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-elementary-os-8.1-v23-20260927)
+- [Debian Live GNOME (2024-09-02 snapshot)](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-debian-13-gnome-v23-20260927)
+- [Fedora Workstation Live 44](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-fedora-workstation-44-v23-20260927)
+- [Arch Linux ARM terminal image](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-arch-linux-arm-terminal-v23-20260927)
+
+On Windows, follow [Prepare a USB image with Etcher](docs/user-guide/windows-image-usb.md).
+Already using Linux? Follow the release commands and the
+[Lexr USB workflow](docs/user-guide/installation-media.md#2-review-the-usb-target).
+Read the selected release's hardware requirements and testing limitations before
+choosing an image.
+
 ## Why Lexr exists
 
 Running Linux on the Qualcomm Snapdragon X devices currently means bringing together an ARM64
@@ -35,7 +52,7 @@ receipts so you can see what will happen first.
 Lexr creates images from a supported upstream image and either downloads a
 verified project kernel release or accepts a local bundle. It does not
 redistribute restricted firmware. You can also use
-[prebuilt Linux images](#create-your-first-image) prepared with Lexr.
+[prebuilt Linux images](#prebuilt-linux-images) prepared with Lexr.
 
 > [!WARNING]
 > The generated media and its custom kernel are experimental. Back up important
@@ -159,15 +176,8 @@ containing repository.
 
 ## Create your first image
 
-You can start with a prebuilt Linux image from the OE repository:
-
-- [Ubuntu Concept 26.04 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-ubuntu-concept-26.04-v23-20260927).
-- [elementary OS 8.1 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-elementary-os-8.1-v23-20260927).
-- [Debian Live GNOME (2024-09-02 snapshot) with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-debian-13-gnome-v23-20260927).
-- [Fedora Workstation Live 44 with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-fedora-workstation-44-v23-20260927).
-- [Arch Linux ARM terminal image with the SP11 v23 kernel](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-arch-linux-arm-terminal-v23-20260927).
-
-These experimental ARM64 images include Lexr and a getting-started guide.
+Choose a [prebuilt image above](#prebuilt-linux-images), or build your own with Lexr.
+The prebuilt images include a getting-started guide.
 Ubuntu and elementary include prepared Wi-Fi board data and the IPTSD bundle.
 Arch starts in a terminal with networking and a guided installer; follow its
 [installation walkthrough](docs/user-guide/arch-linux-arm-quickstart.md) to
@@ -177,11 +187,6 @@ download, verification and writing instructions using the released
 for your host. Download and reconstruct the split ISO, verify its checksum and
 write it to USB. The release notes distinguish each rebuilt image's validation
 from earlier hardware tests and record remaining limitations.
-
-On Windows, follow [Prepare a USB image with Etcher](docs/user-guide/windows-image-usb.md)
-to join the release parts, extract and verify the ISO, flash the USB, and set
-Surface UEFI boot options. On Linux, use the release commands and
-[Lexr USB workflow](docs/user-guide/installation-media.md#2-review-the-usb-target).
 
 To create your own experimental Ubuntu image, you need Docker with a running daemon
 and Linux ARM64 container support, at least 24 GiB of free workspace storage,
