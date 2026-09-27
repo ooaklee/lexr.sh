@@ -35,6 +35,8 @@ Already using Linux? Follow the release commands and the
 Read the selected release's hardware requirements and testing limitations before
 choosing an image.
 
+You can also [build your own](#create-your-first-image) image with Lexr.
+
 ## Why Lexr exists
 
 Running Linux on the Qualcomm Snapdragon X devices currently means bringing together an ARM64
@@ -52,7 +54,8 @@ receipts so you can see what will happen first.
 Lexr creates images from a supported upstream image and either downloads a
 verified project kernel release or accepts a local bundle. It does not
 redistribute restricted firmware. You can also use
-[prebuilt Linux images](#prebuilt-linux-images) prepared with Lexr.
+[prebuilt Linux images](#prebuilt-linux-images) prepared with Lexr, or
+[build your own](#create-your-first-image) image with Lexr.
 
 > [!WARNING]
 > The generated media and its custom kernel are experimental. Back up important
