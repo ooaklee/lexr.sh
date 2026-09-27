@@ -14,11 +14,12 @@
 #   --version <version>   Install a specific release version (default: latest).
 #   --binary <path>       Install a local, already-verified executable instead
 #                         of downloading one.
+#   --force               Reinstall the latest release even when it is current.
 #   --no-modify-path      Do not edit shell startup files; only print guidance.
 #   --help                Print usage and exit.
 #
-# The script is POSIX sh, idempotent, and safe to re-run: an existing
-# installation is replaced, and PATH edits are added at most once.
+# The script is POSIX sh, idempotent, and safe to re-run: the latest release is
+# not reinstalled unless forced, and PATH edits are added at most once.
 set -eu
 
 REPO="ooaklee/lexr.sh"
@@ -26,7 +27,9 @@ GITHUB_BASE="https://github.com/${REPO}"
 COMMAND_NAME="lexr"
 
 VERSION=""
+VERSION_WAS_EXPLICIT=0
 LOCAL_BINARY=""
+FORCE=0
 MODIFY_PATH=1
 
 usage() {
@@ -39,6 +42,7 @@ Usage:
 Options:
   --version <version>  Install a specific release version (default: latest stable)
   --binary <path>      Install a local executable instead of downloading one
+  --force              Reinstall the latest release even when already current
   --no-modify-path     Do not modify shell startup files to extend PATH
   -h, --help           Show this help text and exit
 
@@ -66,12 +70,17 @@ while [ $# -gt 0 ]; do
         --version)
             [ $# -ge 2 ] || die "--version requires a value"
             VERSION="$2"
+            VERSION_WAS_EXPLICIT=1
             shift 2
             ;;
         --binary)
             [ $# -ge 2 ] || die "--binary requires a path"
             LOCAL_BINARY="$2"
             shift 2
+            ;;
+        --force)
+            FORCE=1
+            shift
             ;;
         --no-modify-path)
             MODIFY_PATH=0
@@ -162,8 +171,23 @@ sha256_of() {
 }
 
 # ---------------------------------------------------------------------------
+# Choose the install destination before downloading so an existing release can
+# be compared with the requested one. The directory is not created until an
+# install is actually required.
+# ---------------------------------------------------------------------------
+if [ -n "${LEXR_INSTALL_DIR:-}" ]; then
+    INSTALL_DIR="$LEXR_INSTALL_DIR"
+elif [ -w /usr/local/bin ] 2>/dev/null; then
+    INSTALL_DIR="/usr/local/bin"
+else
+    INSTALL_DIR="${HOME}/.local/bin"
+fi
+DEST="${INSTALL_DIR}/${COMMAND_NAME}"
+
+# ---------------------------------------------------------------------------
 # Resolve the version and asset names
 # ---------------------------------------------------------------------------
+SKIP_INSTALL=0
 if [ -n "$LOCAL_BINARY" ]; then
     [ -f "$LOCAL_BINARY" ] || die "local binary not found: $LOCAL_BINARY"
     [ -x "$LOCAL_BINARY" ] || chmod +x "$LOCAL_BINARY" 2>/dev/null || \
@@ -180,68 +204,79 @@ else
             v*) VERSION="${VERSION#v}" ;;
         esac
     fi
-    log "Installing Lexr version ${VERSION}"
+
+    INSTALLED_VERSION=""
+    if [ -x "$DEST" ]; then
+        installed_output=""
+        if installed_output="$("$DEST" --version 2>/dev/null)"; then
+            INSTALLED_VERSION="$(printf '%s\n' "$installed_output" | awk 'NR == 1 && $1 == "lexr" && $2 == "version" { print $3; exit }')"
+        fi
+    fi
+
+    if [ -n "$INSTALLED_VERSION" ] && [ "$INSTALLED_VERSION" = "$VERSION" ]; then
+        if [ "$VERSION_WAS_EXPLICIT" -eq 0 ] && [ "$FORCE" -eq 0 ]; then
+            log "lexr ${VERSION} is already the latest release; pass --force to reinstall"
+            SKIP_INSTALL=1
+        else
+            log "Reinstalling Lexr version ${VERSION}"
+        fi
+    elif [ -n "$INSTALLED_VERSION" ]; then
+        log "Updating Lexr from ${INSTALLED_VERSION} to ${VERSION}"
+    else
+        log "Installing Lexr version ${VERSION}"
+    fi
 fi
 
 ASSET_NAME="lexr-v${VERSION}-${TARGET_OS}-${TARGET_ARCH}"
 MANIFEST_NAME="lexr-v${VERSION}.sha256sums"
 
 # ---------------------------------------------------------------------------
-# Download and verify (skipped for local binaries, which the user verified)
+# Download, verify, and install unless the latest release is already current.
+# Local binaries skip only download and verification because the user supplied
+# and verified their contents.
 # ---------------------------------------------------------------------------
-TMPDIR_INSTALL="$(mktemp -d 2>/dev/null || die "could not create a temporary directory")"
-trap 'rm -rf "$TMPDIR_INSTALL"' EXIT INT TERM
+if [ "$SKIP_INSTALL" -eq 0 ]; then
+    TMPDIR_INSTALL="$(mktemp -d 2>/dev/null || die "could not create a temporary directory")"
+    trap 'rm -rf "$TMPDIR_INSTALL"' EXIT INT TERM
 
-if [ -z "$LOCAL_BINARY" ]; then
-    BINARY_PATH="${TMPDIR_INSTALL}/${ASSET_NAME}"
-    MANIFEST_PATH="${TMPDIR_INSTALL}/${MANIFEST_NAME}"
+    if [ -z "$LOCAL_BINARY" ]; then
+        BINARY_PATH="${TMPDIR_INSTALL}/${ASSET_NAME}"
+        MANIFEST_PATH="${TMPDIR_INSTALL}/${MANIFEST_NAME}"
 
-    log "Downloading ${ASSET_NAME}"
-    download_to "${GITHUB_BASE}/releases/download/v${VERSION}/${ASSET_NAME}" "$BINARY_PATH" \
-        || die "download failed for ${ASSET_NAME}; check that version ${VERSION} exists for ${TARGET_OS}/${TARGET_ARCH}"
-    download_to "${GITHUB_BASE}/releases/download/v${VERSION}/${MANIFEST_NAME}" "$MANIFEST_PATH" \
-        || die "download failed for the checksum manifest ${MANIFEST_NAME}"
+        log "Downloading ${ASSET_NAME}"
+        download_to "${GITHUB_BASE}/releases/download/v${VERSION}/${ASSET_NAME}" "$BINARY_PATH" \
+            || die "download failed for ${ASSET_NAME}; check that version ${VERSION} exists for ${TARGET_OS}/${TARGET_ARCH}"
+        download_to "${GITHUB_BASE}/releases/download/v${VERSION}/${MANIFEST_NAME}" "$MANIFEST_PATH" \
+            || die "download failed for the checksum manifest ${MANIFEST_NAME}"
 
-    log "Verifying SHA-256 checksum"
-    expected="$(awk -v f="$ASSET_NAME" '$2 == f { print $1; exit }' "$MANIFEST_PATH")"
-    [ -n "$expected" ] || die "no checksum entry for ${ASSET_NAME} in ${MANIFEST_NAME}"
-    actual="$(sha256_of "$BINARY_PATH")"
-    if [ "$expected" != "$actual" ]; then
-        die "checksum mismatch for ${ASSET_NAME}
+        log "Verifying SHA-256 checksum"
+        expected="$(awk -v f="$ASSET_NAME" '$2 == f { print $1; exit }' "$MANIFEST_PATH")"
+        [ -n "$expected" ] || die "no checksum entry for ${ASSET_NAME} in ${MANIFEST_NAME}"
+        actual="$(sha256_of "$BINARY_PATH")"
+        if [ "$expected" != "$actual" ]; then
+            die "checksum mismatch for ${ASSET_NAME}
   expected: ${expected}
   actual:   ${actual}"
-    fi
-    chmod +x "$BINARY_PATH"
-else
-    BINARY_PATH="$LOCAL_BINARY"
-fi
-
-# ---------------------------------------------------------------------------
-# Choose the install destination: an explicit override, a writable system
-# directory, or the user-local bin directory.
-# ---------------------------------------------------------------------------
-if [ -n "${LEXR_INSTALL_DIR:-}" ]; then
-    INSTALL_DIR="$LEXR_INSTALL_DIR"
-elif [ -w /usr/local/bin ] 2>/dev/null; then
-    INSTALL_DIR="/usr/local/bin"
-else
-    INSTALL_DIR="${HOME}/.local/bin"
-fi
-mkdir -p "$INSTALL_DIR" || die "could not create install directory: ${INSTALL_DIR}"
-
-DEST="${INSTALL_DIR}/${COMMAND_NAME}"
-if [ -e "$DEST" ]; then
-    log "Replacing an existing installation at ${DEST}"
-fi
-install_file() {
-    if command -v install >/dev/null 2>&1; then
-        install -m 0755 "$1" "$2"
+        fi
+        chmod +x "$BINARY_PATH"
     else
-        cp "$1" "$2" && chmod 0755 "$2"
+        BINARY_PATH="$LOCAL_BINARY"
     fi
-}
-install_file "$BINARY_PATH" "$DEST" || die "could not install to ${DEST}"
-log "Installed ${DEST}"
+
+    mkdir -p "$INSTALL_DIR" || die "could not create install directory: ${INSTALL_DIR}"
+    if [ -e "$DEST" ]; then
+        log "Replacing an existing installation at ${DEST}"
+    fi
+    install_file() {
+        if command -v install >/dev/null 2>&1; then
+            install -m 0755 "$1" "$2"
+        else
+            cp "$1" "$2" && chmod 0755 "$2"
+        fi
+    }
+    install_file "$BINARY_PATH" "$DEST" || die "could not install to ${DEST}"
+    log "Installed ${DEST}"
+fi
 
 # ---------------------------------------------------------------------------
 # PATH handling

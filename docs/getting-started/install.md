@@ -15,6 +15,9 @@ Useful variants:
 # Install a specific release version
 curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh -s -- --version 0.2.0
 
+# Reinstall the latest release even when it is already installed
+curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh -s -- --force
+
 # Install a local executable you downloaded and verified yourself
 curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh -s -- --binary ./lexr-v<version>-linux-<arch>
 
@@ -22,9 +25,13 @@ curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/ins
 curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh -s -- --no-modify-path
 ```
 
-Run `install.sh --help` for all options. Windows users should follow the manual
-steps below instead. Prefer to review each download yourself? The rest of this
-page describes the manual flow the script automates.
+Without `--version`, the installer reports an existing release-to-release
+update and skips the download when the latest release is already installed.
+Use `--force` to reinstall that release for a repair. An explicit `--version`
+always reinstalls the requested release. Run `install.sh --help` for all
+options. Windows users should follow the manual steps below instead. Prefer to
+review each download yourself? The rest of this page describes the manual flow
+the script automates.
 
 ## Choose a release
 
@@ -127,10 +134,12 @@ prove the Lexr revision instead of borrowing one from a containing repository.
 
 ## Update or remove Lexr
 
-To update, repeat the download and checksum steps for the new version, then
-replace only the installed `lexr` or `lexr.exe` file. Read release notes first,
-especially when you have outstanding recovery receipts or private hand-off
-state that may require the exact predecessor binary.
+Run `lexr upgrade` to update an installed release in place. You can also repeat
+the quick-start installer command: it reports the current and latest versions,
+and skips downloading when they match. Pass `--force` to that installer command
+only when you need to repair the current release by reinstalling it. Read
+release notes first, especially when you have outstanding recovery receipts or
+private hand-off state that may require the exact predecessor binary.
 
 To remove the CLI, delete that one installed executable. This does not remove
 images, caches, hand-off stores, installed components, recovery receipts or

@@ -11,6 +11,8 @@ checksum, and puts `lexr` on your `PATH`:
 curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh
 ```
 
+Re-running the command reports an available update or skips the download when
+the latest release is already installed. Pass `--force` to reinstall it.
 
 [Download Lexr](https://github.com/ooaklee/lexr.sh/releases) ·
 [Get started](docs/getting-started/index.md) ·
@@ -120,6 +122,9 @@ checksum, and puts `lexr` on your `PATH`:
 ```sh
 curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh
 ```
+
+Re-running the command reports an available update or skips the download when
+the latest release is already installed. Pass `--force` to reinstall it.
 
 The [releases page](https://github.com/ooaklee/lexr.sh/releases) provides six raw
 executables and a versioned SHA-256 manifest. Use the latest stable release for

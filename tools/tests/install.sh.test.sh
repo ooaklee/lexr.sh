@@ -43,7 +43,14 @@ trap 'rm -rf "$TEST_TMPDIR"; kill "$STUB_PID" 2>/dev/null || true' EXIT INT TERM
 
 # Build fake release assets: a binary whose real checksum is recorded in the
 # manifest, plus a second manifest with a deliberately wrong checksum.
-printf '#!/bin/sh\necho fake-lexr 9.9.9\n' > "${STUB_ROOT}/lexr-v9.9.9-linux-amd64"
+cat > "${STUB_ROOT}/lexr-v9.9.9-linux-amd64" <<'EOF'
+#!/bin/sh
+if [ "${1:-}" = "--version" ]; then
+    echo "lexr version 9.9.9"
+else
+    echo "fake-lexr 9.9.9"
+fi
+EOF
 chmod +x "${STUB_ROOT}/lexr-v9.9.9-linux-amd64"
 REAL_SUM="$(digest_of "${STUB_ROOT}/lexr-v9.9.9-linux-amd64")"
 echo "${REAL_SUM}  lexr-v9.9.9-linux-amd64" > "${STUB_ROOT}/lexr-v9.9.9.sha256sums"
@@ -91,6 +98,21 @@ fresh_home() {
     mkdir -p "$TMP_HOME"
 }
 
+write_installed_binary() {
+    version="$1"
+    output="$2"
+    mkdir -p "${TMP_HOME}/.local/bin"
+    cat > "${TMP_HOME}/.local/bin/lexr" <<EOF
+#!/bin/sh
+if [ "\${1:-}" = "--version" ]; then
+    echo "lexr version ${version}"
+else
+    echo "${output}"
+fi
+EOF
+    chmod +x "${TMP_HOME}/.local/bin/lexr"
+}
+
 # ---------------------------------------------------------------------------
 # 1. Help output
 # ---------------------------------------------------------------------------
@@ -100,6 +122,10 @@ out="$(run --help)"
 case "$out" in
     *"Install Lexr"*) ok "--help prints usage" ;;
     *) bad "--help output missing usage" ;;
+esac
+case "$out" in
+    *"--force"*) ok "--help documents --force" ;;
+    *) bad "--help output missing --force" ;;
 esac
 
 # ---------------------------------------------------------------------------
@@ -122,17 +148,82 @@ run --version 9.9.9 --no-modify-path >/dev/null \
     && ok "--version 9.9.9 installed" || bad "--version install failed"
 
 # ---------------------------------------------------------------------------
-# 4. Idempotency
+# 4. An implicit latest install skips a current release
 # ---------------------------------------------------------------------------
-log "idempotency"
+log "already latest"
 fresh_home
 run --no-modify-path >/dev/null
-run --no-modify-path >/dev/null
-[ -x "${TMP_HOME}/.local/bin/lexr" ] && ok "re-run succeeded" \
-    || bad "second run failed"
+write_installed_binary "9.9.9" "retained-current-binary"
+out="$(run --no-modify-path)"
+case "$out" in
+    *"lexr 9.9.9 is already the latest release; pass --force to reinstall"*)
+        ok "current latest release skipped" ;;
+    *) bad "current latest release did not report a skip" ;;
+esac
+[ "$("${TMP_HOME}/.local/bin/lexr")" = "retained-current-binary" ] \
+    && ok "skip left the installed binary unchanged" \
+    || bad "skip replaced the installed binary"
 
 # ---------------------------------------------------------------------------
-# 5. Local binary install
+# 5. --force reinstalls a current latest release
+# ---------------------------------------------------------------------------
+log "forced reinstall"
+out="$(run --force --no-modify-path)"
+case "$out" in
+    *"Reinstalling Lexr version 9.9.9"*) ok "--force reports reinstall" ;;
+    *) bad "--force did not report reinstall" ;;
+esac
+[ "$("${TMP_HOME}/.local/bin/lexr")" = "fake-lexr 9.9.9" ] \
+    && ok "--force replaced the current binary" \
+    || bad "--force did not replace the current binary"
+
+# ---------------------------------------------------------------------------
+# 6. An explicit version continues to reinstall the same release
+# ---------------------------------------------------------------------------
+log "explicit version reinstall"
+write_installed_binary "9.9.9" "retained-explicit-binary"
+out="$(run --version 9.9.9 --no-modify-path)"
+case "$out" in
+    *"Reinstalling Lexr version 9.9.9"*) ok "explicit version reports reinstall" ;;
+    *) bad "explicit version did not report reinstall" ;;
+esac
+[ "$("${TMP_HOME}/.local/bin/lexr")" = "fake-lexr 9.9.9" ] \
+    && ok "explicit version replaced the current binary" \
+    || bad "explicit version did not replace the current binary"
+
+# ---------------------------------------------------------------------------
+# 7. An existing older release reports both ends of the update
+# ---------------------------------------------------------------------------
+log "update progress"
+fresh_home
+write_installed_binary "9.8.0" "old-binary"
+out="$(run --no-modify-path)"
+case "$out" in
+    *"Updating Lexr from 9.8.0 to 9.9.9"*) ok "update reports old and new versions" ;;
+    *) bad "update did not report old and new versions" ;;
+esac
+[ "$("${TMP_HOME}/.local/bin/lexr")" = "fake-lexr 9.9.9" ] \
+    && ok "update replaced the older binary" \
+    || bad "update did not replace the older binary"
+
+# ---------------------------------------------------------------------------
+# 8. An unrecognised existing executable falls back to a normal install
+# ---------------------------------------------------------------------------
+log "unrecognised existing binary"
+fresh_home
+write_installed_binary "" "unrecognised-binary"
+sed -i.bak 's/lexr version /not-lexr /' "${TMP_HOME}/.local/bin/lexr"
+out="$(run --no-modify-path)"
+case "$out" in
+    *"Installing Lexr version 9.9.9"*) ok "unrecognised binary uses install flow" ;;
+    *) bad "unrecognised binary did not use install flow" ;;
+esac
+[ "$("${TMP_HOME}/.local/bin/lexr")" = "fake-lexr 9.9.9" ] \
+    && ok "install replaced the unrecognised binary" \
+    || bad "install did not replace the unrecognised binary"
+
+# ---------------------------------------------------------------------------
+# 9. Local binary install
 # ---------------------------------------------------------------------------
 log "local binary"
 fresh_home
@@ -144,7 +235,7 @@ run --binary "${STUB_ROOT}/missing-file" --no-modify-path >/dev/null 2>&1 \
     && bad "missing --binary should fail" || ok "missing --binary rejected"
 
 # ---------------------------------------------------------------------------
-# 6. Checksum mismatch must fail
+# 10. Checksum mismatch must fail
 # ---------------------------------------------------------------------------
 log "checksum mismatch"
 fresh_home
@@ -162,19 +253,19 @@ fi
     || bad "binary installed despite checksum mismatch"
 
 # ---------------------------------------------------------------------------
-# 7. Unsupported architecture
+# 11. Unsupported architecture
 # ---------------------------------------------------------------------------
 log "unsupported architecture"
 fresh_home
-if LEXR_OS=linux LEXR_ARCH=ppc64 HOME="$TMP_HOME" \
-       run --no-modify-path >/dev/null 2>&1; then
+if (LEXR_OS=linux LEXR_ARCH=ppc64 HOME="$TMP_HOME" \
+       run --no-modify-path >/dev/null 2>&1); then
     bad "unsupported arch accepted"
 else
     ok "unsupported arch rejected"
 fi
 
 # ---------------------------------------------------------------------------
-# 8. PATH modification happens exactly once
+# 12. PATH modification happens exactly once
 # ---------------------------------------------------------------------------
 log "path modification"
 fresh_home

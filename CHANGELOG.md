@@ -116,6 +116,14 @@ that do not apply.
   `lexr upgrade` hint. Offline, rate-limited, and dev builds print the
   version exactly as before, with no errors or delay.
 
+### Changed
+
+- Make `install.sh` skip downloading and reinstalling an already-current latest
+  release, while retaining `--force` for repairs and explicit `--version`
+  reinstalls. Existing installations now report both the current and target
+  versions when an update is available
+  ([#65](https://github.com/ooaklee/lexr.sh/issues/65)).
+
 ### Removed
 
 - Remove `pop-os-24-04-arm64-generic-3` from the shipped catalogue until its
