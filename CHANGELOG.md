@@ -118,11 +118,16 @@ that do not apply.
 
 ### Changed
 
-- Make `install.sh` skip downloading and reinstalling an already-current latest
-  release, while retaining `--force` for repairs and explicit `--version`
-  reinstalls. Existing installations now report both the current and target
-  versions when an update is available
-  ([#65](https://github.com/ooaklee/lexr.sh/issues/65)).
+- Harden `install.sh` around a manifest-first, atomic installation contract. It
+  now compares installed bytes without executing them, skips an already-current
+  latest binary, retries bounded downloads, validates release and platform
+  inputs, quotes shell PATH edits, gives Fish native guidance, preserves local
+  `--binary` sources, and stages replacements beside the destination. Release
+  manifests gain GitHub keyless build provenance with a compatibility boundary
+  at stable `v0.5.0`; checksum verification remains mandatory. `--force` still
+  repairs the latest release and explicit `--version` selections reinstall.
+  See [ADR039](docs/adr/adr-039-verified-atomic-standalone-installer.md) and
+  [#65](https://github.com/ooaklee/lexr.sh/issues/65).
 
 ### Removed
 

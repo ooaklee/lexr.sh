@@ -159,9 +159,16 @@ func TestCLIReleaseContainsBinariesNoticesAndChecksums(t *testing.T) {
 		[]byte("${RUNNER_TEMP}/lexr-release/NOTICE"),
 		[]byte("${RUNNER_TEMP}/lexr-release/THIRD_PARTY_NOTICES.md"),
 		[]byte("${RUNNER_TEMP}/lexr-release/lexr-v${LEXR_VERSION}.sha256sums"),
+		[]byte("${RUNNER_TEMP}/lexr-release/lexr-v${LEXR_VERSION}.sha256sums.intoto.jsonl"),
 		[]byte("Checksum manifest does not cover exactly the nine release payloads."),
 		[]byte("expected ten"),
+		[]byte("expected eleven"),
 		[]byte("sha256sum --strict --check"),
+		[]byte("attestations: write"),
+		[]byte("id-token: write"),
+		[]byte("actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2"),
+		[]byte("gh attestation verify"),
+		[]byte("--deny-self-hosted-runners"),
 	} {
 		if !bytes.Contains(releaseContract, required) {
 			t.Errorf("exact CLI release contract omits %q", required)

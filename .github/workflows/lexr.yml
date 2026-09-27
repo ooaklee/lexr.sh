@@ -137,7 +137,9 @@ jobs:
       - windows-contract
     runs-on: ubuntu-latest
     permissions:
+      attestations: write
       contents: write
+      id-token: write
     defaults:
       run:
         shell: bash
@@ -309,6 +311,42 @@ jobs:
             exit 1
           fi
 
+      - name: Attest the final checksum manifest
+        id: attest-checksum
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/lexr-release/lexr-v*.sha256sums
+
+      - name: Verify and stage the checksum provenance bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release_dir="${RUNNER_TEMP}/lexr-release"
+          manifest="${release_dir}/lexr-v${LEXR_VERSION}.sha256sums"
+          source_bundle="${{ steps.attest-checksum.outputs.bundle-path }}"
+          bundle_name="lexr-v${LEXR_VERSION}.sha256sums.intoto.jsonl"
+          bundle="${release_dir}/${bundle_name}"
+
+          if [[ ! -f "${source_bundle}" || -L "${source_bundle}" || ! -s "${source_bundle}" ]]; then
+            printf 'Checksum provenance bundle is missing, empty, or symbolic: %s\n' "${source_bundle}" >&2
+            exit 1
+          fi
+          gh attestation verify "${manifest}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --bundle "${source_bundle}" \
+            --signer-workflow "${GITHUB_REPOSITORY}/.github/workflows/lexr.yml" \
+            --source-ref "${GITHUB_REF}" \
+            --deny-self-hosted-runners >/dev/null
+          install -m 0644 -- "${source_bundle}" "${bundle}"
+
+          shopt -s nullglob dotglob
+          release_files=("${release_dir}"/*)
+          if [[ ${#release_files[@]} -ne 11 ]]; then
+            printf 'Attested CLI release directory contains %d files, expected eleven.\n' "${#release_files[@]}" >&2
+            exit 1
+          fi
+
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -319,7 +357,7 @@ jobs:
           {
             printf '# Lexr %s\n\n' "$LEXR_VERSION"
             # shellcheck disable=SC2016
-            printf 'This release contains the six standalone Lexr platform executables plus `LICENSE`, `NOTICE`, and `THIRD_PARTY_NOTICES.md`. The versioned SHA-256 manifest covers all nine payload files. Kernel, firmware, driver, userspace, catalogue, collector, and other project documentation are not published here.\n\n'
+            printf 'This release contains the six standalone Lexr platform executables plus `LICENSE`, `NOTICE`, and `THIRD_PARTY_NOTICES.md`. The versioned SHA-256 manifest covers all nine payload files, and its Sigstore-backed GitHub build-provenance bundle is published beside it. Kernel, firmware, driver, userspace, catalogue, collector, and other project documentation are not published here.\n\n'
             printf '## Install Lexr\n\n'
             printf 'On Linux or macOS, install this release with the latest installer from `main`:\n\n'
             printf '```sh\n'
@@ -359,6 +397,7 @@ jobs:
             "${RUNNER_TEMP}/lexr-release/NOTICE"
             "${RUNNER_TEMP}/lexr-release/THIRD_PARTY_NOTICES.md"
             "${RUNNER_TEMP}/lexr-release/lexr-v${LEXR_VERSION}.sha256sums"
+            "${RUNNER_TEMP}/lexr-release/lexr-v${LEXR_VERSION}.sha256sums.intoto.jsonl"
           )
           gh release create "$GITHUB_REF_NAME" \
             "${release_assets[@]}" \
