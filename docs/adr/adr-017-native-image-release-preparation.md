@@ -55,3 +55,37 @@ Both commands are local-only. Their structured results explicitly state that no 
 - The public release omits the original path-bearing journal while preserving its ordered, immutable evidence in a path-free projection.
 - Very small part sizes can create too many files and are rejected by a fixed part-count safety bound.
 - Release preparation cannot update an existing directory in place; operators choose a fresh release identity for a new byte set.
+
+## 2026-09-27: release presentation compatibility
+
+New notes omit a top-level title because GitHub supplies the release title
+separately, and add a short link to the Windows image download and USB guide.
+Validation also accepts the exact historical heading
+`# Surface Pro 11 ARM64 installation image` followed by two newline characters
+and the original rc.3 manifest-derived body, without the new Windows footer.
+The original renderer remains frozen so new guidance cannot change historical
+acceptance. This preserves existing prepared assets without broadening
+acceptance to arbitrary headings or edited bodies.
+
+## 2026-09-27: Fedora creation-journal compatibility
+
+The rc.3 Fedora producer recorded its ISO volume label and GRUB search marker
+inside `bind-live-media.digests`, although both values are contextual strings.
+The same values already have typed roles and scopes in the image manifest.
+Release preparation rejected these otherwise completed builds because digest
+values must be SHA-256 hashes.
+
+Preparation now recognises only this legacy Fedora pair, cross-checks both
+values against unique, correctly scoped manifest evidence, and removes them
+from an in-memory copy before the existing strict journal validation and
+public projection. The original journal remains unchanged; its full file
+identity stays in the private plan, not in the public manifest. The published
+image contract retains both contextual values. All checkpoint times, output
+identity and actual digests remain intact. Other adapters, steps and malformed
+evidence do not receive this exception. New Fedora builds put these strings
+only in the typed manifest evidence.
+
+The public release schema is unchanged, so a package with this digest-only
+journal projection remains readable by the released rc.3 validator. This
+compatibility rule does not skip structural image validation or permit
+rewriting original build evidence.

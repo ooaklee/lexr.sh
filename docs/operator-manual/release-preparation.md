@@ -36,6 +36,15 @@ the resulting `.iso` and its adjacent sidecars to release preparation.
 
 The ISO's existing manifest remains the single image inventory, including its `companion_bundle` attribute. Preparation does not introduce a second companion authority. The original path-bearing creation journal is not published; the release manifest carries its path-free evidence instead.
 
+Fedora rc.3 journals placed the ISO volume label and GRUB search marker in the
+`bind-live-media` digest map even though those values are not hashes. Preparation
+accepts this specific legacy pair only when both values exactly match the
+manifest's typed media-discovery evidence. Their public representation remains
+in the image contract; the digest-only journal projection omits the pair.
+The original journal stays unchanged and its complete file identity remains
+in the private preparation plan. Other journal values still require valid
+SHA-256 digests. New Fedora builds record these strings only in the manifest.
+
 Review the plan and validate the resulting closed directory:
 
 ```sh
@@ -51,6 +60,15 @@ lexr image release validate ../lexr-build/build/release/<release-name>
 Here `--repository-root` is the containment root which already holds the ISO and its two adjacent sidecars; it does not need to be an OE checkout. The relative ISO and output paths are resolved beneath that root.
 
 After reviewing the source identity and fresh destination, remove `--dry-run` to create the release. Independent validation checks the exact member and checksum set, verifies every ordered compressed part, and reconstructs the complete ISO digest and size without publishing it. The closed directory contains only the copied image-manifest sidecar, `image-release-manifest.json`, `RELEASE-NOTES.md`, `SHA256SUMS`, and the declared parts.
+
+Set the release title in GitHub's title field. Newly generated `RELEASE-NOTES.md`
+starts directly with the introduction so the body does not repeat that title.
+It also links to the Windows image download and USB guide; Linux and macOS users
+follow the Lexr commands in the notes. Existing prepared rc.3 assets remain valid
+with the exact historical `# Surface Pro 11 ARM64 installation image` heading
+and original manifest-derived body, without the new Windows footer. Keep those
+checksummed assets unchanged; validation does not permit other headings or
+edited guidance merely because their checksums were recalculated.
 
 This is structural evidence, not proof that the image booted on physical hardware. [ADR017](../adr/adr-017-native-image-release-preparation.md) records the image release and recovery contract.
 

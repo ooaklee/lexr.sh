@@ -155,6 +155,10 @@ func (manager *Manager) plan(ctx context.Context, request Request) (Plan, source
 	if err := decodeStrictJSON(journalData, &journal); err != nil {
 		return Plan{}, sourceContracts{}, fmt.Errorf("decode image creation journal: %w", err)
 	}
+	journal, err = normaliseImageJournal(journal, manifest)
+	if err != nil {
+		return Plan{}, sourceContracts{}, err
+	}
 	if err := validateImageJournal(journal, imageIdentity.record, manifest.Adapter); err != nil {
 		return Plan{}, sourceContracts{}, err
 	}
@@ -501,8 +505,14 @@ func validateCompression(compression CompressionTool) error {
 	return nil
 }
 
-// renderNotes returns current deterministic path-free release guidance for new
-// release directories.
+// historicalImageNotesHeading is the exact title used in prepared rc.3 assets.
+const historicalImageNotesHeading = "# Surface Pro 11 ARM64 installation image\n\n"
+
+// windowsImageNotesFooter points Windows operators to the separate host workflow.
+const windowsImageNotesFooter = "\nWindows users: follow the [Windows image download and USB guide](https://github.com/ooaklee/lexr.sh/blob/main/docs/user-guide/windows-image-usb.md). On Linux and macOS, use the Lexr commands above.\n"
+
+// renderNotes returns deterministic path-free release guidance without a
+// duplicate title; the publishing service owns the release title.
 func renderNotes(manifest Manifest) []byte {
 	return renderNotesForCommand(manifest, "lexr")
 }
@@ -510,8 +520,18 @@ func renderNotes(manifest Manifest) []byte {
 // renderNotesForCommand returns deterministic path-free release guidance using
 // the selected command name.
 func renderNotesForCommand(manifest Manifest, commandName string) []byte {
+	return append(renderOriginalNotesBodyForCommand(manifest, commandName), []byte(windowsImageNotesFooter)...)
+}
+
+// renderHistoricalNotes preserves exact rc.3 notes independently of new guidance.
+func renderHistoricalNotes(manifest Manifest) []byte {
+	return append([]byte(historicalImageNotesHeading), renderOriginalNotesBodyForCommand(manifest, "lexr")...)
+}
+
+// renderOriginalNotesBodyForCommand is the frozen rc.3 body without its title.
+// Add new guidance in renderNotesForCommand to keep old closed releases valid.
+func renderOriginalNotesBodyForCommand(manifest Manifest, commandName string) []byte {
 	var output strings.Builder
-	_, _ = fmt.Fprintf(&output, "# Surface Pro 11 ARM64 installation image\n\n")
 	_, _ = fmt.Fprintf(&output, "This local release contains an experimental, unsigned `%s` hybrid ISO for the Surface Pro 11. It is not hardware-qualified merely because structural validation passed. Disable Secure Boot before using its unsigned custom kernel.\n\n", manifest.StructuralValidation.Adapter)
 	_, _ = fmt.Fprintf(&output, "Kernel ABI: `%s`\n\n", manifest.StructuralValidation.KernelABI)
 	_, _ = fmt.Fprintf(&output, "## Verify the release directory\n\n```bash\n%s image release validate .\n```\n\n", commandName)

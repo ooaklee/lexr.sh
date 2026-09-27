@@ -150,6 +150,14 @@ that do not apply.
 
 ### Fixed
 
+- Remove the duplicate title from generated image release notes and link to
+  the canonical Windows preparation and Etcher guide. Continue validating
+  unchanged release notes produced by Lexr 0.5.0-rc.3.
+- Prepare releases from Fedora rc.3 creation journals that recorded the ISO
+  volume label and GRUB marker as digests. Check those two values against the
+  image manifest before projecting them through its typed media evidence;
+  keep actual digest validation strict and leave the original journal intact.
+
 - Prepare Fedora custom live images with early DSP/QRTR, USB, panel and public
   GPU-firmware dependencies, prepare Wi-Fi board data from Fedora's compressed
   source database, and preserve the stock kernel's separate DSP

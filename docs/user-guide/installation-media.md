@@ -21,6 +21,10 @@ creation to a verified USB write and the physical test which must follow.
 > end-to-end qualification is tracked in
 > [issue #16](https://github.com/ooaklee/lexr.sh/issues/16).
 
+For a prebuilt release on Windows, use [Windows USB preparation](windows-image-usb.md)
+for joining parts, extraction, checksum verification, Etcher and Surface UEFI.
+If you already run Linux, continue with this Lexr workflow.
+
 ## Audience and context
 
 Follow this workflow when you want to build a candidate live image and put it on
@@ -106,10 +110,11 @@ language/try/install chooser worked. Boot showed the elementary logo and spinner
 then took longer than expected before reaching the desktop; allow time for that
 first start. No fixed boot-time guarantee has been measured.
 
-Download the [tested elementary OS 8.1 image](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-elementary-os-8.1-v23-20260906)
-or build it with the command below. The release notes include the latest Lexr
-installer and a pinned source-build option until elementary support ships in a
-stable release. Lexr v0.3.0 predates this adapter.
+Download the [rebuilt experimental elementary OS 8.1 image](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-elementary-os-8.1-v23-20260927)
+or build it with the command below. Use the released
+[Lexr v0.5.0-rc.3](https://github.com/ooaklee/lexr.sh/releases/tag/v0.5.0-rc.3)
+for your host and follow the image release's download, verification and writing
+instructions. Earlier hardware results above identify different image bytes.
 
 The corrected initramfs includes early DSP, graphics and keyboard-hub drivers,
 the device-tree panel drivers, and QRTR's socket protocol and remote transport
@@ -263,12 +268,12 @@ remain unqualified.
 
 ### Arch Linux ARM terminal image
 
-Download the [experimental Arch terminal image with v23](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-arch-linux-arm-terminal-v23-20260909)
-and follow its **Download, verify and write with Lexr** instructions. The release
-links the installation quickstart at its exact producer commit, so it remains
-available while [PR #55](https://github.com/ooaklee/lexr.sh/pull/55) is under review
-and after merging. The rebuilt image's structural checks and earlier physical
-tests are recorded separately in the release notes.
+Download the [experimental Arch terminal image with v23](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-arch-linux-arm-terminal-v23-20260927)
+and follow its download, verification and writing instructions using the released
+[Lexr v0.5.0-rc.3](https://github.com/ooaklee/lexr.sh/releases/tag/v0.5.0-rc.3).
+The release links the installation quickstart at its exact producer commit.
+The rebuilt image's structural checks and earlier physical tests are recorded
+separately in the release notes.
 
 Follow [Arch source intake and image preparation](../operator-manual/arch-linux-arm-source.md)
 to build your own image from the pinned AArch64 root filesystem. Validate the resulting ISO,

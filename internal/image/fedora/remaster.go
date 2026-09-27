@@ -256,7 +256,8 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err := checkpoint("build-initramfs", nil); err != nil {
 		return Result{}, err
 	}
-	if err := checkpoint("bind-live-media", map[string]string{"iso-volume-label": layout.VolumeID, "grub-search-marker": layout.Marker}); err != nil {
+	// Labels and markers are retained as typed image-manifest evidence, not digests.
+	if err := checkpoint("bind-live-media", nil); err != nil {
 		return Result{}, err
 	}
 	if err := validateCustomKernel(ctx, r.Docker, toolsImage, workspace, request.Bundle); err != nil {
