@@ -5,6 +5,13 @@ first boot, with an optional step to add Arch to another OS's GRUB menu. It
 follows the Surface Pro 11 **X1E/OLED** test with the **v23** kernel. The live
 image starts in a terminal; you choose whether to add a desktop later.
 
+This installation flow is intentionally multi-OS friendly. Whole-disk erasure
+is not a prerequisite: reserve space for Arch, reuse an existing EFI System
+Partition without formatting it, and leave Windows or other Linux partitions
+unchanged. Keeping another working OS gives you a fallback for recovery,
+diagnostics and contributing further Surface support. The installer still
+applies the layout you confirm, so review every format choice carefully.
+
 Keep the USB available until the installed system boots successfully. The
 [installation reference](../operator-manual/arch-linux-arm-install.md) covers
 other choices, troubleshooting and the current hardware test results.

@@ -37,6 +37,17 @@ choosing an image.
 
 You can also [build your own](#create-your-first-image) image with Lexr.
 
+Lexr images and installation guidance are intentionally designed for multi-OS
+setups. They preserve upstream alongside-install options and document manual
+partitioning instead of requiring a whole-drive erase. Keeping Windows or
+another Linux installation available gives you a working fallback while you
+test, recover, collect diagnostics and contribute support for more features.
+The Arch flow makes this explicit: install into reserved space, reuse an
+existing EFI System Partition without formatting it, and leave every other OS
+partition unchanged. Review the
+[Arch partitioning walkthrough](docs/user-guide/arch-linux-arm-quickstart.md#2-select-only-the-space-reserved-for-arch)
+before making disk changes.
+
 ## Why Lexr exists
 
 Running Linux on the Qualcomm Snapdragon X devices currently means bringing together an ARM64
