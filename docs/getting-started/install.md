@@ -28,10 +28,10 @@ curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/ins
 
 Without `--version`, the installer hashes an existing destination without
 running it and skips the binary download when its bytes match the latest
-release manifest. A small `lexr.version` sidecar supplies release-to-release
-progress messages but is never trusted for that decision. Use `--force` to
-reinstall the latest release for a repair. An explicit `--version` always
-reinstalls the requested release.
+release manifest. A small `lexr.version` sidecar supplies accurate update,
+downgrade and reinstall progress messages but is never trusted for that
+decision. Use `--force` to reinstall the latest release for a repair. An
+explicit `--version` always reinstalls the requested release.
 
 `--binary`, `--version` and `--force` have deliberately separate meanings and
 cannot be combined where they conflict. A custom `LEXR_INSTALL_DIR` must be an

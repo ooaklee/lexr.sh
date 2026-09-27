@@ -94,6 +94,107 @@ is_semver() {
         '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\+([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
 }
 
+semver_compare() {
+    # semver_compare <left> <right> -> -1, 0, or 1 by SemVer precedence.
+    # Inputs have already passed is_semver. Prefixing lexical operands forces
+    # awk to compare strings rather than lossy floating-point numbers.
+    LC_ALL=C awk -v left="$1" -v right="$2" '
+        function compare_digits(a, b, normal_a, normal_b, length_a, length_b) {
+            normal_a = a
+            normal_b = b
+            sub(/^0+/, "", normal_a)
+            sub(/^0+/, "", normal_b)
+            if (normal_a == "") normal_a = "0"
+            if (normal_b == "") normal_b = "0"
+            length_a = length(normal_a)
+            length_b = length(normal_b)
+            if (length_a < length_b) return -1
+            if (length_a > length_b) return 1
+            if (normal_a == normal_b) return 0
+            return (("x" normal_a) < ("x" normal_b)) ? -1 : 1
+        }
+
+        function compare_text(a, b) {
+            if (a == b) return 0
+            return (("x" a) < ("x" b)) ? -1 : 1
+        }
+
+        BEGIN {
+            sub(/\+.*/, "", left)
+            sub(/\+.*/, "", right)
+
+            left_dash = index(left, "-")
+            if (left_dash > 0) {
+                left_prerelease = substr(left, left_dash + 1)
+                left_core = substr(left, 1, left_dash - 1)
+            } else {
+                left_prerelease = ""
+                left_core = left
+            }
+            right_dash = index(right, "-")
+            if (right_dash > 0) {
+                right_prerelease = substr(right, right_dash + 1)
+                right_core = substr(right, 1, right_dash - 1)
+            } else {
+                right_prerelease = ""
+                right_core = right
+            }
+
+            split(left_core, left_parts, ".")
+            split(right_core, right_parts, ".")
+            for (part = 1; part <= 3; part++) {
+                order = compare_digits(left_parts[part], right_parts[part])
+                if (order != 0) {
+                    print order
+                    exit
+                }
+            }
+
+            if (left_prerelease == "" && right_prerelease != "") {
+                print 1
+                exit
+            }
+            if (left_prerelease != "" && right_prerelease == "") {
+                print -1
+                exit
+            }
+            if (left_prerelease == "") {
+                print 0
+                exit
+            }
+
+            left_count = split(left_prerelease, left_ids, ".")
+            right_count = split(right_prerelease, right_ids, ".")
+            shared_count = left_count < right_count ? left_count : right_count
+            for (part = 1; part <= shared_count; part++) {
+                left_numeric = left_ids[part] ~ /^[0-9]+$/
+                right_numeric = right_ids[part] ~ /^[0-9]+$/
+                if (left_numeric && !right_numeric) {
+                    print -1
+                    exit
+                }
+                if (!left_numeric && right_numeric) {
+                    print 1
+                    exit
+                }
+                if (left_numeric) {
+                    order = compare_digits(left_ids[part], right_ids[part])
+                } else {
+                    order = compare_text(left_ids[part], right_ids[part])
+                }
+                if (order != 0) {
+                    print order
+                    exit
+                }
+            }
+
+            if (left_count < right_count) print -1
+            else if (left_count > right_count) print 1
+            else print 0
+        }
+    '
+}
+
 shell_quote() {
     printf "'"
     printf '%s' "$1" | sed "s/'/'\\\\''/g"
@@ -407,10 +508,14 @@ else
     fi
 
     if [ "$SKIP_INSTALL" -eq 0 ]; then
-        if [ -n "$INSTALLED_VERSION" ] && [ "$INSTALLED_VERSION" = "$VERSION" ]; then
-            log "Reinstalling Lexr version ${VERSION}"
-        elif [ -n "$INSTALLED_VERSION" ]; then
-            log "Updating Lexr from ${INSTALLED_VERSION} to ${VERSION}"
+        if [ -n "$INSTALLED_VERSION" ]; then
+            version_order="$(semver_compare "$INSTALLED_VERSION" "$VERSION")"
+            case "$version_order" in
+                -1) log "Updating Lexr from ${INSTALLED_VERSION} to ${VERSION}" ;;
+                0) log "Reinstalling Lexr version ${VERSION}" ;;
+                1) log "Downgrading Lexr from ${INSTALLED_VERSION} to ${VERSION}" ;;
+                *) die "could not compare installed and target versions" ;;
+            esac
         elif [ -e "$DEST" ] || [ -L "$DEST" ]; then
             log "Replacing an existing Lexr installation with version ${VERSION}"
         else

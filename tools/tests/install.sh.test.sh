@@ -69,9 +69,13 @@ EOF
 
 make_release "9.9.9"
 make_release "0.4.0"
+make_release "0.4.0-rc.3"
+make_release "0.4.0-rc.10"
 make_release "0.5.0-rc.1"
 make_release "0.5.0"
+make_release "0.5.0+build.1"
 make_release "0.6.0-rc.1"
+make_release "0.10.0"
 echo "${FAKE_SUM}  lexr-v9.9.9-linux-amd64" \
     > "${STUB_ROOT}/lexr-v9.9.9.bad.sha256sums"
 cat "${STUB_ROOT}/lexr-v9.9.9.sha256sums" \
@@ -187,6 +191,20 @@ EOF
     chmod +x "${TMP_HOME}/.local/bin/lexr"
 }
 
+assert_version_transition() {
+    transition_from="$1"
+    transition_to="$2"
+    transition_message="$3"
+    fresh_home
+    write_existing_binary "old binary"
+    echo "$transition_from" > "${TMP_HOME}/.local/bin/lexr.version"
+    transition_output="$(run --version "$transition_to" --no-modify-path 2>&1)"
+    case "$transition_output" in
+        *"$transition_message"*) ok "$transition_message" ;;
+        *) bad "missing transition message: $transition_message" ;;
+    esac
+}
+
 assert_no_install_temps() {
     if find "${TMP_HOME}/.local/bin" -name '.lexr.install.*' -print 2>/dev/null | grep -q .; then
         bad "temporary install file was left behind"
@@ -257,6 +275,26 @@ case "$out" in
 esac
 [ ! -e "${TMP_HOME}/destination-was-executed" ] \
     && ok "older destination was never executed" || bad "older destination was executed"
+
+log "SemVer transition progress"
+assert_version_transition \
+    "0.5.0-rc.3" "0.4.0-rc.3" \
+    "Downgrading Lexr from 0.5.0-rc.3 to 0.4.0-rc.3"
+assert_version_transition \
+    "0.4.0-rc.2" "0.4.0-rc.10" \
+    "Updating Lexr from 0.4.0-rc.2 to 0.4.0-rc.10"
+assert_version_transition \
+    "0.5.0-rc.1" "0.5.0" \
+    "Updating Lexr from 0.5.0-rc.1 to 0.5.0"
+assert_version_transition \
+    "0.5.0" "0.5.0-rc.1" \
+    "Downgrading Lexr from 0.5.0 to 0.5.0-rc.1"
+assert_version_transition \
+    "0.9.0" "0.10.0" \
+    "Updating Lexr from 0.9.0 to 0.10.0"
+assert_version_transition \
+    "0.5.0+build.0" "0.5.0+build.1" \
+    "Reinstalling Lexr version 0.5.0+build.1"
 
 log "legacy install without sidecar"
 fresh_home
