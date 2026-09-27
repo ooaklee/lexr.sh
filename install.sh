@@ -470,8 +470,19 @@ fi
 # ---------------------------------------------------------------------------
 # PATH handling
 # ---------------------------------------------------------------------------
+VERIFY_COMMAND="${DEST} version"
 case ":${PATH}:" in
-    *":${INSTALL_DIR}:"*) log "${INSTALL_DIR} is already on your PATH" ;;
+    *":${INSTALL_DIR}:"*)
+        log "${INSTALL_DIR} is already on your PATH"
+        resolved_command="$(command -v "$COMMAND_NAME" 2>/dev/null || true)"
+        if [ "$resolved_command" = "$DEST" ]; then
+            VERIFY_COMMAND="${COMMAND_NAME} version"
+        else
+            case "$resolved_command" in
+                /*) warn "${resolved_command} resolves before ${DEST} on PATH; using the installed path below" ;;
+            esac
+        fi
+        ;;
     *)
         quoted_install_dir="$(shell_quote "$INSTALL_DIR")"
         path_hint="export PATH=${quoted_install_dir}:\$PATH"
@@ -523,4 +534,4 @@ case ":${PATH}:" in
         ;;
 esac
 
-log "Done. Verify with: ${DEST} version"
+log "Done. Verify with: ${VERIFY_COMMAND}"

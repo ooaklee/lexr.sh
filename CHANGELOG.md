@@ -125,7 +125,10 @@ that do not apply.
   `--binary` sources, and stages replacements beside the destination. Release
   manifests gain GitHub keyless build provenance with a compatibility boundary
   at stable `v0.5.0`; checksum verification remains mandatory. `--force` still
-  repairs the latest release and explicit `--version` selections reinstall.
+  repairs the latest release and explicit `--version` selections reinstall. The
+  final verification hint uses `lexr version` when that command resolves to the
+  installed destination, while retaining the absolute path when another binary
+  shadows it or a PATH update is not active yet.
   See [ADR039](docs/adr/adr-039-verified-atomic-standalone-installer.md) and
   [#65](https://github.com/ooaklee/lexr.sh/issues/65).
 

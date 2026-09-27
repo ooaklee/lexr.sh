@@ -448,11 +448,43 @@ run --no-modify-path >/dev/null 2>&1 \
 [ "$(cat "${STUB_ROOT}/fail-latest-count")" = "0" ] \
     && ok "retry budget reached the successful response" || bad "retry count unexpected"
 
+log "verification command"
+fresh_home
+out="$(PATH="${TMP_HOME}/.local/bin:$PATH" run --no-modify-path 2>&1)"
+case "$out" in
+    *"Done. Verify with: lexr version"*) ok "active destination uses command-name verification" ;;
+    *) bad "active destination did not use command-name verification" ;;
+esac
+
+cat > "${STUB_BIN}/lexr" <<'EOF'
+#!/bin/sh
+echo "shadowed lexr"
+EOF
+chmod +x "${STUB_BIN}/lexr"
+fresh_home
+out="$(PATH="${TMP_HOME}/.local/bin:$PATH" run --no-modify-path 2>&1)"
+case "$out" in
+    *"Done. Verify with: ${TMP_HOME}/.local/bin/lexr version"*)
+        ok "shadowed destination uses absolute verification" ;;
+    *) bad "shadowed destination did not use absolute verification" ;;
+esac
+case "$out" in
+    *"${STUB_BIN}/lexr resolves before ${TMP_HOME}/.local/bin/lexr on PATH"*)
+        ok "shadowed destination prints a warning" ;;
+    *) bad "shadowed destination warning missing" ;;
+esac
+rm -f "${STUB_BIN}/lexr"
+
 log "PATH modification"
 fresh_home
-(SHELL=/bin/sh run >/dev/null 2>&1)
+out="$(SHELL=/bin/sh run 2>&1)"
 grep -q "lexr install" "${TMP_HOME}/.profile" \
     && ok "PATH marker written to .profile" || bad "PATH marker missing"
+case "$out" in
+    *"Done. Verify with: ${TMP_HOME}/.local/bin/lexr version"*)
+        ok "future PATH update keeps absolute verification" ;;
+    *) bad "future PATH update did not keep absolute verification" ;;
+esac
 (SHELL=/bin/sh run >/dev/null 2>&1)
 count="$(grep -c "lexr install" "${TMP_HOME}/.profile" || true)"
 [ "$count" -eq 1 ] && ok "PATH marker not duplicated" \
