@@ -4,13 +4,17 @@ Lexr (Linux Exchanger) makes it easy to run ARM64 Linux on Qualcomm Snapdragon X
 
 Build a repeatable ARM64 Linux kernel + installer for your Snapdragon X Device.
 
-On Linux or macOS, the install script downloads the latest release, verifies its
-checksum, and puts `lexr` on your `PATH`:
+On Linux or macOS, the install script verifies the latest release checksum and,
+when GitHub CLI supports it, the manifest's build provenance. It installs the
+matching binary atomically and puts `lexr` on your `PATH`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh
 ```
 
+Re-running the command compares the installed bytes with the release manifest
+without executing them and skips the binary download when they already match.
+Pass `--force` to reinstall the latest release.
 
 [Download Lexr](https://github.com/ooaklee/lexr.sh/releases) ·
 [Get started](docs/getting-started/index.md) ·
@@ -114,18 +118,24 @@ build or write an image.
 
 ## Get Lexr
 
-On Linux or macOS, the install script downloads the latest release, verifies its
-checksum, and puts `lexr` on your `PATH`:
+On Linux or macOS, the install script verifies the latest release checksum and,
+when GitHub CLI supports it, the manifest's build provenance. It installs the
+matching binary atomically and puts `lexr` on your `PATH`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh
 ```
 
+Re-running the command compares the installed bytes with the release manifest
+without executing them and skips the binary download when they already match.
+Pass `--force` to reinstall the latest release.
+
 The [releases page](https://github.com/ooaklee/lexr.sh/releases) provides six raw
-executables and a versioned SHA-256 manifest. Use the latest stable release for
-the most conservative starting point, or choose a clearly marked prerelease if
-you want to test newer behaviour. A CLI release does not contain an ISO, kernel
-packages, firmware, drivers or userspace bundles.
+executables, a versioned SHA-256 manifest, and its GitHub build-provenance
+bundle. Use the latest stable release for the most conservative starting point,
+or choose a clearly marked prerelease if you want to test newer behaviour. A
+CLI release does not contain an ISO, kernel packages, firmware, drivers or
+userspace bundles.
 
 Choose the file matching your host:
 

@@ -8,6 +8,10 @@ description: Architecture decision for updating the lexr executable in place fro
 
 Accepted on 2026-09-25.
 
+The standalone installer and checksum-manifest provenance boundary were
+extended by [ADR039](adr-039-verified-atomic-standalone-installer.md) on
+2026-09-27.
+
 ## Context
 
 Lexr ships as one static binary per platform, published by GoReleaser as

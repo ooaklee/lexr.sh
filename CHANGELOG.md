@@ -116,6 +116,23 @@ that do not apply.
   `lexr upgrade` hint. Offline, rate-limited, and dev builds print the
   version exactly as before, with no errors or delay.
 
+### Changed
+
+- Harden `install.sh` around a manifest-first, atomic installation contract. It
+  now compares installed bytes without executing them, skips an already-current
+  latest binary, retries bounded downloads, validates release and platform
+  inputs, quotes shell PATH edits, gives Fish native guidance, preserves local
+  `--binary` sources, and stages replacements beside the destination. Release
+  manifests gain GitHub keyless build provenance with a compatibility boundary
+  at stable `v0.5.0`; checksum verification remains mandatory. `--force` still
+  repairs the latest release and explicit `--version` selections reinstall. The
+  final verification hint uses `lexr version` when that command resolves to the
+  installed destination, while retaining the absolute path when another binary
+  shadows it or a PATH update is not active yet. Version progress now follows
+  SemVer precedence and labels backward transitions as downgrades.
+  See [ADR039](docs/adr/adr-039-verified-atomic-standalone-installer.md) and
+  [#65](https://github.com/ooaklee/lexr.sh/issues/65).
+
 ### Removed
 
 - Remove `pop-os-24-04-arm64-generic-3` from the shipped catalogue until its
