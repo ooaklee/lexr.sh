@@ -62,7 +62,11 @@ missing.
 
 Lexr turns that work into a checked, reviewable workflow. The CLI builds and
 validates installation media, writes it to removable storage with explicit
-confirmation and a full read-back, and audits the support present after boot.
+confirmation and a full read-back, and manages version-bound kernel bundles.
+After boot, it audits hardware support and installs the explicitly supported
+userspace components. It also supports Windows-to-Linux hand-offs of private
+device evidence and reversible removal of recognised legacy workarounds.
+
 Where Lexr can make a change, it favours dry runs, exact checksums and recovery
 receipts so you can see what will happen first.
 
@@ -76,76 +80,6 @@ redistribute restricted firmware. You can also use
 > The generated media and its custom kernel are experimental. Back up important
 > data, keep another bootable recovery device available, and disable Secure Boot
 > before booting an unsigned custom kernel.
-
-## What works today
-
-Dedicated image adapters support the experimental Ubuntu Concept Resolute
-Desktop image, elementary OS 8.1 ARM64, the Debian ARM64 GNOME live snapshot
-dated 2024-09-02, Fedora Workstation Live 44 ARM64 and an Arch Linux ARM terminal
-live ISO. Arch includes a
-[step-by-step installation guide](docs/user-guide/arch-linux-arm-quickstart.md)
-with the Surface kernel and GRUB; no desktop is preselected. On 2026-09-08,
-Ooaklee confirmed installation and boot from the internal ext4 partition
-on X1E/OLED using v23, with touchscreen input and Wi-Fi after reconnecting.
-See the [hardware test record](docs/operator-manual/arch-linux-arm-install.md#hardware-test-record)
-for the tested image and remaining checks.
-The custom live and installed Fedora path is limited to the Surface Pro 11 Qualcomm Snapdragon X Elite model; its X Plus
-entry is a stock-kernel, explicit-DTB live troubleshooting path only. Pop!_OS is
-omitted from the shipped catalogue until its image workflow is implemented in
-[issue #48](https://github.com/ooaklee/lexr.sh/issues/48). Fedora development
-focuses on the Workstation Live ISO; the compressed raw image is no longer
-listed in the shipped catalogue. Here, `implemented`
-means the adapter can create and structurally validate media; `experimental`
-means complete end-to-end qualification is still pending. Ubuntu Concept
-remastered with Lexr `384f2c0` and v23 reached the Surface Pro 11 X1E/OLED live
-desktop with Wi-Fi working without a live-session repair
-([issue #41](https://github.com/ooaklee/lexr.sh/issues/41)). Elementary OS 8.1
-remastered with Lexr `927d00e` and v23 reached the same X1E/OLED live desktop;
-Wi-Fi, web browsing and the language/try/install chooser were confirmed on
-2026-09-06 ([issue #49](https://github.com/ooaklee/lexr.sh/issues/49)). Installation,
-recovery and remaining hardware checks still need qualification for both images.
-On 2026-09-26, Ooaklee confirmed that Debian remastered with Lexr `3339659` and
-v23 reached the X1E/OLED live desktop using the first GRUB entry. The rebuilt
-`37c21ca` image, including the main-branch updates, also booted with Wi-Fi,
-internet access, power profiles and Bluetooth working. Calamares displayed
-Debian 13 and reached location and partition selection; no installation was
-performed. Audio still shows Dummy Output; Lexr audio setup and sound verification
-remain pending. See the
-[Debian test record](docs/user-guide/installation-media.md#debian-arm64-gnome-live-image)
-for the remaining qualification limits and source identity.
-On 2026-09-26, Ooaklee confirmed that Fedora Workstation Live 44 built with
-Lexr `b0ec686` and v23 reached the X1E/OLED GNOME desktop with Wi-Fi,
-touchscreen input and power/performance controls working immediately. The
-Anaconda installation wizard reached destination and storage selection.
-Audio shows Dummy Output and Bluetooth needs configuration; follow the
-getting-started guide for post-install setup. Completed installation, installed
-boot and recovery remain untested. See the
-[Fedora test record](docs/user-guide/installation-media.md#fedora-hardware-test-record)
-and [issue #17](https://github.com/ooaklee/lexr.sh/issues/17).
-The earlier emergency/black-screen result belongs to a previous candidate;
-[issue #16](https://github.com/ooaklee/lexr.sh/issues/16) tracks the separate
-Ubuntu end-to-end qualification.
-
-The experimental [Arch terminal image](docs/operator-manual/arch-linux-arm-source.md)
-includes the custom kernel, networking tools and a terminal setup menu. Users
-choose their own desktop or window manager. Further hardware, recovery and
-alongside-install checks remain tracked in
-[issue #52](https://github.com/ooaklee/lexr.sh/issues/52).
-
-Lexr can help you:
-
-- create and validate Qualcomm Snapdragon X installation media;
-- inspect, download, build and install version-bound kernel bundles;
-- write a validated image to a whole USB device on Linux or macOS;
-- audit firmware, audio, pen, camera, wireless, Bluetooth and power support;
-- move device-bound Windows evidence into Linux without exposing private values;
-- install the explicitly supported userspace components; and
-- plan, apply and reverse the recognised legacy clean-up operations.
-
-The CLI has release binaries for Linux, macOS and Windows on AMD64 and ARM64,
-but not every workflow runs on every host. See the
-[requirements by task](docs/reference/requirements.md) before choosing where to
-build or write an image.
 
 ## Get Lexr
 
@@ -178,6 +112,10 @@ Choose the file matching your host:
 | macOS Apple silicon | `lexr-v<version>-darwin-arm64` |
 | Windows x86-64 | `lexr-v<version>-windows-amd64.exe` |
 | Windows ARM64 | `lexr-v<version>-windows-arm64.exe` |
+
+Not every workflow runs on every host. See the
+[requirements by task](docs/reference/requirements.md) before choosing where
+to build or write an image.
 
 The [installation guide](docs/getting-started/install.md) walks through checksum
 verification and adding the command to your `PATH`.
