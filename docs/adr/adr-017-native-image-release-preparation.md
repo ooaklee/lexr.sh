@@ -66,3 +66,26 @@ and the original rc.3 manifest-derived body, without the new Windows footer.
 The original renderer remains frozen so new guidance cannot change historical
 acceptance. This preserves existing prepared assets without broadening
 acceptance to arbitrary headings or edited bodies.
+
+## 2026-09-27: Fedora creation-journal compatibility
+
+The rc.3 Fedora producer recorded its ISO volume label and GRUB search marker
+inside `bind-live-media.digests`, although both values are contextual strings.
+The same values already have typed roles and scopes in the image manifest.
+Release preparation rejected these otherwise completed builds because digest
+values must be SHA-256 hashes.
+
+Preparation now recognises only this legacy Fedora pair, cross-checks both
+values against unique, correctly scoped manifest evidence, and removes them
+from an in-memory copy before the existing strict journal validation and
+public projection. The original journal remains unchanged; its full file
+identity stays in the private plan, not in the public manifest. The published
+image contract retains both contextual values. All checkpoint times, output
+identity and actual digests remain intact. Other adapters, steps and malformed
+evidence do not receive this exception. New Fedora builds put these strings
+only in the typed manifest evidence.
+
+The public release schema is unchanged, so a package with this digest-only
+journal projection remains readable by the released rc.3 validator. This
+compatibility rule does not skip structural image validation or permit
+rewriting original build evidence.

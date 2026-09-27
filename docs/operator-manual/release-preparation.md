@@ -36,6 +36,15 @@ the resulting `.iso` and its adjacent sidecars to release preparation.
 
 The ISO's existing manifest remains the single image inventory, including its `companion_bundle` attribute. Preparation does not introduce a second companion authority. The original path-bearing creation journal is not published; the release manifest carries its path-free evidence instead.
 
+Fedora rc.3 journals placed the ISO volume label and GRUB search marker in the
+`bind-live-media` digest map even though those values are not hashes. Preparation
+accepts this specific legacy pair only when both values exactly match the
+manifest's typed media-discovery evidence. Their public representation remains
+in the image contract; the digest-only journal projection omits the pair.
+The original journal stays unchanged and its complete file identity remains
+in the private preparation plan. Other journal values still require valid
+SHA-256 digests. New Fedora builds record these strings only in the manifest.
+
 Review the plan and validate the resulting closed directory:
 
 ```sh

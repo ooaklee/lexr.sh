@@ -155,6 +155,10 @@ func (manager *Manager) plan(ctx context.Context, request Request) (Plan, source
 	if err := decodeStrictJSON(journalData, &journal); err != nil {
 		return Plan{}, sourceContracts{}, fmt.Errorf("decode image creation journal: %w", err)
 	}
+	journal, err = normaliseImageJournal(journal, manifest)
+	if err != nil {
+		return Plan{}, sourceContracts{}, err
+	}
 	if err := validateImageJournal(journal, imageIdentity.record, manifest.Adapter); err != nil {
 		return Plan{}, sourceContracts{}, err
 	}
