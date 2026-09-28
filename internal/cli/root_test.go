@@ -108,7 +108,7 @@ func TestUserspaceCatalogDelivery(t *testing.T) {
 		if err != nil {
 			t.Fatalf("userspace catalog validate error = %v", err)
 		}
-		if output != "userspace catalog valid: schema 2, 9 components\n" {
+		if output != "userspace catalog valid: schema 3, 9 components\n" {
 			t.Fatalf("output = %q", output)
 		}
 	})

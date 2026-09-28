@@ -170,9 +170,9 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 	}
 	abiSafe := safeKernelABI(manifest.KernelBundle.ABI)
 	manifestMediaContract, markerRecord, manifestMediaErr := caspermedia.FromDiscoveryRecord(manifest.MediaDiscovery)
-	companionRecordErr := companion.ValidateRecord(manifest.CompanionBundle)
+	companionRecordErr := companion.ValidateImageRecord(manifest)
 	manifestBundleErr := validateManifestKernelBundle(manifest.KernelBundle)
-	manifestOK := manifest.SchemaVersion == imagecontract.ManifestSchemaVersion &&
+	manifestOK := imagecontract.SupportedManifestSchema(manifest) &&
 		manifest.Adapter == AdapterID &&
 		manifestBundleErr == nil &&
 		manifestMediaErr == nil &&

@@ -42,7 +42,7 @@ func (a *application) newUserspaceCameraReleasePrepareCommand(manager cameraRele
 	var asJSON bool
 	command := &cobra.Command{
 		Use:   "prepare",
-		Short: "Prepare a new eleven-file camera release directory locally",
+		Short: "Prepare a new twelve-file camera release directory locally",
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
 			if strings.TrimSpace(request.ArtifactsDirectory) == "" {
@@ -68,7 +68,7 @@ func (a *application) newUserspaceCameraReleasePrepareCommand(manager cameraRele
 		},
 	}
 	command.Flags().StringVar(&request.RepositoryRoot, "repository-root", ".", "OE repository root containing authenticated camera inputs")
-	command.Flags().StringVar(&request.ArtifactsDirectory, "from", "", "exact eight-file native camera build directory")
+	command.Flags().StringVar(&request.ArtifactsDirectory, "from", "", "exact nine-file native camera build directory")
 	command.Flags().StringVar(&request.OutputDirectory, "output-dir", "", "repository-relative local release parent")
 	command.Flags().StringVar(&request.Tag, "tag", "", "new local camera release tag")
 	command.Flags().StringVar(&request.KernelTag, "kernel-tag", "", "explicit paired kernel release tag")
@@ -76,6 +76,7 @@ func (a *application) newUserspaceCameraReleasePrepareCommand(manager cameraRele
 	command.Flags().StringVar(&request.ExpectedBuildAuthoritySHA256, "build-authority-sha256", "", "trusted authority digest printed by the native camera build")
 	command.Flags().BoolVar(&request.DryRun, "dry-run", false, "show the local policy without package commands or filesystem mutation")
 	command.Flags().BoolVar(&asJSON, "json", false, "write machine-readable JSON")
+	payloadCompatibilityFlags(command, &request.PayloadTarget, &request.AllowUnverifiedCompatibility, false)
 	return command
 }
 
@@ -95,7 +96,7 @@ func (a *application) writeCameraReleasePreparation(receipt camerarelease.Receip
 		_, err := fmt.Fprintln(a.out, "camera release was not prepared")
 		return err
 	}
-	_, err := fmt.Fprintf(a.out, "prepared closed local camera release\ndirectory: %s\nfiles: 11\nmanifest: %s\nauthority SHA-256: %s\nremote mutation: false\n", receipt.Plan.ReleaseDirectory, camerarelease.ManifestName, receipt.AuthoritySHA256)
+	_, err := fmt.Fprintf(a.out, "prepared closed local camera release\ndirectory: %s\nfiles: 12\nmanifest: %s\nauthority SHA-256: %s\nremote mutation: false\n", receipt.Plan.ReleaseDirectory, camerarelease.ManifestName, receipt.AuthoritySHA256)
 	return err
 }
 
@@ -123,7 +124,7 @@ func (a *application) newUserspaceCameraReleaseValidateCommand(manager cameraRel
 			if asJSON {
 				return a.writeJSON(receipt)
 			}
-			_, err = fmt.Fprintf(a.out, "camera release valid\ntag: %s\ndirectory: %s\nauthority SHA-256: %s\nfiles: 11\nremote mutation: false\n", receipt.Manifest.Tag, receipt.Directory, authoritySHA256)
+			_, err = fmt.Fprintf(a.out, "camera release valid\ntag: %s\ndirectory: %s\nauthority SHA-256: %s\nfiles: 12\nremote mutation: false\n", receipt.Manifest.Tag, receipt.Directory, authoritySHA256)
 			return err
 		},
 	}

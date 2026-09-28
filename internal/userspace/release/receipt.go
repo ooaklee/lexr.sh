@@ -59,11 +59,12 @@ func ValidateReceiptJSONShape(data []byte) error {
 		return errors.New("userspace bundle manifest must be a JSON object")
 	}
 	allowed := map[string]bool{
-		"component":  false,
-		"repository": false,
-		"release":    false,
-		"directory":  false,
-		"files":      false,
+		"component":     false,
+		"repository":    false,
+		"release":       false,
+		"directory":     false,
+		"files":         false,
+		"compatibility": false,
 	}
 	for decoder.More() {
 		keyToken, err := decoder.Token()
@@ -82,6 +83,12 @@ func ValidateReceiptJSONShape(data []byte) error {
 			return fmt.Errorf("duplicate field %q", key)
 		}
 		allowed[key] = true
+		if key == "compatibility" {
+			if err := validateReferenceJSON(decoder); err != nil {
+				return err
+			}
+			continue
+		}
 		if key == "files" {
 			if err := validateReceiptFilesJSON(decoder); err != nil {
 				return err
@@ -158,4 +165,38 @@ func validateReceiptFilesJSON(decoder *json.Decoder) error {
 	}
 	_, err = decoder.Token()
 	return err
+}
+
+// validateReferenceJSON rejects ambiguous compatibility receipt references.
+func validateReferenceJSON(decoder *json.Decoder) error {
+	token, err := decoder.Token()
+	if err != nil || token != json.Delim('{') {
+		return errors.New("compatibility reference must be an object")
+	}
+	seen := map[string]bool{}
+	for decoder.More() {
+		token, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		key, ok := token.(string)
+		if !ok || (key != "size" && key != "sha256") || seen[key] {
+			return errors.New("unknown or duplicate compatibility reference field")
+		}
+		seen[key] = true
+		var value json.RawMessage
+		if err := decoder.Decode(&value); err != nil {
+			return err
+		}
+		if bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+			return errors.New("null compatibility reference field")
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	if len(seen) != 2 {
+		return errors.New("incomplete compatibility reference")
+	}
+	return nil
 }

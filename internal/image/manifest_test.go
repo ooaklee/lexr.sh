@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/userspace/assessment"
 )
 
 // TestManifestSerialisesExplicitCompanionAbsence verifies the sole image
@@ -236,5 +237,27 @@ func TestValidateArtifactRecords(t *testing.T) {
 	}
 	if err := ValidateArtifactRecords([]ArtifactRecord{valid, valid}); err == nil || !strings.Contains(err.Error(), "duplicate") {
 		t.Fatalf("ValidateArtifactRecords() duplicate error = %v", err)
+	}
+}
+
+// TestManifestSchemaMigration preserves legacy images without accepting new
+// compatibility records through an old or unknown schema.
+func TestManifestSchemaMigration(t *testing.T) {
+	manifest := manifestWithExplicitCompanionAbsence()
+	manifest.SchemaVersion = 5
+	if !SupportedManifestSchema(manifest) {
+		t.Fatal("legacy image rejected")
+	}
+	manifest.CompanionBundle.Userspace = []OfflineUserspaceRecord{{Compatibility: &assessment.Record{SchemaVersion: 1}}}
+	if SupportedManifestSchema(manifest) {
+		t.Fatal("new fields accepted under legacy schema")
+	}
+	manifest.SchemaVersion = ManifestSchemaVersion
+	if !SupportedManifestSchema(manifest) {
+		t.Fatal("current image rejected")
+	}
+	manifest.SchemaVersion = 999
+	if SupportedManifestSchema(manifest) {
+		t.Fatal("unknown schema accepted")
 	}
 }

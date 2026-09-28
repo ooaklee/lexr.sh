@@ -80,7 +80,7 @@ func validateManifest(m imagecontract.Manifest) (LiveBoot, []imagecontract.Artif
 	bad := func() (LiveBoot, []imagecontract.ArtifactRecord, error) {
 		return boot, nil, errors.New("unsupported or incomplete Arch live manifest")
 	}
-	if m.SchemaVersion != imagecontract.ManifestSchemaVersion || m.Adapter != AdapterID || m.Layout != "hybrid-iso" || m.SecureBoot != secureBootPolicy || m.ToolVersion == "" || m.CreatedAt.IsZero() || m.KernelBundle.EffectiveDTBDelivery != kernel.DTBDeliveryExternalRequired {
+	if !imagecontract.SupportedManifestSchema(m) || m.Adapter != AdapterID || m.Layout != "hybrid-iso" || m.SecureBoot != secureBootPolicy || m.ToolVersion == "" || m.CreatedAt.IsZero() || m.KernelBundle.EffectiveDTBDelivery != kernel.DTBDeliveryExternalRequired {
 		return bad()
 	}
 	if err := sp11.ValidateManifestBundle(m.KernelBundle); err != nil {
@@ -89,7 +89,7 @@ func validateManifest(m imagecontract.Manifest) (LiveBoot, []imagecontract.Artif
 	if err := imagecontract.ValidateArtifactRecord(m.SourceImage); err != nil {
 		return boot, nil, err
 	}
-	if err := companion.ValidateRecord(m.CompanionBundle); err != nil {
+	if err := companion.ValidateImageRecord(m); err != nil {
 		return boot, nil, err
 	}
 	if !reflect.DeepEqual(m.BootArguments, strings.Fields(surfaceArguments)) {

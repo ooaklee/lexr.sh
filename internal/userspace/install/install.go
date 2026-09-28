@@ -17,6 +17,8 @@ import (
 	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
 	camerarelease "github.com/ooaklee/lexr.sh/internal/camera/release"
 	"github.com/ooaklee/lexr.sh/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/userspace/assessment"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
 	userspaceiptsd "github.com/ooaklee/lexr.sh/internal/userspace/iptsd"
 )
 
@@ -36,6 +38,15 @@ const (
 // explicit target root. DryRun verifies all immutable inputs and target paths
 // but performs no target mutation and does not require root privileges.
 type Options struct {
+	// Compatibility is independently authenticated catalogue authority, never a receipt pin.
+	Compatibility *compatibility.Reference
+	// CompatibilityRelease binds the catalogue manifest to its exact release.
+	CompatibilityRelease string
+	// CompatibilityTarget supplies explicit target selections; OS is always read from Root.
+	CompatibilityTarget compatibility.Target
+	// AllowUnverifiedCompatibility is the dedicated evidence override, independent of confirmation.
+	AllowUnverifiedCompatibility bool
+
 	// BundleDir is the exact verified component input directory.
 	BundleDir string
 	// RepositoryRoot supplies current Git authority for native camera inputs.
@@ -77,6 +88,9 @@ type FileChange struct {
 
 // Result is suitable for both human and structured CLI output.
 type Result struct {
+	// Compatibility retains the authenticated preflight decision and dedicated override.
+	Compatibility *assessment.Record `json:"compatibility,omitempty"`
+
 	// Component is the stable installed component identifier.
 	Component string `json:"component"`
 	// Root is the fully resolved target filesystem root.

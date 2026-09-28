@@ -17,6 +17,7 @@ import (
 
 	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
 	"github.com/ooaklee/lexr.sh/internal/camera/jsonstrict"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 )
 
 // Validate retains the release-validation entry point using static proof only.
@@ -55,6 +56,9 @@ func (manager *Manager) ValidateStatic(ctx context.Context, request ValidationRe
 		return receipt, err
 	}
 	if err := validateManifestContract(directory, manifest); err != nil {
+		return receipt, err
+	}
+	if err := producer.Revalidate(ctx, manager.Runner, root, *manifest.Compatibility); err != nil {
 		return receipt, err
 	}
 	buildAuthority, err := manifestBuildAuthority(manifest)
@@ -134,7 +138,7 @@ func decodeManifest(data []byte) (Manifest, error) {
 	return manifest, nil
 }
 
-// validateManifestContract verifies the exact eleven files and all local digests.
+// validateManifestContract verifies the exact twelve files and all local digests.
 func validateManifestContract(directory string, manifest Manifest) error {
 	if manifest.SchemaVersion != SchemaVersion || manifest.Status != "verified-local-preparation" || manifest.RemoteMutation || manifest.Tag != filepath.Base(directory) {
 		return errors.New("camera release manifest header is inconsistent")
@@ -146,7 +150,13 @@ func validateManifestContract(directory string, manifest Manifest) error {
 	if !strings.Contains(manifest.KernelTag, kernelVersion) {
 		return errors.New("camera release manifest kernel tag and ABI do not match")
 	}
-	if manifest.BuildReceiptName != camerabuild.ReceiptName || len(manifest.BuildArtifacts) != 8 || len(manifest.GeneratedFiles) != 2 {
+	if err := validateCompatibility(directory, manifest.Compatibility, manifest.Build.Compatibility, manifest.KernelABI); err != nil {
+		return err
+	}
+	if manifest.Compatibility.Release != manifest.Tag {
+		return errors.New("camera release tag differs from compatibility identity")
+	}
+	if manifest.BuildReceiptName != camerabuild.ReceiptName || len(manifest.BuildArtifacts) != 9 || len(manifest.GeneratedFiles) != 2 {
 		return errors.New("camera release manifest has an incomplete file set")
 	}
 	if manifest.SourceAndLicenceProvenance.UbuntuSourceURL != manifest.Build.Source.SourceURL || manifest.SourceAndLicenceProvenance.DebianCopyrightSHA256 != manifest.Build.Source.CopyrightFileSHA256 || !reflect.DeepEqual(manifest.SourceAndLicenceProvenance.Evidence, manifest.Build.Source.LicenceEvidence) {

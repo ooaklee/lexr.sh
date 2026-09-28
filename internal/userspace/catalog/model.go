@@ -2,11 +2,14 @@
 // component catalogue.
 package catalog
 
-import "sort"
+import (
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
+	"sort"
+)
 
 // CurrentSchemaVersion is the only userspace catalogue schema understood by
-// this build.
-const CurrentSchemaVersion = 2
+// this build writes; schema 2 remains a read-only migration input.
+const CurrentSchemaVersion = 3
 
 // Level describes the lifecycle and support maturity of a component.
 type Level string
@@ -102,6 +105,10 @@ type KernelCompatibility struct {
 
 // Component is one audited userspace, firmware, or superseded support unit.
 type Component struct {
+	// Compatibility pins canonical release compatibility bytes independently of download receipts.
+	Compatibility *compatibility.Reference `json:"compatibility,omitempty"`
+	// LegacyProfile explicitly selects an immutable pre-manifest release contract.
+	LegacyProfile string `json:"legacy_profile,omitempty"`
 	// ID is the stable, lowercase identifier accepted by programmatic callers.
 	ID string `json:"id"`
 	// Name is the concise human-readable component label.
@@ -177,6 +184,10 @@ func (c *Catalog) Get(id string) (Component, bool) {
 // cloneComponent makes a deep-enough copy of slice and pointer fields so callers
 // cannot mutate the catalogue's validated internal state.
 func cloneComponent(component Component) Component {
+	if component.Compatibility != nil {
+		reference := *component.Compatibility
+		component.Compatibility = &reference
+	}
 	component.Notes = append([]string(nil), component.Notes...)
 	if component.Release != nil {
 		release := *component.Release

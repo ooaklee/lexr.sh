@@ -20,6 +20,9 @@ import (
 
 	"github.com/ooaklee/lexr.sh/internal/camera/jsonstrict"
 	"github.com/ooaklee/lexr.sh/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/userspace/assessment"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 )
 
 const (
@@ -209,7 +212,25 @@ func validateBundle(ctx context.Context, runner platform.Runner, request Validat
 	if err := validateReceiptAuthority(receipt, inputs); err != nil {
 		return BundleReceipt{}, err
 	}
-	expectedNames := make(map[string]struct{}, len(receipt.Artifacts)+1)
+	if receipt.Compatibility == nil || receipt.Compatibility.Component != "imx681-libcamera-v1" {
+		return BundleReceipt{}, errors.New("camera compatibility record is required")
+	}
+	declaration, err := assessment.ReadManifest(directory)
+	if err != nil {
+		return BundleReceipt{}, err
+	}
+	if err := producer.ValidatePublication(declaration, *receipt.Compatibility); err != nil {
+		return BundleReceipt{}, err
+	}
+	if err := producer.Revalidate(ctx, runner, root, *receipt.Compatibility); err != nil {
+		return BundleReceipt{}, err
+	}
+	target := receipt.Compatibility.Decision.Target
+	if target.Architecture != Architecture || target.OSID != "ubuntu" || target.OSVersion != "26.04" {
+		return BundleReceipt{}, errors.New("camera compatibility differs from the compiled payload")
+	}
+	expectedNames := make(map[string]struct{}, len(receipt.Artifacts)+2)
+	expectedNames[compatibility.Filename] = struct{}{}
 	expectedNames[ReceiptName] = struct{}{}
 	for _, artifact := range receipt.Artifacts {
 		expectedNames[artifact.Name] = struct{}{}
@@ -229,7 +250,7 @@ func validateBundle(ctx context.Context, runner platform.Runner, request Validat
 	var validated []Artifact
 	var changes []ChangesEntry
 	if static {
-		validated, changes, err = validateArtifactSetStatic(ctx, runner, directory, receipt.PackageVersion, inputs.inputs[2].SHA256, request.AdditionalFiles)
+		validated, changes, err = validateArtifactSetStatic(ctx, runner, directory, receipt.PackageVersion, inputs.inputs[2].SHA256, append(append([]string(nil), request.AdditionalFiles...), compatibility.Filename))
 	} else {
 		validated, changes, err = validateArtifactSet(ctx, runner, directory, receipt.PackageVersion, inputs.inputs[2].SHA256)
 	}
@@ -312,6 +333,7 @@ func validateArtifactRecords(ctx context.Context, runner platform.Runner, direct
 	expected[buildinfoName] = struct{}{}
 	if info, err := os.Lstat(filepath.Join(directory, ReceiptName)); err == nil && info.Mode()&os.ModeSymlink == 0 && info.Mode().IsRegular() {
 		expected[ReceiptName] = struct{}{}
+		expected[compatibility.Filename] = struct{}{}
 	}
 	for _, name := range additional {
 		expected[name] = struct{}{}
@@ -846,6 +868,16 @@ func validateReceiptCommit(ctx context.Context, runner platform.Runner, root str
 	commitTime, err := time.Parse(time.RFC3339, commitTimeText)
 	if err != nil || !receipt.SupportCommitTime.Equal(commitTime.UTC()) {
 		return errors.New("camera build support commit time differs from its receipt")
+	}
+	if receipt.Compatibility == nil {
+		return errors.New("camera build omits compatibility authority")
+	}
+	declaration, err := captureBoundedOutput(ctx, runner, platform.Command{Name: "git", Args: []string{"-C", root, "show", receipt.SupportCommit + ":" + producer.DeclarationPath("imx681-libcamera-v1")}}, compatibility.MaxBytes)
+	if err != nil {
+		return fmt.Errorf("read camera declaration at build commit: %w", err)
+	}
+	if err := producer.ValidatePublication(declaration, *receipt.Compatibility); err != nil {
+		return err
 	}
 	if len(receipt.Inputs) != len(inputPaths) {
 		return errors.New("camera build receipt has an incomplete input set")

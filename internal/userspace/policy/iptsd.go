@@ -5,6 +5,8 @@ package policy
 import (
 	"errors"
 	"fmt"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
+	"reflect"
 
 	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
 )
@@ -33,6 +35,9 @@ type Artifact struct {
 // Release binds one component to its trusted publisher, tag, and complete
 // installable asset set.
 type Release struct {
+	// Compatibility pins the manifest for a reviewed manifest-aware release.
+	Compatibility *compatibility.Reference
+
 	// Component is the stable userspace catalogue identifier.
 	Component string
 	// Repository is the exact GitHub owner and repository identity.
@@ -60,6 +65,9 @@ func IPTSDRelease() Release {
 // ValidateIdentity checks that a bundle names the exact compiled component,
 // publisher, and immutable release tag.
 func (contract Release) ValidateIdentity(bundle userspacerelease.Bundle) error {
+	if !reflect.DeepEqual(bundle.Compatibility, contract.Compatibility) {
+		return errors.New("bundle compatibility reference disagrees with compiled release authority")
+	}
 	if bundle.Component != contract.Component {
 		return fmt.Errorf("userspace bundle component is %q, expected %q", bundle.Component, contract.Component)
 	}
@@ -122,7 +130,8 @@ func (contract Release) PortableReceipt() ([]byte, error) {
 	}
 	receipt := userspacerelease.Bundle{
 		Component: contract.Component, Repository: contract.Repository,
-		Release: contract.Tag, Directory: ".",
+		Compatibility: contract.Compatibility,
+		Release:       contract.Tag, Directory: ".",
 		Files: make([]userspacerelease.File, len(contract.Artifacts)),
 	}
 	for index, artifact := range contract.Artifacts {

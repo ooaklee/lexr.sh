@@ -113,6 +113,7 @@ jobs:
           git -C "${oe_root}" sparse-checkout init --no-cone
           git -C "${oe_root}" sparse-checkout set \
             '/userspace/iptsd-sp11/' \
+            '/userspace/compatibility/' \
             '/meta-sp11/recipes-support/iptsd-sp11/'
           GIT_TERMINAL_PROMPT=0 git -c credential.helper= -C "${oe_root}" \
             fetch --filter=blob:none --depth=1 --no-tags origin "${oe_fetch_ref}"

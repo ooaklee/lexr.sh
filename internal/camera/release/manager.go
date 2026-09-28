@@ -21,6 +21,9 @@ import (
 	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
 	"github.com/ooaklee/lexr.sh/internal/hostcap"
 	"github.com/ooaklee/lexr.sh/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/userspace/assessment"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 )
 
 // maximumReleaseFileBytes bounds every copied or inspected release member.
@@ -100,8 +103,21 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 	if containedBy(artifacts, output) || containedBy(output, artifacts) {
 		return Plan{}, errors.New("camera build and release directories must not overlap")
 	}
+	target := request.PayloadTarget
+	if target.KernelABI != "" && target.KernelABI != request.KernelABI {
+		return Plan{}, errors.New("camera payload and paired kernel differ")
+	}
+	target.KernelABI = request.KernelABI
+	record, _, err := producer.Prepare(ctx, manager.Runner, producer.Request{Component: "imx681-libcamera-v1", RepositoryRoot: root, PayloadTarget: target, AllowUnverifiedCompatibility: request.AllowUnverifiedCompatibility})
+	if err != nil {
+		return Plan{}, err
+	}
+	if request.Tag != record.Release {
+		return Plan{}, errors.New("camera tag differs from the authenticated declaration")
+	}
 	availability := publicationRequirement.Evaluate(manager.host)
 	return Plan{
+		Compatibility:                &record,
 		RepositoryRoot:               root,
 		ArtifactsDirectory:           artifacts,
 		OutputDirectory:              output,
@@ -180,6 +196,9 @@ func (manager *Manager) Prepare(ctx context.Context, request Request) (receipt R
 	if err != nil {
 		return receipt, fmt.Errorf("validate private camera build bundle: %w", err)
 	}
+	if err := validateCompatibility(staging, plan.Compatibility, bundle.Compatibility, plan.KernelABI); err != nil {
+		return receipt, err
+	}
 	buildFiles, err := inspectBuildBundle(staging, bundle)
 	if err != nil {
 		return receipt, err
@@ -201,6 +220,7 @@ func (manager *Manager) Prepare(ctx context.Context, request Request) (receipt R
 		return receipt, err
 	}
 	manifest := Manifest{
+		Compatibility:    plan.Compatibility,
 		SchemaVersion:    SchemaVersion,
 		Status:           "verified-local-preparation",
 		Tag:              plan.Tag,
@@ -234,6 +254,12 @@ func (manager *Manager) Prepare(ctx context.Context, request Request) (receipt R
 		return receipt, err
 	}
 	if err := validatePreparedDirectory(staging, manifest); err != nil {
+		return receipt, err
+	}
+	if err := producer.Revalidate(ctx, manager.Runner, plan.RepositoryRoot, *plan.Compatibility); err != nil {
+		return receipt, err
+	}
+	if err := validateCompatibility(staging, plan.Compatibility, bundle.Compatibility, plan.KernelABI); err != nil {
 		return receipt, err
 	}
 	if err := syncDirectory(staging); err != nil {
@@ -342,15 +368,15 @@ func unsafeText(value string) bool {
 	return false
 }
 
-// copyUnvalidatedBundle snapshots exactly eight regular build files privately
+// copyUnvalidatedBundle snapshots exactly nine regular build files privately
 // before any external package inspection can observe them.
 func copyUnvalidatedBundle(source, destination string) error {
 	entries, err := os.ReadDir(source)
 	if err != nil {
 		return err
 	}
-	if len(entries) != 8 {
-		return fmt.Errorf("camera build bundle contains %d entries, want 8", len(entries))
+	if len(entries) != 9 {
+		return fmt.Errorf("camera build bundle contains %d entries, want 9", len(entries))
 	}
 	foundReceipt := false
 	for _, entry := range entries {
@@ -377,7 +403,7 @@ func inspectBuildBundle(directory string, bundle camerabuild.BundleReceipt) ([]G
 	for _, artifact := range bundle.Artifacts {
 		names = append(names, artifact.Name)
 	}
-	names = append(names, camerabuild.ReceiptName)
+	names = append(names, camerabuild.ReceiptName, compatibility.Filename)
 	sort.Strings(names)
 	files := make([]GeneratedFile, 0, len(names))
 	for _, name := range names {
@@ -481,7 +507,7 @@ func renderNotes(plan Plan, bundle camerabuild.BundleReceipt, files []GeneratedF
 	for _, file := range files {
 		fmt.Fprintf(&output, "- `%s`\n", file.Name)
 	}
-	fmt.Fprintf(&output, "\n`%s` covers those eight build artefacts exactly once. `%s` records this local preparation without publishing it.\n\n", ChecksumName, ManifestName)
+	fmt.Fprintf(&output, "\n`%s` covers those nine build artefacts exactly once. `%s` records this local preparation without publishing it.\n\n", ChecksumName, ManifestName)
 	fmt.Fprintf(&output, "## Verify and install\n\n```bash\nsha256sum --check --strict SHA256SUMS\n\nsudo apt install -- \\\n")
 	runtimePackages := camerabuild.RuntimePackageNames()
 	for index, name := range runtimePackages {
@@ -509,7 +535,7 @@ func writeExclusive(path string, data []byte, mode os.FileMode) error {
 	return errors.Join(writeErr, syncErr, closeErr)
 }
 
-// validatePreparedDirectory proves the exact eleven-file local release shape.
+// validatePreparedDirectory proves the exact twelve-file local release shape.
 func validatePreparedDirectory(directory string, manifest Manifest) error {
 	expected := map[string]struct{}{ChecksumName: {}, NotesName: {}, ManifestName: {}}
 	for _, file := range manifest.BuildArtifacts {
@@ -519,8 +545,8 @@ func validatePreparedDirectory(directory string, manifest Manifest) error {
 	if err != nil {
 		return err
 	}
-	if len(entries) != 11 || len(expected) != 11 {
-		return fmt.Errorf("camera release contains %d entries, want 11", len(entries))
+	if len(entries) != 12 || len(expected) != 12 {
+		return fmt.Errorf("camera release contains %d entries, want 12", len(entries))
 	}
 	for _, entry := range entries {
 		if _, ok := expected[entry.Name()]; !ok {
@@ -547,4 +573,24 @@ func syncDirectory(path string) error {
 	syncErr := directory.Sync()
 	closeErr := directory.Close()
 	return errors.Join(syncErr, closeErr)
+}
+
+// validateCompatibility binds release and build decisions to the same payload tuple.
+func validateCompatibility(directory string, record, built *producer.Record, kernel string) error {
+	if record == nil || built == nil || record.Component != "imx681-libcamera-v1" || built.Component != record.Component || record.Manifest != built.Manifest || record.Release != built.Release {
+		return errors.New("camera build/release compatibility authority is missing or differs")
+	}
+	first, second := record.Decision.Target, built.Decision.Target
+	first.LexrVersion, second.LexrVersion = "", ""
+	if first != second || first.KernelABI != kernel || first.Architecture != "arm64" || first.OSID != "ubuntu" || first.OSVersion != "26.04" {
+		return errors.New("camera build/release payload target differs")
+	}
+	data, err := assessment.ReadManifest(directory)
+	if err != nil {
+		return err
+	}
+	if err := producer.ValidatePublication(data, *built); err != nil {
+		return err
+	}
+	return producer.ValidatePublication(data, *record)
 }

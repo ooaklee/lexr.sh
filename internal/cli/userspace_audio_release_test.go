@@ -93,7 +93,7 @@ func TestAudioReleasePreparationRendersLocalOnlyHumanResults(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if text := output.String(); !strings.Contains(text, "artefacts: 7") || !strings.Contains(text, audiorelease.ManifestName) {
+	if text := output.String(); !strings.Contains(text, "artefacts: 8") || !strings.Contains(text, audiorelease.ManifestName) {
 		t.Fatalf("preparation output = %s", text)
 	}
 }

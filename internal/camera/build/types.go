@@ -4,6 +4,8 @@ package build
 
 import (
 	"context"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 	"time"
 
 	"github.com/ooaklee/lexr.sh/internal/platform"
@@ -11,7 +13,7 @@ import (
 
 const (
 	// SchemaVersion identifies the public structured build receipt contract.
-	SchemaVersion = 1
+	SchemaVersion = 2
 	// ReceiptName is the sole structured provenance record in a package bundle.
 	ReceiptName = "sp11-imx681-libcamera-build.json"
 	// ContainerImage is the immutable Ubuntu 26.04 builder selected by policy.
@@ -58,6 +60,10 @@ func RuntimePackageNames() []string {
 
 // Request contains the complete caller-selected native camera build inputs.
 type Request struct {
+	// PayloadTarget describes the payload independently of the build host.
+	PayloadTarget compatibility.Target
+	// AllowUnverifiedCompatibility records the dedicated compatibility override.
+	AllowUnverifiedCompatibility bool
 	// RepositoryRoot contains the authenticated support inputs and build roots.
 	RepositoryRoot string
 	// WorkDirectory selects a private path relative to RepositoryRoot.
@@ -84,6 +90,8 @@ type Command struct {
 
 // Plan is the deterministic, read-only native camera build decision.
 type Plan struct {
+	// Compatibility is the authenticated preparation decision.
+	Compatibility *producer.Record `json:"compatibility,omitempty"`
 	// RepositoryRoot is the canonical support-tree containment boundary.
 	RepositoryRoot string `json:"repository_root"`
 	// WorkDirectory is the canonical private transaction root.
@@ -208,6 +216,8 @@ type Verification struct {
 
 // BundleReceipt is the public, path-free provenance record stored with packages.
 type BundleReceipt struct {
+	// Compatibility binds the source declaration and payload decision.
+	Compatibility *producer.Record `json:"compatibility,omitempty"`
 	// SchemaVersion identifies this structured contract.
 	SchemaVersion int `json:"schema_version"`
 	// Status is verified only after every independent host check passes.

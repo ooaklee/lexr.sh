@@ -6,7 +6,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -27,11 +30,11 @@ type releaseFixture struct {
 	policy policy
 }
 
-// TestPrepareValidateAndDeterminism verifies the closed seven-file happy path.
+// TestPrepareValidateAndDeterminism verifies the closed eight-file happy path.
 func TestPrepareValidateAndDeterminism(t *testing.T) {
 	t.Parallel()
 	first := newReleaseFixture(t)
-	firstManager := newManagerWithPolicy(first.policy)
+	firstManager := newManagerWithPolicies(productionPolicy(SupportedTag), first.policy)
 	firstReceipt, err := firstManager.Prepare(context.Background(), first.request)
 	if err != nil {
 		t.Fatalf("Prepare() error = %v", err)
@@ -43,8 +46,8 @@ func TestPrepareValidateAndDeterminism(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 7 {
-		t.Fatalf("release entries = %d, want 7", len(entries))
+	if len(entries) != 8 {
+		t.Fatalf("release entries = %d, want 8", len(entries))
 	}
 	validated, err := firstManager.Validate(context.Background(), ValidationRequest{
 		RepositoryRoot: first.repositoryRoot, Directory: firstReceipt.Plan.ReleaseDirectory,
@@ -64,7 +67,7 @@ func TestPrepareValidateAndDeterminism(t *testing.T) {
 	}
 
 	second := newReleaseFixture(t)
-	secondManager := newManagerWithPolicy(second.policy)
+	secondManager := newManagerWithPolicies(productionPolicy(SupportedTag), second.policy)
 	secondReceipt, err := secondManager.Prepare(context.Background(), second.request)
 	if err != nil {
 		t.Fatalf("second Prepare() error = %v", err)
@@ -89,7 +92,7 @@ func TestPrepareValidateAndDeterminism(t *testing.T) {
 func TestPrepareRejectsUnsupportedHostBeforeSourceSnapshot(t *testing.T) {
 	t.Parallel()
 	fixture := newReleaseFixture(t)
-	manager := newManagerWithPolicy(fixture.policy)
+	manager := newManagerWithPolicies(productionPolicy(SupportedTag), fixture.policy)
 	manager.host = hostcap.Host{GOOS: "windows", GOARCH: "amd64"}
 	dryRequest := fixture.request
 	dryRequest.DryRun = true
@@ -97,7 +100,7 @@ func TestPrepareRejectsUnsupportedHostBeforeSourceSnapshot(t *testing.T) {
 	if err != nil || plan.Executable || plan.ExecutionBlocker == "" {
 		t.Fatalf("unsupported read-only plan = %+v, error = %v", plan, err)
 	}
-	if err := os.Remove(filepath.Join(fixture.sourceRoot, filepath.FromSlash(manager.policy.sources[0].relativePath))); err != nil {
+	if err := os.Remove(filepath.Join(fixture.sourceRoot, filepath.FromSlash(manager.nextPolicy.sources[0].relativePath))); err != nil {
 		t.Fatal(err)
 	}
 	receipt, err := manager.Prepare(context.Background(), fixture.request)
@@ -124,7 +127,7 @@ func TestPlanRejectsUntrustedSourceAndPathInputs(t *testing.T) {
 		if err := os.WriteFile(checksumPath, data, 0o644); err != nil {
 			t.Fatal(err)
 		}
-		_, err = newManagerWithPolicy(fixture.policy).Plan(context.Background(), fixture.request)
+		_, err = newManagerWithPolicies(productionPolicy(SupportedTag), fixture.policy).Plan(context.Background(), fixture.request)
 		if err == nil || !strings.Contains(err.Error(), "checksum mismatch") {
 			t.Fatalf("Plan() error = %v", err)
 		}
@@ -137,7 +140,7 @@ func TestPlanRejectsUntrustedSourceAndPathInputs(t *testing.T) {
 		if err := os.WriteFile(checksumPath, []byte(line), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		_, err := newManagerWithPolicy(fixture.policy).Plan(context.Background(), fixture.request)
+		_, err := newManagerWithPolicies(productionPolicy(SupportedTag), fixture.policy).Plan(context.Background(), fixture.request)
 		if err == nil || !strings.Contains(err.Error(), "unsafe name") {
 			t.Fatalf("Plan() error = %v", err)
 		}
@@ -153,7 +156,7 @@ func TestPlanRejectsUntrustedSourceAndPathInputs(t *testing.T) {
 		if err := os.Symlink(real, hifi); err != nil {
 			t.Skipf("symbolic links unavailable: %v", err)
 		}
-		_, err := newManagerWithPolicy(fixture.policy).Plan(context.Background(), fixture.request)
+		_, err := newManagerWithPolicies(productionPolicy(SupportedTag), fixture.policy).Plan(context.Background(), fixture.request)
 		if err == nil || !strings.Contains(err.Error(), "symbolic link") {
 			t.Fatalf("Plan() error = %v", err)
 		}
@@ -165,7 +168,7 @@ func TestPlanRejectsUntrustedSourceAndPathInputs(t *testing.T) {
 		if err := os.Symlink(outside, filepath.Join(fixture.repositoryRoot, "build")); err != nil {
 			t.Skipf("symbolic links unavailable: %v", err)
 		}
-		_, err := newManagerWithPolicy(fixture.policy).Plan(context.Background(), fixture.request)
+		_, err := newManagerWithPolicies(productionPolicy(SupportedTag), fixture.policy).Plan(context.Background(), fixture.request)
 		if err == nil || !strings.Contains(err.Error(), "symbolic link") {
 			t.Fatalf("Plan() error = %v", err)
 		}
@@ -179,7 +182,7 @@ func TestPrepareFailsClosedOnCancellationCollisionAndSourceChange(t *testing.T) 
 		t.Parallel()
 		fixture := newReleaseFixture(t)
 		ctx, cancel := context.WithCancel(context.Background())
-		manager := newManagerWithPolicy(fixture.policy)
+		manager := newManagerWithPolicies(productionPolicy(SupportedTag), fixture.policy)
 		manager.beforePublish = func(_ context.Context, _ Plan) error {
 			cancel()
 			return nil
@@ -193,7 +196,7 @@ func TestPrepareFailsClosedOnCancellationCollisionAndSourceChange(t *testing.T) 
 	t.Run("destination collision", func(t *testing.T) {
 		t.Parallel()
 		fixture := newReleaseFixture(t)
-		manager := newManagerWithPolicy(fixture.policy)
+		manager := newManagerWithPolicies(productionPolicy(SupportedTag), fixture.policy)
 		manager.beforePublish = func(_ context.Context, plan Plan) error {
 			if err := os.Mkdir(plan.ReleaseDirectory, 0o755); err != nil {
 				return err
@@ -212,7 +215,7 @@ func TestPrepareFailsClosedOnCancellationCollisionAndSourceChange(t *testing.T) 
 	t.Run("source changes after planning", func(t *testing.T) {
 		t.Parallel()
 		fixture := newReleaseFixture(t)
-		manager := newManagerWithPolicy(fixture.policy)
+		manager := newManagerWithPolicies(productionPolicy(SupportedTag), fixture.policy)
 		manager.afterPlan = func(_ Plan) error {
 			path := filepath.Join(fixture.sourceRoot, filepath.FromSlash(fixture.policy.sources[0].relativePath))
 			return os.WriteFile(path, []byte("changed after validation\n"), 0o644)
@@ -238,7 +241,7 @@ func TestValidateRejectsTamperingAndAmbiguousJSON(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(directory, "extra"), []byte("extra\n"), 0o644); err != nil {
 				t.Fatal(err)
 			}
-		}, match: "8 entries"},
+		}, match: "9 entries"},
 		{name: "changed topology", mutate: func(t *testing.T, directory string) {
 			t.Helper()
 			if err := os.WriteFile(filepath.Join(directory, TopologyName), []byte("changed\n"), 0o644); err != nil {
@@ -273,7 +276,7 @@ func TestValidateRejectsTamperingAndAmbiguousJSON(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			fixture := newReleaseFixture(t)
-			manager := newManagerWithPolicy(fixture.policy)
+			manager := newManagerWithPolicies(productionPolicy(SupportedTag), fixture.policy)
 			receipt, err := manager.Prepare(context.Background(), fixture.request)
 			if err != nil {
 				t.Fatal(err)
@@ -299,7 +302,7 @@ func TestMatcherAndProductionChecksumContracts(t *testing.T) {
 	if string(matcher) != want {
 		t.Fatalf("matcher =\n%s\nwant:\n%s", matcher, want)
 	}
-	selected := productionPolicy()
+	selected := productionPolicy(SupportedTag)
 	records := make([]FileRecord, 0, len(selected.artefacts))
 	for _, artefact := range selected.artefacts {
 		records = append(records, FileRecord{Name: artefact.name, SHA256: artefact.sha256, Size: artefact.size})
@@ -372,19 +375,40 @@ func newReleaseFixture(t *testing.T) releaseFixture {
 	for _, artefact := range artefacts {
 		records = append(records, FileRecord{Name: artefact.name, SHA256: artefact.sha256, Size: artefact.size})
 	}
-	releaseChecksums, err := renderChecksums(records)
+	_, err = renderChecksums(records)
 	if err != nil {
 		t.Fatal(err)
 	}
 	selected := policy{
-		tag: "sp11-audio-v19c-test", sourceRelease: "fixture-v19c", sourceRevision: strings.Repeat("a", 40),
+		tag: NextTag, requiresCompatibility: true, sourceRelease: "fixture-v19c", sourceRevision: strings.Repeat("a", 40),
 		checksumRelativePath: "deploy/native-audio-v19c/SHA256SUMS", sources: sources, artefacts: artefacts,
-		checksum: artefactSpec{name: ChecksumName, sha256: digestBytes(releaseChecksums), size: int64(len(releaseChecksums))},
+		checksum: artefactSpec{name: ChecksumName},
+	}
+	declaration, err := os.ReadFile("../../userspace/producer/testdata/declarations/audio-fullio-v19c/" + compatibility.Filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	declarationPath := filepath.Join(repositoryRoot, producer.DeclarationPath("audio-fullio-v19c"))
+	if err := os.MkdirAll(filepath.Dir(declarationPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(declarationPath, declaration, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repositoryRoot, ".gitignore"), []byte("/build/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"init", "-q"}, {"add", "."}, {"-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "-qm", "fixture"}} {
+		cmd := exec.Command("git", append([]string{"-C", repositoryRoot}, args...)...)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("Git fixture: %v %s", err, output)
+		}
 	}
 	return releaseFixture{
 		repositoryRoot: repositoryRoot, sourceRoot: sourceRoot, policy: selected,
 		request: Request{
 			RepositoryRoot: repositoryRoot, SourceRoot: sourceRoot, Tag: selected.tag,
+			PayloadTarget: compatibility.Target{Architecture: "arm64", DeviceProfile: "surface-pro-11-x1e-oled", OSID: "ubuntu", OSVersion: "26.04"}, AllowUnverifiedCompatibility: true,
 			KernelTag: "sp11-qcom-x1e-7.2.0-jg-0sp11v19", KernelABI: "7.2.0-jg-0sp11v19-qcom-x1e",
 		},
 	}

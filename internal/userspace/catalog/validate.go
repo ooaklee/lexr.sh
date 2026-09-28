@@ -69,7 +69,7 @@ func validate(raw document, components []Component) error {
 		issues = append(issues, Issue{Field: field, Message: fmt.Sprintf(format, values...)})
 	}
 
-	if raw.SchemaVersion != CurrentSchemaVersion {
+	if raw.SchemaVersion != 2 && raw.SchemaVersion != CurrentSchemaVersion {
 		add("schema_version", "must be %d, got %d", CurrentSchemaVersion, raw.SchemaVersion)
 	}
 	validateNarrative(add, "description", raw.Description)
@@ -97,7 +97,10 @@ func validate(raw document, components []Component) error {
 		validateCapability(add, prefix+".capability", component.Capability)
 		validateRedistribution(add, prefix+".redistribution", component.Redistribution)
 		validateEvidence(add, prefix+".compatibility_evidence", component.CompatibilityEvidence)
-		validateKernelCompatibility(add, prefix, component)
+		validateCompatibilityContract(add, prefix, raw.SchemaVersion, component)
+		if component.Compatibility == nil {
+			validateKernelCompatibility(add, prefix, component)
+		}
 		validateActions(add, prefix, rawComponent.SupportActions, component)
 		validateRelease(add, prefix, component)
 

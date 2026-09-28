@@ -10,6 +10,7 @@ import (
 	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
 	userspacebuild "github.com/ooaklee/lexr.sh/internal/userspace/build"
 	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
 	userspaceinstall "github.com/ooaklee/lexr.sh/internal/userspace/install"
 	userspacemanager "github.com/ooaklee/lexr.sh/internal/userspace/manager"
 	userspacestatus "github.com/ooaklee/lexr.sh/internal/userspace/status"
@@ -62,6 +63,8 @@ func (a *application) newUserspaceStatusCommand() *cobra.Command {
 // newUserspaceStatusDeliveryCommand creates a shared status command for both
 // `userspace status` and `doctor userspace`.
 func (a *application) newUserspaceStatusDeliveryCommand(use, short string) *cobra.Command {
+	var target compatibility.Target
+	var bundleDirectory string
 	var root string
 	var userHome string
 	var kernelABI string
@@ -82,6 +85,7 @@ func (a *application) newUserspaceStatusDeliveryCommand(use, short string) *cobr
 			}
 			report, err := a.userspace.StatusWithCatalog(a.userspaceCatalogPath, userspacestatus.Options{
 				Root: root, UserHome: userHome, KernelABI: kernelABI, Features: features,
+				CompatibilityTarget: target, BundleDirectory: bundleDirectory,
 			})
 			if err != nil {
 				return err
@@ -107,6 +111,9 @@ func (a *application) newUserspaceStatusDeliveryCommand(use, short string) *cobr
 		},
 	}
 	command.Flags().StringVar(&root, "root", "/", "target filesystem root to inspect")
+	command.Flags().StringVar(&bundleDirectory, "from", "", "offline component bundle directory for compatibility evidence")
+	command.Flags().StringVar(&target.Architecture, "architecture", "", "explicit target architecture")
+	command.Flags().StringVar(&target.DeviceProfile, "device-profile", "", "explicit registered target device profile")
 	command.Flags().StringVar(&userHome, "user-home", "", "explicit target-visible absolute Linux user home; never inferred")
 	command.Flags().StringVar(&kernelABI, "kernel", "", "installed Surface qcom-x1e kernel ABI to inspect")
 	command.Flags().StringSliceVar(&featureNames, "feature", nil, "limit checks to a feature (repeatable or comma-separated)")
@@ -283,6 +290,7 @@ func (a *application) newUserspaceBuildCommand() *cobra.Command {
 			return err
 		},
 	}
+	payloadCompatibilityFlags(command, &request.PayloadTarget, &request.AllowUnverifiedCompatibility, true)
 	command.Flags().StringVar(&request.RepositoryRoot, "repository-root", "", "OE repository root (auto-detected from the current directory)")
 	command.Flags().StringVar(&request.OutputDirectory, "output-dir", "", "component build output directory (camera paths are repository-relative)")
 	command.Flags().StringVar(&request.Image, "image", "", "iptsd ARM64 builder image (camera uses immutable compiled policy)")
@@ -327,6 +335,8 @@ func (a *application) writeUserspaceBuildResult(result userspacebuild.Result) er
 // newUserspaceInstallCommand verifies and applies only compiled userspace
 // workflows, with an explicit confirmation gate for every mutation.
 func (a *application) newUserspaceInstallCommand() *cobra.Command {
+	var compatibilityTarget compatibility.Target
+	var allowUnverifiedCompatibility bool
 	var from string
 	var repositoryRoot string
 	var cameraAuthoritySHA256 string
@@ -357,7 +367,8 @@ func (a *application) newUserspaceInstallCommand() *cobra.Command {
 				}
 			}
 			results, err := a.userspace.Install(command.Context(), userspacemanager.InstallRequest{
-				CatalogPath:           a.userspaceCatalogPath,
+				CatalogPath:         a.userspaceCatalogPath,
+				CompatibilityTarget: compatibilityTarget, AllowUnverifiedCompatibility: allowUnverifiedCompatibility,
 				Selector:              args[0],
 				From:                  from,
 				DefaultCacheRoot:      defaultCacheRoot,
@@ -370,6 +381,7 @@ func (a *application) newUserspaceInstallCommand() *cobra.Command {
 			report := makeUserspaceInstallReport(results, dryRun)
 			if err != nil {
 				report.Error = err.Error()
+				report.NextSteps = nil
 			}
 			if asJSON {
 				if writeErr := a.writeJSON(report); writeErr != nil {
@@ -383,6 +395,10 @@ func (a *application) newUserspaceInstallCommand() *cobra.Command {
 			return err
 		},
 	}
+	command.Flags().BoolVar(&allowUnverifiedCompatibility, "allow-unverified-compatibility", false, "permit compatibility beyond recorded evidence; never bypass hard bounds or missing target identity")
+	command.Flags().StringVar(&compatibilityTarget.Architecture, "architecture", "", "explicit target architecture for component compatibility")
+	command.Flags().StringVar(&compatibilityTarget.DeviceProfile, "device-profile", "", "explicit registered target device profile")
+	command.Flags().StringVar(&compatibilityTarget.KernelABI, "kernel", "", "explicit target kernel ABI for component compatibility")
 	command.Flags().StringVar(&from, "from", "", "exact authenticated input directory (userspace cache root for recommended)")
 	command.Flags().StringVar(&repositoryRoot, "repository-root", "", "current OE Git root required for native camera build or release input")
 	command.Flags().StringVar(&cameraAuthoritySHA256, "camera-authority-sha256", "", "trusted authority digest printed by native camera build or release preparation")
@@ -434,13 +450,22 @@ func makeUserspaceInstallReport(results []userspaceinstall.Result, dryRun bool) 
 func (a *application) writeUserspaceInstallReport(report userspaceInstallReport) error {
 	for _, result := range report.Results {
 		operation := "installed"
-		if result.DryRun {
+		if report.Error != "" && !result.FilesInstalled {
+			operation = "incomplete install for"
+		}
+		if result.DryRun && report.Error == "" {
 			operation = "verified plan for"
 		} else if !result.FilesInstalled && (result.Component == userspacemanager.IPTSDComponent || result.Component == userspacemanager.WiFiComponent) {
 			operation = "incomplete install for"
 		}
 		if _, err := fmt.Fprintf(a.out, "%s %s\nroot: %s\n", operation, result.Component, result.Root); err != nil {
 			return err
+		}
+		if result.Compatibility != nil {
+			decision := result.Compatibility.Decision
+			if _, err := fmt.Fprintf(a.out, "compatibility: %s (%s)\nmanifest SHA-256: %s; allow unverified: %t\n", decision.Status, strings.Join(decision.Reasons, "; "), result.Compatibility.Manifest.SHA256, result.Compatibility.AllowUnverified); err != nil {
+				return err
+			}
 		}
 		for _, change := range result.Files {
 			if _, err := fmt.Fprintf(a.out, "file: %s %s <- %s", change.Action, change.Target, change.Source); err != nil {

@@ -215,22 +215,6 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err := checkpoint("verify-kernel", packageDigests(request.Bundle)); err != nil {
 		return Result{}, err
 	}
-	companionRecord := companion.Absent(companion.OmissionReasonNotRequested)
-	if request.Companion.SourceDirectory != "" {
-		if r.Companions == nil {
-			return Result{}, errors.New("companion builder is unavailable")
-		}
-		logf(r.Out, "Staging the Linux ARM64 companion bundle")
-		companionRequest := request.Companion
-		companionRequest.DestinationDirectory = workspace
-		companionRecord, err = r.Companions.Build(ctx, companionRequest)
-		if err != nil {
-			return Result{}, fmt.Errorf("stage companion bundle: %w", err)
-		}
-	}
-	if err := checkpoint("stage-companion", companionDigests(companionRecord)); err != nil {
-		return Result{}, err
-	}
 
 	logf(r.Out, "Preparing ARM64 image tooling")
 	toolsImage, err := r.Docker.EnsureToolsImage(ctx)
@@ -296,6 +280,36 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 		return Result{}, fmt.Errorf("prepare extracted ISO metadata: %w", err)
 	}
 	if err := checkpoint("extract-live-root", nil); err != nil {
+		return Result{}, err
+	}
+	companionRecord := companion.Absent(companion.OmissionReasonNotRequested)
+	if request.Companion.SourceDirectory != "" {
+		if r.Companions == nil {
+			return Result{}, errors.New("companion builder is unavailable")
+		}
+		logf(r.Out, "Staging the Linux ARM64 companion bundle")
+		companionRequest := request.Companion
+		companionRequest.DestinationDirectory = workspace
+		if companion.NeedsTarget(companionRequest) {
+			selected := companionRequest.Target
+			selected.LexrVersion = request.ToolVersion
+			selected.Architecture = "arm64"
+			selected.KernelABI = request.Bundle.ABI
+			if selected.DeviceProfile == "" {
+				selected.DeviceProfile = request.KernelProfile
+			}
+			companionRequest.Target, err = companion.ObserveImageTarget(ctx, r.Docker, toolsImage, workspace, workVolume, selected)
+			if err != nil {
+				return Result{}, err
+			}
+		}
+
+		companionRecord, err = r.Companions.Build(ctx, companionRequest)
+		if err != nil {
+			return Result{}, fmt.Errorf("stage companion bundle: %w", err)
+		}
+	}
+	if err := checkpoint("stage-companion", companionDigests(companionRecord)); err != nil {
 		return Result{}, err
 	}
 

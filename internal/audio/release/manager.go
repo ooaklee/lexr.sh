@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/ooaklee/lexr.sh/internal/hostcap"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 )
 
 // publicationRequirement describes hosts with atomic local audio publication.
@@ -25,16 +26,29 @@ func (manager *Manager) Plan(ctx context.Context, request Request) (Plan, error)
 
 // plan resolves paths, validates pairing, and snapshots all pinned sources.
 func (manager *Manager) plan(ctx context.Context, request Request) (Plan, sourceSnapshot, error) {
-	plan, err := manager.basePlan(ctx, request)
+	selected, err := manager.selectPolicy(request.Tag)
 	if err != nil {
 		return Plan{}, sourceSnapshot{}, err
 	}
-	return manager.snapshotPlan(ctx, plan)
+	plan, err := manager.basePlan(ctx, request, selected)
+	if err != nil {
+		return Plan{}, sourceSnapshot{}, err
+	}
+	record, _, err := manager.prepareCompatibility(ctx, request)
+	if err != nil {
+		return Plan{}, sourceSnapshot{}, err
+	}
+	plan.Compatibility = &record
+	plan, snapshot, snapErr := manager.snapshotPlan(ctx, plan, selected)
+	if snapErr != nil {
+		return Plan{}, sourceSnapshot{}, snapErr
+	}
+	return plan, snapshot, nil
 }
 
 // snapshotPlan completes a base plan by authenticating all pinned source bytes.
-func (manager *Manager) snapshotPlan(ctx context.Context, plan Plan) (Plan, sourceSnapshot, error) {
-	snapshot, err := snapshotSource(ctx, plan.SourceRoot, manager.policy)
+func (manager *Manager) snapshotPlan(ctx context.Context, plan Plan, selected policy) (Plan, sourceSnapshot, error) {
+	snapshot, err := snapshotSource(ctx, plan.SourceRoot, selected)
 	if err != nil {
 		return Plan{}, sourceSnapshot{}, fmt.Errorf("validate pinned FullIO v19c sources: %w", err)
 	}
@@ -44,8 +58,11 @@ func (manager *Manager) snapshotPlan(ctx context.Context, plan Plan) (Plan, sour
 
 // basePlan resolves bounded paths and static host availability without reading
 // the potentially large pinned source set.
-func (manager *Manager) basePlan(ctx context.Context, request Request) (Plan, error) {
-	if manager == nil || len(manager.policy.sources) != 4 || len(manager.policy.artefacts) != 4 {
+func (manager *Manager) basePlan(ctx context.Context, request Request, selected policy) (Plan, error) {
+	if !selected.requiresCompatibility {
+		return Plan{}, errors.New("new audio preparation requires the compatibility-bearing release identity")
+	}
+	if manager == nil || len(selected.sources) != 4 || len(selected.artefacts) != 4 {
 		return Plan{}, errors.New("audio release policy is unavailable or incomplete")
 	}
 	if err := ctx.Err(); err != nil {
@@ -59,8 +76,8 @@ func (manager *Manager) basePlan(ctx context.Context, request Request) (Plan, er
 	if err != nil {
 		return Plan{}, err
 	}
-	if request.Tag != manager.policy.tag || !safePortableName(request.Tag) {
-		return Plan{}, fmt.Errorf("audio release tag must be the reviewed %q identity", manager.policy.tag)
+	if request.Tag != selected.tag || !safePortableName(request.Tag) {
+		return Plan{}, fmt.Errorf("audio release tag must be the reviewed %q identity", selected.tag)
 	}
 	kernelGeneration, err := parseKernelPair(request.KernelTag, request.KernelABI)
 	if err != nil {
@@ -93,7 +110,11 @@ func (manager *Manager) basePlan(ctx context.Context, request Request) (Plan, er
 
 // Prepare validates and atomically installs one fresh local release directory.
 func (manager *Manager) Prepare(ctx context.Context, request Request) (receipt Receipt, resultErr error) {
-	plan, err := manager.basePlan(ctx, request)
+	selected, err := manager.selectPolicy(request.Tag)
+	if err != nil {
+		return receipt, err
+	}
+	plan, err := manager.basePlan(ctx, request, selected)
 	if err != nil {
 		return receipt, err
 	}
@@ -101,10 +122,17 @@ func (manager *Manager) Prepare(ctx context.Context, request Request) (receipt R
 	if !plan.DryRun && !plan.Executable {
 		return receipt, errors.New(plan.ExecutionBlocker)
 	}
-	plan, snapshot, err := manager.snapshotPlan(ctx, plan)
+	plan, snapshot, err := manager.snapshotPlan(ctx, plan, selected)
 	if err != nil {
 		return receipt, err
 	}
+	receipt.Plan = plan
+	record, compatibilityBytes, err := manager.prepareCompatibility(ctx, request)
+	if err != nil {
+		return receipt, err
+	}
+	compatibilityRecord := &record
+	plan.Compatibility = compatibilityRecord
 	receipt.Plan = plan
 	if plan.DryRun {
 		return receipt, nil
@@ -161,7 +189,7 @@ func (manager *Manager) Prepare(ctx context.Context, request Request) (receipt R
 		}
 	}()
 
-	for index, spec := range manager.policy.sources[:3] {
+	for index, spec := range selected.sources[:3] {
 		if err := copyIdentity(ctx, snapshot.inputs[index], filepath.Join(staging, spec.releaseName)); err != nil {
 			return receipt, fmt.Errorf("copy pinned %s source: %w", spec.role, err)
 		}
@@ -174,22 +202,37 @@ func (manager *Manager) Prepare(ctx context.Context, request Request) (receipt R
 	if err != nil {
 		return receipt, err
 	}
-	if matcherRecord := inspectData(MatcherName, matcher); matcherRecord.SHA256 != manager.policy.artefacts[3].sha256 || matcherRecord.Size != manager.policy.artefacts[3].size {
+	if matcherRecord := inspectData(MatcherName, matcher); matcherRecord.SHA256 != selected.artefacts[3].sha256 || matcherRecord.Size != selected.artefacts[3].size {
 		return receipt, errors.New("generated DMI matcher differs from the reviewed v19c identity")
 	}
 	if err := writeExclusive(filepath.Join(staging, MatcherName), matcher); err != nil {
 		return receipt, fmt.Errorf("write generated DMI matcher: %w", err)
 	}
-	artefacts, err := inspectPolicyArtefacts(ctx, staging, manager.policy)
+	artefacts, err := inspectPolicyArtefacts(ctx, staging, selected)
 	if err != nil {
 		return receipt, err
+	}
+	if selected.requiresCompatibility {
+		if compatibilityBytes == nil {
+			return receipt, errors.New("the next audio packaging must carry the canonical compatibility declaration")
+		}
+		if err := writeExclusive(filepath.Join(staging, CompatibilityName), compatibilityBytes); err != nil {
+			return receipt, fmt.Errorf("write audio compatibility declaration: %w", err)
+		}
+		staged := inspectData(CompatibilityName, compatibilityBytes)
+		if staged.SHA256 != compatibilityRecord.Manifest.SHA256 || staged.Size != compatibilityRecord.Manifest.Size {
+			return receipt, errors.New("staged compatibility declaration differs from the pinned source authority")
+		}
+		artefacts = append(artefacts, staged)
+	} else if compatibilityBytes != nil {
+		return receipt, errors.New("the legacy v19c packaging must not carry the canonical compatibility declaration")
 	}
 	checksumData, err := renderChecksums(artefacts)
 	if err != nil {
 		return receipt, err
 	}
 	checksumRecord := inspectData(ChecksumName, checksumData)
-	if checksumRecord.SHA256 != manager.policy.checksum.sha256 || checksumRecord.Size != manager.policy.checksum.size {
+	if selected.checksum.sha256 != "" && (checksumRecord.SHA256 != selected.checksum.sha256 || checksumRecord.Size != selected.checksum.size) {
 		return receipt, errors.New("generated SHA256SUMS differs from the reviewed v19c contract")
 	}
 	if err := writeExclusive(filepath.Join(staging, ChecksumName), checksumData); err != nil {
@@ -198,7 +241,8 @@ func (manager *Manager) Prepare(ctx context.Context, request Request) (receipt R
 	manifest := Manifest{
 		SchemaVersion: SchemaVersion, Status: "verified-local-preparation", Tag: plan.Tag,
 		KernelTag: plan.KernelTag, KernelABI: plan.KernelABI, KernelGeneration: plan.KernelGeneration,
-		Source: plan.Source, Artefacts: artefacts, ProtectedVendorBytes: true, RemoteMutation: false,
+		Source: plan.Source, Artefacts: artefacts, Compatibility: compatibilityRecord,
+		ProtectedVendorBytes: true, RemoteMutation: false,
 	}
 	notesData := renderNotes(manifest)
 	if int64(len(notesData)) > maximumTextBytes {
@@ -215,7 +259,7 @@ func (manager *Manager) Prepare(ctx context.Context, request Request) (receipt R
 	if err := writeExclusive(filepath.Join(staging, ManifestName), manifestData); err != nil {
 		return receipt, fmt.Errorf("write audio release manifest: %w", err)
 	}
-	if err := validateDirectory(ctx, staging, manifest, manager.policy, false); err != nil {
+	if err := validateDirectory(ctx, staging, manifest, selected, false); err != nil {
 		return receipt, fmt.Errorf("validate private audio release transaction: %w", err)
 	}
 	if err := os.Chmod(staging, 0o755); err != nil {
@@ -244,6 +288,14 @@ func (manager *Manager) Prepare(ctx context.Context, request Request) (receipt R
 		return receipt, err
 	}
 	if err := proveDirectoryIdentity(staging, stagingInfo); err != nil {
+		_ = stagingDirectory.Close()
+		return receipt, err
+	}
+	if err := producer.Revalidate(ctx, manager.runner, plan.RepositoryRoot, *compatibilityRecord); err != nil {
+		_ = stagingDirectory.Close()
+		return receipt, err
+	}
+	if err := validateDirectory(ctx, staging, manifest, selected, false); err != nil {
 		_ = stagingDirectory.Close()
 		return receipt, err
 	}
@@ -310,4 +362,15 @@ func removeTransaction(path string, expected os.FileInfo) error {
 		}
 	}
 	return os.Remove(path)
+}
+
+// prepareCompatibility binds the source declaration to the explicit payload
+// and the running producer identity, never an arbitrary caller version.
+func (manager *Manager) prepareCompatibility(ctx context.Context, request Request) (producer.Record, []byte, error) {
+	target := request.PayloadTarget
+	if target.KernelABI != "" && target.KernelABI != request.KernelABI {
+		return producer.Record{}, nil, errors.New("audio payload kernel disagrees with release pairing")
+	}
+	target.KernelABI = request.KernelABI
+	return producer.Prepare(ctx, manager.runner, producer.Request{Component: "audio-fullio-v19c", RepositoryRoot: request.RepositoryRoot, PayloadTarget: target, AllowUnverifiedCompatibility: request.AllowUnverifiedCompatibility})
 }

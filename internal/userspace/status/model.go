@@ -10,6 +10,8 @@ package status
 
 import (
 	"fmt"
+	"github.com/ooaklee/lexr.sh/internal/userspace/assessment"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
 	"sort"
 	"strings"
 )
@@ -28,6 +30,8 @@ const (
 	StateFail State = "fail"
 	// StateSkip means a check was unavailable or an optional feature is absent.
 	StateSkip State = "skip"
+	// StateUnavailable identifies missing, malformed, or unsupported compatibility evidence.
+	StateUnavailable State = "unavailable"
 )
 
 // Feature identifies a userspace support area that can be inspected alone.
@@ -124,6 +128,8 @@ func featureNames() string {
 
 // Check is one stable, machine-readable diagnostic result.
 type Check struct {
+	// Compatibility contains the offline authenticated component assessment.
+	Compatibility *assessment.Record `json:"compatibility,omitempty"`
 	// ID is a stable identifier suitable for automation and tests.
 	ID string `json:"id"`
 	// Feature groups the result under one userspace support area.
@@ -144,6 +150,11 @@ type Check struct {
 
 // Options controls a read-only inspection.
 type Options struct {
+	// BundleDirectory selects an offline manifest source instead of the installed record.
+	BundleDirectory string
+	// CompatibilityTarget supplies explicit architecture and device selections.
+	CompatibilityTarget compatibility.Target
+
 	// Root is the target filesystem root. It defaults to "/".
 	Root string
 	// UserHome is one explicit canonical target-visible Linux home inspected for
