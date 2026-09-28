@@ -158,7 +158,9 @@ that do not apply.
   entries, require mounted root and boot identity, resolve separate boot
   paths without guessing, and reject shared boot-file write conflicts.
   Revalidate ownership during installation and recovery; unresolved entries
-  cannot qualify a required kernel or default
+  cannot qualify a required kernel or default. Accept unrelated Linux namespace
+  mounts and normal promotion of GRUB's generic shortcut to a newer kernel,
+  while preserving fallback bytes and recovery entries
   ([#71](https://github.com/ooaklee/lexr.sh/issues/71)).
 - Prepare releases from Fedora rc.3 creation journals that recorded the ISO
   volume label and GRUB marker as digests. Check those two values against the

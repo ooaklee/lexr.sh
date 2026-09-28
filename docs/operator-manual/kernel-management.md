@@ -286,6 +286,12 @@ menu. Another installation may use the same ABI. Lexr distinguishes the
 boot filesystem and Linux root before applying Ubuntu's kernel, initramfs
 and DTB checks; menu titles and matching filenames are not ownership proof.
 
+Installing a newer kernel can move GRUB's generic `Ubuntu` shortcut away from
+the fallback. Final installation checks permit that single shortcut to move
+while retaining the fallback's ABI-labelled normal entry, unchanged recovery
+entry count and verified artefact bytes. Pre-mutation and rollback comparisons
+still require unchanged entry counts.
+
 Boot-doctor JSON reports `ownership` and a bounded `ownership_reason` for each
 entry. A `proven-foreign` entry remains visible but is not certified using
 local files. An `unresolved` entry cannot qualify a required target, fallback

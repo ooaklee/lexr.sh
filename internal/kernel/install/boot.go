@@ -1376,6 +1376,19 @@ func pathTokenMatches(tokens []string, basename string) bool {
 
 // fallbackUnchanged compares the safety-critical fallback identities before and after.
 func fallbackUnchanged(before, after BootEvidence) error {
+	return compareFallbackEvidence(before, after, false)
+}
+
+// fallbackPreservedAfterInstall additionally permits stock GRUB to promote its
+// single unlabelled normal shortcut from the fallback to the newer target.
+// Pre-mutation revalidation and rollback must still use fallbackUnchanged.
+func fallbackPreservedAfterInstall(before, after BootEvidence) error {
+	return compareFallbackEvidence(before, after, true)
+}
+
+// compareFallbackEvidence never relaxes artefact identity, labelled normal
+// cardinality or recovery preservation when an optional shortcut moves.
+func compareFallbackEvidence(before, after BootEvidence, allowPromotion bool) error {
 	if before.ABI != after.ABI || before.KernelImage.SHA256 != after.KernelImage.SHA256 ||
 		before.Initramfs.SHA256 != after.Initramfs.SHA256 ||
 		before.SystemMap.SHA256 != after.SystemMap.SHA256 ||
@@ -1384,12 +1397,22 @@ func fallbackUnchanged(before, after BootEvidence) error {
 		before.ModuleFile.SHA256 != after.ModuleFile.SHA256 ||
 		before.DeviceTreeBoot.Mode != after.DeviceTreeBoot.Mode ||
 		before.DeviceTreeBoot.SHA256 != after.DeviceTreeBoot.SHA256 ||
-		before.DeviceTreeBoot.GRUBEntryCount != after.DeviceTreeBoot.GRUBEntryCount ||
-		before.DeviceTreeBoot.NormalGRUBEntryCount != after.DeviceTreeBoot.NormalGRUBEntryCount ||
-		before.DeviceTreeBoot.RecoveryGRUBEntryCount != after.DeviceTreeBoot.RecoveryGRUBEntryCount ||
 		!equalStrings(before.DeviceTreeBoot.SHA256s, after.DeviceTreeBoot.SHA256s) ||
-		after.GRUBEntryCount != 1 {
+		before.GRUBEntryCount != 1 || after.GRUBEntryCount != 1 {
 		return fmt.Errorf("fallback ABI %s changed or became unbootable during installation", before.ABI)
+	}
+	previous, current := before.DeviceTreeBoot, after.DeviceTreeBoot
+	stable := previous.GRUBEntryCount == current.GRUBEntryCount &&
+		previous.NormalGRUBEntryCount == current.NormalGRUBEntryCount &&
+		previous.RecoveryGRUBEntryCount == current.RecoveryGRUBEntryCount
+	promoted := allowPromotion && previous.NormalGRUBEntryCount == 2 && current.NormalGRUBEntryCount == 1 &&
+		previous.RecoveryGRUBEntryCount == current.RecoveryGRUBEntryCount &&
+		previous.GRUBEntryCount == previous.NormalGRUBEntryCount+previous.RecoveryGRUBEntryCount &&
+		current.GRUBEntryCount == current.NormalGRUBEntryCount+current.RecoveryGRUBEntryCount
+	if !stable && !promoted {
+		return fmt.Errorf("fallback ABI %s GRUB bindings changed unexpectedly: normal %d -> %d, recovery %d -> %d, total %d -> %d",
+			before.ABI, previous.NormalGRUBEntryCount, current.NormalGRUBEntryCount,
+			previous.RecoveryGRUBEntryCount, current.RecoveryGRUBEntryCount, previous.GRUBEntryCount, current.GRUBEntryCount)
 	}
 	return nil
 }

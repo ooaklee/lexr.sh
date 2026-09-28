@@ -379,7 +379,7 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	if err != nil {
 		return manager.failAndRollback(ctx, plan, backup, receipt, err)
 	}
-	if err := fallbackUnchanged(plan.Fallback, currentFallback); err != nil {
+	if err := fallbackPreservedAfterInstall(plan.Fallback, currentFallback); err != nil {
 		return manager.failAndRollback(ctx, plan, backup, receipt, err)
 	}
 	receipt.Installed = &installed

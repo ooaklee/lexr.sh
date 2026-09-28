@@ -233,6 +233,10 @@ func TestInstallRegenerationDiscoversForeignSameABI(t *testing.T) {
 		t.Run(map[bool]string{false: "success", true: "rollback"}[fail], func(t *testing.T) {
 			root, bundle := fixtureEnvironment(t)
 			foreign := ownershipMenu("Arch Linux ARM", "foreign-boot", "root=UUID=foreign-root", fixtureFallbackABI, "initramfs-"+fixtureFallbackABI+".img")
+			labelled := "'Ubuntu " + fixtureFallbackABI + "'"
+			recovery := strings.Replace(fixtureGRUB(false), labelled, "'Ubuntu "+fixtureFallbackABI+" (recovery mode)'", 1)
+			shortcut := strings.Replace(fixtureGRUB(false), labelled, "'Ubuntu'", 1)
+			writeRawOwnershipGRUB(t, root, fixtureOwnedGRUB(shortcut+fixtureGRUB(false)+recovery))
 			original, err := os.ReadFile(filepath.Join(root, "boot/grub/grub.cfg"))
 			if err != nil {
 				t.Fatal(err)
@@ -245,7 +249,10 @@ func TestInstallRegenerationDiscoversForeignSameABI(t *testing.T) {
 						return err
 					}
 					writeFixtureFile(t, filepath.Join(root, "boot/initrd.img-"+fixtureTargetABI), "target initramfs")
-					text := fixtureOwnedGRUB(fixtureGRUB(true)) + foreign
+					// Stock GRUB promotes the generic shortcut to the new kernel;
+					// the fallback retains its labelled normal and recovery pair.
+					promoted := strings.ReplaceAll(shortcut, fixtureFallbackABI, fixtureTargetABI)
+					text := fixtureOwnedGRUB(promoted+fixtureGRUB(true)+recovery) + foreign
 					if fail {
 						text = strings.ReplaceAll(text, " devicetree /boot/dtb-"+fixtureTargetABI+"\n", "")
 					}
@@ -273,6 +280,70 @@ func TestInstallRegenerationDiscoversForeignSameABI(t *testing.T) {
 				generated, err := os.ReadFile(filepath.Join(root, "boot/grub/grub.cfg"))
 				if err != nil || !strings.Contains(string(generated), foreign) {
 					t.Fatal("foreign menu entry was removed or changed")
+				}
+				fallback, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI)
+				if err != nil || fallback.DeviceTreeBoot.NormalGRUBEntryCount != 1 || fallback.DeviceTreeBoot.RecoveryGRUBEntryCount != 1 {
+					t.Fatalf("fallback normal/recovery pair not preserved: %v", err)
+				}
+			}
+		})
+	}
+}
+
+// TestFallbackComparisonPreservesEvidence allows one generic shortcut to move
+// without relaxing recovery cardinality or any safety-critical byte comparison.
+func TestFallbackComparisonPreservesEvidence(t *testing.T) {
+	root, _ := fixtureEnvironment(t)
+	before, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before.DeviceTreeBoot.GRUBEntryCount = 3
+	before.DeviceTreeBoot.NormalGRUBEntryCount = 2
+	before.DeviceTreeBoot.RecoveryGRUBEntryCount = 1
+	if err := fallbackUnchanged(before, before); err != nil {
+		t.Fatalf("unchanged evidence rejected: %v", err)
+	}
+	for _, tc := range []struct {
+		name   string
+		mutate func(*BootEvidence)
+		valid  bool
+	}{
+		{"shortcut moved", func(*BootEvidence) {}, true},
+		{"recovery lost", func(e *BootEvidence) {
+			e.DeviceTreeBoot.RecoveryGRUBEntryCount = 0
+			e.DeviceTreeBoot.GRUBEntryCount = 1
+		}, false},
+		{"recovery added", func(e *BootEvidence) {
+			e.DeviceTreeBoot.RecoveryGRUBEntryCount = 2
+			e.DeviceTreeBoot.GRUBEntryCount = 3
+		}, false},
+		{"extra aliases", func(e *BootEvidence) { e.DeviceTreeBoot.NormalGRUBEntryCount = 3; e.DeviceTreeBoot.GRUBEntryCount = 4 }, false},
+		{"inconsistent total", func(e *BootEvidence) { e.DeviceTreeBoot.GRUBEntryCount = 3 }, false},
+		{"all normal bindings lost", func(e *BootEvidence) { e.DeviceTreeBoot.NormalGRUBEntryCount = 0; e.DeviceTreeBoot.GRUBEntryCount = 1 }, false},
+		{"labelled normal missing", func(e *BootEvidence) { e.GRUBEntryCount = 0 }, false},
+		{"duplicate labelled normal", func(e *BootEvidence) { e.GRUBEntryCount = 2 }, false},
+		{"kernel changed", func(e *BootEvidence) { e.KernelImage.SHA256 = "changed" }, false},
+		{"initramfs changed", func(e *BootEvidence) { e.Initramfs.SHA256 = "changed" }, false},
+		{"module index changed", func(e *BootEvidence) { e.ModulesDependencyIndex.SHA256 = "changed" }, false},
+		{"DTB changed", func(e *BootEvidence) { e.DeviceTreeBoot.SHA256 = "changed" }, false},
+		{"DTB set changed", func(e *BootEvidence) { e.DeviceTreeBoot.SHA256s = []string{"changed"} }, false},
+		{"delivery changed", func(e *BootEvidence) { e.DeviceTreeBoot.Mode = DeviceTreeBootEmbedded }, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			after := before
+			after.DeviceTreeBoot.GRUBEntryCount = 2
+			after.DeviceTreeBoot.NormalGRUBEntryCount = 1
+			tc.mutate(&after)
+			if err := fallbackPreservedAfterInstall(before, after); (err == nil) != tc.valid {
+				t.Fatalf("comparison accepted=%t want=%t: %v", err == nil, tc.valid, err)
+			}
+			if tc.valid {
+				if err := fallbackPreservedAfterInstall(after, before); err == nil {
+					t.Fatal("unexplained shortcut growth accepted")
+				}
+				if err := fallbackUnchanged(before, after); err == nil {
+					t.Fatal("pre-mutation or rollback comparison accepted changed counts")
 				}
 			}
 		})
