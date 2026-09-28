@@ -277,7 +277,41 @@ recovery evidence matter.
 
 The target ABI is classified as `absent-and-eligible`, `already-installed-complete`, or `partial-or-inconsistent`. The classification collects bounded read-only evidence: boot files, module trees, firmware and device trees, development headers, GRUB entries, and the package database states for the exact target-ABI packages. A target that is not absent blocks installation with the full evidence plus safe next steps scoped to the target ABI only; the running and fallback ABI are never proposed for removal, and nothing is purged or repaired automatically. Pass `--overwrite` to explicitly replace an existing complete or partial installation; Lexr then prints a warning that an unsafe overwrite could break the system or prevent returning to the desktop on reboot, and rejects `--overwrite` when the target ABI matches the running ABI. If an overwritten installation fails and rolls back, the rollback removes the whole target installation rather than restoring the previous one, so review the evidence before overwriting a working target. `--yes` alone never bypasses this gate.
 
-The target root and fallback ABI are always explicit. `--running-abi` is accepted only for an alternate-root fixture; inspection of the live root always uses direct `uname` evidence.
+The target root and fallback ABI are always explicit. `--running-abi` is accepted only for an alternate-root fixture; inspection of the live root always uses direct `uname` evidence. Native boot ownership additionally requires an exactly mounted Linux root and its root-local or mounted `/boot` view. An unpacked directory cannot establish runtime ownership; image creation uses its separate structural offline-root checks.
+
+### Multiboot ownership
+
+Installing a kernel in Ubuntu updates Ubuntu, not every distro in its GRUB
+menu. Another installation may use the same ABI. Lexr distinguishes the
+boot filesystem and Linux root before applying Ubuntu's kernel, initramfs
+and DTB checks; menu titles and matching filenames are not ownership proof.
+
+Boot-doctor JSON reports `ownership` and a bounded `ownership_reason` for each
+entry. A `proven-foreign` entry remains visible but is not certified using
+local files. An `unresolved` entry cannot qualify a required target, fallback
+or default. A foreign or unresolved default needs review; Doctor does not
+change it or claim that another distro is broken.
+
+Supported native mapping includes separate `/boot` and explicit Btrfs
+`rootflags=subvol=` selection. Implicit default subvolumes, unresolved device
+aliases, other boot mounts and dynamically loaded menus cannot provide the
+same proof. Do not work around missing evidence by disabling OS discovery,
+removing other systems' menu entries, or using `--force`; that flag changes
+only the running-versus-fallback comparison.
+
+Preflight checks existing references to shared physical boot files. A
+foreign reference to a path this transaction would change blocks installation,
+even with `--overwrite`. A warning explains when GRUB regeneration can discover
+additional entries; final verification checks the generated menu again.
+If a new shared-file conflict makes rollback purge unsafe, or mounted root
+identity changes, recovery stops the unsafe action and reports incomplete
+recovery. Retain the receipt and review the owning filesystems before retrying.
+There is no requirement to update other distros, but reinstalling their ABI
+alone may not fix a wrong bootloader binding.
+
+See [ADR040](../adr/adr-040-installation-scoped-grub-ownership.md) for the
+ownership boundary. These checks do not extend the guarded Debian-package
+installer into a pacman or RPM updater.
 
 Review preflight and the install dry run before confirming installation.
 These checks do not change the target, but reading protected kernel images

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/ooaklee/lexr.sh/internal/bootidentity"
 	"unicode/utf8"
 
 	"github.com/ooaklee/lexr.sh/internal/kernel"
@@ -307,11 +309,15 @@ func syncDirectory(path string) error {
 }
 
 // failAndRollback attempts bounded recovery without inheriting caller cancellation.
-func (manager *Manager) failAndRollback(plan Plan, backup grubBackup, receipt Receipt, installErr error) (Receipt, error) {
+func (manager *Manager) failAndRollback(ctx context.Context, plan Plan, backup grubBackup, receipt Receipt, installErr error) (Receipt, error) {
 	recovery := &RollbackReceipt{Attempted: true}
 	receipt.Rollback = recovery
-	rollbackContext, cancel := context.WithTimeout(context.Background(), rollbackTimeout)
+	rollbackContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
 	defer cancel()
+	if _, err := bootidentity.Resolve(rollbackContext, plan.Root); err != nil {
+		recovery.Error = "rollback stopped because the reviewed root or boot filesystem is no longer available; restore the reviewed mounts before recovery"
+		return receipt, errors.Join(installErr, errors.New(recovery.Error))
+	}
 	packageNames := make([]string, 0, len(plan.Packages))
 	for _, item := range plan.Packages {
 		// Boot support is a singleton shared by fallback ABIs. Purging it as if
@@ -323,16 +329,30 @@ func (manager *Manager) failAndRollback(plan Plan, backup grubBackup, receipt Re
 		packageNames = append(packageNames, item.DebianPackage)
 	}
 	commands, commandErr := rollbackCommands(plan.Root, packageNames)
+	_, scopeErr := inspectBootWriteScope(rollbackContext, plan.Root, plan.TargetABI, nil)
+	if errors.Is(installErr, errSharedBootWrite) || errors.Is(scopeErr, errSharedBootWrite) {
+		commandErr = errors.New("automatic package purge skipped because another installation references the target boot files; resolve the shared-file conflict before recovery")
+	} else if scopeErr != nil {
+		commandErr = errors.New("automatic package purge skipped because boot-file ownership could not be rechecked; review the current menu before recovery")
+	}
 	var rollbackErr error
 	if commandErr != nil {
 		rollbackErr = commandErr
 	} else {
 		for _, command := range commands {
+			if _, err := bootidentity.Resolve(rollbackContext, plan.Root); err != nil {
+				rollbackErr = errors.Join(rollbackErr, err)
+				break
+			}
 			recovery.Commands = append(recovery.Commands, cloneCommand(command))
 			if err := manager.runMutationCommand(rollbackContext, command, plan.Profile); err != nil {
 				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("%s: %w", command.Operation, err))
 			}
 		}
+	}
+	if _, err := bootidentity.Resolve(rollbackContext, plan.Root); err != nil {
+		recovery.Error = "rollback could not restore GRUB because mounted root or boot identity changed"
+		return receipt, errors.Join(installErr, rollbackErr, errors.New(recovery.Error))
 	}
 	if err := restoreGRUB(rollbackContext, backup); err != nil {
 		rollbackErr = errors.Join(rollbackErr, err)

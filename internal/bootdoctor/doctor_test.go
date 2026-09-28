@@ -1,7 +1,6 @@
 package bootdoctor
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
@@ -25,6 +24,9 @@ const (
 // writeBootDoctorFile creates one regular fixture file and all of its parents.
 func writeBootDoctorFile(t *testing.T, root, relative, content string) {
 	t.Helper()
+	if relative == "boot/grub/grub.cfg" {
+		content = doctorOwnedGRUB(content)
+	}
 	target := filepath.Join(root, filepath.FromSlash(relative))
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		t.Fatal(err)
@@ -159,7 +161,7 @@ func findDoctorCheck(t *testing.T, report Report, id, abi string) Check {
 // prefers the newer patch line, resolves saved_entry, and retains exact digests.
 func TestInspectAttributesSharedDTBPatchLineFirst(t *testing.T) {
 	root := bootDoctorFixture(t, "newer patch-line device tree")
-	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled"})
+	report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1e-oled"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +203,7 @@ func TestInspectAttributesSharedDTBPatchLineFirst(t *testing.T) {
 func TestInspectAcceptsDeviceScopedEmbeddedDTB(t *testing.T) {
 	payload := []byte("target OLED device tree")
 	root := embeddedBootDoctorFixture(t, payload)
-	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
+	report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +229,7 @@ func TestInspectAcceptsDeviceScopedEmbeddedDTB(t *testing.T) {
 func TestInspectAcceptsX1PEmbeddedDTB(t *testing.T) {
 	payload := []byte("target LCD device tree")
 	root := embeddedBootDoctorFixture(t, payload)
-	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1p-lcd", TargetABI: doctorTargetABI})
+	report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1p-lcd", TargetABI: doctorTargetABI})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,7 +244,7 @@ func TestInspectAcceptsX1PEmbeddedDTB(t *testing.T) {
 // cannot be satisfied by an exact same-ABI LCD payload.
 func TestInspectRejectsAnotherDeviceEmbeddedDTB(t *testing.T) {
 	root := embeddedBootDoctorFixture(t, []byte("target LCD device tree"))
-	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
+	report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +263,7 @@ func TestInspectRejectsAnotherDeviceEmbeddedDTB(t *testing.T) {
 func TestInspectRejectsAnotherDeviceExternalDTB(t *testing.T) {
 	root := singleEntryBootDoctorFixture(t, "/boot/x1p64100-microsoft-denali.dtb", "target LCD device tree")
 	writeBootDoctorFile(t, root, "usr/lib/firmware/"+doctorTargetABI+"/device-tree/qcom/x1p64100-microsoft-denali.dtb", "target LCD device tree")
-	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
+	report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +281,7 @@ func TestInspectRejectsAnotherDeviceExternalDTB(t *testing.T) {
 func TestInspectRejectsDuplicateEmbeddedDTBMatches(t *testing.T) {
 	payload := []byte("target OLED device tree")
 	root := embeddedBootDoctorFixture(t, payload, payload)
-	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
+	report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +295,7 @@ func TestInspectRejectsDuplicateEmbeddedDTBMatches(t *testing.T) {
 func TestInspectRejectsMissingEmbeddedDTB(t *testing.T) {
 	root := embeddedBootDoctorFixture(t, []byte("target OLED device tree"))
 	writeBootDoctorFile(t, root, "boot/vmlinuz-"+doctorTargetABI, "raw kernel without embedded device tree")
-	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
+	report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +318,7 @@ func TestInspectRejectsMixedABIBindingModes(t *testing.T) {
 		" linux /boot/vmlinuz-" + doctorTargetABI + " recovery\n" +
 		" initrd /boot/initrd.img-" + doctorTargetABI + "\n}\n"
 	writeBootDoctorFile(t, root, "boot/grub/grub.cfg", grub)
-	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
+	report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1e-oled", TargetABI: doctorTargetABI})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,7 +335,7 @@ func TestInspectRejectsMixedABIBindingModes(t *testing.T) {
 // bytes make the effective default not ready while preserving both digests.
 func TestInspectFailsAfterReportingDefaultDTBMismatch(t *testing.T) {
 	root := bootDoctorFixture(t, "legacy patch-line device tree")
-	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled"})
+	report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1e-oled"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -368,7 +370,7 @@ func TestInspectABIStampedDTBEvidence(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			root := singleEntryBootDoctorFixture(t, test.token, test.bootDTB)
-			report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled"})
+			report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1e-oled"})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -401,7 +403,7 @@ func TestInspectPermissionDeniedDTBWarnsWithoutBlocking(t *testing.T) {
 	if _, err := os.ReadFile(path); err == nil {
 		t.Skip("current user can read chmod 0000 files")
 	}
-	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled"})
+	report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1e-oled"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -432,7 +434,7 @@ func TestInspectPermissionDeniedArtefactsWarnsWithoutBlocking(t *testing.T) {
 	if _, err := os.ReadFile(paths[0]); err == nil {
 		t.Skip("current user can read chmod 0000 files")
 	}
-	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled"})
+	report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1e-oled"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -460,7 +462,7 @@ func TestInspectMissingRequiredArtefactStillFailsClosed(t *testing.T) {
 	if err := os.Remove(filepath.Join(root, "boot/vmlinuz-"+doctorTargetABI)); err != nil {
 		t.Fatal(err)
 	}
-	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled"})
+	report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1e-oled"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -491,7 +493,7 @@ func TestAddEntryChecksDTBAvailabilityPrecedence(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			report := Report{Ready: true}
-			report.addEntryChecks(Entry{
+			report.addEntryChecks(Entry{Ownership: install.GRUBOwned,
 				ABI:               doctorTargetABI,
 				DeviceTrees:       []install.GRUBPathToken{{Command: "devicetree", Path: "/boot/test.dtb"}},
 				KernelState:       install.GRUBPathPresent,
@@ -537,10 +539,12 @@ func TestGRUBPathsAvailabilityDoesNotHideUnsafeSibling(t *testing.T) {
 	if err := os.Symlink("initrd-present", filepath.Join(root, "boot/initrd-link")); err != nil {
 		t.Skipf("create symlink fixture: %v", err)
 	}
-	got := grubPathsAvailability(context.Background(), root, []install.GRUBPathToken{
-		{Command: "initrd", Path: "/boot/initrd-present"},
-		{Command: "initrd", Path: "/boot/initrd-link"},
-	})
+	writeBootDoctorFile(t, root, "boot/grub/grub.cfg", "menuentry 'Ubuntu' {\n linux /boot/vmlinuz-"+doctorTargetABI+"\n initrd /boot/initrd-present /boot/initrd-link\n}\n")
+	entries, err := install.InspectGRUB(doctorContext(), root)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("entries: %v %v", entries, err)
+	}
+	got := grubPathsAvailability(doctorContext(), root, entries[0], entries[0].Initrd)
 	if got != "" {
 		t.Fatalf("availability = %q, want unsafe empty state", got)
 	}
@@ -570,7 +574,7 @@ func TestInspectResolvesNestedGRUBDefaults(t *testing.T) {
 			root := bootDoctorFixture(t, "newer patch-line device tree")
 			writeBootDoctorFile(t, root, "etc/default/grub", "GRUB_DEFAULT="+test.configured+"\n")
 			writeBootDoctorFile(t, root, "boot/grub/grub.cfg", nestedBootDoctorGRUB())
-			report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled"})
+			report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1e-oled"})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -631,7 +635,7 @@ func equalOptionalBool(left, right *bool) bool {
 func TestInspectMarksSharedDigestAttributionAmbiguous(t *testing.T) {
 	root := bootDoctorFixture(t, "newer patch-line device tree")
 	writeBootDoctorFile(t, root, "usr/lib/firmware/"+doctorLegacyABI+"/device-tree/qcom/x1e80100-microsoft-denali-oled.dtb", "newer patch-line device tree")
-	report, err := New().Inspect(context.Background(), Options{Root: root, Device: "x1e-oled"})
+	report, err := New().Inspect(doctorContext(), Options{Root: root, Device: "x1e-oled"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -644,7 +648,7 @@ func TestInspectMarksSharedDigestAttributionAmbiguous(t *testing.T) {
 // TestInspectRequiresDeviceForAlternateRoot verifies offline evidence is never
 // assigned a hardware variant by guesswork.
 func TestInspectRequiresDeviceForAlternateRoot(t *testing.T) {
-	_, err := New().Inspect(context.Background(), Options{Root: t.TempDir()})
+	_, err := New().Inspect(doctorContext(), Options{Root: t.TempDir()})
 	if err == nil || !strings.Contains(err.Error(), "--profile is required") {
 		t.Fatalf("alternate-root device error = %v", err)
 	}

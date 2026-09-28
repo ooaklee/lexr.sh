@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ooaklee/lexr.sh/internal/bootidentity"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 )
 
@@ -60,12 +61,16 @@ func verifyFallbackProfile(ctx context.Context, root, abi, profileID string) (Bo
 	if err := validateTargetRoute(root, grub, false); err != nil {
 		return BootEvidence{}, err
 	}
-	parsedEntries, err := parseGRUBEntries(ctx, grub)
+	parsedEntries, err := InspectGRUB(ctx, root)
 	if err != nil {
 		return BootEvidence{}, err
 	}
 	if err := validateMatchingGRUBEntryArtifacts(ctx, root, parsedEntries, abi); err != nil {
 		return BootEvidence{}, fmt.Errorf("fallback ABI %s: %w", abi, err)
+	}
+	parsedEntries, err = ownedABIEntries(root, parsedEntries, abi)
+	if err != nil {
+		return BootEvidence{}, err
 	}
 	entries := countMatchingGRUBEntries(parsedEntries, abi, true, false)
 	if entries != 1 {
@@ -96,12 +101,16 @@ func verifyInstalled(ctx context.Context, root, abi string, trees []DeviceTree) 
 	if err := validateTargetRoute(root, grub, false); err != nil {
 		return BootEvidence{}, nil, err
 	}
-	parsedEntries, err := parseGRUBEntries(ctx, grub)
+	parsedEntries, err := InspectGRUB(ctx, root)
 	if err != nil {
 		return BootEvidence{}, nil, err
 	}
 	if err := validateMatchingGRUBEntryArtifacts(ctx, root, parsedEntries, abi); err != nil {
 		return BootEvidence{}, nil, fmt.Errorf("installed ABI %s: %w", abi, err)
+	}
+	parsedEntries, err = ownedABIEntries(root, parsedEntries, abi)
+	if err != nil {
+		return BootEvidence{}, nil, err
 	}
 	entries := countMatchingGRUBEntries(parsedEntries, abi, true, false)
 	if entries != 1 {
@@ -380,7 +389,7 @@ func verifyTargetAbsent(ctx context.Context, root, abi string) error {
 	if err := validateTargetRoute(root, grub, false); err != nil {
 		return err
 	}
-	entries, err := countGRUBEntries(ctx, grub, abi, false, true)
+	entries, err := countGRUBEntries(ctx, root, abi, false, true)
 	if err != nil {
 		return err
 	}
@@ -422,8 +431,12 @@ func moduleTreeCandidates(root, abi string) ([]string, error) {
 }
 
 // countGRUBEntries counts matching non-recovery menu entries without executing GRUB.
-func countGRUBEntries(ctx context.Context, path, abi string, requireTitle, includeRecovery bool) (int, error) {
-	entries, err := parseGRUBEntries(ctx, path)
+func countGRUBEntries(ctx context.Context, root, abi string, requireTitle, includeRecovery bool) (int, error) {
+	entries, err := InspectGRUB(ctx, root)
+	if err != nil {
+		return 0, err
+	}
+	entries, err = ownedABIEntries(root, entries, abi)
 	if err != nil {
 		return 0, err
 	}
@@ -452,6 +465,8 @@ func parseGRUBEntries(ctx context.Context, path string) ([]GRUBEntry, error) {
 	menuTitlePaths := [][]string{nil}
 	menuPositions := []int{0}
 	menuBlocks := make([]bool, 0)
+	conditionalDepth := 0
+	functionDepth := 0
 	scanner := bufio.NewScanner(io.LimitReader(file, maximumGRUBBytes+1))
 	scanner.Buffer(make([]byte, 4096), 1<<20)
 	for scanner.Scan() {
@@ -459,7 +474,47 @@ func parseGRUBEntries(ctx context.Context, path string) ([]GRUBEntry, error) {
 			return nil, err
 		}
 		line := strings.TrimSpace(scanner.Text())
+		// File-scope conditions govern whether a menuentry exists at all.
+		// Do not turn an unexecuted declaration into a proven local boot path.
+		if active == nil {
+			if functionDepth > 0 {
+				if line == "}" {
+					functionDepth = 0
+				}
+				if strings.HasPrefix(line, "function ") || line == "{" {
+					return nil, errors.New("unsupported GRUB function structure")
+				}
+				continue
+			}
+			if strings.HasPrefix(line, "function ") {
+				functionDepth = 1
+				if !strings.HasSuffix(line, " {") {
+					return nil, errors.New("unsupported GRUB function structure")
+				}
+				continue
+			}
+			if strings.HasPrefix(line, "if ") {
+				conditionalDepth++
+				if strings.HasSuffix(line, "; fi") {
+					conditionalDepth--
+				}
+				if conditionalDepth > maximumGRUBMenuDepth {
+					return nil, errors.New("GRUB conditional nesting exceeds inspection limit")
+				}
+				continue
+			}
+			if line == "fi" {
+				if conditionalDepth == 0 {
+					return nil, errors.New("unsupported GRUB conditional structure")
+				}
+				conditionalDepth--
+				continue
+			}
+		}
 		if strings.HasPrefix(line, "}") {
+			if active != nil && line != "}" {
+				active.identityContext.opaque = true
+			}
 			active = nil
 			if len(menuBlocks) > 0 {
 				last := len(menuBlocks) - 1
@@ -504,32 +559,40 @@ func parseGRUBEntries(ctx context.Context, path string) ([]GRUBEntry, error) {
 				continue
 			}
 			entries = append(entries, GRUBEntry{
-				Index:         len(entries),
-				Depth:         level,
-				MenuPath:      menuPath,
-				MenuTitlePath: append(append([]string(nil), menuTitlePaths[level]...), title),
-				Title:         title,
-				ID:            grubMenuID(line),
-				Recovery:      strings.Contains(strings.ToLower(title), "recovery"),
+				identityContext: newGRUBIdentityContext(),
+				Index:           len(entries),
+				Depth:           level,
+				MenuPath:        menuPath,
+				MenuTitlePath:   append(append([]string(nil), menuTitlePaths[level]...), title),
+				Title:           title,
+				ID:              grubMenuID(line),
+				Recovery:        strings.Contains(strings.ToLower(title), "recovery"),
 			})
 			active = &entries[len(entries)-1]
+			if conditionalDepth > 0 {
+				active.identityContext.opaque = true
+			}
 			continue
 		}
 		if active == nil {
 			continue
 		}
+		active.identityContext.observe(line)
 		fields, valid := splitGRUBFields(line)
 		if !valid || len(fields) < 2 {
 			continue
 		}
 		command := fields[0]
+		if command != "linux" && command != "linuxefi" && command != "initrd" && command != "initrdefi" && command != "devicetree" {
+			continue
+		}
 		pathFields := fields[1:2]
 		if command == "initrd" || command == "initrdefi" {
 			pathFields = fields[1:]
 		}
 		values := make([]GRUBPathToken, 0, len(pathFields))
 		for _, field := range pathFields {
-			token, valid := normaliseGRUBToken(field)
+			token, valid := active.identityContext.artifact(command, field)
 			if !valid {
 				switch command {
 				case "linux", "linuxefi", "initrd", "initrdefi", "devicetree":
@@ -537,7 +600,7 @@ func parseGRUBEntries(ctx context.Context, path string) ([]GRUBEntry, error) {
 				}
 				continue
 			}
-			values = append(values, GRUBPathToken{Command: command, Path: token})
+			values = append(values, token)
 		}
 		switch command {
 		case "linux", "linuxefi":
@@ -547,6 +610,12 @@ func parseGRUBEntries(ctx context.Context, path string) ([]GRUBEntry, error) {
 		case "devicetree":
 			active.DeviceTrees = append(active.DeviceTrees, values...)
 		}
+	}
+	if active != nil {
+		active.identityContext.opaque = true
+	}
+	if conditionalDepth != 0 || functionDepth != 0 {
+		return nil, errors.New("unterminated GRUB file-scope control flow")
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("read GRUB configuration: %w", err)
@@ -578,6 +647,11 @@ func countMatchingGRUBEntries(entries []GRUBEntry, abi string, requireTitle, inc
 // kernel token is security-relevant even when it would not count as the one
 // canonical normal entry.
 func validateMatchingGRUBEntryArtifacts(ctx context.Context, root string, entries []GRUBEntry, abi string) error {
+	var err error
+	entries, err = ownedABIEntries(root, entries, abi)
+	if err != nil {
+		return err
+	}
 	for _, entry := range entries {
 		if GRUBEntryHasUnsafeBootArtifacts(entry) {
 			return fmt.Errorf("GRUB entry %q contains an unsafe kernel or initramfs path", entry.Title)
@@ -749,6 +823,11 @@ func InspectGRUB(ctx context.Context, root string) ([]GRUBEntry, error) {
 			entries[index].DeviceTrees = rejectAlternateRootTokens(entries[index].DeviceTrees, canonical, &entries[index].UnsafeCommands)
 		}
 	}
+	identity, identityErr := bootidentity.Resolve(ctx, canonical)
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	classifyGRUBOwnership(canonical, entries, identity, identityErr)
 	return entries, nil
 }
 
@@ -771,6 +850,11 @@ func rejectAlternateRootTokens(tokens []GRUBPathToken, root string, unsafe *[]st
 // required same-ABI firmware DTB. Entries without an external directive are
 // valid only when the kernel embeds exactly one recognised same-ABI DTB.
 func verifyGRUBDeviceTreeBindings(ctx context.Context, root, abi string, entries []GRUBEntry, trees []DeviceTree) (DeviceTreeBootEvidence, error) {
+	var err error
+	entries, err = ownedABIEntries(root, entries, abi)
+	if err != nil {
+		return DeviceTreeBootEvidence{}, err
+	}
 	var evidence DeviceTreeBootEvidence
 	var embedded *DeviceTreeBootEvidence
 	if err := validateMatchingGRUBEntryArtifacts(ctx, root, entries, abi); err != nil {
@@ -865,7 +949,7 @@ func verifyExternalDeviceTreeBinding(ctx context.Context, root, abi string, entr
 		return "", errors.New("matching GRUB entry has an unrecognised declared device-tree path")
 	}
 	if device == abiStampedDeviceTreeMarker {
-		digest, err := verifyABIStampedDeviceTreeBinding(ctx, root, abi, entry.DeviceTrees[0].Path, trees)
+		digest, err := verifyABIStampedDeviceTreeBinding(ctx, root, abi, entry, trees)
 		if err != nil {
 			return "", err
 		}
@@ -895,7 +979,7 @@ func verifyExternalDeviceTreeBinding(ctx context.Context, root, abi string, entr
 	if err != nil {
 		return "", err
 	}
-	bootSide, err := hashGRUBPath(ctx, root, entry.DeviceTrees[0].Path)
+	bootSide, _, err := InspectGRUBArtifact(ctx, root, entry, entry.DeviceTrees[0])
 	if err != nil {
 		return "", fmt.Errorf("inspect GRUB device-tree for %s: %w", device, err)
 	}
@@ -1063,8 +1147,11 @@ func validateSelectedDeviceTree(tree DeviceTree) error {
 // the boot-side digest so coexisting OLED and LCD variants remain the normal
 // healthy state. The binding fails closed when the boot bytes match no
 // installed variant; byte-identical variant matches are interchangeable.
-func verifyABIStampedDeviceTreeBinding(ctx context.Context, root, abi, token string, trees []DeviceTree) (string, error) {
-	bootSide, err := hashGRUBPath(ctx, root, token)
+func verifyABIStampedDeviceTreeBinding(ctx context.Context, root, abi string, entry GRUBEntry, trees []DeviceTree) (string, error) {
+	if len(entry.DeviceTrees) != 1 {
+		return "", errors.New("GRUB entry must name exactly one external device tree")
+	}
+	bootSide, _, err := InspectGRUBArtifact(ctx, root, entry, entry.DeviceTrees[0])
 	if err != nil {
 		return "", fmt.Errorf("inspect ABI-stamped GRUB device-tree: %w", err)
 	}
@@ -1144,30 +1231,33 @@ func GRUBEntryHasUnsafeBootArtifacts(entry GRUBEntry) bool {
 
 // VerifyGRUBEntryABIArtifacts resolves and hashes the actual GRUB tokens and
 // requires byte identity with the canonical exact-ABI kernel and initramfs.
-// HashGRUBPath handles both /boot-prefixed and separate-/boot token forms.
+// Mounted identity determines the path mapping; no root/boot guessing is used.
 func VerifyGRUBEntryABIArtifacts(ctx context.Context, root string, entry GRUBEntry, abi string) error {
+	if entry.Ownership != GRUBOwned || entry.boundRoot != filepath.Clean(root) {
+		return errors.New("GRUB entry does not belong to the selected installation")
+	}
 	if len(entry.Linux) != 1 || !entryHasArtefact(entry.Linux, "vmlinuz-"+abi) {
 		return errors.New("does not name exactly one exact-ABI kernel")
 	}
 	if len(entry.Initrd) != 1 || !entryHasArtefact(entry.Initrd, "initrd.img-"+abi) {
 		return errors.New("does not name exactly one exact-ABI initramfs")
 	}
-	wantedKernel, err := HashGRUBPath(ctx, root, "/boot/vmlinuz-"+abi)
+	wantedKernel, err := HashRootFile(ctx, root, "boot/vmlinuz-"+abi, "canonical kernel")
 	if err != nil {
 		return fmt.Errorf("verify canonical exact-ABI kernel: %w", err)
 	}
-	actualKernel, err := HashGRUBPath(ctx, root, entry.Linux[0].Path)
+	actualKernel, _, err := InspectGRUBArtifact(ctx, root, entry, entry.Linux[0])
 	if err != nil {
 		return fmt.Errorf("verify GRUB kernel token: %w", err)
 	}
 	if actualKernel.SHA256 != wantedKernel.SHA256 || actualKernel.Size != wantedKernel.Size {
 		return errors.New("GRUB kernel token differs from the canonical exact-ABI kernel")
 	}
-	wantedInitrd, err := HashGRUBPath(ctx, root, "/boot/initrd.img-"+abi)
+	wantedInitrd, err := HashRootFile(ctx, root, "boot/initrd.img-"+abi, "canonical initramfs")
 	if err != nil {
 		return fmt.Errorf("verify canonical exact-ABI initramfs: %w", err)
 	}
-	actualInitrd, err := HashGRUBPath(ctx, root, entry.Initrd[0].Path)
+	actualInitrd, _, err := InspectGRUBArtifact(ctx, root, entry, entry.Initrd[0])
 	if err != nil {
 		return fmt.Errorf("verify GRUB initramfs token: %w", err)
 	}
@@ -1271,82 +1361,6 @@ func ABIStampedDTBMatchesABI(token, abi string) bool {
 		}
 	}
 	return true
-}
-
-// hashGRUBPath resolves a GRUB path below the selected target root or its
-// mounted boot directory and returns bounded regular-file evidence.
-func hashGRUBPath(ctx context.Context, root, token string) (FileEvidence, error) {
-	normalised, valid := normaliseGRUBToken(token)
-	if !valid {
-		return FileEvidence{}, errors.New("GRUB boot-artifact token is not a safe absolute path")
-	}
-	relative := strings.TrimPrefix(normalised, "/")
-	candidates := []string{relative}
-	if !strings.HasPrefix(normalised, "/boot/") {
-		candidates = []string{"boot/" + relative, relative}
-	}
-	var missing error
-	available := make([]FileEvidence, 0, len(candidates))
-	for _, candidate := range candidates {
-		target, err := rootPath(root, candidate)
-		if err != nil {
-			return FileEvidence{}, err
-		}
-		if err := validateTargetRoute(root, target, false); err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				missing = err
-				continue
-			}
-			return FileEvidence{}, err
-		}
-		evidence, err := requireRegularEvidence(ctx, "GRUB boot-artifact", target)
-		if err == nil {
-			available = append(available, evidence)
-			continue
-		}
-		if errors.Is(err, os.ErrNotExist) {
-			missing = err
-			continue
-		}
-		return FileEvidence{}, err
-	}
-	if len(available) > 1 {
-		return FileEvidence{}, errors.New("GRUB boot-artifact path has ambiguous root and boot-directory resolutions")
-	}
-	if len(available) == 1 {
-		return available[0], nil
-	}
-	if missing != nil {
-		return FileEvidence{}, missing
-	}
-	return FileEvidence{}, errors.New("GRUB boot-artifact path is unavailable")
-}
-
-// HashGRUBPath resolves and hashes one recognised GRUB path through the same
-// bounded, symlink-rejecting evidence boundary used by installation.
-func HashGRUBPath(ctx context.Context, root, token string) (FileEvidence, error) {
-	canonical, err := canonicalRoot(root)
-	if err != nil {
-		return FileEvidence{}, err
-	}
-	return hashGRUBPath(ctx, canonical, token)
-}
-
-// InspectGRUBPath resolves and hashes one recognised path while exposing the
-// missing-versus-permission distinction needed by read-only diagnostics. Other
-// safety errors retain an empty availability and must continue to fail closed.
-func InspectGRUBPath(ctx context.Context, root, token string) (FileEvidence, GRUBPathAvailability, error) {
-	evidence, err := HashGRUBPath(ctx, root, token)
-	switch {
-	case err == nil:
-		return evidence, GRUBPathPresent, nil
-	case errors.Is(err, os.ErrPermission):
-		return FileEvidence{}, GRUBPathInaccessible, err
-	case errors.Is(err, os.ErrNotExist):
-		return FileEvidence{}, GRUBPathMissing, err
-	default:
-		return FileEvidence{}, "", err
-	}
 }
 
 // pathTokenMatches reports whether any GRUB path token ends in the exact artefact.

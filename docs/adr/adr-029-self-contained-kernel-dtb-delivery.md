@@ -8,6 +8,10 @@ description: Architecture decision for proving embedded device trees or provisio
 
 Accepted on 2026-09-04.
 
+On 2026-09-28, [ADR040](adr-040-installation-scoped-grub-ownership.md)
+partially superseded native GRUB matching and recovery assumptions with
+installation-scoped ownership; bundle and package lifecycle decisions remain.
+
 This decision partially supersedes the device-tree lifecycle and boot-binding
 parts of [ADR004](adr-004-ubuntu-hybrid-iso-remaster.md) and
 [ADR007](adr-007-installed-system-handoff.md).

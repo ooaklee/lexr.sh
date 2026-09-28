@@ -230,7 +230,7 @@ func classifyTargetState(ctx context.Context, root, abi string, packages []Packa
 	if err := validateTargetRoute(root, grub, false); err != nil {
 		return TargetStateEvidence{}, err
 	}
-	entries, err := countGRUBEntries(ctx, grub, abi, true, false)
+	entries, err := countGRUBEntries(ctx, root, abi, true, false)
 	if err != nil {
 		return TargetStateEvidence{}, err
 	}
@@ -473,13 +473,13 @@ func verifyDeviceTreeEvidence(findings []ArtefactFinding) error {
 // no, ambiguous, or non-matching device-tree binding. An empty result means
 // the binding is sound.
 func (e *TargetStateEvidence) grubDeviceTreeBindingProblem(ctx context.Context, root, abi string, trees []DeviceTree) string {
-	grub, err := rootPath(root, "boot/grub/grub.cfg")
+	parsedEntries, err := InspectGRUB(ctx, root)
 	if err != nil {
 		return "GRUB device-tree bindings could not be inspected: " + err.Error()
 	}
-	parsedEntries, err := parseGRUBEntries(ctx, grub)
+	parsedEntries, err = ownedABIEntries(root, parsedEntries, abi)
 	if err != nil {
-		return "GRUB device-tree bindings could not be inspected: " + err.Error()
+		return "GRUB installation ownership could not be inspected: " + err.Error()
 	}
 	targetEntries := make([]GRUBEntry, 0, 2)
 	labelledNormalEntries := 0

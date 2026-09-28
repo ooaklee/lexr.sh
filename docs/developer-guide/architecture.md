@@ -107,7 +107,9 @@ the decision closest to the question you are asking:
 | Releases and repository ownership | [ADR016: kernel release preparation](../adr/adr-016-native-kernel-release-preparation.md), [ADR024: automation ownership](../adr/adr-024-lexr-owned-automation.md), [ADR025: build provenance](../adr/adr-025-submodule-safe-build-provenance.md), [ADR026: project terms](../adr/adr-026-apache-2.0-project-terms-and-release-notices.md), [ADR038: self-update](../adr/adr-038-atomic-rename-over-self-update.md), [ADR039: standalone installer](../adr/adr-039-verified-atomic-standalone-installer.md) |
 
 Read an ADR as historical reasoning, then check current code and task guides for
-the implemented contract. When an agreed change needs a new record, use the
+the implemented contract. [ADR040: installation-scoped GRUB ownership](../adr/adr-040-installation-scoped-grub-ownership.md)
+records the native multiboot validation boundary and partially supersedes ADR029.
+When an agreed change needs a new record, use the
 [ADR template](../adr/_adr-XXXX-template.md) and follow the coordination rule in
 [`CONTRIBUTING.md`](https://github.com/ooaklee/lexr.sh/blob/main/CONTRIBUTING.md#before-you-start).
 

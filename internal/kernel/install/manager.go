@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ooaklee/lexr.sh/internal/bootidentity"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 	"github.com/ooaklee/lexr.sh/internal/profile"
@@ -40,6 +41,11 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (result Pl
 	if request.Bundle.ABI == request.FallbackABI {
 		return Plan{}, fmt.Errorf("target ABI must differ from fallback ABI: %s", request.Bundle.ABI)
 	}
+	identity, err := bootidentity.Resolve(ctx, root)
+	if err != nil {
+		return Plan{}, fmt.Errorf("establish installation ownership: %w", err)
+	}
+	ctx = bootidentity.WithExpected(ctx, identity)
 	selected, err := installationProfile(request)
 	if err != nil {
 		return Plan{}, err
@@ -80,6 +86,13 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (result Pl
 	binding, err := planFallbackBinding(ctx, root, selected.ID, fallback)
 	if err != nil {
 		return Plan{}, err
+	}
+	multiboot, err := inspectBootWriteScope(ctx, root, request.Bundle.ABI, binding)
+	if err != nil {
+		return Plan{}, err
+	}
+	if multiboot {
+		warnings = append(warnings, "GRUB regeneration may discover other installations; only this installation's kernel and fallback are verified, and shared boot-file conflicts block the transaction")
 	}
 	if request.Overwrite {
 		// Overwrite replaces only the target ABI; it must never target the
@@ -140,6 +153,7 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (result Pl
 		return Plan{}, err
 	}
 	return Plan{
+		ownership:              identity,
 		Profile:                selected.ID,
 		BootHookCleanup:        hookCleanup,
 		FallbackBinding:        binding,
@@ -215,6 +229,7 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	if request.DryRun {
 		return receipt, nil
 	}
+	ctx = bootidentity.WithExpected(ctx, plan.ownership)
 	if manager.effectiveUID == nil || manager.effectiveUID() != 0 {
 		return receipt, errors.New("kernel installation requires effective UID 0; review a dry run, then rerun as root")
 	}
@@ -250,6 +265,9 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	if err := fallbackUnchanged(plan.Fallback, currentFallback); err != nil {
 		return receipt, err
 	}
+	if _, err := inspectBootWriteScope(ctx, plan.Root, plan.TargetABI, plan.FallbackBinding); err != nil {
+		return receipt, err
+	}
 
 	backup, backupCleanup, err := createGRUBBackup(ctx, plan.Root)
 	if err != nil {
@@ -260,6 +278,10 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	// a package script can regenerate GRUB. Both changes have recovery evidence.
 	defer func() {
 		if resultErr != nil {
+			if _, err := bootidentity.Resolve(context.WithoutCancel(ctx), plan.Root); err != nil {
+				resultErr = errors.Join(resultErr, errors.New("boot preparation could not be restored safely because mount identity changed"))
+				return
+			}
 			resultErr = errors.Join(resultErr, restoreBootPreparation(&receipt))
 		}
 	}()
@@ -272,6 +294,9 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	}
 	mutationStarted := false
 	runCommand := func(command Command) error {
+		if _, err := bootidentity.Resolve(ctx, plan.Root); err != nil {
+			return err
+		}
 		if err := validateCommand(command); err != nil {
 			return err
 		}
@@ -282,12 +307,12 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	for _, command := range commands {
 		if err := ctx.Err(); err != nil {
 			if mutationStarted {
-				return manager.failAndRollback(plan, backup, receipt, err)
+				return manager.failAndRollback(ctx, plan, backup, receipt, err)
 			}
 			return receipt, err
 		}
 		if err := runCommand(command); err != nil {
-			return manager.failAndRollback(plan, backup, receipt, fmt.Errorf("%s: %w", command.Operation, err))
+			return manager.failAndRollback(ctx, plan, backup, receipt, fmt.Errorf("%s: %w", command.Operation, err))
 		}
 	}
 
@@ -296,63 +321,66 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	// before boot verification, so the target can never pass without an image.
 	initramfsMissing, err := initramfsMissingAfterInstall(plan.Root, plan.TargetABI)
 	if err != nil {
-		return manager.failAndRollback(plan, backup, receipt, err)
+		return manager.failAndRollback(ctx, plan, backup, receipt, err)
 	}
 	if initramfsMissing {
 		repairs, err := ensureInitramfsCommands(plan.Root, plan.TargetABI)
 		if err != nil {
-			return manager.failAndRollback(plan, backup, receipt, err)
+			return manager.failAndRollback(ctx, plan, backup, receipt, err)
 		}
 		for _, command := range repairs {
 			if err := ctx.Err(); err != nil {
-				return manager.failAndRollback(plan, backup, receipt, err)
+				return manager.failAndRollback(ctx, plan, backup, receipt, err)
 			}
 			if err := runCommand(command); err != nil {
-				return manager.failAndRollback(plan, backup, receipt, fmt.Errorf("%s: %w", command.Operation, err))
+				return manager.failAndRollback(ctx, plan, backup, receipt, fmt.Errorf("%s: %w", command.Operation, err))
 			}
 		}
 	}
 
 	if err := rejectCompetingBootHooks(plan.Root); err != nil {
-		return manager.failAndRollback(plan, backup, receipt, err)
+		return manager.failAndRollback(ctx, plan, backup, receipt, err)
 	}
 	for _, command := range plan.Commands {
 		if command.Operation == OperationRefreshBoot {
 			if err := runCommand(command); err != nil {
-				return manager.failAndRollback(plan, backup, receipt, fmt.Errorf("%s: %w", command.Operation, err))
+				return manager.failAndRollback(ctx, plan, backup, receipt, fmt.Errorf("%s: %w", command.Operation, err))
 			}
 		}
 	}
 	installed, trees, err := verifyInstalled(ctx, plan.Root, plan.TargetABI, plan.DeviceTrees)
 	if err != nil {
-		return manager.failAndRollback(plan, backup, receipt, err)
+		return manager.failAndRollback(ctx, plan, backup, receipt, err)
+	}
+	if _, err := inspectBootWriteScope(ctx, plan.Root, plan.TargetABI, nil); err != nil {
+		return manager.failAndRollback(ctx, plan, backup, receipt, err)
 	}
 	if err := verifyBootProfile(ctx, plan.Root, plan.TargetABI, plan.Profile, installed.DeviceTreeBoot); err != nil {
-		return manager.failAndRollback(plan, backup, receipt, err)
+		return manager.failAndRollback(ctx, plan, backup, receipt, err)
 	}
 	wantBootMode := DeviceTreeBootEmbedded
 	if plan.EffectiveDTBDelivery == kernel.DTBDeliveryExternalRequired {
 		wantBootMode = DeviceTreeBootExternal
 	}
 	if installed.DeviceTreeBoot.Mode != wantBootMode {
-		return manager.failAndRollback(plan, backup, receipt, fmt.Errorf(
+		return manager.failAndRollback(ctx, plan, backup, receipt, fmt.Errorf(
 			"installed ABI %s uses %s DTB delivery; bundle requires %s", plan.TargetABI, installed.DeviceTreeBoot.Mode, plan.EffectiveDTBDelivery))
 	}
 	if installed.DeviceTreeBoot.NormalGRUBEntryCount == 0 || installed.DeviceTreeBoot.RecoveryGRUBEntryCount == 0 {
-		return manager.failAndRollback(plan, backup, receipt, fmt.Errorf(
+		return manager.failAndRollback(ctx, plan, backup, receipt, fmt.Errorf(
 			"installed ABI %s requires normal and recovery GRUB bindings; verified %d normal and %d recovery entries",
 			plan.TargetABI, installed.DeviceTreeBoot.NormalGRUBEntryCount, installed.DeviceTreeBoot.RecoveryGRUBEntryCount))
 	}
 	headers, err := verifyInstalledHeaders(ctx, plan.Root, plan.TargetABI, plan.Packages)
 	if err != nil {
-		return manager.failAndRollback(plan, backup, receipt, err)
+		return manager.failAndRollback(ctx, plan, backup, receipt, err)
 	}
 	currentFallback, err = verifyFallbackProfile(ctx, plan.Root, plan.FallbackABI, plan.Profile)
 	if err != nil {
-		return manager.failAndRollback(plan, backup, receipt, err)
+		return manager.failAndRollback(ctx, plan, backup, receipt, err)
 	}
 	if err := fallbackUnchanged(plan.Fallback, currentFallback); err != nil {
-		return manager.failAndRollback(plan, backup, receipt, err)
+		return manager.failAndRollback(ctx, plan, backup, receipt, err)
 	}
 	receipt.Installed = &installed
 	receipt.DeviceTrees = trees
