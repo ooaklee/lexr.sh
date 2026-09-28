@@ -25,6 +25,13 @@ inside the same patch line, platform flavour and registered scope.
 The target's exact `/etc/os-release` `ID` and `VERSION_ID` select the OS rule.
 A derivative does not inherit Ubuntu compatibility through `ID_LIKE`.
 
+`device_profiles` uses the canonical IDs from `lexr profile list`:
+`x1e80100-microsoft-denali-oled` for X Elite OLED and
+`x1p64100-microsoft-denali` for X Plus LCD. The audio, pen and camera
+declarations include both IDs. Supply these IDs to `--device-profile` and
+`--target-device-profile`; kernel platform aliases are not compatibility IDs.
+Device detection and image creation record the same canonical identities.
+
 ## Inspect and install offline
 
 For a new manifest-aware release, inspect the selected target and an already
@@ -33,12 +40,12 @@ verified local bundle. Supply missing target evidence explicitly:
 ```sh
 lexr userspace status --root /mnt/target --feature iptsd \
   --from /path/to/verified-bundle --architecture arm64 \
-  --device-profile surface-pro-11-x1e-oled \
+  --device-profile x1e80100-microsoft-denali-oled \
   --kernel 7.2.0-jg-0sp11v19-qcom-x1e --json
 
 lexr userspace install iptsd --root /mnt/target \
   --from /path/to/verified-bundle --architecture arm64 \
-  --device-profile surface-pro-11-x1e-oled \
+  --device-profile x1e80100-microsoft-denali-oled \
   --kernel 7.2.0-jg-0sp11v19-qcom-x1e --dry-run --json
 ```
 
@@ -92,7 +99,9 @@ same dedicated override as other unverified evidence.
 Initial declarations leave `tested_versions` empty. Preparing new packaging
 therefore requires a deliberate `--allow-unverified-compatibility` even when
 using previously shipped payload bytes. This records an experiment, not a
-new OS or hardware qualification.
+new OS or hardware qualification for either profile. If qualification later
+differs between profiles, record separate complete target rules so evidence
+for one device does not qualify the other.
 
 Audio release schema 2 includes the declaration among eight files. Camera
 build schema 2 contains nine files and camera release schema 2 contains twelve;

@@ -56,7 +56,9 @@ that do not apply.
 
 - Authenticate per-component userspace compatibility manifests and evaluate
   the selected OS, architecture, device, Lexr release and scoped kernel identity
-  consistently. Preserve exact historical bundles through explicit legacy
+  consistently. Use canonical hardware profile IDs and include X Elite OLED
+  and X Plus LCD in the existing component declarations, initially unverified.
+  Preserve exact historical bundles through explicit legacy
   profiles; new release preparation requires portable compatibility evidence
   ([#44](https://github.com/ooaklee/lexr.sh/issues/44)).
 

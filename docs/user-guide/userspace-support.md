@@ -82,13 +82,13 @@ incomplete inspection, or timeout still produces an activation error.
 lexr userspace pull recommended
 lexr userspace pull camera
 lexr userspace build iptsd --repository-root <oe-checkout> \
-  --target-architecture arm64 --target-device-profile surface-pro-11-x1e-oled \
+  --target-architecture arm64 --target-device-profile x1e80100-microsoft-denali-oled \
   --target-os ubuntu --target-os-version 26.04 \
   --target-kernel 7.2.0-jg-0sp11v19-qcom-x1e \
   --allow-unverified-compatibility
 
 lexr userspace build camera --repository-root <oe-checkout> \
-  --target-architecture arm64 --target-device-profile surface-pro-11-x1e-oled \
+  --target-architecture arm64 --target-device-profile x1e80100-microsoft-denali-oled \
   --target-os ubuntu --target-os-version 26.04 \
   --target-kernel 7.2.0-jg-0sp11v19-qcom-x1e \
   --allow-unverified-compatibility

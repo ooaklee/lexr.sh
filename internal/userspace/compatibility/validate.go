@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/ooaklee/lexr.sh/internal/kernel/identity"
+	"github.com/ooaklee/lexr.sh/internal/profile"
 )
 
 // componentPattern bounds declarative stable component identifiers.
@@ -32,11 +33,15 @@ func Validate(m *Manifest) error {
 	if len(m.Targets) == 0 || len(m.Targets) > 32 {
 		return errors.New("targets must contain 1 to 32 complete rules")
 	}
+	deviceProfiles := []string{}
+	for _, registered := range profile.List() {
+		deviceProfiles = append(deviceProfiles, registered.ID)
+	}
 	for _, target := range m.Targets {
 		if err := uniqueValues(target.Architectures, []string{"arm64"}); err != nil {
 			return fmt.Errorf("architectures: %w", err)
 		}
-		if err := uniqueValues(target.DeviceProfiles, []string{"surface-pro-11-x1e-oled"}); err != nil {
+		if err := uniqueValues(target.DeviceProfiles, deviceProfiles); err != nil {
 			return fmt.Errorf("device profiles: %w", err)
 		}
 		if len(target.OperatingSystems) == 0 || len(target.OperatingSystems) > 16 || len(target.Kernels) == 0 || len(target.Kernels) > 32 {

@@ -16,7 +16,7 @@ import (
 // TestCompanionUsesTheOfflineEvaluator proves that image staging uses the
 // complete declared image tuple and authenticates the same bytes as status.
 func TestCompanionUsesTheOfflineEvaluator(t *testing.T) {
-	manifest := &compatibility.Manifest{SchemaVersion: 1, Kind: "lexr.userspace-component-compatibility", ComponentID: "iptsd-v1", Release: "sp11-iptsd-v3", Capabilities: []string{"pen"}, Lexr: compatibility.VersionRange{MinimumInclusive: "0.5.0", TestedThroughInclusive: "0.5.0"}, Targets: []compatibility.TargetRule{{Architectures: []string{"arm64"}, DeviceProfiles: []string{"surface-pro-11-x1e-oled"}, OperatingSystems: []compatibility.OperatingSystem{{ID: "ubuntu", VersionRanges: []compatibility.OSRange{{MinimumInclusive: "26.04", MaximumExclusive: "26.10"}}, TestedVersions: []string{}}}, Kernels: []compatibility.KernelRule{{PatchLine: "7.2.0", PlatformFlavour: "qcom-x1e", Scope: "sp11", ABIGeneration: compatibility.GenerationRange{MinimumInclusive: 19, TestedThroughInclusive: 19}}}}}}
+	manifest := &compatibility.Manifest{SchemaVersion: 1, Kind: "lexr.userspace-component-compatibility", ComponentID: "iptsd-v1", Release: "sp11-iptsd-v3", Capabilities: []string{"pen"}, Lexr: compatibility.VersionRange{MinimumInclusive: "0.5.0", TestedThroughInclusive: "0.5.0"}, Targets: []compatibility.TargetRule{{Architectures: []string{"arm64"}, DeviceProfiles: []string{"x1e80100-microsoft-denali-oled"}, OperatingSystems: []compatibility.OperatingSystem{{ID: "ubuntu", VersionRanges: []compatibility.OSRange{{MinimumInclusive: "26.04", MaximumExclusive: "26.10"}}, TestedVersions: []string{}}}, Kernels: []compatibility.KernelRule{{PatchLine: "7.2.0", PlatformFlavour: "qcom-x1e", Scope: "sp11", ABIGeneration: compatibility.GenerationRange{MinimumInclusive: 19, TestedThroughInclusive: 19}}}}}}
 	data, err := compatibility.Marshal(manifest)
 	if err != nil {
 		t.Fatal(err)
@@ -31,7 +31,7 @@ func TestCompanionUsesTheOfflineEvaluator(t *testing.T) {
 		t.Fatal(err)
 	}
 	bundles := []preparedUserspaceBundle{{component: catalog.Component{ID: manifest.ComponentID, Compatibility: &ref}, bundle: userspacerelease.Bundle{Component: manifest.ComponentID, Release: manifest.Release, Directory: directory, Compatibility: &ref}}}
-	target := compatibility.Target{LexrVersion: "0.5.0", Architecture: "arm64", DeviceProfile: "surface-pro-11-x1e-oled", OSID: "ubuntu", OSVersion: "26.04", KernelABI: "7.2.0-jg-0sp11v19-qcom-x1e"}
+	target := compatibility.Target{LexrVersion: "0.5.0", Architecture: "arm64", DeviceProfile: "x1e80100-microsoft-denali-oled", OSID: "ubuntu", OSVersion: "26.04", KernelABI: "7.2.0-jg-0sp11v19-qcom-x1e"}
 	request := BuildRequest{Target: target}
 	if err := assessCompanion(request, bundles); err == nil {
 		t.Fatal("untested image target was accepted without dedicated override")

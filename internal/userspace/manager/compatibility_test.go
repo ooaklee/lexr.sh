@@ -18,7 +18,7 @@ import (
 // TestOfflineStatusReportsAuthenticatedManifestEvidence exercises the public
 // manager path without a downloader or any host target identity.
 func TestOfflineStatusReportsAuthenticatedManifestEvidence(t *testing.T) {
-	manifest := &compatibility.Manifest{SchemaVersion: 1, Kind: "lexr.userspace-component-compatibility", ComponentID: "audio-fullio-v19c", Release: "sp11-audio-next", Capabilities: []string{"audio"}, Lexr: compatibility.VersionRange{MinimumInclusive: "0.5.0", TestedThroughInclusive: "0.5.0"}, Targets: []compatibility.TargetRule{{Architectures: []string{"arm64"}, DeviceProfiles: []string{"surface-pro-11-x1e-oled"}, OperatingSystems: []compatibility.OperatingSystem{{ID: "ubuntu", VersionRanges: []compatibility.OSRange{{MinimumInclusive: "24.04", MaximumExclusive: "26.10"}}, TestedVersions: []string{"24.04"}}}, Kernels: []compatibility.KernelRule{{PatchLine: "7.2.0", PlatformFlavour: "qcom-x1e", Scope: "sp11", ABIGeneration: compatibility.GenerationRange{MinimumInclusive: 19, TestedThroughInclusive: 19}}}}}}
+	manifest := &compatibility.Manifest{SchemaVersion: 1, Kind: "lexr.userspace-component-compatibility", ComponentID: "audio-fullio-v19c", Release: "sp11-audio-next", Capabilities: []string{"audio"}, Lexr: compatibility.VersionRange{MinimumInclusive: "0.5.0", TestedThroughInclusive: "0.5.0"}, Targets: []compatibility.TargetRule{{Architectures: []string{"arm64"}, DeviceProfiles: []string{"x1e80100-microsoft-denali-oled"}, OperatingSystems: []compatibility.OperatingSystem{{ID: "ubuntu", VersionRanges: []compatibility.OSRange{{MinimumInclusive: "24.04", MaximumExclusive: "26.10"}}, TestedVersions: []string{"24.04"}}}, Kernels: []compatibility.KernelRule{{PatchLine: "7.2.0", PlatformFlavour: "qcom-x1e", Scope: "sp11", ABIGeneration: compatibility.GenerationRange{MinimumInclusive: 19, TestedThroughInclusive: 19}}}}}}
 	data, err := compatibility.Marshal(manifest)
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +63,7 @@ func TestOfflineStatusReportsAuthenticatedManifestEvidence(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bundle, compatibility.Filename), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	options := userspacestatus.Options{Root: root, KernelABI: abi, Features: []userspacestatus.Feature{userspacestatus.FeatureAudio}, BundleDirectory: bundle, CompatibilityTarget: compatibility.Target{Architecture: "arm64", DeviceProfile: "surface-pro-11-x1e-oled"}}
+	options := userspacestatus.Options{Root: root, KernelABI: abi, Features: []userspacestatus.Feature{userspacestatus.FeatureAudio}, BundleDirectory: bundle, CompatibilityTarget: compatibility.Target{Architecture: "arm64", DeviceProfile: "x1e80100-microsoft-denali-oled"}}
 	for _, test := range []struct {
 		name   string
 		state  userspacestatus.State
@@ -137,7 +137,7 @@ func TestNativeCompatibilityStatusUsesCompiledPin(t *testing.T) {
 		t.Fatal(err)
 	}
 	manager := New(catalog.NewLoader(lexr.UserspaceCatalogFS(), "supported-userspace.json"), nil, nil)
-	options := userspacestatus.Options{Root: root, KernelABI: abi, Features: []userspacestatus.Feature{userspacestatus.FeatureCamera}, BundleDirectory: bundle, CompatibilityTarget: compatibility.Target{Architecture: "arm64", DeviceProfile: "surface-pro-11-x1e-oled"}}
+	options := userspacestatus.Options{Root: root, KernelABI: abi, Features: []userspacestatus.Feature{userspacestatus.FeatureCamera}, BundleDirectory: bundle, CompatibilityTarget: compatibility.Target{Architecture: "arm64", DeviceProfile: "x1e80100-microsoft-denali-oled"}}
 	for _, state := range []userspacestatus.State{userspacestatus.StateWarn, userspacestatus.StateUnavailable} {
 		report, err := manager.Status(options)
 		if err != nil {

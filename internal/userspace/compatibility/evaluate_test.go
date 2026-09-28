@@ -9,8 +9,8 @@ import (
 
 // evaluationFixture supplies independent, synthetic target evidence.
 func evaluationFixture() (*Manifest, Target) {
-	m := &Manifest{SchemaVersion: 1, Kind: "lexr.userspace-component-compatibility", ComponentID: "iptsd-v1", Release: "sp11-iptsd-v3", Capabilities: []string{"pen"}, Lexr: VersionRange{MinimumInclusive: "0.5.0-rc.1", TestedThroughInclusive: "0.5.0"}, Targets: []TargetRule{{Architectures: []string{"arm64"}, DeviceProfiles: []string{"surface-pro-11-x1e-oled"}, OperatingSystems: []OperatingSystem{{ID: "ubuntu", VersionRanges: []OSRange{{MinimumInclusive: "24.04", MaximumExclusive: "26.10"}}, TestedVersions: []string{"24.04"}}}, Kernels: []KernelRule{{PatchLine: "7.2.0", PlatformFlavour: "qcom-x1e", Scope: "sp11", ABIGeneration: GenerationRange{MinimumInclusive: 19, TestedThroughInclusive: 19}}}}}}
-	return m, Target{LexrVersion: "0.5.0", Architecture: "arm64", DeviceProfile: "surface-pro-11-x1e-oled", OSID: "ubuntu", OSVersion: "24.04", KernelABI: "7.2.0-jg-0sp11v19-qcom-x1e"}
+	m := &Manifest{SchemaVersion: 1, Kind: "lexr.userspace-component-compatibility", ComponentID: "iptsd-v1", Release: "sp11-iptsd-v3", Capabilities: []string{"pen"}, Lexr: VersionRange{MinimumInclusive: "0.5.0-rc.1", TestedThroughInclusive: "0.5.0"}, Targets: []TargetRule{{Architectures: []string{"arm64"}, DeviceProfiles: []string{"x1e80100-microsoft-denali-oled"}, OperatingSystems: []OperatingSystem{{ID: "ubuntu", VersionRanges: []OSRange{{MinimumInclusive: "24.04", MaximumExclusive: "26.10"}}, TestedVersions: []string{"24.04"}}}, Kernels: []KernelRule{{PatchLine: "7.2.0", PlatformFlavour: "qcom-x1e", Scope: "sp11", ABIGeneration: GenerationRange{MinimumInclusive: 19, TestedThroughInclusive: 19}}}}}}
+	return m, Target{LexrVersion: "0.5.0", Architecture: "arm64", DeviceProfile: "x1e80100-microsoft-denali-oled", OSID: "ubuntu", OSVersion: "24.04", KernelABI: "7.2.0-jg-0sp11v19-qcom-x1e"}
 }
 
 // TestDecisionBoundaries covers each stable status and override semantics.
@@ -34,7 +34,7 @@ func TestDecisionBoundaries(t *testing.T) {
 		{"malformed OS", Unavailable, func(_ *Manifest, x *Target) { x.OSVersion = "24.4" }},
 		{"derivative", Unavailable, func(_ *Manifest, x *Target) { x.OSID = "pop" }},
 		{"missing device", Unavailable, func(_ *Manifest, x *Target) { x.DeviceProfile = "" }},
-		{"other board", Incompatible, func(_ *Manifest, x *Target) { x.DeviceProfile = "surface-pro-11-x1p-lcd" }},
+		{"other board", Incompatible, func(_ *Manifest, x *Target) { x.DeviceProfile = "x1p64100-microsoft-denali" }},
 		{"other architecture", Incompatible, func(_ *Manifest, x *Target) { x.Architecture = "amd64" }},
 		{"new generation", Unverified, func(_ *Manifest, x *Target) { x.KernelABI = "7.2.0-jg-0sp11v20-qcom-x1e" }},
 		{"upstream release candidate", Incompatible, func(_ *Manifest, x *Target) { x.KernelABI = "7.2.0-rc5-jg-0sp11v19-qcom-x1e" }},

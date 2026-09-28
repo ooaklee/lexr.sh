@@ -88,7 +88,7 @@ lexr userspace audio release prepare \
   --kernel-tag <kernel-release-tag> \
   --kernel-abi <kernel-abi> \
   --target-architecture arm64 \
-  --target-device-profile surface-pro-11-x1e-oled \
+  --target-device-profile x1e80100-microsoft-denali-oled \
   --target-os ubuntu --target-os-version 26.04 \
   --allow-unverified-compatibility \
   --dry-run
@@ -120,7 +120,7 @@ lexr userspace camera release prepare \
   --kernel-tag <kernel-release-tag> \
   --kernel-abi <kernel-abi> \
   --target-architecture arm64 \
-  --target-device-profile surface-pro-11-x1e-oled \
+  --target-device-profile x1e80100-microsoft-denali-oled \
   --target-os ubuntu --target-os-version 26.04 \
   --allow-unverified-compatibility \
   --build-authority-sha256 <native-build-authority-sha256> \

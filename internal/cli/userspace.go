@@ -113,7 +113,7 @@ func (a *application) newUserspaceStatusDeliveryCommand(use, short string) *cobr
 	command.Flags().StringVar(&root, "root", "/", "target filesystem root to inspect")
 	command.Flags().StringVar(&bundleDirectory, "from", "", "offline component bundle directory for compatibility evidence")
 	command.Flags().StringVar(&target.Architecture, "architecture", "", "explicit target architecture")
-	command.Flags().StringVar(&target.DeviceProfile, "device-profile", "", "explicit registered target device profile")
+	command.Flags().StringVar(&target.DeviceProfile, "device-profile", "", "canonical target device profile ID from lexr profile list")
 	command.Flags().StringVar(&userHome, "user-home", "", "explicit target-visible absolute Linux user home; never inferred")
 	command.Flags().StringVar(&kernelABI, "kernel", "", "installed Surface qcom-x1e kernel ABI to inspect")
 	command.Flags().StringSliceVar(&featureNames, "feature", nil, "limit checks to a feature (repeatable or comma-separated)")
@@ -397,7 +397,7 @@ func (a *application) newUserspaceInstallCommand() *cobra.Command {
 	}
 	command.Flags().BoolVar(&allowUnverifiedCompatibility, "allow-unverified-compatibility", false, "permit compatibility beyond recorded evidence; never bypass hard bounds or missing target identity")
 	command.Flags().StringVar(&compatibilityTarget.Architecture, "architecture", "", "explicit target architecture for component compatibility")
-	command.Flags().StringVar(&compatibilityTarget.DeviceProfile, "device-profile", "", "explicit registered target device profile")
+	command.Flags().StringVar(&compatibilityTarget.DeviceProfile, "device-profile", "", "canonical target device profile ID from lexr profile list")
 	command.Flags().StringVar(&compatibilityTarget.KernelABI, "kernel", "", "explicit target kernel ABI for component compatibility")
 	command.Flags().StringVar(&from, "from", "", "exact authenticated input directory (userspace cache root for recommended)")
 	command.Flags().StringVar(&repositoryRoot, "repository-root", "", "current OE Git root required for native camera build or release input")

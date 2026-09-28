@@ -340,7 +340,7 @@ func (m *ImageManager) Create(ctx context.Context, request CreateImageRequest) (
 	if err != nil {
 		return CreateImageResult{}, err
 	}
-	companionRequest.Target.DeviceProfile = selectedProfile.Platform
+	companionRequest.Target.DeviceProfile = selectedProfile.ID
 	companionRequest.AllowUnverifiedCompatibility = request.AllowUnverifiedCompatibility
 	adapterRequest.Companion = companionRequest
 	adapterRequest.CompanionUserspace = companionBundleComponentIDs(companionRequest)

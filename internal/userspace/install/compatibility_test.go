@@ -21,7 +21,7 @@ func manifestedAudioFixture(t *testing.T) Options {
 	oldSpec, oldVersion := audioSpec, version.Version
 	t.Cleanup(func() { audioSpec = oldSpec; version.Version = oldVersion })
 	version.Version = "0.5.0"
-	manifest := &compatibility.Manifest{SchemaVersion: 1, Kind: "lexr.userspace-component-compatibility", ComponentID: AudioComponent, Release: "sp11-audio-next", Capabilities: []string{"audio"}, Lexr: compatibility.VersionRange{MinimumInclusive: "0.5.0", TestedThroughInclusive: "0.5.0"}, Targets: []compatibility.TargetRule{{Architectures: []string{"arm64"}, DeviceProfiles: []string{"surface-pro-11-x1e-oled"}, OperatingSystems: []compatibility.OperatingSystem{{ID: "ubuntu", VersionRanges: []compatibility.OSRange{{MinimumInclusive: "24.04", MaximumExclusive: "26.10"}}, TestedVersions: []string{"24.04"}}}, Kernels: []compatibility.KernelRule{{PatchLine: "7.2.0", PlatformFlavour: "qcom-x1e", Scope: "sp11", ABIGeneration: compatibility.GenerationRange{MinimumInclusive: 19, TestedThroughInclusive: 19}}}}}}
+	manifest := &compatibility.Manifest{SchemaVersion: 1, Kind: "lexr.userspace-component-compatibility", ComponentID: AudioComponent, Release: "sp11-audio-next", Capabilities: []string{"audio"}, Lexr: compatibility.VersionRange{MinimumInclusive: "0.5.0", TestedThroughInclusive: "0.5.0"}, Targets: []compatibility.TargetRule{{Architectures: []string{"arm64"}, DeviceProfiles: []string{"x1e80100-microsoft-denali-oled"}, OperatingSystems: []compatibility.OperatingSystem{{ID: "ubuntu", VersionRanges: []compatibility.OSRange{{MinimumInclusive: "24.04", MaximumExclusive: "26.10"}}, TestedVersions: []string{"24.04"}}}, Kernels: []compatibility.KernelRule{{PatchLine: "7.2.0", PlatformFlavour: "qcom-x1e", Scope: "sp11", ABIGeneration: compatibility.GenerationRange{MinimumInclusive: 19, TestedThroughInclusive: 19}}}}}}
 	data, err := compatibility.Marshal(manifest)
 	if err != nil {
 		t.Fatal(err)
@@ -61,7 +61,7 @@ func manifestedAudioFixture(t *testing.T) Options {
 	if err := os.WriteFile(filepath.Join(root, "etc/os-release"), []byte("ID=ubuntu\nVERSION_ID=24.04\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return Options{Root: root, BundleDir: directory, Compatibility: &reference, CompatibilityRelease: manifest.Release, CompatibilityTarget: compatibility.Target{Architecture: "arm64", DeviceProfile: "surface-pro-11-x1e-oled", KernelABI: abi}}
+	return Options{Root: root, BundleDir: directory, Compatibility: &reference, CompatibilityRelease: manifest.Release, CompatibilityTarget: compatibility.Target{Architecture: "arm64", DeviceProfile: "x1e80100-microsoft-denali-oled", KernelABI: abi}}
 }
 
 // TestManifestedAudioInstallPreservesOfflineEvidence verifies dry-run, mutation

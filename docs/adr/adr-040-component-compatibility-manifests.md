@@ -63,8 +63,14 @@ legacy and Ubuntu package-derived ABI spellings. Parsing another scope does
 not grant support for another device. OS comparison is selected by exact
 `ID`: Ubuntu calendar releases, Fedora and Debian integer releases, and
 explicit elementary OS numeric releases. There is no lexical universal
-version comparison or implicit `ID_LIKE` inheritance. The initial mutation
-device registry remains the Surface Pro 11 X Elite OLED with ARM64 userspace.
+version comparison or implicit `ID_LIKE` inheritance. Device declarations use
+canonical IDs from the shared hardware profile registry, initially
+`x1e80100-microsoft-denali-oled` and `x1p64100-microsoft-denali` with ARM64
+userspace. Kernel platform aliases are not accepted as manifest identities.
+Detection and explicit image profiles resolve to these same canonical IDs.
+The initial component declarations include both profiles with empty OS
+qualification evidence, so both remain unverified. Qualification for only one
+profile requires its own complete target rule.
 
 All consumers share these stable decisions:
 

@@ -9,7 +9,7 @@ import (
 // commands without inspecting or inheriting the invoking host's identity.
 func payloadCompatibilityFlags(command *cobra.Command, target *compatibility.Target, allow *bool, kernel bool) {
 	command.Flags().StringVar(&target.Architecture, "target-architecture", "", "declared payload architecture")
-	command.Flags().StringVar(&target.DeviceProfile, "target-device-profile", "", "declared registered payload device profile")
+	command.Flags().StringVar(&target.DeviceProfile, "target-device-profile", "", "canonical payload device profile ID from lexr profile list")
 	command.Flags().StringVar(&target.OSID, "target-os", "", "exact payload os-release ID")
 	command.Flags().StringVar(&target.OSVersion, "target-os-version", "", "exact payload os-release VERSION_ID")
 	if kernel {

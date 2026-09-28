@@ -27,6 +27,7 @@ type VersionRange struct {
 }
 
 // TargetRule requires every dimension within one alternative to match.
+// DeviceProfiles contains canonical IDs from the shared hardware registry.
 type TargetRule struct {
 	Architectures    []string          `json:"architectures"`
 	DeviceProfiles   []string          `json:"device_profiles"`
@@ -69,6 +70,7 @@ type Reference struct {
 }
 
 // Target records evidence for the selected root or explicit image target.
+// DeviceProfile uses the canonical hardware profile ID, never a kernel alias.
 type Target struct {
 	LexrVersion   string `json:"lexr_version"`
 	Architecture  string `json:"architecture"`

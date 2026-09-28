@@ -83,7 +83,7 @@ func TestIPTSDBuildUsesCompiledDockerRecipe(t *testing.T) {
 		Component: ComponentIPTSD, RepositoryRoot: root,
 		OutputDirectory: output, Image: "ubuntu:26.04",
 		WorkVolume: "lexr-iptsd", Jobs: 8,
-		PayloadTarget: compatibility.Target{Architecture: "arm64", DeviceProfile: "surface-pro-11-x1e-oled", OSID: "ubuntu", OSVersion: "26.04", KernelABI: "7.2.0-jg-0sp11v19-qcom-x1e"}, AllowUnverifiedCompatibility: true,
+		PayloadTarget: compatibility.Target{Architecture: "arm64", DeviceProfile: "x1e80100-microsoft-denali-oled", OSID: "ubuntu", OSVersion: "26.04", KernelABI: "7.2.0-jg-0sp11v19-qcom-x1e"}, AllowUnverifiedCompatibility: true,
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -408,7 +408,7 @@ func newReleaseFixture(t *testing.T) releaseFixture {
 		repositoryRoot: repositoryRoot, sourceRoot: sourceRoot, policy: selected,
 		request: Request{
 			RepositoryRoot: repositoryRoot, SourceRoot: sourceRoot, Tag: selected.tag,
-			PayloadTarget: compatibility.Target{Architecture: "arm64", DeviceProfile: "surface-pro-11-x1e-oled", OSID: "ubuntu", OSVersion: "26.04"}, AllowUnverifiedCompatibility: true,
+			PayloadTarget: compatibility.Target{Architecture: "arm64", DeviceProfile: "x1e80100-microsoft-denali-oled", OSID: "ubuntu", OSVersion: "26.04"}, AllowUnverifiedCompatibility: true,
 			KernelTag: "sp11-qcom-x1e-7.2.0-jg-0sp11v19", KernelABI: "7.2.0-jg-0sp11v19-qcom-x1e",
 		},
 	}

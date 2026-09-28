@@ -63,7 +63,7 @@ func authenticator(t *testing.T, component string, bytes []byte) stubRunner {
 // payloadTarget returns one complete evidence-bounded target tuple.
 func payloadTarget() compatibility.Target {
 	return compatibility.Target{
-		Architecture: "arm64", DeviceProfile: "surface-pro-11-x1e-oled",
+		Architecture: "arm64", DeviceProfile: "x1e80100-microsoft-denali-oled",
 		OSID: "ubuntu", OSVersion: "26.04", KernelABI: "7.2.0-jg-0sp11v19-qcom-x1e",
 	}
 }
@@ -91,6 +91,46 @@ func TestReviewedDeclarationsRequireIndependentPins(t *testing.T) {
 		}
 		if _, _, err := VerifyDeclaration(widened, policy); err == nil {
 			t.Fatal("source metadata widened independent evidence authority")
+		}
+	}
+}
+
+// TestPrepareCanonicalHardwareProfiles proves every authored component admits
+// both canonical profiles only with the dedicated unverified override, whilst
+// preserving hard target bounds and authenticated publication replay.
+func TestPrepareCanonicalHardwareProfiles(t *testing.T) {
+	for _, component := range []string{"audio-fullio-v19c", "iptsd-v1", "imx681-libcamera-v1"} {
+		for _, device := range []string{"x1e80100-microsoft-denali-oled", "x1p64100-microsoft-denali"} {
+			t.Run(component+"/"+device, func(t *testing.T) {
+				data := declarationBytes(t, component)
+				runner := authenticator(t, component, data)
+				target := payloadTarget()
+				target.DeviceProfile = device
+				request := Request{Component: component, RepositoryRoot: "/oe", PayloadTarget: target}
+				if _, _, err := prepareVersion(context.Background(), runner, request, "0.5.0"); err == nil {
+					t.Fatal("unqualified profile accepted without dedicated override")
+				}
+				request.AllowUnverifiedCompatibility = true
+				record, canonical, err := prepareVersion(context.Background(), runner, request, "0.5.0")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if record.Decision.Status != compatibility.Unverified || record.Decision.Target.DeviceProfile != device {
+					t.Fatalf("wrong profile assessment: %+v", record.Decision)
+				}
+				if err := ValidatePublication(canonical, record); err != nil {
+					t.Fatal(err)
+				}
+				request.PayloadTarget.OSVersion = "24.04"
+				if _, _, err := prepareVersion(context.Background(), runner, request, "0.5.0"); err == nil {
+					t.Fatal("device inclusion bypassed hard OS bounds")
+				}
+				request.PayloadTarget = target
+				request.PayloadTarget.KernelABI = "7.2.2-jg-0sp11v19-qcom-x1e"
+				if _, _, err := prepareVersion(context.Background(), runner, request, "0.5.0"); err == nil {
+					t.Fatal("device inclusion bypassed scoped kernel bounds")
+				}
+			})
 		}
 	}
 }

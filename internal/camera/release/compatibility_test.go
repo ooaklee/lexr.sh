@@ -12,7 +12,7 @@ import (
 
 // cameraPayloadTarget is explicit payload evidence, independent of the test host.
 func cameraPayloadTarget() compatibility.Target {
-	return compatibility.Target{Architecture: "arm64", DeviceProfile: "surface-pro-11-x1e-oled", OSID: "ubuntu", OSVersion: "26.04", KernelABI: "7.2.0-jg-0sp11v19-qcom-x1e"}
+	return compatibility.Target{Architecture: "arm64", DeviceProfile: "x1e80100-microsoft-denali-oled", OSID: "ubuntu", OSVersion: "26.04", KernelABI: "7.2.0-jg-0sp11v19-qcom-x1e"}
 }
 
 // sourceCompatibilityFixture stages the canonical declaration in an isolated Git tree.

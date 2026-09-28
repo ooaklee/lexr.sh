@@ -15,7 +15,7 @@ import (
 func releaseManifestFixture(t *testing.T) []byte {
 	t.Helper()
 	var manifest compatibility.Manifest
-	data := []byte(`{"schema_version":1,"kind":"lexr.userspace-component-compatibility","component_id":"example-audio","release":"component-v1","capabilities":["audio"],"lexr":{"minimum_inclusive":"99.0.0","tested_through_inclusive":"99.0.0"},"targets":[{"architectures":["arm64"],"device_profiles":["surface-pro-11-x1e-oled"],"operating_systems":[{"id":"fedora","version_ranges":[{"minimum_inclusive":"44"}],"tested_versions":["44"]}],"kernels":[{"patch_line":"7.2.0","platform_flavour":"qcom-x1e","scope":"sp11","abi_generation":{"minimum_inclusive":19,"tested_through_inclusive":19}}]}]}`)
+	data := []byte(`{"schema_version":1,"kind":"lexr.userspace-component-compatibility","component_id":"example-audio","release":"component-v1","capabilities":["audio"],"lexr":{"minimum_inclusive":"99.0.0","tested_through_inclusive":"99.0.0"},"targets":[{"architectures":["arm64"],"device_profiles":["x1e80100-microsoft-denali-oled"],"operating_systems":[{"id":"fedora","version_ranges":[{"minimum_inclusive":"44"}],"tested_versions":["44"]}],"kernels":[{"patch_line":"7.2.0","platform_flavour":"qcom-x1e","scope":"sp11","abi_generation":{"minimum_inclusive":19,"tested_through_inclusive":19}}]}]}`)
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		t.Fatal(err)
 	}

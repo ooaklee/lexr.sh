@@ -13,7 +13,7 @@ import (
 // testManifest produces canonical compatibility bytes for a synthetic release.
 func testManifest(t *testing.T) []byte {
 	t.Helper()
-	const source = `{"schema_version":1,"kind":"lexr.userspace-component-compatibility","component_id":"iptsd-v1","release":"sp11-iptsd-v3","capabilities":["pen"],"lexr":{"minimum_inclusive":"0.3.0","tested_through_inclusive":"0.5.0"},"targets":[{"architectures":["arm64"],"device_profiles":["surface-pro-11-x1e-oled"],"operating_systems":[{"id":"ubuntu","version_ranges":[{"minimum_inclusive":"24.04","maximum_exclusive":"26.10"}],"tested_versions":["24.04"]}],"kernels":[{"patch_line":"7.2.0","platform_flavour":"qcom-x1e","scope":"sp11","abi_generation":{"minimum_inclusive":19,"tested_through_inclusive":19}}]}]}`
+	const source = `{"schema_version":1,"kind":"lexr.userspace-component-compatibility","component_id":"iptsd-v1","release":"sp11-iptsd-v3","capabilities":["pen"],"lexr":{"minimum_inclusive":"0.3.0","tested_through_inclusive":"0.5.0"},"targets":[{"architectures":["arm64"],"device_profiles":["x1e80100-microsoft-denali-oled"],"operating_systems":[{"id":"ubuntu","version_ranges":[{"minimum_inclusive":"24.04","maximum_exclusive":"26.10"}],"tested_versions":["24.04"]}],"kernels":[{"patch_line":"7.2.0","platform_flavour":"qcom-x1e","scope":"sp11","abi_generation":{"minimum_inclusive":19,"tested_through_inclusive":19}}]}]}`
 	var manifest compatibility.Manifest
 	if err := json.Unmarshal([]byte(source), &manifest); err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func TestManifestIndependentPin(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, compatibility.Filename), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	target := compatibility.Target{LexrVersion: "0.5.0", Architecture: "arm64", DeviceProfile: "surface-pro-11-x1e-oled", OSID: "ubuntu", OSVersion: "24.04", KernelABI: "7.2.0-jg-0sp11v19-qcom-x1e"}
+	target := compatibility.Target{LexrVersion: "0.5.0", Architecture: "arm64", DeviceProfile: "x1e80100-microsoft-denali-oled", OSID: "ubuntu", OSVersion: "24.04", KernelABI: "7.2.0-jg-0sp11v19-qcom-x1e"}
 	record, err := Evaluate(root, ref, "iptsd-v1", "sp11-iptsd-v3", target, false)
 	if err != nil {
 		t.Fatal(err)

@@ -130,10 +130,10 @@ func ObserveRoot(directory string, selected compatibility.Target) (compatibility
 		}
 	}
 	if observed, detectErr := profile.Detect(directory); detectErr == nil {
-		if selected.DeviceProfile != "" && selected.DeviceProfile != observed.Platform {
+		if selected.DeviceProfile != "" && selected.DeviceProfile != observed.ID {
 			return selected, errors.New("explicit device profile disagrees with target evidence")
 		}
-		selected.DeviceProfile = observed.Platform
+		selected.DeviceProfile = observed.ID
 	} else if selected.DeviceProfile == "" {
 		return selected, fmt.Errorf("target device profile is unavailable: %w; supply an explicit registered profile", detectErr)
 	}
