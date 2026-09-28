@@ -36,6 +36,23 @@ func TestNativeResolverChecksDirectoryAndMetadata(t *testing.T) {
 	if err != nil || id.Root.UUID != "fixture-root" || id.Boot != id.Root {
 		t.Fatalf("mounted view: %+v %v", id, err)
 	}
+	namespace := "21 20 0:4 mnt:[12345] /run/snapd/ns/example.mnt rw - nsfs nsfs rw\n"
+	if err := os.WriteFile(mountInfoPath, []byte(record+namespace), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	withNamespace, err := Resolve(context.Background(), root)
+	if err != nil || withNamespace != id {
+		t.Fatalf("unrelated namespace changed mounted identity: %v", err)
+	}
+	// A namespace appearing over the selected boot directory must not be
+	// ignored in favour of the apparently usable root-local boot view.
+	covering := fmt.Sprintf("21 20 0:4 mnt:[12345] %s/boot rw - nsfs nsfs rw\n", root)
+	if err := os.WriteFile(mountInfoPath, []byte(record+covering), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Resolve(context.Background(), root); err == nil {
+		t.Fatal("namespace over selected boot accepted")
+	}
 	wrong := fmt.Sprintf("20 1 %d:%d / %s rw - ext4 /dev/fixture rw\n", major, minor+1, root)
 	if err := os.WriteFile(mountInfoPath, []byte(wrong), 0o600); err != nil {
 		t.Fatal(err)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -19,6 +20,10 @@ const (
 // errMalformedMountInfo is returned for unparsable, truncated, oversized, or
 // ambiguous mount tables. Errors carry no identifiers or paths.
 var errMalformedMountInfo = errors.New("boot ownership could not read mounted filesystem evidence")
+
+// namespaceRootName recognises nsfs display names, not filesystem paths or
+// persistent identity. Linux emits these for bound namespace descriptors.
+var namespaceRootName = regexp.MustCompile(`^[a-z][a-z0-9_]*:\[[0-9]+\]$`)
 
 // mountEntry is one parsed /proc/self/mountinfo record.
 type mountEntry struct {
@@ -101,7 +106,7 @@ func parseMountEntry(line string) (mountEntry, error) {
 	if err != nil {
 		return entry, err
 	}
-	if !strings.HasPrefix(root, "/") || !strings.HasPrefix(point, "/") || path.Clean(root) != root || path.Clean(point) != point {
+	if !cleanMountPath(point) {
 		return entry, errMalformedMountInfo
 	}
 	// Optional fields end at the "-" separator; require exactly one.
@@ -115,6 +120,13 @@ func parseMountEntry(line string) (mountEntry, error) {
 		}
 	}
 	if sep < 0 || len(fields)-sep != 4 {
+		return entry, errMalformedMountInfo
+	}
+	// Namespace bind mounts (for example those retained by Snap) legitimately
+	// name their root mnt:[inode]. Retain these records so a namespace mounted
+	// over the selected root or boot view cannot disappear from ambiguity
+	// checks. They must never become ownership evidence themselves.
+	if !cleanMountPath(root) && !(fields[sep+1] == "nsfs" && namespaceRootName.MatchString(root)) {
 		return entry, errMalformedMountInfo
 	}
 	source, err := decodeMountInfoPath(fields[sep+2])
@@ -234,6 +246,9 @@ func lastExactMount(entries []mountEntry, mountPoint string) (mountEntry, bool) 
 
 // checkUnambiguous rejects conflicting stacked views at a selected mountpoint.
 func checkUnambiguous(entries []mountEntry, mountPoint string, top mountEntry) error {
+	if !cleanMountPath(top.root) {
+		return errAmbiguousIdentity
+	}
 	for _, e := range entries {
 		if e.mountPoint != mountPoint {
 			continue
@@ -243,6 +258,12 @@ func checkUnambiguous(entries []mountEntry, mountPoint string, top mountEntry) e
 		}
 	}
 	return nil
+}
+
+// cleanMountPath admits only canonical absolute filesystem paths, unlike the
+// opaque display names emitted by namespace pseudo-filesystems.
+func cleanMountPath(value string) bool {
+	return strings.HasPrefix(value, "/") && path.Clean(value) == value
 }
 
 // joinMountPath joins two already-decoded absolute mountinfo paths.

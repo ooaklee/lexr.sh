@@ -192,3 +192,76 @@ func TestSelectRootExactOnly(t *testing.T) {
 		t.Fatalf("want errRootNotMountpoint for non-exact, got %v", err)
 	}
 }
+
+// TestNamespaceNeighboursPreserveDiskViews reproduces normal Snap namespace
+// mounts without capturing real filesystem or namespace identifiers.
+func TestNamespaceNeighboursPreserveDiskViews(t *testing.T) {
+	const disks = "10 1 8:1 / / rw - ext4 /dev/example-root rw\n11 10 8:2 / /boot rw - ext4 /dev/example-boot rw\n"
+	const namespaces = "12 10 0:4 mnt:[12345] /run/snapd/ns/one.mnt rw - nsfs nsfs rw\n" +
+		"13 10 0:4 mnt:[12346] /run/snapd/ns/two.mnt rw shared:2 - nsfs nsfs rw\n" +
+		`14 10 0:4 net:[12347] /run/example\040namespace rw - nsfs nsfs rw` + "\n"
+	entries, err := parseMountInfo([]byte(disks + namespaces))
+	if err != nil || len(entries) != 5 {
+		t.Fatalf("namespace neighbours: entries=%d err=%v", len(entries), err)
+	}
+	root, boot, within, err := selectRootAndBoot(entries, "/")
+	if err != nil || within || root.devMinor != 1 || boot.devMinor != 2 {
+		t.Fatalf("disk selection changed: root=%+v boot=%+v within=%v err=%v", root, boot, within, err)
+	}
+	if entries[4].mountPoint != "/run/example namespace" || entries[4].root != "net:[12347]" {
+		t.Fatal("namespace record was discarded or rewritten")
+	}
+}
+
+// TestNamespaceRootsNeverQualify rejects non-path roots selected directly or
+// stacked over a disk view, regardless of mount table ordering.
+func TestNamespaceRootsNeverQualify(t *testing.T) {
+	for _, point := range []string{"/", "/boot"} {
+		for _, order := range []string{"only", "before", "after"} {
+			t.Run(point+"/"+order, func(t *testing.T) {
+				ns := entry(point, 0, 4, "mnt:[12345]", "nsfs")
+				disk := entry(point, 8, 1, "/", "ext4")
+				var entries []mountEntry
+				if point == "/boot" {
+					entries = append(entries, entry("/", 8, 2, "/", "ext4"))
+				}
+				switch order {
+				case "only":
+					entries = append(entries, ns)
+				case "before":
+					entries = append(entries, ns, disk)
+				case "after":
+					entries = append(entries, disk, ns)
+				}
+				if _, _, _, err := selectRootAndBoot(entries, "/"); !errors.Is(err, errAmbiguousIdentity) {
+					t.Fatalf("namespace selected or hidden: %v", err)
+				}
+			})
+		}
+	}
+}
+
+// TestNamespaceSyntaxRemainsBounded keeps the exception narrow: nsfs display
+// names do not relax path, field, escape or filesystem-type validation.
+func TestNamespaceSyntaxRemainsBounded(t *testing.T) {
+	for name, line := range map[string]string{
+		"ext4 root":       "12 10 8:1 mnt:[123] /boot rw - ext4 src rw",
+		"relative point":  "12 10 0:4 mnt:[123] run/ns rw - nsfs nsfs rw",
+		"unclean point":   "12 10 0:4 mnt:[123] /run/../boot rw - nsfs nsfs rw",
+		"relative root":   "12 10 0:4 relative /run/ns rw - nsfs nsfs rw",
+		"unclean root":    "12 10 0:4 /a/../b /run/ns rw - nsfs nsfs rw",
+		"missing inode":   "12 10 0:4 mnt:[] /run/ns rw - nsfs nsfs rw",
+		"invalid inode":   "12 10 0:4 mnt:[abc] /run/ns rw - nsfs nsfs rw",
+		"trailing bytes":  "12 10 0:4 mnt:[123]extra /run/ns rw - nsfs nsfs rw",
+		"invalid escape":  `12 10 0:4 mnt:[123] /run/\000ns rw - nsfs nsfs rw`,
+		"extra field":     "12 10 0:4 mnt:[123] /run/ns rw - nsfs nsfs rw extra",
+		"extra separator": "12 10 0:4 mnt:[123] /run/ns rw - - nsfs nsfs rw",
+		"long field":      "12 10 0:4 mnt:[" + strings.Repeat("1", maxFieldLength) + "] /run/ns rw - nsfs nsfs rw",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := parseMountInfo([]byte(line)); !errors.Is(err, errMalformedMountInfo) {
+				t.Fatalf("malformed record accepted: %v", err)
+			}
+		})
+	}
+}
