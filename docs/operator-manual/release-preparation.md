@@ -102,7 +102,7 @@ lexr userspace audio release validate \
   --repository-root <oe-checkout>
 ```
 
-The four payload identities remain pinned. New schema-2 preparation records also bind the canonical declaration and assessment; [ADR040](../adr/adr-040-component-compatibility-manifests.md) defines this migration. The original seven-file release described by [ADR019](../adr/adr-019-native-audio-release-preparation.md) remains valid for legacy validation only.
+The four payload identities remain pinned. New schema-2 preparation records also bind the canonical declaration and assessment; [ADR041](../adr/adr-041-component-compatibility-manifests.md) defines this migration. The original seven-file release described by [ADR019](../adr/adr-019-native-audio-release-preparation.md) remains valid for legacy validation only.
 
 ## Prepare a camera release
 
@@ -136,7 +136,7 @@ lexr userspace camera release validate \
   --authority-sha256 <release-authority-sha256>
 ```
 
-The release manifest makes package provenance and kernel pairing explicit but does not claim camera transport, privacy indication, image quality, suspend recovery, or any other physical-hardware qualification. [ADR040](../adr/adr-040-component-compatibility-manifests.md) extends the original package and release set from [ADR015](../adr/adr-015-native-imx681-package-and-release-contracts.md) with schema-2 compatibility authority; [ADR020](../adr/adr-020-independent-camera-authority-digests.md) defines the independent authority chain.
+The release manifest makes package provenance and kernel pairing explicit but does not claim camera transport, privacy indication, image quality, suspend recovery, or any other physical-hardware qualification. [ADR041](../adr/adr-041-component-compatibility-manifests.md) extends the original package and release set from [ADR015](../adr/adr-015-native-imx681-package-and-release-contracts.md) with schema-2 compatibility authority; [ADR020](../adr/adr-020-independent-camera-authority-digests.md) defines the independent authority chain.
 
 ## Hand off to publication without widening authority
 

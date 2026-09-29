@@ -1,6 +1,6 @@
 ---
-id: adrs-adr040
-title: "ADR040: Authenticated userspace component compatibility"
+id: adrs-adr041
+title: "ADR041: Authenticated userspace component compatibility"
 description: Authority, canonical manifests, scoped evaluation and migration for portable userspace compatibility evidence.
 ---
 

@@ -4,7 +4,7 @@ New userspace releases carry an authenticated
 `lexr-component-compatibility.json`. It records the Lexr releases, operating
 systems, architecture, device profile and scoped kernel generations assessed
 for that exact component release. See
-[ADR040](../adr/adr-040-component-compatibility-manifests.md) for the authority
+[ADR041](../adr/adr-041-component-compatibility-manifests.md) for the authority
 and migration contract.
 
 ## Read the decision

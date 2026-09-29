@@ -98,5 +98,5 @@ unrecognised releases cannot use that exemption. Schema 2 remains readable
 through the migration path. An override cannot widen the embedded authority.
 
 See [component compatibility](../reference/component-compatibility.md) and
-[ADR040](../adr/adr-040-component-compatibility-manifests.md) before preparing a
+[ADR041](../adr/adr-041-component-compatibility-manifests.md) before preparing a
 new release or updating its catalogue reference.
