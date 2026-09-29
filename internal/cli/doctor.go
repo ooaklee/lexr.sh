@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/bootdoctor"
 	"github.com/ooaklee/lexr.sh/internal/doctor"
 	"github.com/ooaklee/lexr.sh/internal/hardwaredoctor"
+	"github.com/ooaklee/lexr.sh/internal/kernel/install"
 )
 
 // bootDoctorWorkflow is the delivery layer's narrow view of static boot inspection.
@@ -150,20 +152,26 @@ func (a *application) writeBootDoctorReport(report bootdoctor.Report) error {
 		if entry.Recovery {
 			kind = "recovery"
 		}
+		if _, err := fmt.Fprintf(writer, "ownership\t%d\t%s\t%s\t%s\t\n", entry.Index, entry.ABI, entry.Ownership, entry.OwnershipReason); err != nil {
+			return err
+		}
 		for _, token := range entry.Linux {
-			if _, err := fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t%s\t%t\n", kind, entry.Index, entry.ABI, token.Command, token.Path, entry.KernelExists); err != nil {
+			if _, err := fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t%s\t%s\n", kind, entry.Index, entry.ABI, token.Command, token.Path, bootExistenceLabel(entry.Ownership, entry.KernelExists)); err != nil {
 				return err
 			}
 		}
 		for _, token := range entry.Initrd {
-			if _, err := fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t%s\t%t\n", kind, entry.Index, entry.ABI, token.Command, token.Path, entry.InitramfsExists); err != nil {
+			if _, err := fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t%s\t%s\n", kind, entry.Index, entry.ABI, token.Command, token.Path, bootExistenceLabel(entry.Ownership, entry.InitramfsExists)); err != nil {
 				return err
 			}
 		}
 		for _, token := range entry.DeviceTrees {
-			if _, err := fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t%s\t%t\n", kind, entry.Index, entry.ABI, token.Command, token.Path, entry.BootDTBSHA256 != ""); err != nil {
+			if _, err := fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t%s\t%s\n", kind, entry.Index, entry.ABI, token.Command, token.Path, bootExistenceLabel(entry.Ownership, entry.BootDTBSHA256 != "")); err != nil {
 				return err
 			}
+		}
+		if entry.Ownership != install.GRUBOwned {
+			continue
 		}
 		if entry.DeviceTreeBoot != nil {
 			if _, err := fmt.Fprintf(writer, "dtb-binding\t%d\t%s\t%s\t%s\t\n", entry.Index, entry.ABI,
@@ -204,6 +212,14 @@ func (a *application) writeBootDoctorReport(report bootdoctor.Report) error {
 		return err
 	}
 	return writer.Flush()
+}
+
+// bootExistenceLabel avoids reporting foreign or unresolved files as missing.
+func bootExistenceLabel(scope install.GRUBOwnership, exists bool) string {
+	if scope != install.GRUBOwned {
+		return "not checked"
+	}
+	return strconv.FormatBool(exists)
 }
 
 // newHardwareDoctorCommand builds scriptable live hardware diagnostics with

@@ -81,7 +81,7 @@ func TestVerifyInstalledClosesEmbeddedMultiDTBInventory(t *testing.T) {
 		"menuentry 'Ubuntu " + fixtureTargetABI + "' {\n linux /boot/vmlinuz-" + fixtureTargetABI + "\n initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n" +
 		"menuentry 'Ubuntu " + fixtureTargetABI + " (recovery mode)' {\n linux /boot/vmlinuz-" + fixtureTargetABI + " single\n initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	evidence, _, err := verifyInstalled(context.Background(), root, fixtureTargetABI, trees)
+	evidence, _, err := verifyInstalled(fixtureContext(), root, fixtureTargetABI, trees)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func TestVerifyInstalledClosesEmbeddedMultiDTBInventory(t *testing.T) {
 	}
 
 	writeFixtureEmbeddedDTBImage(t, filepath.Join(root, "boot/vmlinuz-"+fixtureTargetABI), []byte("oled dtb"))
-	if _, _, err := verifyInstalled(context.Background(), root, fixtureTargetABI, trees); err == nil || !strings.Contains(err.Error(), "for 2 required same-ABI DTBs") {
+	if _, _, err := verifyInstalled(fixtureContext(), root, fixtureTargetABI, trees); err == nil || !strings.Contains(err.Error(), "for 2 required same-ABI DTBs") {
 		t.Fatalf("incomplete embedded DTB set error = %v", err)
 	}
 }
@@ -117,7 +117,7 @@ func TestVerifyInstalledAcceptsStockSimpleAdvancedAndRecoveryEntries(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	evidence, _, err := verifyInstalled(context.Background(), root, fixtureTargetABI, trees)
+	evidence, _, err := verifyInstalled(fixtureContext(), root, fixtureTargetABI, trees)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,11 +131,11 @@ func TestVerifyInstalledAcceptsStockSimpleAdvancedAndRecoveryEntries(t *testing.
 		targetPackageStanza("linux-modules-"+fixtureTargetABI, "install ok installed"),
 		targetPackageStanza("lexr-kernel-boot-support", "install ok installed"),
 	})
-	packages, err := fixtureManager(&fakeRunner{root: root}).inspectBundle(context.Background(), bundle)
+	packages, err := fixtureManager(&fakeRunner{root: root}).inspectBundle(fixtureContext(), bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
-	state, err := classifyTargetState(context.Background(), root, fixtureTargetABI, packages, trees)
+	state, err := classifyTargetState(fixtureContext(), root, fixtureTargetABI, packages, trees)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func TestVerifyInstalledRejectsExactKernelEntryWithForeignInitramfs(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := verifyInstalled(context.Background(), root, fixtureTargetABI, trees); err == nil || !strings.Contains(err.Error(), "exactly one exact-ABI initramfs") {
+	if _, _, err := verifyInstalled(fixtureContext(), root, fixtureTargetABI, trees); err == nil || !strings.Contains(err.Error(), "exactly one exact-ABI initramfs") {
 		t.Fatalf("foreign initramfs error = %v", err)
 	}
 }
@@ -178,7 +178,7 @@ func TestKnownHeaderSymlinksAreIgnoredWithoutFollowing(t *testing.T) {
 	if err := os.Symlink("build", filepath.Join(moduleTree, "source")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), fixtureRequest(root, bundle, true)); err != nil {
+	if _, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), fixtureRequest(root, bundle, true)); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -192,12 +192,12 @@ func TestUnverifiedLocalBundleRequiresExplicitAcceptance(t *testing.T) {
 	}
 	manager := fixtureManager(&fakeRunner{root: root})
 	request := fixtureRequest(root, bundle, true)
-	_, err := manager.Preflight(context.Background(), request)
+	_, err := manager.Preflight(fixtureContext(), request)
 	if err == nil || !strings.Contains(err.Error(), "explicitly allow") {
 		t.Fatalf("error = %v", err)
 	}
 	request.AllowUnverified = true
-	plan, err := manager.Preflight(context.Background(), request)
+	plan, err := manager.Preflight(fixtureContext(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +237,7 @@ func TestStaleTargetRecoveryEntryFailsPreflight(t *testing.T) {
 		" linux /boot/vmlinuz-" + fixtureTargetABI + "\n" +
 		" initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	_, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 	// Recovery entries alone no longer block a fresh target: the classifier
 	// counts the same non-recovery entries the post-install verification
 	// requires, so this legacy fixture is now classified as eligible.
@@ -256,7 +256,7 @@ func TestGRUBTitleParsingIgnoresRecoveryInFlags(t *testing.T) {
 		" initrd /boot/initrd.img-" + fixtureFallbackABI + "\n}\n"
 	path := filepath.Join(root, "boot/grub/grub.cfg")
 	writeFixtureFile(t, path, grub)
-	count, err := countGRUBEntries(context.Background(), path, fixtureFallbackABI, true, false)
+	count, err := countGRUBEntries(fixtureContext(), root, fixtureFallbackABI, true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -278,7 +278,7 @@ func TestVerifyFallbackRejectsAdditionalBootArtefacts(t *testing.T) {
 			name:        "foreign kernel",
 			marker:      " linux /boot/vmlinuz-" + fixtureFallbackABI + " root=fixture\n",
 			replacement: " linux /boot/vmlinuz-" + fixtureFallbackABI + " root=fixture\n linux /boot/vmlinuz-foreign\n",
-			want:        "exactly one exact-ABI kernel",
+			want:        "unresolved installation ownership",
 		},
 		{
 			name:        "foreign initramfs",
@@ -291,7 +291,7 @@ func TestVerifyFallbackRejectsAdditionalBootArtefacts(t *testing.T) {
 			root, _ := fixtureEnvironment(t)
 			grub := strings.Replace(fixtureGRUB(false), test.marker, test.replacement, 1)
 			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-			_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+			_, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI)
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("additional boot artefact error = %v", err)
 			}
@@ -327,7 +327,7 @@ func TestVerifyFallbackBindsActualGRUBArtefactBytes(t *testing.T) {
 			writeFixtureFile(t, filepath.Join(root, strings.TrimPrefix(test.path, "/")), "foreign boot bytes")
 			grub := strings.Replace(fixtureGRUB(false), test.marker, test.path, 1)
 			writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-			_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+			_, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI)
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("redirected %s error = %v", test.name, err)
 			}
@@ -342,7 +342,7 @@ func TestVerifyFallbackRejectsDiscardedUnsafeLinuxToken(t *testing.T) {
 	grub := fixtureGRUB(false) +
 		"menuentry 'unsafe kernel' {\n linux /boot/../vmlinuz-" + fixtureFallbackABI + "\n initrd /boot/initrd.img-" + fixtureFallbackABI + "\n}\n"
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	_, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI)
 	if err == nil || !strings.Contains(err.Error(), "unsafe kernel or initramfs path") {
 		t.Fatalf("discarded unsafe Linux token error = %v", err)
 	}
@@ -353,10 +353,12 @@ func TestVerifyFallbackRejectsDiscardedUnsafeLinuxToken(t *testing.T) {
 // same canonical exact-ABI artefacts.
 func TestVerifyFallbackAcceptsSeparateBootArtifactTokens(t *testing.T) {
 	root, _ := fixtureEnvironment(t)
-	grub := strings.ReplaceAll(fixtureGRUB(false), "/boot/vmlinuz-"+fixtureFallbackABI, "/vmlinuz-"+fixtureFallbackABI)
-	grub = strings.ReplaceAll(grub, "/boot/initrd.img-"+fixtureFallbackABI, "/initrd.img-"+fixtureFallbackABI)
-	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	if _, err := verifyFallback(context.Background(), root, fixtureFallbackABI); err != nil {
+	grub := strings.ReplaceAll(fixtureOwnedGRUB(fixtureGRUB(false)), "/boot/", "/")
+	grub = strings.ReplaceAll(grub, "--set=root fixture-root", "--set=root fixture-boot")
+	if err := os.WriteFile(filepath.Join(root, "boot/grub/grub.cfg"), []byte(grub), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := verifyFallback(fixtureSeparateBootContext(), root, fixtureFallbackABI); err != nil {
 		t.Fatalf("separate-/boot tokens: %v", err)
 	}
 }
@@ -374,7 +376,7 @@ func TestVerifyFallbackRejectsWrongPatchLineDeviceTree(t *testing.T) {
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	_, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI)
 	if err == nil || !strings.Contains(err.Error(), "does not match installed ABI "+fixtureFallbackABI) {
 		t.Fatalf("fallback DTB mismatch error = %v", err)
 	}
@@ -395,7 +397,7 @@ func TestVerifyFallbackAcceptsABIStampedDeviceTree(t *testing.T) {
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	if _, err := verifyFallback(context.Background(), root, fixtureFallbackABI); err != nil {
+	if _, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -415,7 +417,7 @@ func TestVerifyFallbackAcceptsABIStampedX1PDeviceTree(t *testing.T) {
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	if _, err := verifyFallback(context.Background(), root, fixtureFallbackABI); err != nil {
+	if _, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -436,7 +438,7 @@ func TestVerifyFallbackAcceptsDistinctABIStampedDeviceTrees(t *testing.T) {
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	if _, err := verifyFallback(context.Background(), root, fixtureFallbackABI); err != nil {
+	if _, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -458,7 +460,7 @@ func TestVerifyFallbackAcceptsIdenticalABIStampedDeviceTrees(t *testing.T) {
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	if _, err := verifyFallback(context.Background(), root, fixtureFallbackABI); err != nil {
+	if _, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -478,7 +480,7 @@ func TestVerifyFallbackRejectsABIStampedDeviceTreeMismatch(t *testing.T) {
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	_, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI)
 	if err == nil || !strings.Contains(err.Error(), "does not match installed ABI") {
 		t.Fatalf("stamped DTB mismatch error = %v", err)
 	}
@@ -490,7 +492,12 @@ func TestVerifyABIStampedDeviceTreeBindingSingleVariantMatching(t *testing.T) {
 	root := t.TempDir()
 	writeFixtureFile(t, filepath.Join(root, "usr/lib/firmware", fixtureFallbackABI, "device-tree/qcom/x1e80100-microsoft-denali-oled.dtb"), "oled dtb")
 	writeFixtureFile(t, filepath.Join(root, "boot/dtb-7.2.0"), "oled dtb")
-	if _, err := verifyABIStampedDeviceTreeBinding(context.Background(), root, fixtureFallbackABI, "/boot/dtb-7.2.0", nil); err != nil {
+	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), "menuentry 'Ubuntu' {\n linux /boot/vmlinuz-"+fixtureFallbackABI+"\n devicetree /boot/dtb-7.2.0\n}\n")
+	entries, err := InspectGRUB(fixtureContext(), root)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("entries: %v %v", entries, err)
+	}
+	if _, err := verifyABIStampedDeviceTreeBinding(fixtureContext(), root, fixtureFallbackABI, entries[0], nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -510,7 +517,7 @@ func TestVerifyFallbackAcceptsCanonicalDeviceTree(t *testing.T) {
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	if _, err := verifyFallback(context.Background(), root, fixtureFallbackABI); err != nil {
+	if _, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -528,7 +535,7 @@ func TestVerifyFallbackAcceptsEmbeddedDeviceTree(t *testing.T) {
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	evidence, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	evidence, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -553,7 +560,7 @@ func TestVerifyFallbackRejectsDuplicateEmbeddedDeviceTree(t *testing.T) {
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	if _, err := verifyFallback(context.Background(), root, fixtureFallbackABI); err == nil || !strings.Contains(err.Error(), "2 embedded matches") {
+	if _, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI); err == nil || !strings.Contains(err.Error(), "2 embedded matches") {
 		t.Fatalf("duplicate embedded fallback error = %v", err)
 	}
 }
@@ -576,7 +583,7 @@ func TestVerifyFallbackRejectsMalformedEmbeddedSection(t *testing.T) {
 	}
 	grub := strings.Replace(fixtureGRUB(false), " devicetree /dtb-"+fixtureFallbackABI+"\n", "", 1)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	if _, err := verifyFallback(context.Background(), root, fixtureFallbackABI); err == nil || !strings.Contains(err.Error(), "invalid bounded payload size") {
+	if _, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI); err == nil || !strings.Contains(err.Error(), "invalid bounded payload size") {
 		t.Fatalf("malformed embedded fallback error = %v", err)
 	}
 }
@@ -585,7 +592,7 @@ func TestVerifyFallbackRejectsMalformedEmbeddedSection(t *testing.T) {
 // read-only API preserves the install domain's ABI and device allow-lists.
 func TestInspectDeviceTreeBootBindingRejectsUnboundedIdentity(t *testing.T) {
 	root, _ := fixtureEnvironment(t)
-	entries, err := InspectGRUB(context.Background(), root)
+	entries, err := InspectGRUB(fixtureContext(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -598,7 +605,7 @@ func TestInspectDeviceTreeBootBindingRejectsUnboundedIdentity(t *testing.T) {
 		{name: "unknown device", abi: fixtureFallbackABI, device: "generic"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := InspectDeviceTreeBootBinding(context.Background(), root, test.abi, test.device, entries); err == nil {
+			if _, err := InspectDeviceTreeBootBinding(fixtureContext(), root, test.abi, test.device, entries); err == nil {
 				t.Fatal("unbounded boot device-tree identity unexpectedly passed")
 			}
 		})
@@ -616,7 +623,7 @@ func TestVerifyFallbackRejectsMissingBootDeviceTree(t *testing.T) {
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	_, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI)
 	if err == nil || !strings.Contains(err.Error(), "no inspectable embedded device tree") {
 		t.Fatalf("missing boot DTB error = %v", err)
 	}
@@ -632,7 +639,7 @@ func TestVerifyFallbackRejectsMixedEmbeddedAndExternalBindings(t *testing.T) {
 		" linux /boot/vmlinuz-" + fixtureFallbackABI + " root=fixture single\n" +
 		" initrd /boot/initrd.img-" + fixtureFallbackABI + "\n}\n"
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	_, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI)
 	if err == nil || !strings.Contains(err.Error(), "inconsistent device-tree bindings") {
 		t.Fatalf("mixed boot DTB mode error = %v", err)
 	}
@@ -649,7 +656,7 @@ func TestVerifyFallbackRejectsTraversingDeviceTreePath(t *testing.T) {
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	_, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI)
 	if err == nil || !strings.Contains(err.Error(), "unsafe device-tree path") {
 		t.Fatalf("traversing DTB error = %v", err)
 	}
@@ -669,38 +676,55 @@ func TestVerifyFallbackRejectsMixedSafeAndUnsafeDeviceTrees(t *testing.T) {
 		1,
 	)
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	_, err := verifyFallback(context.Background(), root, fixtureFallbackABI)
+	_, err := verifyFallback(fixtureContext(), root, fixtureFallbackABI)
 	if err == nil || !strings.Contains(err.Error(), "unsafe device-tree path") {
 		t.Fatalf("mixed safe and unsafe DTB error = %v", err)
 	}
 }
 
-// TestHashGRUBPathRejectsAmbiguousRootAndBootFiles verifies a root-relative
-// token cannot silently prefer one of two distinct regular-file candidates.
-func TestHashGRUBPathRejectsAmbiguousRootAndBootFiles(t *testing.T) {
+// TestInspectGRUBArtifactUsesExactMountedView proves two same-name files are
+// disambiguated by the selected filesystem view, never an existence heuristic.
+func TestInspectGRUBArtifactUsesExactMountedView(t *testing.T) {
 	root := t.TempDir()
 	writeFixtureFile(t, filepath.Join(root, "boot/sp11-denali.dtb"), "boot-directory bytes")
 	writeFixtureFile(t, filepath.Join(root, "sp11-denali.dtb"), "root-directory bytes")
-	_, err := HashGRUBPath(context.Background(), root, "/sp11-denali.dtb")
-	if err == nil || !strings.Contains(err.Error(), "ambiguous") {
-		t.Fatalf("ambiguous GRUB path error = %v", err)
+	text := ownershipMenu("Ubuntu", "fixture-root", "root=UUID=fixture-root", fixtureFallbackABI, "initrd.img-"+fixtureFallbackABI)
+	text = strings.Replace(text, "\n}\n", "\n devicetree /sp11-denali.dtb\n}\n", 1)
+	writeRawOwnershipGRUB(t, root, text)
+	entries, err := InspectGRUB(fixtureContext(), root)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("entries: %v %v", entries, err)
+	}
+	evidence, _, err := InspectGRUBArtifact(fixtureContext(), root, entries[0], entries[0].DeviceTrees[0])
+	if err != nil || evidence.SHA256 != digestText("root-directory bytes") {
+		t.Fatalf("root view: %+v %v", evidence, err)
+	}
+	writeRawOwnershipGRUB(t, root, strings.ReplaceAll(text, "--set=root fixture-root", "--set=root fixture-boot"))
+	entries, err = InspectGRUB(fixtureSeparateBootContext(), root)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("entries: %v %v", entries, err)
+	}
+	evidence, _, err = InspectGRUBArtifact(fixtureSeparateBootContext(), root, entries[0], entries[0].DeviceTrees[0])
+	if err != nil || evidence.SHA256 != digestText("boot-directory bytes") {
+		t.Fatalf("boot view: %+v %v", evidence, err)
 	}
 }
 
-// TestHashGRUBPathRejectsRelativeToken verifies GRUB file evidence always
+// TestGRUBOwnershipRejectsRelativeToken verifies GRUB file evidence always
 // starts from an absolute target-system path after prefix normalisation.
-func TestHashGRUBPathRejectsRelativeToken(t *testing.T) {
+func TestGRUBOwnershipRejectsRelativeToken(t *testing.T) {
 	root := t.TempDir()
 	writeFixtureFile(t, filepath.Join(root, "boot/sp11-denali.dtb"), "boot-directory bytes")
-	_, err := HashGRUBPath(context.Background(), root, "sp11-denali.dtb")
-	if err == nil || !strings.Contains(err.Error(), "safe absolute path") {
-		t.Fatalf("relative GRUB path error = %v", err)
+	writeRawOwnershipGRUB(t, root, "menuentry 'Ubuntu' {\n search --fs-uuid --set=root fixture-root\n linux vmlinuz-"+fixtureFallbackABI+" root=UUID=fixture-root\n}\n")
+	entries, err := InspectGRUB(fixtureContext(), root)
+	if err != nil || len(entries) != 1 || !GRUBEntryHasUnsafeBootArtifacts(entries[0]) {
+		t.Fatalf("relative token accepted: %+v %v", entries, err)
 	}
 }
 
-// TestInspectGRUBPathClassifiesPermissionDenied verifies wrapping retains
+// TestInspectGRUBArtifactClassifiesPermissionDenied verifies wrapping retains
 // os.ErrPermission for doctor-style tri-state inspection.
-func TestInspectGRUBPathClassifiesPermissionDenied(t *testing.T) {
+func TestInspectGRUBArtifactClassifiesPermissionDenied(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "boot/vmlinuz-test")
 	writeFixtureFile(t, path, "kernel")
@@ -711,7 +735,12 @@ func TestInspectGRUBPathClassifiesPermissionDenied(t *testing.T) {
 	if _, err := os.ReadFile(path); err == nil {
 		t.Skip("current user can read chmod 0000 files")
 	}
-	_, state, err := InspectGRUBPath(context.Background(), root, "/boot/vmlinuz-test")
+	writeRawOwnershipGRUB(t, root, "menuentry 'Ubuntu' {\n search --fs-uuid --set=root fixture-root\n linux /boot/vmlinuz-test root=UUID=fixture-root\n}\n")
+	entries, err := InspectGRUB(fixtureContext(), root)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("entries: %v %v", entries, err)
+	}
+	_, state, err := InspectGRUBArtifact(fixtureContext(), root, entries[0], entries[0].Linux[0])
 	if state != GRUBPathInaccessible || !errors.Is(err, os.ErrPermission) {
 		t.Fatalf("permission availability=%q error=%v", state, err)
 	}
@@ -759,7 +788,7 @@ func TestLegacyModuleTreeIsAccepted(t *testing.T) {
 	if err := os.Rename(usrTree, legacyTree); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), fixtureRequest(root, bundle, true)); err != nil {
+	if _, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), fixtureRequest(root, bundle, true)); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -778,7 +807,7 @@ func TestRollbackReportsFallbackDamage(t *testing.T) {
 	}
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err == nil || !strings.Contains(err.Error(), "rollback incomplete") {
 		t.Fatalf("error = %v", err)
 	}
@@ -801,7 +830,7 @@ func TestBoundedCaptureRejectsOversizedMetadata(t *testing.T) {
 		}
 		return "", false
 	}
-	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	_, err := fixtureManager(runner).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 	if !errors.Is(err, errCommandOutputLimit) {
 		t.Fatalf("error = %v", err)
 	}
@@ -833,7 +862,7 @@ func TestHeaderPairDependencyRemainsExact(t *testing.T) {
 		}
 		return "", false
 	}
-	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	_, err := fixtureManager(runner).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 	if err == nil || !strings.Contains(err.Error(), "non-exact or mismatched") {
 		t.Fatalf("error = %v", err)
 	}

@@ -124,7 +124,8 @@ func TestBootDoctorHumanReportShowsEmbeddedBinding(t *testing.T) {
 	report := bootdoctor.Report{
 		Ready: true, Device: "x1e-oled", PhysicalBootability: "static evidence cannot prove physical bootability",
 		Entries: []bootdoctor.Entry{{
-			Index: 0, ABI: "7.2.2-jg-0sp11v2-qcom-x1e", DeviceTreeBoot: binding,
+			Ownership: kernelinstall.GRUBOwned,
+			Index:     0, ABI: "7.2.2-jg-0sp11v2-qcom-x1e", DeviceTreeBoot: binding,
 		}},
 		Attribution: bootdoctor.DTBAttribution{BootSHA256: digest, DeviceTreeBoot: binding},
 	}
@@ -136,6 +137,24 @@ func TestBootDoctorHumanReportShowsEmbeddedBinding(t *testing.T) {
 	for _, expected := range []string{"dtb-binding", "embedded", digest, "boot DTB GRUB entries verified", "2"} {
 		if !strings.Contains(output, expected) {
 			t.Errorf("human report does not contain %q:\n%s", expected, output)
+		}
+	}
+}
+
+// TestBootDoctorHumanForeignFilesAreNotMissing keeps uninspected evidence
+// distinct from an owned file whose absence was actually established.
+func TestBootDoctorHumanForeignFilesAreNotMissing(t *testing.T) {
+	report := bootdoctor.Report{Ready: true, Entries: []bootdoctor.Entry{{
+		Index: 0, Ownership: kernelinstall.GRUBForeign, OwnershipReason: "entry selects another installation; bootability not checked",
+		Linux: []kernelinstall.GRUBPathToken{{Command: "linux", Path: "/boot/vmlinuz-other"}},
+	}}}
+	output, _, err := executeBootDoctorCommand(t, &bootDoctorStub{report: report})
+	if err != nil || !strings.Contains(output, "proven-foreign") || !strings.Contains(output, "not checked") {
+		t.Fatalf("scope not reported: %s %v", output, err)
+	}
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Contains(line, "vmlinuz-other") && strings.Contains(line, "false") {
+			t.Fatalf("uninspected file shown as absent: %s", line)
 		}
 	}
 }

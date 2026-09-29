@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ooaklee/lexr.sh/internal/bootidentity"
 	"github.com/ooaklee/lexr.sh/internal/cleanup"
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	"github.com/ooaklee/lexr.sh/internal/platform"
@@ -209,6 +210,10 @@ type GRUBPathToken struct {
 	Command string `json:"command"`
 	// Path is the single normalised path token supplied to that command.
 	Path string `json:"path"`
+	// filesystem is the private selector in force at this exact command.
+	filesystem string
+	// relative is the proven path below boundRoot, never a fallback guess.
+	relative string
 }
 
 // GRUBPathAvailability classifies bounded filesystem evidence for one safe
@@ -227,6 +232,16 @@ const (
 // GRUBEntry records only the bounded, non-sensitive fields needed to inspect
 // one normal or recovery menu entry.
 type GRUBEntry struct {
+	// Ownership scopes artefact evidence to one mounted Linux installation.
+	Ownership GRUBOwnership `json:"ownership"`
+	// OwnershipReason is a bounded explanation without filesystem identifiers.
+	OwnershipReason string `json:"ownership_reason"`
+	// identityContext retains private parsing state, never raw CLI output.
+	identityContext *grubIdentityContext
+	// boundRoot seals classified path mappings to the inspected root.
+	boundRoot string
+	// boundIdentity detects a changed mounted view before and after digest reads.
+	boundIdentity bootidentity.Identity
 	// Index is the zero-based order of the menu entry in the parsed file.
 	Index int `json:"index"`
 	// Depth is the number of enclosing GRUB submenus.
@@ -253,6 +268,8 @@ type GRUBEntry struct {
 
 // Plan is the complete read-only result that must be reviewed before mutation.
 type Plan struct {
+	// ownership pins private mounted identity without serialising identifiers.
+	ownership bootidentity.Identity
 	// Profile is the canonical hardware identity selected for this installation.
 	Profile string `json:"profile,omitempty"`
 	// BootHookCleanup records recognised competing hooks to back up and retire.

@@ -60,11 +60,11 @@ func TestSurfaceProfileInstall(t *testing.T) {
 			runner := &fakeRunner{root: root}
 			manager := fixtureManager(runner)
 			manager.effectiveUID = func() int { return 0 }
-			plan, err := manager.Preflight(context.Background(), request)
+			plan, err := manager.Preflight(fixtureContext(), request)
 			if err != nil || plan.Profile != id || plan.FallbackBinding == nil || !plan.FallbackBinding.Create || plan.BootHookCleanup == nil || len(plan.BootHookCleanup.Findings) != 2 {
 				t.Fatalf("preflight = %#v, %v", plan, err)
 			}
-			if _, err := manager.Install(context.Background(), request); err != nil {
+			if _, err := manager.Install(fixtureContext(), request); err != nil {
 				t.Fatal(err)
 			}
 			if len(runner.runs) != 0 {
@@ -116,7 +116,7 @@ func TestSurfaceProfileInstall(t *testing.T) {
 				return nil
 			}
 			request.DryRun = false
-			receipt, err := manager.Install(context.Background(), request)
+			receipt, err := manager.Install(fixtureContext(), request)
 			if err != nil || !receipt.RebootRequired || !refreshed || !receipt.FallbackBindingCreated || receipt.BootHookCleanup == nil || receipt.BootHooksRestored {
 				t.Fatalf("installed=%t refreshed=%t fallback copied=%t hooks restored=%t: %v", receipt.RebootRequired, refreshed, receipt.FallbackBindingCreated, receipt.BootHooksRestored, err)
 			}
@@ -151,7 +151,7 @@ func writeRetiredBootHooks(t *testing.T, root string) []string {
 func TestProfilePreflightRejectsDifferentBootBytes(t *testing.T) {
 	root, request, _ := surfaceInstallationFixture(t, "x1p64100-microsoft-denali")
 	writeFixtureFile(t, filepath.Join(root, "boot/sp11-denali.dtb"), "fallback oled dtb")
-	_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), request)
+	_, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), request)
 	if err == nil || !strings.Contains(err.Error(), "does not match selected profile") {
 		t.Fatalf("wrong model fallback accepted: %v", err)
 	}
@@ -166,12 +166,12 @@ func TestProfileDiagnosticRetainsBothEmbeddedModels(t *testing.T) {
 	})
 	grub := strings.ReplaceAll(fixtureGRUB(false), " devicetree /dtb-"+fixtureFallbackABI+"\n", "")
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-	entries, err := InspectGRUB(context.Background(), root)
+	entries, err := InspectGRUB(fixtureContext(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, device := range []string{"x1p-lcd", "x1e-oled"} {
-		evidence, err := InspectDeviceTreeBootBinding(context.Background(), root, fixtureFallbackABI, device, entries)
+		evidence, err := InspectDeviceTreeBootBinding(fixtureContext(), root, fixtureFallbackABI, device, entries)
 		if err != nil || len(evidence.SHA256s) != 2 {
 			t.Fatalf("%s embedded inventory = %#v, %v", device, evidence, err)
 		}
@@ -184,7 +184,7 @@ func TestFallbackCopyRejectsDriftAndRaces(t *testing.T) {
 	for _, scenario := range []string{"source changed", "destination appeared"} {
 		t.Run(scenario, func(t *testing.T) {
 			root, request, _ := surfaceInstallationFixture(t, "x1p64100-microsoft-denali")
-			plan, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), request)
+			plan, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), request)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -194,7 +194,7 @@ func TestFallbackCopyRejectsDriftAndRaces(t *testing.T) {
 			} else {
 				writeFixtureFile(t, binding.Destination, "keep raced bytes")
 			}
-			if created, err := createFallbackBinding(context.Background(), root, binding); err == nil || created {
+			if created, err := createFallbackBinding(fixtureContext(), root, binding); err == nil || created {
 				t.Fatalf("unsafe copy succeeded: created=%t, %v", created, err)
 			}
 			data, err := os.ReadFile(binding.Destination)
@@ -222,7 +222,7 @@ func TestFailedInstallRestoresRetiredHooks(t *testing.T) {
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
 	request.DryRun = false
-	receipt, err := manager.Install(context.Background(), request)
+	receipt, err := manager.Install(fixtureContext(), request)
 	if err == nil || !strings.Contains(err.Error(), "fixture package failure") || !receipt.BootHooksRestored || receipt.Rollback == nil || receipt.Rollback.Error != "" {
 		t.Fatalf("hooks restored=%t rollback=%#v: %v", receipt.BootHooksRestored, receipt.Rollback, err)
 	}
@@ -267,7 +267,7 @@ func TestReintroducedBootHookTriggersRollbackAndReportsRecoveryConflict(t *testi
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
 	request.DryRun = false
-	receipt, err := manager.Install(context.Background(), request)
+	receipt, err := manager.Install(fixtureContext(), request)
 	if err == nil || !strings.Contains(err.Error(), "appeared after preflight") || !strings.Contains(err.Error(), "restore retired boot hooks") || receipt.RebootRequired || receipt.BootHooksRestored {
 		t.Fatalf("recreated hook was not reported: receipt=%#v, %v", receipt, err)
 	}
@@ -302,7 +302,7 @@ func TestUnsafeBootPreparationBlocksBeforeMutation(t *testing.T) {
 			}
 			runner := &fakeRunner{root: root}
 			request.DryRun = false
-			if _, err := fixtureManager(runner).Install(context.Background(), request); err == nil || len(runner.runs) != 0 {
+			if _, err := fixtureManager(runner).Install(fixtureContext(), request); err == nil || len(runner.runs) != 0 {
 				t.Fatalf("unsafe preparation was allowed: %v", err)
 			}
 		})
@@ -321,7 +321,7 @@ func TestPreflightPermissionGuidance(t *testing.T) {
 	if _, err := os.ReadFile(path); err == nil {
 		t.Skip("current user can read mode-0000 files")
 	}
-	_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), request)
+	_, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), request)
 	if !errors.Is(err, os.ErrPermission) || !strings.Contains(err.Error(), "sudo") || !strings.Contains(err.Error(), "--profile") {
 		t.Fatalf("permission guidance missing: %v", err)
 	}

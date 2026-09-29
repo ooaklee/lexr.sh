@@ -58,6 +58,10 @@ type DefaultSelection struct {
 
 // Entry records recognised path evidence for one normal or recovery stanza.
 type Entry struct {
+	// Ownership distinguishes local evidence from foreign or unresolved entries.
+	Ownership install.GRUBOwnership `json:"ownership"`
+	// OwnershipReason explains scope without retaining private root identifiers.
+	OwnershipReason string `json:"ownership_reason"`
 	// Index is the zero-based order in the bounded GRUB configuration.
 	Index int `json:"index"`
 	// Depth is the number of enclosing GRUB submenus.
