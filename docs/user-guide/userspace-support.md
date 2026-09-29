@@ -20,6 +20,8 @@ This page is for operators checking firmware, audio, pen, touchscreen, camera, p
 
 [`supported-userspace.json`](https://github.com/ooaklee/lexr.sh/blob/main/supported-userspace.json) is the human-readable source of audited component metadata. It records support maturity, capability, redistribution policy, evidence, remediation, exact release assets where applicable, and the bounded actions available through the CLI. Action flags are declarations only; the catalogue cannot supply commands or writable paths. The dedicated loader rejects unknown fields and inconsistent combinations.
 
+New component releases use [authenticated compatibility manifests](../reference/component-compatibility.md). The exact pinned historic releases retain their compiled legacy profiles. Compatibility evidence, host command availability and physical hardware qualification are separate checks.
+
 ## 1. Review the catalogue
 
 Review and validate the catalogue with:
@@ -79,8 +81,17 @@ incomplete inspection, or timeout still produces an activation error.
 ```sh
 lexr userspace pull recommended
 lexr userspace pull camera
-lexr userspace build iptsd
-lexr userspace build camera
+lexr userspace build iptsd --repository-root <oe-checkout> \
+  --target-architecture arm64 --target-device-profile x1e80100-microsoft-denali-oled \
+  --target-os ubuntu --target-os-version 26.04 \
+  --target-kernel 7.2.0-jg-0sp11v19-qcom-x1e \
+  --allow-unverified-compatibility
+
+lexr userspace build camera --repository-root <oe-checkout> \
+  --target-architecture arm64 --target-device-profile x1e80100-microsoft-denali-oled \
+  --target-os ubuntu --target-os-version 26.04 \
+  --target-kernel 7.2.0-jg-0sp11v19-qcom-x1e \
+  --allow-unverified-compatibility
 ```
 
 ### Configuration home and host directories

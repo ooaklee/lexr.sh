@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"path"
 
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
 	userspacepolicy "github.com/ooaklee/lexr.sh/internal/userspace/policy"
 	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
 )
@@ -47,6 +49,18 @@ func validateOfflineBundleReceipt(content []byte) error {
 // including the canonical receipt that binds its repository identity.
 func validateOfflineUserspaceRecordContract(record imagecontract.OfflineUserspaceRecord) error {
 	contract := iptsdOfflineReleaseContract
+	if contract.Compatibility == nil {
+		if record.Compatibility != nil {
+			return errors.New("legacy image component carries an unauthorised compatibility assessment")
+		}
+	} else {
+		if record.Compatibility == nil || record.Compatibility.SchemaVersion != 1 || record.Compatibility.Manifest != *contract.Compatibility {
+			return errors.New("image component assessment lacks the independently pinned manifest identity")
+		}
+		if err := compatibility.RequireAllowed(record.Compatibility.Decision, record.Compatibility.AllowUnverified); err != nil {
+			return err
+		}
+	}
 	if record.Component != contract.Component {
 		return fmt.Errorf("offline userspace component %q is not approved by compiled companion policy", record.Component)
 	}

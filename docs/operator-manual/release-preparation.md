@@ -21,8 +21,8 @@ If preparation fails, do not assemble a release by copying part of its staging d
 | --- | --- | --- | --- |
 | Installation image | One completed Lexr ISO and its exact adjacent manifest and creation journal | Deterministic split zstd parts, the copied image manifest, path-free release manifest, notes, and checksums | [Prepare an image release](#prepare-an-image-release) |
 | Kernel | Exact closed native kernel build, corresponding-source archives, and explicit licence text | Closed, path-free kernel release directory | [Prepare a kernel release](kernel-management.md#prepare-a-kernel-release-locally) |
-| FullIO audio | Reviewed FullIO v19c source bytes and an explicit paired kernel tag and ABI | Exact seven-file local audio release | [Prepare an audio release](#prepare-an-audio-release) |
-| IMX681 camera | Validated eight-file native camera build, authenticated inputs, independently retained build authority, and explicit paired kernel tag and ABI | Exact eleven-file local camera release plus a separately retained release authority digest | [Prepare a camera release](#prepare-a-camera-release) |
+| FullIO audio | Reviewed FullIO v19c source bytes and an explicit paired kernel tag and ABI | Exact eight-file local audio release | [Prepare an audio release](#prepare-an-audio-release) |
+| IMX681 camera | Validated nine-file native camera build, authenticated inputs, independently retained build authority, and explicit paired kernel tag and ABI | Exact twelve-file local camera release plus a separately retained release authority digest | [Prepare a camera release](#prepare-a-camera-release) |
 
 ## Prepare an image release
 
@@ -74,7 +74,9 @@ This is structural evidence, not proof that the image booted on physical hardwar
 
 ## Prepare an audio release
 
-Audio preparation accepts only the reviewed FullIO v19c source bytes and an explicit paired kernel release tag and ABI. Its seven-file release contains the four reviewed installable audio artefacts, `SHA256SUMS`, deterministic `RELEASE-NOTES.md`, and `audio-release-manifest.json`. The manifest records the pairing and source evidence without a host path or preparation time.
+Audio preparation accepts only the reviewed FullIO v19c source bytes and an explicit paired kernel release tag and ABI. Its eight-file release contains the four reviewed installable audio artefacts, the canonical `lexr-component-compatibility.json`, `SHA256SUMS`, deterministic `RELEASE-NOTES.md`, and `audio-release-manifest.json`. The manifest records the pairing and source evidence without a host path or preparation time.
+
+The OE checkout must have a clean HEAD containing the reviewed source declaration. All new preparations require explicit payload evidence. These initial declarations have no recorded OS qualification, so the examples deliberately record `--allow-unverified-compatibility`; review the decision before using it. Hard incompatibility and missing evidence still block. See [component compatibility](../reference/component-compatibility.md).
 
 Start with a dry run:
 
@@ -82,9 +84,13 @@ Start with a dry run:
 lexr userspace audio release prepare \
   --source-root <SP11X1e-audio-checkout> \
   --repository-root <oe-checkout> \
-  --tag sp11-audio-v19c \
+  --tag sp11-audio-v19c-full \
   --kernel-tag <kernel-release-tag> \
   --kernel-abi <kernel-abi> \
+  --target-architecture arm64 \
+  --target-device-profile x1e80100-microsoft-denali-oled \
+  --target-os ubuntu --target-os-version 26.04 \
+  --allow-unverified-compatibility \
   --dry-run
 ```
 
@@ -92,17 +98,17 @@ Remove `--dry-run` only after reviewing the complete plan, then repeat the sourc
 
 ```sh
 lexr userspace audio release validate \
-  <oe-checkout>/build/release/sp11-audio-v19c \
+  <oe-checkout>/build/release/sp11-audio-v19c-full \
   --repository-root <oe-checkout>
 ```
 
-The generated checksum set must retain the reviewed FullIO v19c identity; locally generating it does not make different source bytes authoritative. [ADR019](../adr/adr-019-native-audio-release-preparation.md) records the exact seven-file contract.
+The four payload identities remain pinned. New schema-2 preparation records also bind the canonical declaration and assessment; [ADR041](../adr/adr-041-component-compatibility-manifests.md) defines this migration. The original seven-file release described by [ADR019](../adr/adr-019-native-audio-release-preparation.md) remains valid for legacy validation only.
 
 ## Prepare a camera release
 
 Camera preparation accepts one validated native camera build, its authenticated repository inputs, an independently retained build-authority SHA-256, and an explicit paired kernel tag and ABI. It does not execute package payload while proving the transferred build.
 
-The native build is an exact eight-file set: five coherent runtime packages, the original Debian `.changes` and `.buildinfo` records, and the structured build receipt. Preparation adds `SHA256SUMS`, deterministic release notes, and a path-free release manifest to form an eleven-file local release.
+The native build is an exact nine-file set: five coherent runtime packages, the original Debian `.changes` and `.buildinfo` records, the structured build receipt and the canonical compatibility manifest. Preparation adds `SHA256SUMS`, deterministic release notes, and a path-free release manifest to form a twelve-file local release.
 
 Review the preparation plan:
 
@@ -110,9 +116,13 @@ Review the preparation plan:
 lexr userspace camera release prepare \
   --from <native-camera-build> \
   --repository-root <oe-checkout> \
-  --tag <camera-release-tag> \
+  --tag sp11-imx681-libcamera-v2 \
   --kernel-tag <kernel-release-tag> \
   --kernel-abi <kernel-abi> \
+  --target-architecture arm64 \
+  --target-device-profile x1e80100-microsoft-denali-oled \
+  --target-os ubuntu --target-os-version 26.04 \
+  --allow-unverified-compatibility \
   --build-authority-sha256 <native-build-authority-sha256> \
   --dry-run
 ```
@@ -121,12 +131,12 @@ After a successful mutating run, Lexr prints a release-authority SHA-256. Retain
 
 ```sh
 lexr userspace camera release validate \
-  <oe-checkout>/build/lexr/camera/releases/<camera-release-tag> \
+  <oe-checkout>/build/lexr/camera/releases/sp11-imx681-libcamera-v2 \
   --repository-root <oe-checkout> \
   --authority-sha256 <release-authority-sha256>
 ```
 
-The release manifest makes package provenance and kernel pairing explicit but does not claim camera transport, privacy indication, image quality, suspend recovery, or any other physical-hardware qualification. [ADR015](../adr/adr-015-native-imx681-package-and-release-contracts.md) defines the package and release set; [ADR020](../adr/adr-020-independent-camera-authority-digests.md) defines the independent authority chain.
+The release manifest makes package provenance and kernel pairing explicit but does not claim camera transport, privacy indication, image quality, suspend recovery, or any other physical-hardware qualification. [ADR041](../adr/adr-041-component-compatibility-manifests.md) extends the original package and release set from [ADR015](../adr/adr-015-native-imx681-package-and-release-contracts.md) with schema-2 compatibility authority; [ADR020](../adr/adr-020-independent-camera-authority-digests.md) defines the independent authority chain.
 
 ## Hand off to publication without widening authority
 

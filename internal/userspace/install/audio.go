@@ -44,12 +44,17 @@ func (installer *Installer) Audio(_ context.Context, options Options) (Result, e
 	if err != nil {
 		return Result{}, err
 	}
-	bundle, err := verifyBundle(options.BundleDir, audioSpec)
+	compatibilityRecord, err := assessCompatibility(options, AudioComponent)
+	if err != nil {
+		return Result{Component: AudioComponent, Root: options.Root, DryRun: options.DryRun, Compatibility: compatibilityRecord}, err
+	}
+	bundle, err := verifyBundle(options.BundleDir, compatibilitySpec(audioSpec, options))
 	if err != nil {
 		return Result{}, err
 	}
 	result := Result{
-		Component: AudioComponent, Root: options.Root, DryRun: options.DryRun,
+		Compatibility: compatibilityRecord,
+		Component:     AudioComponent, Root: options.Root, DryRun: options.DryRun,
 		RebootRequired: true,
 	}
 	stamp := installer.now().UTC().Format("20060102T150405.000000000Z")
@@ -110,8 +115,14 @@ func (installer *Installer) Audio(_ context.Context, options Options) (Result, e
 		plans = append(plans, plan)
 		result.Files = append(result.Files, plan.change)
 	}
+	if err := planCompatibilityRecords(options, AudioComponent, &result); err != nil {
+		return result, err
+	}
 	if options.DryRun {
 		return result, nil
+	}
+	if err := revalidateCompatibility(options, AudioComponent, compatibilityRecord); err != nil {
+		return result, err
 	}
 	if err := installer.requireRoot(false); err != nil {
 		return Result{}, err
@@ -141,6 +152,9 @@ func (installer *Installer) Audio(_ context.Context, options Options) (Result, e
 
 	applied := make([]audioChangePlan, 0, len(plans))
 	for _, plan := range plans {
+		if err := revalidateCompatibility(options, AudioComponent, compatibilityRecord); err != nil {
+			return result, errors.Join(err, rollbackAudio(applied))
+		}
 		// Re-resolve immediately before mutation so a changed parent symlink
 		// cannot redirect a previously-reviewed target.
 		revalidated, err := resolveAudioTarget(options.Root, plan.relative)
@@ -157,6 +171,10 @@ func (installer *Installer) Audio(_ context.Context, options Options) (Result, e
 			return Result{}, errors.Join(err, rollbackAudio(applied))
 		}
 		applied = append(applied, plan)
+	}
+	result.FilesInstalled = true
+	if err := persistCompatibilityRecords(options, AudioComponent, &result); err != nil {
+		return result, err
 	}
 	return result, nil
 }

@@ -13,11 +13,12 @@ import (
 	"time"
 
 	"github.com/ooaklee/lexr.sh/internal/kernel"
+	"github.com/ooaklee/lexr.sh/internal/userspace/assessment"
 )
 
 // ManifestSchemaVersion identifies the on-media manifest contract understood by
 // this version of Lexr.
-const ManifestSchemaVersion = 5
+const ManifestSchemaVersion = 6
 
 // MaximumManifestSize bounds untrusted on-media JSON before decoding it.
 const MaximumManifestSize = 1 << 20
@@ -74,6 +75,8 @@ type ExecutableArtifactRecord struct {
 // OfflineUserspaceRecord groups one verified, relocatable userspace release
 // that is deliberately available without network access from the image.
 type OfflineUserspaceRecord struct {
+	// Compatibility records the manifest and image target decision when required.
+	Compatibility *assessment.Record `json:"compatibility,omitempty"`
 	// Component is the stable userspace catalogue identifier.
 	Component string `json:"component"`
 	// Release is the exact immutable component release tag.
@@ -472,4 +475,21 @@ type ValidationCheck struct {
 	Passed bool `json:"passed"`
 	// Details provides concise human-readable evidence or an error message.
 	Details string `json:"details"`
+}
+
+// SupportedManifestSchema accepts the current contract and its explicit legacy
+// predecessor. Schema 5 cannot carry the schema-6 compatibility assessment.
+func SupportedManifestSchema(manifest Manifest) bool {
+	if manifest.SchemaVersion == ManifestSchemaVersion {
+		return true
+	}
+	if manifest.SchemaVersion != 5 {
+		return false
+	}
+	for _, component := range manifest.CompanionBundle.Userspace {
+		if component.Compatibility != nil {
+			return false
+		}
+	}
+	return true
 }

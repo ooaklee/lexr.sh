@@ -88,3 +88,15 @@ package set passes structural validation.
 - Add an adapter only with creation, validation and refusal-path tests.
 - Update user documentation when an entry changes what a person can actually do.
 - Run the full test suite after both catalogue-specific validators pass.
+
+## Userspace compatibility migration
+
+Userspace catalogue schema 3 references each new component release's canonical
+compatibility manifest by exact byte size and SHA-256. It does not duplicate
+release ranges. Existing pinned releases declare an exact `legacy_profile`;
+unrecognised releases cannot use that exemption. Schema 2 remains readable
+through the migration path. An override cannot widen the embedded authority.
+
+See [component compatibility](../reference/component-compatibility.md) and
+[ADR041](../adr/adr-041-component-compatibility-manifests.md) before preparing a
+new release or updating its catalogue reference.

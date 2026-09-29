@@ -13,6 +13,7 @@ import (
 
 	userspacebuild "github.com/ooaklee/lexr.sh/internal/userspace/build"
 	"github.com/ooaklee/lexr.sh/internal/userspace/catalog"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
 	userspaceinstall "github.com/ooaklee/lexr.sh/internal/userspace/install"
 	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
 	userspacestatus "github.com/ooaklee/lexr.sh/internal/userspace/status"
@@ -83,6 +84,11 @@ type Installer interface {
 // InstallRequest identifies a compiled userspace workflow, its verified input,
 // and the explicit filesystem root that may be changed.
 type InstallRequest struct {
+	// CompatibilityTarget supplies explicit target architecture, device and kernel evidence.
+	CompatibilityTarget compatibility.Target
+	// AllowUnverifiedCompatibility permits only the dedicated unverified decision.
+	AllowUnverifiedCompatibility bool
+
 	// CatalogPath selects an optional strict userspace catalogue override.
 	CatalogPath string
 	// Selector is audio, iptsd, camera, or the deliberately limited recommended set.
@@ -109,6 +115,11 @@ type InstallRequest struct {
 // installTarget binds one catalogue-backed component to its verified release
 // directory before dispatching to compiled installer policy.
 type installTarget struct {
+	compatibility   *compatibility.Reference
+	release         string
+	target          compatibility.Target
+	allowUnverified bool
+
 	component string
 	bundleDir string
 }
@@ -147,7 +158,18 @@ func (m *Manager) LoadCatalog(overridePath string) (*catalog.Catalog, error) {
 	if m == nil {
 		return nil, errors.New("userspace manager is unavailable")
 	}
-	return m.Loader.Load(overridePath)
+	selected, err := m.Loader.Load(overridePath)
+	if err != nil || overridePath == "" {
+		return selected, err
+	}
+	compiled, err := m.Loader.Load("")
+	if err != nil {
+		return nil, err
+	}
+	if err := intersectCatalogue(selected, compiled); err != nil {
+		return nil, err
+	}
+	return selected, nil
 }
 
 // Pull resolves one component or the recommended set through the catalogue, then
@@ -188,6 +210,7 @@ func (m *Manager) Pull(ctx context.Context, overridePath, selector, cacheDirecto
 		spec := userspacerelease.Spec{
 			Component: component.ID, Repository: repository,
 			Tag: component.Release.Tag, ExactAssets: component.Release.AssetAllowlist,
+			Compatibility:       component.Compatibility,
 			UnchecksummedAssets: unchecksummedAssets(component.ID),
 		}
 		destination := filepath.Join(absoluteCache, component.ID, component.Release.Tag)
@@ -246,6 +269,9 @@ func (m *Manager) StatusWithCatalog(overridePath string, options userspacestatus
 	}
 	componentCatalog, err := m.LoadCatalog(overridePath)
 	if err != nil {
+		if catalog.UnsupportedSchema(err) {
+			return userspacestatus.Report{Root: options.Root, Ready: false, Checks: []userspacestatus.Check{{ID: "component-compatibility-schema", State: userspacestatus.StateUnavailable, Required: true, Detail: "unsupported userspace catalogue schema"}}}, nil
+		}
 		return userspacestatus.Report{}, err
 	}
 	policies, err := makeStatusPolicies(componentCatalog)
@@ -253,7 +279,11 @@ func (m *Manager) StatusWithCatalog(overridePath string, options userspacestatus
 		return userspacestatus.Report{}, err
 	}
 	options.ComponentPolicies = policies
-	return userspacestatus.Inspect(options)
+	report, err := userspacestatus.Inspect(options)
+	if err != nil {
+		return report, err
+	}
+	return assessStatus(report, componentCatalog, options), nil
 }
 
 // makeStatusPolicies projects validated catalogue data into the static inspector
@@ -279,6 +309,10 @@ func makeStatusPolicies(componentCatalog *catalog.Catalog) ([]userspacestatus.Co
 		if component.KernelCompatibility != nil {
 			minimum = component.KernelCompatibility.MinimumSP11Generation
 			testedThrough = component.KernelCompatibility.TestedThroughSP11Generation
+		}
+		if component.Compatibility != nil {
+			minimum = contract.minimumGeneration
+			testedThrough = contract.testedThroughGeneration
 		}
 		if minimum != contract.minimumGeneration || testedThrough != contract.testedThroughGeneration {
 			return nil, fmt.Errorf("userspace component %q kernel compatibility disagrees with the compiled diagnostic: sp11v%d through sp11v%d, expected sp11v%d through sp11v%d", contract.id, minimum, testedThrough, contract.minimumGeneration, contract.testedThroughGeneration)
@@ -339,6 +373,10 @@ func (m *Manager) Install(ctx context.Context, request InstallRequest) ([]usersp
 		return nil, err
 	}
 
+	for index := range targets {
+		targets[index].target = request.CompatibilityTarget
+		targets[index].allowUnverified = request.AllowUnverifiedCompatibility
+	}
 	if request.DryRun {
 		return m.runInstalls(ctx, targets, request.Root, request.RepositoryRoot, request.CameraAuthoritySHA256, true)
 	}
@@ -364,6 +402,7 @@ func (m *Manager) runInstalls(
 	for _, target := range targets {
 		options := userspaceinstall.Options{
 			BundleDir: target.bundleDir, RepositoryRoot: repositoryRoot,
+			Compatibility: target.compatibility, CompatibilityRelease: target.release, CompatibilityTarget: target.target, AllowUnverifiedCompatibility: target.allowUnverified,
 			CameraAuthoritySHA256: cameraAuthoritySHA256,
 			Root:                  root, DryRun: dryRun,
 		}
@@ -455,7 +494,7 @@ func resolveInstallTargets(
 				return nil, fmt.Errorf("inspect default userspace bundle %q: %w", bundleDir, statErr)
 			}
 		}
-		targets = append(targets, installTarget{component: component.ID, bundleDir: bundleDir})
+		targets = append(targets, installTarget{component: component.ID, bundleDir: bundleDir, compatibility: component.Compatibility, release: component.Release.Tag})
 	}
 	return targets, nil
 }

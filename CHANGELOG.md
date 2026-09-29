@@ -54,6 +54,14 @@ that do not apply.
 
 ### Added
 
+- Authenticate per-component userspace compatibility manifests and evaluate
+  the selected OS, architecture, device, Lexr release and scoped kernel identity
+  consistently. Use canonical hardware profile IDs and include X Elite OLED
+  and X Plus LCD in the existing component declarations, initially unverified.
+  Preserve exact historical bundles through explicit legacy
+  profiles; new release preparation requires portable compatibility evidence
+  ([#44](https://github.com/ooaklee/lexr.sh/issues/44)).
+
 - Include Fedora getting-started instructions in the live user's Desktop folder
   and retain the guide, requested offline companion and matching image manifest
   in the root copied by Anaconda. Validate retained contents and SELinux labels;

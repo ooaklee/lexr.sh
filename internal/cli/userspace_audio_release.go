@@ -53,7 +53,7 @@ func (a *application) newUserspaceAudioReleasePrepareCommand(manager audioReleas
 	var asJSON bool
 	command := &cobra.Command{
 		Use:   "prepare",
-		Short: "Prepare the reviewed seven-file FullIO v19c release locally",
+		Short: "Prepare the reviewed FullIO v19c release with compatibility metadata locally",
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
 			if strings.TrimSpace(request.SourceRoot) == "" {
@@ -75,6 +75,7 @@ func (a *application) newUserspaceAudioReleasePrepareCommand(manager audioReleas
 			return a.writeAudioReleasePreparation(receipt)
 		},
 	}
+	payloadCompatibilityFlags(command, &request.PayloadTarget, &request.AllowUnverifiedCompatibility, false)
 	command.Flags().StringVar(&request.RepositoryRoot, "repository-root", ".", "OE repository root containing the fixed build/release destination")
 	command.Flags().StringVar(&request.SourceRoot, "source-root", "", "explicit SP11X1e-audio checkout containing the pinned v19c deployment")
 	command.Flags().StringVar(&request.Tag, "tag", "", "exact reviewed local audio release tag")
@@ -100,7 +101,7 @@ func (a *application) writeAudioReleasePreparation(receipt audiorelease.Receipt)
 	if !receipt.Published || receipt.Manifest == nil {
 		return fmt.Errorf("audio release was not prepared")
 	}
-	_, err := fmt.Fprintf(a.out, "prepared closed local FullIO v19c audio release\ndirectory: %s\nartefacts: 7\nmanifest: %s\nremote mutation: false\n", receipt.Plan.ReleaseDirectory, audiorelease.ManifestName)
+	_, err := fmt.Fprintf(a.out, "prepared closed local FullIO v19c audio release\ndirectory: %s\nartefacts: 8\nmanifest: %s\nremote mutation: false\n", receipt.Plan.ReleaseDirectory, audiorelease.ManifestName)
 	return err
 }
 
@@ -123,7 +124,7 @@ func (a *application) newUserspaceAudioReleaseValidateCommand(manager audioRelea
 			if asJSON {
 				return a.writeJSON(receipt)
 			}
-			_, err = fmt.Fprintf(a.out, "FullIO v19c audio release valid\ntag: %s\ndirectory: %s\nartefacts: 7\nremote mutation: false\n", receipt.Manifest.Tag, receipt.Directory)
+			_, err = fmt.Fprintf(a.out, "FullIO v19c audio release valid\ntag: %s\ndirectory: %s\nartefacts: 8\nremote mutation: false\n", receipt.Manifest.Tag, receipt.Directory)
 			return err
 		},
 	}

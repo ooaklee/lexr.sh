@@ -87,22 +87,7 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err = checkpoint("verify-kernel", nil); err != nil {
 		return result, err
 	}
-	support := companion.Absent(companion.OmissionReasonNotRequested)
-	if request.Companion.SourceDirectory != "" {
-		progress("Building the Linux ARM64 Lexr companion and matching source")
-		companionRequest := request.Companion
-		companionRequest.DestinationDirectory = workspace
-		support, err = r.Companions.Build(ctx, companionRequest)
-		if err != nil {
-			return result, err
-		}
-	}
-	if err = os.MkdirAll(filepath.Join(workspace, "sp11"), 0755); err != nil {
-		return result, err
-	}
-	if err = checkpoint("stage-companion", nil); err != nil {
-		return result, err
-	}
+
 	toolsImage, err := r.Docker.EnsureArchToolsImage(ctx)
 	if err != nil {
 		return result, err
@@ -141,6 +126,37 @@ func (r *Remasterer) Create(ctx context.Context, request Request) (result Result
 	if err = checkpoint("prepare-root", nil); err != nil {
 		return result, err
 	}
+	support := companion.Absent(companion.OmissionReasonNotRequested)
+	if request.Companion.SourceDirectory != "" {
+		progress("Building the Linux ARM64 Lexr companion and matching source")
+		companionRequest := request.Companion
+		companionRequest.DestinationDirectory = workspace
+		if companion.NeedsTarget(companionRequest) {
+			selected := companionRequest.Target
+			selected.LexrVersion = request.ToolVersion
+			selected.Architecture = "arm64"
+			selected.KernelABI = request.Bundle.ABI
+			if selected.DeviceProfile == "" {
+				selected.DeviceProfile = request.KernelProfile
+			}
+			companionRequest.Target, err = companion.ObserveImageTarget(ctx, r.Docker, toolsImage, workspace, volume, selected)
+			if err != nil {
+				return result, err
+			}
+		}
+
+		support, err = r.Companions.Build(ctx, companionRequest)
+		if err != nil {
+			return result, err
+		}
+	}
+	if err = os.MkdirAll(filepath.Join(workspace, "sp11"), 0755); err != nil {
+		return result, err
+	}
+	if err = checkpoint("stage-companion", nil); err != nil {
+		return result, err
+	}
+
 	if _, err = sp11.PrepareWiFiBoard(ctx, r.Docker, toolsImage, workspace, volume, "rootfs"); err != nil {
 		return result, err
 	}

@@ -398,22 +398,20 @@ func (v *Validator) validateCompanion(ctx context.Context, image, workspace stri
 	if !record.Included {
 		return []imagecontract.ValidationCheck{{Name: "companion-contract", Passed: true, Details: "companion omitted: " + record.Reason}}
 	}
-	passed := true
-	details := "all companion artifacts match the embedded manifest"
-	for index, expected := range companion.FlattenArtifacts(record) {
-		name := fmt.Sprintf("companion-%d", index)
-		if err := v.Docker.RunInWorkspace(ctx, image, workspace, "xorriso", "-osirrox", "on", "-indev", "/work/image.iso", "-extract", "/"+expected.Path, "/work/"+name); err != nil {
-			passed, details = false, err.Error()
-			break
-		}
-		digest, err := artifact.HashFile(filepath.Join(workspace, name))
-		info, statErr := os.Stat(filepath.Join(workspace, name))
-		if err != nil || statErr != nil || digest != expected.SHA256 || info.Size() != expected.Size {
-			passed, details = false, "companion artifact identity mismatch: "+expected.Path
-			break
-		}
+	extractErr := v.Docker.RunInWorkspaceAsHostUser(ctx, image, workspace,
+		"xorriso", "-osirrox", "on", "-indev", "/work/image.iso",
+		"-extract", "/"+companion.ISOFilesystemRoot, "/work/companion")
+	if extractErr != nil {
+		return []imagecontract.ValidationCheck{{Name: "companion-contract", Passed: false, Details: extractErr.Error()}}
 	}
-	return []imagecontract.ValidationCheck{{Name: "companion-contract", Passed: passed, Details: details}}
+	// Repeat the shared closed-directory and compatibility-decision proofs, not
+	// just file hashes: recorded decisions are not independent authority.
+	directoryErr := companion.ValidateDirectory(record, filepath.Join(workspace, "companion"))
+	details := "companion directory, artefacts and compatibility decisions verified"
+	if directoryErr != nil {
+		details = directoryErr.Error()
+	}
+	return []imagecontract.ValidationCheck{{Name: "companion-contract", Passed: directoryErr == nil, Details: details}}
 }
 
 // validateLiveRoot inspects RPM, Anaconda handoff, dracut, policy, and SELinux state.
@@ -632,7 +630,7 @@ func decodeBootPolicy(data []byte) (bootPolicy, error) {
 // validateFedoraManifest proves provenance and policy are complete before any
 // extracted payload is allowed to satisfy the lower-level structural checks.
 func validateFedoraManifest(manifest imagecontract.Manifest) error {
-	if manifest.SchemaVersion != imagecontract.ManifestSchemaVersion || manifest.Adapter != AdapterID || manifest.Layout != "hybrid-iso" {
+	if !imagecontract.SupportedManifestSchema(manifest) || manifest.Adapter != AdapterID || manifest.Layout != "hybrid-iso" {
 		return errors.New("manifest schema, adapter, or layout does not identify Fedora Live")
 	}
 	if manifest.CreatedAt.IsZero() || strings.TrimSpace(manifest.ToolVersion) == "" {
@@ -713,7 +711,7 @@ func validateFedoraManifest(manifest imagecontract.Manifest) error {
 	if !slices.Equal(manifest.BootArguments, expectedArguments) || manifest.SecureBoot != secureBootPolicy {
 		return errors.New("manifest boot arguments or Secure Boot policy differ from the Fedora adapter contract")
 	}
-	if err := companion.ValidateRecord(manifest.CompanionBundle); err != nil {
+	if err := companion.ValidateImageRecord(manifest); err != nil {
 		return fmt.Errorf("manifest companion record: %w", err)
 	}
 	_, iptsdIncluded, err := fedoraIPTSDUserspace(manifest.CompanionBundle)
