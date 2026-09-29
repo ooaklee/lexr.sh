@@ -92,7 +92,7 @@ func (inspector *Inspector) Inspect(ctx context.Context, options Options) (_ Rep
 	}
 	for _, parsedEntry := range parsed {
 		abi := entryABI(parsedEntry)
-		if abi != "" {
+		if abi != "" && parsedEntry.Ownership == install.GRUBOwned {
 			candidateABIs[abi] = true
 		}
 	}
@@ -118,14 +118,14 @@ func (inspector *Inspector) Inspect(ctx context.Context, options Options) (_ Rep
 		entry := inspectEntry(ctx, root, parsedEntry, relativeDTB, device)
 		report.Entries = append(report.Entries, entry)
 		required := report.entryRequired(entry)
-		if entry.ABI == options.TargetABI || entry.ABI == options.FallbackABI {
+		if entry.Ownership == install.GRUBOwned && (entry.ABI == options.TargetABI || entry.ABI == options.FallbackABI) {
 			seenRequired[entry.ABI] = true
 		}
 		report.addEntryChecks(entry, required)
 	}
 	for _, abi := range []string{options.TargetABI, options.FallbackABI} {
 		if abi != "" && !seenRequired[abi] {
-			report.add(Check{ID: "required-grub-entry", State: StateFail, Required: true, ABI: abi, Detail: "the explicitly required ABI has no GRUB menu entry"})
+			report.add(Check{ID: "required-grub-entry", State: StateFail, Required: true, ABI: abi, Detail: "the explicitly required ABI has no proven-owned GRUB menu entry"})
 		}
 	}
 
@@ -133,6 +133,9 @@ func (inspector *Inspector) Inspect(ctx context.Context, options Options) (_ Rep
 	seenBindingABI := make(map[string]bool)
 	for _, entry := range report.Entries {
 		abi := entry.ABI
+		if entry.Ownership != install.GRUBOwned {
+			continue
+		}
 		if _, valid := parseKernelRank(abi); !valid || seenBindingABI[abi] {
 			continue
 		}
@@ -166,7 +169,7 @@ func (inspector *Inspector) Inspect(ctx context.Context, options Options) (_ Rep
 	} else {
 		report.add(Check{ID: "dtb-candidate-selection", State: StateWarn, Detail: "no canonical installed DTB candidate was available for attribution"})
 	}
-	if report.Default.EntryIndex != nil {
+	if report.Default.EntryIndex != nil && report.Entries[*report.Default.EntryIndex].Ownership == install.GRUBOwned {
 		entry := report.Entries[*report.Default.EntryIndex]
 		if binding, found := bindingByABI[entry.ABI]; found {
 			report.Attribution.DeviceTreeBoot = &binding
@@ -212,6 +215,9 @@ func (report Report) entryRequired(entry Entry) bool {
 	if report.Default.EntryIndex != nil && entry.Index == *report.Default.EntryIndex {
 		return true
 	}
+	if entry.Ownership == install.GRUBForeign {
+		return false
+	}
 	return entry.ABI != "" && (entry.ABI == report.TargetABI || entry.ABI == report.FallbackABI)
 }
 
@@ -231,7 +237,7 @@ func (report Report) abiRequired(abi string) bool {
 func (report Report) abiDeviceTreeBinding(abi string) (install.DeviceTreeBootEvidence, bool) {
 	var combined install.DeviceTreeBootEvidence
 	for _, entry := range report.Entries {
-		if entry.ABI != abi {
+		if entry.ABI != abi || entry.Ownership != install.GRUBOwned {
 			continue
 		}
 		if entry.DeviceTreeBoot == nil {
@@ -255,7 +261,7 @@ func (report Report) abiDeviceTreeBinding(abi string) (install.DeviceTreeBootEvi
 func (report Report) abiBindingInaccessibleOnly(abi string) bool {
 	unverified := false
 	for _, entry := range report.Entries {
-		if entry.ABI != abi || entry.DeviceTreeBoot != nil {
+		if entry.ABI != abi || entry.Ownership != install.GRUBOwned || entry.DeviceTreeBoot != nil {
 			continue
 		}
 		unverified = true
@@ -279,6 +285,17 @@ func (report Report) abiBindingInaccessibleOnly(abi string) bool {
 // addEntryChecks classifies stale artefacts and absent or mismatched DTBs for
 // one normal or recovery entry according to its required status.
 func (report *Report) addEntryChecks(entry Entry, required bool) {
+	if entry.Ownership != install.GRUBOwned {
+		state := StateNeutral
+		if entry.Ownership == install.GRUBUnresolved {
+			state = StateWarn
+		}
+		if required {
+			state = StateFail
+		}
+		report.add(Check{ID: "grub-entry-ownership", State: state, Required: required, ABI: entry.ABI, Detail: entry.OwnershipReason})
+		return
+	}
 	state := StatePass
 	detail := "the kernel and initramfs paths exist as regular files"
 	unsafeArtefact := slicesContain(entry.UnsafeCommands, "linux") || slicesContain(entry.UnsafeCommands, "linuxefi") ||
@@ -375,21 +392,26 @@ func selectDevice(ctx context.Context, root, requested string) (string, error) {
 // inspectEntry checks recognised paths without retaining any other stanza arguments.
 func inspectEntry(ctx context.Context, root string, parsed install.GRUBEntry, relativeDTB, device string) Entry {
 	entry := Entry{
-		Index:          parsed.Index,
-		Depth:          parsed.Depth,
-		MenuPath:       append([]int(nil), parsed.MenuPath...),
-		MenuTitlePath:  redactAlternateRootValues(root, parsed.MenuTitlePath),
-		Title:          redactAlternateRootValue(root, parsed.Title),
-		ID:             redactAlternateRootValue(root, parsed.ID),
-		ABI:            entryABI(parsed),
-		Recovery:       parsed.Recovery,
-		Linux:          parsed.Linux,
-		Initrd:         parsed.Initrd,
-		DeviceTrees:    parsed.DeviceTrees,
-		UnsafeCommands: parsed.UnsafeCommands,
+		Ownership:       parsed.Ownership,
+		OwnershipReason: parsed.OwnershipReason,
+		Index:           parsed.Index,
+		Depth:           parsed.Depth,
+		MenuPath:        append([]int(nil), parsed.MenuPath...),
+		MenuTitlePath:   redactAlternateRootValues(root, parsed.MenuTitlePath),
+		Title:           redactAlternateRootValue(root, parsed.Title),
+		ID:              redactAlternateRootValue(root, parsed.ID),
+		ABI:             entryABI(parsed),
+		Recovery:        parsed.Recovery,
+		Linux:           parsed.Linux,
+		Initrd:          parsed.Initrd,
+		DeviceTrees:     parsed.DeviceTrees,
+		UnsafeCommands:  parsed.UnsafeCommands,
 	}
-	entry.KernelState = grubPathsAvailability(ctx, root, parsed.Linux)
-	entry.InitramfsState = grubPathsAvailability(ctx, root, parsed.Initrd)
+	if parsed.Ownership != install.GRUBOwned {
+		return entry
+	}
+	entry.KernelState = grubPathsAvailability(ctx, root, parsed, parsed.Linux)
+	entry.InitramfsState = grubPathsAvailability(ctx, root, parsed, parsed.Initrd)
 	entry.KernelExists = entry.KernelState == install.GRUBPathPresent
 	entry.InitramfsExists = entry.InitramfsState == install.GRUBPathPresent
 	if entry.ABI == "" || len(parsed.DeviceTrees) > 1 ||
@@ -402,7 +424,7 @@ func inspectEntry(ctx context.Context, root string, parsed install.GRUBEntry, re
 		entry.InstalledDTBSHA256 = installed.SHA256
 	}
 	if len(parsed.DeviceTrees) == 1 {
-		bootSide, bootState, bootErr := install.InspectGRUBPath(ctx, root, parsed.DeviceTrees[0].Path)
+		bootSide, bootState, bootErr := install.InspectGRUBArtifact(ctx, root, parsed, parsed.DeviceTrees[0])
 		entry.BootDTBState = bootState
 		if bootErr == nil {
 			entry.BootDTBSHA256 = bootSide.SHA256
@@ -475,10 +497,10 @@ func entryTokenMatchesDevice(token, title, relativeDTB, abi string) bool {
 // cannot be hidden by present evidence. Without an unsafe token, any present
 // path preserves the historical any-token-exists result; otherwise genuine
 // missing evidence takes precedence over permission-inaccessible evidence.
-func grubPathsAvailability(ctx context.Context, root string, tokens []install.GRUBPathToken) install.GRUBPathAvailability {
+func grubPathsAvailability(ctx context.Context, root string, entry install.GRUBEntry, tokens []install.GRUBPathToken) install.GRUBPathAvailability {
 	states := make([]install.GRUBPathAvailability, 0, len(tokens))
 	for _, token := range tokens {
-		_, state, _ := install.InspectGRUBPath(ctx, root, token.Path)
+		_, state, _ := install.InspectGRUBArtifact(ctx, root, entry, token)
 		states = append(states, state)
 	}
 	return aggregateGRUBPathAvailability(states)

@@ -298,6 +298,9 @@ func digestText(value string) string {
 // writeFixtureFile creates all parents and writes one regular test file.
 func writeFixtureFile(t *testing.T, path, content string) {
 	t.Helper()
+	if strings.HasSuffix(filepath.ToSlash(path), "/boot/grub/grub.cfg") {
+		content = fixtureOwnedGRUB(content)
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -420,7 +423,7 @@ func TestPreflightProducesExactDryRunPlan(t *testing.T) {
 	root, bundle := fixtureEnvironment(t)
 	runner := &fakeRunner{root: root}
 	manager := fixtureManager(runner)
-	plan, err := manager.Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	plan, err := manager.Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -453,7 +456,7 @@ func TestDryRunNeedsNoPrivilegeAndPerformsNoMutation(t *testing.T) {
 	root, bundle := fixtureEnvironment(t)
 	runner := &fakeRunner{root: root}
 	manager := fixtureManager(runner)
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, true))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -474,7 +477,7 @@ func TestInstallRequiresRootAfterPreflight(t *testing.T) {
 	root, bundle := fixtureEnvironment(t)
 	runner := &fakeRunner{root: root}
 	manager := fixtureManager(runner)
-	_, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	_, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err == nil || !strings.Contains(err.Error(), "effective UID 0") {
 		t.Fatalf("error = %v", err)
 	}
@@ -514,7 +517,7 @@ func TestInstallStagesPackagesAndVerifiesBootEvidence(t *testing.T) {
 	var diagnostics bytes.Buffer
 	manager.diagnostics = &diagnostics
 	manager.effectiveUID = func() int { return 0 }
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -580,7 +583,7 @@ func TestInstallRequiresRecoveryGRUBBinding(t *testing.T) {
 	}
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err == nil || !strings.Contains(err.Error(), "verified 2 normal and 0 recovery entries") {
 		t.Fatalf("normal-only installation error = %v", err)
 	}
@@ -611,7 +614,7 @@ func TestInstallRejectsEffectiveDeliveryMismatch(t *testing.T) {
 	}
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err == nil || !strings.Contains(err.Error(), "uses grub-external DTB delivery; bundle requires embedded") {
 		t.Fatalf("effective delivery mismatch error = %v", err)
 	}
@@ -652,7 +655,7 @@ func TestMissingBootDeviceTreeBindingRollsBack(t *testing.T) {
 	}
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err == nil || !strings.Contains(err.Error(), "no inspectable embedded device tree") {
 		t.Fatalf("missing boot device-tree error = %v", err)
 	}
@@ -714,7 +717,7 @@ func TestInstallFourPackageSetVerifiesHeaderTrees(t *testing.T) {
 	}
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -754,7 +757,7 @@ func TestMissingSelectedHeadersRollsBackFourPackages(t *testing.T) {
 	}
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err == nil || !strings.Contains(err.Error(), "linux-qcom-x1e-headers-") {
 		t.Fatalf("missing-header error = %v", err)
 	}
@@ -792,7 +795,7 @@ func TestPreflightRejectsStaleHeaderTrees(t *testing.T) {
 			root, bundle := fixtureEnvironment(t)
 			writeFixtureFile(t, filepath.Join(root, relative, "Makefile"), "stale header tree")
 			runner := &fakeRunner{root: root}
-			_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+			_, err := fixtureManager(runner).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 			if err == nil || !strings.Contains(err.Error(), filepath.Join(root, relative)) {
 				t.Fatalf("stale-header error = %v", err)
 			}
@@ -829,7 +832,7 @@ func TestInstallPreservesPackagePostinstDeviceTree(t *testing.T) {
 	}
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -837,7 +840,7 @@ func TestInstallPreservesPackagePostinstDeviceTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(grub), injected) {
+	if !strings.Contains(string(grub), strings.ReplaceAll(injected, "devicetree /dtb-", "devicetree /boot/dtb-")) {
 		t.Fatalf("package postinst DTB injection was not preserved: %q", grub)
 	}
 	if len(receipt.Executed) != 2 {
@@ -874,7 +877,7 @@ func TestInstallRejectsWrongPatchLineDeviceTree(t *testing.T) {
 	}
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err == nil || !strings.Contains(err.Error(), "unrecognised declared device-tree path") {
 		t.Fatalf("mismatched device-tree error = %v", err)
 	}
@@ -904,7 +907,7 @@ func TestInstallEnsuresInitramfsWhenMaintainerScriptsSkipIt(t *testing.T) {
 	}
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -928,7 +931,7 @@ func TestInstallEnsuresInitramfsWhenMaintainerScriptsSkipIt(t *testing.T) {
 func TestPlanDisclosesConditionalInitramfsRepair(t *testing.T) {
 	root, bundle := fixtureEnvironment(t)
 	runner := &fakeRunner{root: root}
-	plan, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	plan, err := fixtureManager(runner).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -970,7 +973,7 @@ func TestInstallInitramfsRepairFailureRollsBack(t *testing.T) {
 	}
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err == nil || !strings.Contains(err.Error(), "fixture ensure-initramfs failure") {
 		t.Fatalf("ensure-initramfs error = %v", err)
 	}
@@ -1010,7 +1013,7 @@ func TestInstallWithoutInitramfsFailsVerificationAndRollsBack(t *testing.T) {
 	}
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err == nil || !strings.Contains(err.Error(), "initrd.img-"+fixtureTargetABI) {
 		t.Fatalf("missing-initramfs error = %v", err)
 	}
@@ -1058,7 +1061,7 @@ func TestFailurePurgesOnlyTargetAndRestoresGRUB(t *testing.T) {
 	var diagnostics bytes.Buffer
 	manager.diagnostics = &diagnostics
 	manager.effectiveUID = func() int { return 0 }
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err == nil || !strings.Contains(err.Error(), "fixture initramfs failure") {
 		t.Fatalf("error = %v", err)
 	}
@@ -1103,7 +1106,7 @@ func TestCancelledInstallUsesIndependentRollbackContext(t *testing.T) {
 	}
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
-	receipt, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	receipt, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v", err)
 	}
@@ -1122,7 +1125,7 @@ func TestSourceMutationAfterPreflightIsRejectedBeforeMutation(t *testing.T) {
 	runner := &fakeRunner{root: root, mutateAfter: "Depends", mutatePath: image.Path}
 	manager := fixtureManager(runner)
 	manager.effectiveUID = func() int { return 0 }
-	_, err := manager.Install(context.Background(), fixtureRequest(root, bundle, false))
+	_, err := manager.Install(fixtureContext(), fixtureRequest(root, bundle, false))
 	if err == nil || (!strings.Contains(err.Error(), "changed after preflight") && !strings.Contains(err.Error(), "manifest records")) {
 		t.Fatalf("error = %v", err)
 	}
@@ -1146,7 +1149,7 @@ func TestPackageSymlinkAndTargetArtefactAreRejected(t *testing.T) {
 		if err := os.Symlink(realPath, image.Path); err != nil {
 			t.Fatal(err)
 		}
-		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 		if err == nil || !strings.Contains(err.Error(), "symbolic link") {
 			t.Fatalf("error = %v", err)
 		}
@@ -1158,7 +1161,7 @@ func TestPackageSymlinkAndTargetArtefactAreRejected(t *testing.T) {
 		if err := os.Symlink(outside, filepath.Join(root, "boot/vmlinuz-"+fixtureTargetABI)); err != nil {
 			t.Fatal(err)
 		}
-		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 		if err == nil || !strings.Contains(err.Error(), "symbolic link") {
 			t.Fatalf("error = %v", err)
 		}
@@ -1172,7 +1175,7 @@ func TestPackageSymlinkAndTargetArtefactAreRejected(t *testing.T) {
 		if err := os.Symlink(filepath.Join(outside, "boot"), filepath.Join(root, "boot")); err != nil {
 			t.Fatal(err)
 		}
-		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 		if err == nil || !strings.Contains(err.Error(), "symbolic link") {
 			t.Fatalf("error = %v", err)
 		}
@@ -1248,7 +1251,7 @@ func TestPackagePolicyRejectsUnexpectedSetsAndMetadata(t *testing.T) {
 			root, bundle := fixtureEnvironment(t)
 			runner := &fakeRunner{root: root}
 			test.mutate(t, &bundle, runner)
-			_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+			_, err := fixtureManager(runner).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("error = %v, want %q", err, test.want)
 			}
@@ -1265,7 +1268,7 @@ func TestCoherentOptionalHeaderPairIsAccepted(t *testing.T) {
 		fixturePackage(t, directory, kernel.RoleHeaders, "flavour headers"),
 		fixturePackage(t, directory, kernel.RoleCommonHeaders, "common headers"),
 	)
-	plan, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	plan, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1280,7 +1283,7 @@ func TestFallbackMustBeRunningAndBootable(t *testing.T) {
 		root, bundle := fixtureEnvironment(t)
 		request := fixtureRequest(root, bundle, true)
 		request.RunningABI = "7.2.0-jg-0sp11v17-qcom-x1e"
-		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), request)
+		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), request)
 		if err == nil || !strings.Contains(err.Error(), "exactly match") {
 			t.Fatalf("error = %v", err)
 		}
@@ -1290,7 +1293,7 @@ func TestFallbackMustBeRunningAndBootable(t *testing.T) {
 		request := fixtureRequest(root, bundle, true)
 		request.RunningABI = "7.2.0-jg-0sp11v17-qcom-x1e"
 		request.ForceFallbackMismatch = true
-		plan, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), request)
+		plan, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), request)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1304,7 +1307,7 @@ func TestFallbackMustBeRunningAndBootable(t *testing.T) {
 		root, bundle := fixtureEnvironment(t)
 		request := fixtureRequest(root, bundle, true)
 		request.ForceFallbackMismatch = true
-		plan, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), request)
+		plan, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), request)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1333,7 +1336,7 @@ func TestFallbackMustBeRunningAndBootable(t *testing.T) {
 			request := fixtureRequest(root, bundle, true)
 			request.RunningABI = "7.2.0-jg-0sp11v17-qcom-x1e"
 			request.ForceFallbackMismatch = true
-			_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), request)
+			_, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), request)
 			if err == nil || !strings.Contains(err.Error(), artifact.want) {
 				t.Fatalf("forced incomplete fallback error = %v, want %q", err, artifact.want)
 			}
@@ -1346,7 +1349,7 @@ func TestFallbackMustBeRunningAndBootable(t *testing.T) {
 		request := fixtureRequest(root, bundle, true)
 		request.RunningABI = "7.2.0-jg-0sp11v17-qcom-x1e"
 		request.ForceFallbackMismatch = true
-		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), request)
+		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), request)
 		if err == nil || !strings.Contains(err.Error(), "exactly one") {
 			t.Fatalf("forced recovery-only fallback error = %v", err)
 		}
@@ -1356,7 +1359,7 @@ func TestFallbackMustBeRunningAndBootable(t *testing.T) {
 		if err := os.Remove(filepath.Join(root, "boot/initrd.img-"+fixtureFallbackABI)); err != nil {
 			t.Fatal(err)
 		}
-		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 		if err == nil || !strings.Contains(err.Error(), "initrd.img-") {
 			t.Fatalf("error = %v", err)
 		}
@@ -1365,7 +1368,7 @@ func TestFallbackMustBeRunningAndBootable(t *testing.T) {
 		root, bundle := fixtureEnvironment(t)
 		grub := "menuentry 'Ubuntu recovery " + fixtureFallbackABI + "' {\n linux /boot/vmlinuz-" + fixtureFallbackABI + "\n initrd /boot/initrd.img-" + fixtureFallbackABI + "\n}\n"
 		writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
-		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+		_, err := fixtureManager(&fakeRunner{root: root}).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 		if err == nil || !strings.Contains(err.Error(), "exactly one") {
 			t.Fatalf("error = %v", err)
 		}
@@ -1383,9 +1386,9 @@ func TestRequestAndCancellationValidationRejectsBeforeInspection(t *testing.T) {
 		context context.Context
 		want    string
 	}{
-		{name: "missing root", request: fixtureRequest(root, bundle, true), context: context.Background(), want: "root is required"},
-		{name: "relative root", request: fixtureRequest(root, bundle, true), context: context.Background(), want: "canonical and absolute"},
-		{name: "same fallback", request: fixtureRequest(root, bundle, true), context: context.Background(), want: "must differ"},
+		{name: "missing root", request: fixtureRequest(root, bundle, true), context: fixtureContext(), want: "root is required"},
+		{name: "relative root", request: fixtureRequest(root, bundle, true), context: fixtureContext(), want: "canonical and absolute"},
+		{name: "same fallback", request: fixtureRequest(root, bundle, true), context: fixtureContext(), want: "must differ"},
 	}
 	tests[0].request.Root = ""
 	tests[1].request.Root = "relative"
@@ -1399,7 +1402,7 @@ func TestRequestAndCancellationValidationRejectsBeforeInspection(t *testing.T) {
 			}
 		})
 	}
-	cancelled, cancel := context.WithCancel(context.Background())
+	cancelled, cancel := context.WithCancel(fixtureContext())
 	cancel()
 	_, err := manager.Preflight(cancelled, fixtureRequest(root, bundle, true))
 	if !errors.Is(err, context.Canceled) {
@@ -1519,7 +1522,7 @@ func TestPreflightExplainsHalfConfiguredImage(t *testing.T) {
 	})
 	runner := &fakeRunner{root: root}
 	before := snapshotTree(t, root)
-	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	_, err := fixtureManager(runner).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 	evidence := expectBlockedTargetState(t, err)
 	assertNoTargetStateMutation(t, runner, root, before)
 	if evidence.Classification != TargetStatePartial {
@@ -1559,7 +1562,7 @@ func TestPreflightExplainsBootArtefactsWithoutGRUBEntry(t *testing.T) {
 	})
 	runner := &fakeRunner{root: root}
 	before := snapshotTree(t, root)
-	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	_, err := fixtureManager(runner).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 	evidence := expectBlockedTargetState(t, err)
 	assertNoTargetStateMutation(t, runner, root, before)
 	if evidence.Classification != TargetStatePartial {
@@ -1585,7 +1588,7 @@ func TestPreflightExplainsRecordsWithoutFiles(t *testing.T) {
 	})
 	runner := &fakeRunner{root: root}
 	before := snapshotTree(t, root)
-	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	_, err := fixtureManager(runner).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 	evidence := expectBlockedTargetState(t, err)
 	assertNoTargetStateMutation(t, runner, root, before)
 	if evidence.Classification != TargetStatePartial {
@@ -1619,7 +1622,7 @@ func TestPreflightExplainsOrphanArtefactsWithoutRecords(t *testing.T) {
 	writeFixtureFile(t, filepath.Join(root, "boot/vmlinuz-"+fixtureTargetABI), "orphan kernel image")
 	runner := &fakeRunner{root: root}
 	before := snapshotTree(t, root)
-	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	_, err := fixtureManager(runner).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 	evidence := expectBlockedTargetState(t, err)
 	assertNoTargetStateMutation(t, runner, root, before)
 	if evidence.Classification != TargetStatePartial {
@@ -1674,7 +1677,7 @@ func TestPreflightClassifiesCompleteInstalledTarget(t *testing.T) {
 		t.Parallel()
 		runner := &fakeRunner{root: root}
 		before := snapshotTree(t, root)
-		_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+		_, err := fixtureManager(runner).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 		evidence := expectBlockedTargetState(t, err)
 		assertNoTargetStateMutation(t, runner, root, before)
 		if evidence.Classification != TargetStateComplete {
@@ -1687,7 +1690,7 @@ func TestPreflightClassifiesCompleteInstalledTarget(t *testing.T) {
 		runner := &fakeRunner{root: root}
 		request := fixtureRequest(root, bundle, true)
 		request.Overwrite = true
-		plan, err := fixtureManager(runner).Preflight(context.Background(), request)
+		plan, err := fixtureManager(runner).Preflight(fixtureContext(), request)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1713,7 +1716,7 @@ func TestTargetStateClassifiesGenuinelyFreshTargetAsAbsent(t *testing.T) {
 	t.Parallel()
 	root, bundle := fixtureEnvironment(t)
 	runner := &fakeRunner{root: root}
-	packages, err := fixtureManager(runner).inspectBundle(context.Background(), bundle)
+	packages, err := fixtureManager(runner).inspectBundle(fixtureContext(), bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1722,7 +1725,7 @@ func TestTargetStateClassifiesGenuinelyFreshTargetAsAbsent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	evidence, err := classifyTargetState(context.Background(), root, fixtureTargetABI, packages, trees)
+	evidence, err := classifyTargetState(fixtureContext(), root, fixtureTargetABI, packages, trees)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1761,7 +1764,7 @@ func TestTargetStateRequiresRecoveryGRUBBinding(t *testing.T) {
 		"menuentry 'Ubuntu' {\n linux /boot/vmlinuz-" + fixtureTargetABI + "\n devicetree /boot/dtb-" + fixtureTargetABI + "\n initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), grub)
 	manager := fixtureManager(&fakeRunner{root: root})
-	packages, err := manager.inspectBundle(context.Background(), bundle)
+	packages, err := manager.inspectBundle(fixtureContext(), bundle)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1769,7 +1772,7 @@ func TestTargetStateRequiresRecoveryGRUBBinding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	evidence, err := classifyTargetState(context.Background(), root, fixtureTargetABI, packages, trees)
+	evidence, err := classifyTargetState(fixtureContext(), root, fixtureTargetABI, packages, trees)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1809,7 +1812,7 @@ func TestPreflightExplainsCompleteTargetWithBrokenGRUBDeviceTree(t *testing.T) {
 	writeFixtureFile(t, filepath.Join(root, "boot/sp11-denali.dtb"), "wrong patch-line dtb")
 	runner := &fakeRunner{root: root}
 	before := snapshotTree(t, root)
-	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	_, err := fixtureManager(runner).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 	evidence := expectBlockedTargetState(t, err)
 	assertNoTargetStateMutation(t, runner, root, before)
 	if evidence.Classification != TargetStatePartial {
@@ -1851,7 +1854,7 @@ func TestPreflightExplainsCompleteTargetWithoutBootDeviceTree(t *testing.T) {
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(false)+targetEntry)
 	runner := &fakeRunner{root: root}
 	before := snapshotTree(t, root)
-	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	_, err := fixtureManager(runner).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 	evidence := expectBlockedTargetState(t, err)
 	assertNoTargetStateMutation(t, runner, root, before)
 	if evidence.Classification != TargetStatePartial {
@@ -1882,7 +1885,7 @@ func TestPreflightExplainsCompleteTargetWithUnlabelledGRUBEntry(t *testing.T) {
 		" initrd /boot/initrd.img-" + fixtureTargetABI + "\n}\n"
 	writeFixtureFile(t, filepath.Join(root, "boot/grub/grub.cfg"), fixtureGRUB(false)+targetEntry)
 	runner := &fakeRunner{root: root}
-	_, err := fixtureManager(runner).Preflight(context.Background(), fixtureRequest(root, bundle, true))
+	_, err := fixtureManager(runner).Preflight(fixtureContext(), fixtureRequest(root, bundle, true))
 	evidence := expectBlockedTargetState(t, err)
 	if evidence.Classification != TargetStatePartial {
 		t.Fatalf("classification = %s, want partial-or-inconsistent", evidence.Classification)
@@ -1993,7 +1996,7 @@ func TestOverwriteRejectsRunningTargetABI(t *testing.T) {
 		}
 		return "", false
 	}
-	_, err := fixtureManager(runner).Preflight(context.Background(), request)
+	_, err := fixtureManager(runner).Preflight(fixtureContext(), request)
 	if err == nil || !strings.Contains(err.Error(), "must never replace the running ABI") {
 		t.Fatalf("error = %v, want the running-ABI overwrite guard", err)
 	}

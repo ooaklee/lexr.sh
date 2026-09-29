@@ -92,6 +92,12 @@ hardware and userspace variants resolve a
 diagnostics. The former `doctor boot --device` flag was removed in 0.5; use
 the global `--profile` or the saved top-level `profile`.
 
+Boot diagnostics distinguish owned, foreign and unresolved menu entries.
+They require mounted Linux identity for local boot proof; another distro's
+same-ABI entry is not validated against local files. See
+[multiboot ownership](../operator-manual/kernel-management.md#multiboot-ownership)
+for supported layouts, default-selection limits and recovery.
+
 ## Image catalogue and media
 
 ```text

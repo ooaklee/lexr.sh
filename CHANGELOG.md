@@ -153,6 +153,15 @@ that do not apply.
 - Remove the duplicate title from generated image release notes and link to
   the canonical Windows preparation and Etcher guide. Continue validating
   unchanged release notes produced by Lexr 0.5.0-rc.3.
+- Scope native kernel installation and boot diagnostics to the owning Linux
+  installation rather than every same-ABI entry in GRUB. Preserve foreign
+  entries, require mounted root and boot identity, resolve separate boot
+  paths without guessing, and reject shared boot-file write conflicts.
+  Revalidate ownership during installation and recovery; unresolved entries
+  cannot qualify a required kernel or default. Accept unrelated Linux namespace
+  mounts and normal promotion of GRUB's generic shortcut to a newer kernel,
+  while preserving fallback bytes and recovery entries
+  ([#71](https://github.com/ooaklee/lexr.sh/issues/71)).
 - Prepare releases from Fedora rc.3 creation journals that recorded the ISO
   volume label and GRUB marker as digests. Check those two values against the
   image manifest before projecting them through its typed media evidence;
