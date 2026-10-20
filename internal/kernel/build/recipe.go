@@ -324,8 +324,6 @@ image_postinst="$inspection_root/image-postinst"
 image_postrm="$inspection_root/image-postrm"
 image_triggers="$inspection_root/image-triggers"
 expected_image_triggers="$inspection_root/expected-image-triggers"
-triggered_postinst="$inspection_root/triggered-postinst"
-postinst_hook_command="$inspection_root/postinst-hook-command"
 inspection_image="$inspection_root/vmlinuz"
 section_candidate="$inspection_root/dtbauto-candidate"
 section_list="$inspection_root/sections"
@@ -390,33 +388,89 @@ if ! cmp -s "$expected_image_triggers" "$image_triggers"; then
   echo "Generated linux-image package does not own the exact ABI update trigger." >&2
   exit 1
 fi
-awk '$0 == "if [ \"$1\" = triggered ]; then" { active=1 } active { print } active && $0 == "    exit 0" { exit }' \
-  "$image_postinst" > "$triggered_postinst"
-awk '$0 == "    cat - >/usr/lib/linux/triggers/$version <<EOF" { active=1 } active { print } active && $0 == "EOF" { exit }' \
-  "$image_postinst" > "$postinst_hook_command"
-if ! grep -Fqx "version=$abi" "$image_postinst" ||
-   ! grep -Fqx 'image_path=/boot/vmlinuz-$version' "$image_postinst" ||
-   ! grep -Fqx 'if [ "$1" = triggered ]; then' "$image_postinst" ||
-   ! grep -Fqx '    trigger=/usr/lib/linux/triggers/$version' "$triggered_postinst" ||
-   ! grep -Fqx $'\tsh "$trigger"' "$triggered_postinst" ||
-   ! grep -Fqx $'\trm -f "$trigger"' "$triggered_postinst" ||
-   ! grep -Fqx 'if [ -d /etc/kernel/postinst.d ]; then' "$image_postinst" ||
-   ! grep -Fqx '    cat - >/usr/lib/linux/triggers/$version <<EOF' "$postinst_hook_command" ||
-   ! grep -Fqx 'DEB_MAINT_PARAMS="$*" run-parts --report --exit-on-error --arg=$version \' "$postinst_hook_command" ||
-   ! grep -Fqx '      --arg=$image_path /etc/kernel/postinst.d' "$postinst_hook_command" ||
-   ! grep -Fqx 'EOF' "$postinst_hook_command" ||
-   ! grep -Fqx '    dpkg-trigger --no-await linux-update-$version' "$image_postinst"; then
-  echo "Generated linux-image postinst does not implement the exact ABI kernel-hook lifecycle." >&2
-  exit 1
-fi
-if ! grep -Fqx "version=$abi" "$image_postrm" ||
-   ! grep -Fqx 'image_path=/boot/vmlinuz-$version' "$image_postrm" ||
-   ! grep -Fqx 'if [ -d /etc/kernel/postrm.d ]; then' "$image_postrm" ||
-   ! grep -Fq 'DEB_MAINT_PARAMS="$*" run-parts --report --exit-on-error --arg=$version \' "$image_postrm" ||
-   ! grep -Fq -- '--arg=$image_path /etc/kernel/postrm.d' "$image_postrm"; then
-  echo "Generated linux-image postrm does not propagate its package lifecycle action to exact-ABI kernel hooks." >&2
-  exit 1
-fi
+python3 - "$abi" "$image_postinst" "$image_postrm" "$image_triggers" <<'PY_KERNEL_HOOK_CONTRACT'
+import hashlib
+import pathlib
+import re
+import sys
+
+# A closed check for two known Ubuntu image-script families, not a parser or
+# executor for arbitrary shell programs. Match the complete operational body:
+# command snippets alone do not prove reachability or failure/action handling.
+limit = 131072
+abi, postinst_path, postrm_path, triggers_path = sys.argv[1:]
+if not re.fullmatch(r"[A-Za-z0-9_+~][A-Za-z0-9._+~-]*", abi):
+    raise SystemExit("Generated kernel ABI is unsafe.")
+
+def read_bounded(name):
+    with pathlib.Path(name).open("rb") as stream:
+        data = stream.read(limit + 1)
+    if not data or len(data) > limit:
+        raise ValueError("empty or oversized maintainer contract")
+    if b"\x00" in data or b"\r" in data:
+        raise ValueError("unsupported control bytes in maintainer contract")
+    return data
+
+def operational_lines(data):
+    text = data.decode("utf-8", errors="strict")
+    lines = text.split("\n")
+    if lines[0] != "#!/bin/sh" or not text.endswith("\n"):
+        raise ValueError("unsupported maintainer shell header or termination")
+    result, in_payload, continued = [], False, False
+    for line in lines[1:]:
+        if in_payload:
+            # No normalization here: an indented EOF cannot close <<EOF,
+            # and the generated trigger must retain both exact payload lines.
+            result.append(line)
+            if line == "EOF":
+                in_payload = False
+            continue
+        code = line.lstrip(" \t")
+        if not code or code.startswith("#"):
+            if continued:
+                raise ValueError("blank or comment interrupts shell continuation")
+            continue
+        result.append(code)
+        continued = code.endswith("\\")
+        if code == "cat - >/usr/lib/linux/triggers/$version <<EOF":
+            in_payload = True
+            continued = False
+    if in_payload or continued:
+        raise ValueError("unterminated maintainer payload or continuation")
+    return result
+
+# Fingerprints of the complete normalized, reviewed source bodies; never trust
+# templates supplied by the package being inspected. Fixture origins, original
+# notices and independent hashes live in testdata/kernel_hooks/SOURCES.json.
+# Unknown operational changes require a new source review and negative tests.
+known_families = {
+    # Legacy /etc-only postinst and postrm.
+    ("4efba790a687c2e3b68b1dde0f778bb410e3202cae7d121933d2cc79bec54235",
+     "abf9c057875b18626f3a3ff85424bd4f9893e19357463c42bfb93c6673e18bf0"),
+    # Current /etc then /usr/share hooks, preserving directory priority.
+    ("5bf3edbda6f8c295219c079d79323adec00e924e29e632dc576bc11be7d99dc4",
+     "74f6e5a9776cea74017db3faa1a2348efe1de5657f3dba418d344f3d10730fb4"),
+}
+
+def contract_digest(data):
+    lines = operational_lines(data)
+    if len(lines) < 3 or lines[1] != "version=" + abi:
+        raise ValueError("maintainer script does not select the exact supplied ABI")
+    # Abstract only this checked assignment, not arbitrary ABI-looking text or
+    # later assignments. Every other operational byte remains in the policy.
+    lines[1] = "version=@ABI@"
+    return hashlib.sha256(("\n".join(lines) + "\n").encode("utf-8")).hexdigest()
+
+try:
+    if read_bounded(triggers_path) != ("interest linux-update-" + abi + "\n").encode("ascii"):
+        raise ValueError("package does not own the exact ABI update trigger")
+    pair = (contract_digest(read_bounded(postinst_path)),
+            contract_digest(read_bounded(postrm_path)))
+    if pair not in known_families:
+        raise ValueError("scripts do not implement a supported exact-ABI kernel-hook lifecycle")
+except (OSError, UnicodeError, ValueError) as error:
+    raise SystemExit("Generated linux-image maintainer contract rejected: " + str(error))
+PY_KERNEL_HOOK_CONTRACT
 if ! dpkg-deb --fsys-tarfile "$selected_package" | tar -xOf - "$selected_member" > "$inspection_image"; then
   echo "Could not extract the generated boot image for structural validation." >&2
   exit 1

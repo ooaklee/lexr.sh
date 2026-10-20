@@ -150,6 +150,11 @@ that do not apply.
 
 ### Fixed
 
+- Recognize both legacy `/etc/kernel` hooks and newer Ubuntu image packages
+  that also use `/usr/share/kernel` hooks during `kernel build` inspection.
+  Validate the complete known lifecycle bodies, exact ABI and trigger ownership;
+  reject changed actions, arguments, control flow and malformed deferred hooks
+  instead of accepting matching command snippets.
 - Remove the duplicate title from generated image release notes and link to
   the canonical Windows preparation and Etcher guide. Continue validating
   unchanged release notes produced by Lexr 0.5.0-rc.3.

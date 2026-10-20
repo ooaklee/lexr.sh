@@ -578,31 +578,20 @@ func TestRecipeRejectsUndeclaredFixedDTBFallback(t *testing.T) {
 	}
 }
 
-// TestRecipeVerifiesGeneratedKernelHookContract ensures direct dpkg installs
-// are supported by inspecting the finished linux-image package, not by
-// assuming every downstream kernel tree retains Ubuntu's trigger lifecycle.
+// TestRecipeVerifiesGeneratedKernelHookContract keeps finished-package
+// extraction and ownership checks wired to the executable text validator.
+// Behavioral tests separately exercise both supported lifecycle families.
 func TestRecipeVerifiesGeneratedKernelHookContract(t *testing.T) {
 	t.Parallel()
 	for _, required := range []string{
 		`dpkg-deb --ctrl-tarfile "$selected_package"`,
 		`printf 'interest linux-update-%s\n' "$abi"`,
 		`cmp -s "$expected_image_triggers" "$image_triggers"`,
-		`grep -Fqx "version=$abi" "$image_postinst"`,
-		`grep -Fqx 'image_path=/boot/vmlinuz-$version' "$image_postinst"`,
-		`grep -Fqx 'if [ "$1" = triggered ]; then' "$image_postinst"`,
-		`grep -Fqx '    trigger=/usr/lib/linux/triggers/$version' "$triggered_postinst"`,
-		`grep -Fqx $'\tsh "$trigger"' "$triggered_postinst"`,
-		`grep -Fqx $'\trm -f "$trigger"' "$triggered_postinst"`,
-		`grep -Fqx 'if [ -d /etc/kernel/postinst.d ]; then' "$image_postinst"`,
-		`grep -Fqx '    cat - >/usr/lib/linux/triggers/$version <<EOF' "$postinst_hook_command"`,
-		`grep -Fqx 'DEB_MAINT_PARAMS="$*" run-parts --report --exit-on-error --arg=$version \' "$postinst_hook_command"`,
-		`grep -Fqx '      --arg=$image_path /etc/kernel/postinst.d' "$postinst_hook_command"`,
-		`grep -Fqx '    dpkg-trigger --no-await linux-update-$version' "$image_postinst"`,
-		`grep -Fqx 'if [ -d /etc/kernel/postrm.d ]; then' "$image_postrm"`,
-		`DEB_MAINT_PARAMS="$*" run-parts --report --exit-on-error --arg=$version`,
-		`--arg=$image_path /etc/kernel/postrm.d`,
-		`does not implement the exact ABI kernel-hook lifecycle`,
-		`does not propagate its package lifecycle action to exact-ABI kernel hooks`,
+		`[ "$(wc -c < "$image_postinst")" -gt 131072 ]`,
+		`[ "$(wc -c < "$image_postrm")" -gt 131072 ]`,
+		`must contain exactly one postinst, postrm, and triggers control member`,
+		`python3 - "$abi" "$image_postinst" "$image_postrm" "$image_triggers" <<'PY_KERNEL_HOOK_CONTRACT'`,
+		`Generated linux-image maintainer contract rejected:`,
 	} {
 		if !strings.Contains(containerRecipe, required) {
 			t.Fatalf("container recipe omits generated kernel-hook validation %q", required)
