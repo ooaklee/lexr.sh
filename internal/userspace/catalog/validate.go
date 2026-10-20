@@ -100,6 +100,7 @@ func validate(raw document, components []Component) error {
 		validateKernelCompatibility(add, prefix, component)
 		validateActions(add, prefix, rawComponent.SupportActions, component)
 		validateRelease(add, prefix, component)
+		validateUnqualifiedSource(add, prefix, component)
 
 		if len(component.Notes) == 0 {
 			add(prefix+".notes", "must contain at least one note")
@@ -124,6 +125,10 @@ func validateKernelCompatibility(add func(string, string, ...any), prefix string
 		if component.CompatibilityEvidence == EvidenceExactPair {
 			add(prefix+".kernel_compatibility", "is required for exact_pair evidence")
 		}
+		return
+	}
+	if component.CompatibilityEvidence == EvidenceUnqualifiedSource {
+		add(prefix+".kernel_compatibility", "must be omitted for unqualified_source evidence")
 		return
 	}
 	if component.CompatibilityEvidence != EvidenceExactPair {
@@ -159,7 +164,7 @@ func validateCapability(add func(string, string, ...any), field string, value Ca
 	}
 	switch value {
 	case CapabilityFirmware, CapabilityNetworking, CapabilityBluetooth, CapabilityAudio,
-		CapabilityPen, CapabilityCamera, CapabilityPower, CapabilityTouchscreen:
+		CapabilityPen, CapabilityCamera, CapabilityPower, CapabilitySensors, CapabilityTouchscreen:
 	default:
 		add(field, "has unsupported capability %q", value)
 	}
@@ -177,16 +182,47 @@ func validateRedistribution(add func(string, string, ...any), field string, valu
 	}
 }
 
-// validateEvidence requires compatibility claims to use one of the two audited
-// evidence categories.
+// validateEvidence requires a closed evidence token; unqualified sources must
+// also satisfy the build-only restrictions in validateUnqualifiedSource.
 func validateEvidence(add func(string, string, ...any), field string, value CompatibilityEvidence) {
 	if !validateByteLength(add, field, string(value), maximumIdentifierBytes) {
 		return
 	}
 	switch value {
-	case EvidenceExactPair, EvidenceSourceIntegratedPriorValidation:
+	case EvidenceExactPair, EvidenceSourceIntegratedPriorValidation, EvidenceUnqualifiedSource:
 	default:
-		add(field, "must be exact_pair or source_integrated_prior_validation; got %q", value)
+		add(field, "must be exact_pair, source_integrated_prior_validation, or unqualified_source; got %q", value)
+	}
+}
+
+// validateUnqualifiedSource keeps source-only metadata from authorizing a
+// deployment action or asserting maturity unsupported by hardware evidence.
+// A compiled builder must still authenticate inputs independently; metadata
+// does not supply executable build policy.
+func validateUnqualifiedSource(add func(string, string, ...any), prefix string, component Component) {
+	if component.CompatibilityEvidence != EvidenceUnqualifiedSource {
+		return
+	}
+	if component.Level != LevelExperimental {
+		add(prefix+".level", "must be experimental for unqualified_source evidence")
+	}
+	for _, action := range []struct {
+		name    string
+		enabled bool
+	}{
+		{name: "status", enabled: component.SupportActions.Status},
+		{name: "pull", enabled: component.SupportActions.Pull},
+		{name: "install", enabled: component.SupportActions.Install},
+	} {
+		if action.enabled {
+			add(prefix+".support_actions."+action.name, "must be false for unqualified_source evidence")
+		}
+	}
+	if !component.SupportActions.Build {
+		add(prefix+".support_actions.build", "must be true for unqualified_source evidence")
+	}
+	if component.Release != nil {
+		add(prefix+".release", "must be omitted for unqualified_source evidence")
 	}
 }
 
