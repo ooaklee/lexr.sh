@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"text/tabwriter"
@@ -243,17 +244,43 @@ func (a *application) newUserspacePullCommand() *cobra.Command {
 
 // newUserspaceBuildCommand invokes only compiled, component-specific build helpers.
 func (a *application) newUserspaceBuildCommand() *cobra.Command {
+	return a.newUserspaceBuildCommandWithWorkflow(nil)
+}
+
+// userspaceBuildWorkflow is a delivery-only seam. Production always delegates
+// to the userspace manager, whose compiled producer owns source/image policy.
+type userspaceBuildWorkflow interface {
+	BuildWithResult(context.Context, userspacebuild.Request) (userspacebuild.Result, error)
+}
+
+type sensorBuildCLIReport struct {
+	userspacebuild.Result
+	Error string `json:"error,omitempty"`
+}
+
+func (a *application) newUserspaceBuildCommandWithWorkflow(workflow userspaceBuildWorkflow) *cobra.Command {
 	request := userspacebuild.Request{}
 	var asJSON bool
 	command := &cobra.Command{
 		Use:   "build <iptsd|camera>",
 		Short: "Build a pinned userspace component with its maintained workflow",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(command *cobra.Command, args []string) error {
+		RunE: func(command *cobra.Command, args []string) (returnErr error) {
 			componentID, err := userspacemanager.ResolveComponentID(args[0])
 			if err != nil {
 				return err
 			}
+			jsonWritten := false
+			defer func() {
+				// Sensor execution refusals have one JSON shape even when
+				// catalogue validation fails before the producer is called.
+				// Cobra argument/flag parsing still precedes RunE as usual.
+				if asJSON && componentID == userspacemanager.SensorsComponent && returnErr != nil && !jsonWritten {
+					if writeErr := a.writeJSON(sensorBuildCLIReport{Result: userspacebuild.Result{Component: userspacebuild.ComponentSensors}, Error: returnErr.Error()}); writeErr != nil {
+						returnErr = writeErr
+					}
+				}
+			}()
 			componentCatalog, err := a.userspace.LoadCatalog(a.userspaceCatalogPath)
 			if err != nil {
 				return err
@@ -267,14 +294,48 @@ func (a *application) newUserspaceBuildCommand() *cobra.Command {
 				request.Component = userspacebuild.ComponentIPTSD
 			case userspacemanager.CameraComponent:
 				request.Component = userspacebuild.ComponentCamera
+			case userspacemanager.SensorsComponent:
+				if err := validateSensorBuildCatalogComponent(component); err != nil {
+					return err
+				}
+				request.Component = userspacebuild.ComponentSensors
 			default:
 				return fmt.Errorf("userspace component %q has no compiled build workflow", componentID)
 			}
-			result, err := a.userspace.BuildWithResult(command.Context(), request)
+			selectedWorkflow := workflow
+			if selectedWorkflow == nil {
+				selectedWorkflow = a.userspace
+			}
+			result, err := selectedWorkflow.BuildWithResult(command.Context(), request)
+			if request.Component == userspacebuild.ComponentSensors && err == nil {
+				if result.Component != request.Component || result.Sensors == nil {
+					err = fmt.Errorf("sensor build returned no source-build result")
+				} else if result.Sensors.Plan.DryRun != request.DryRun || (!request.DryRun && !sensorSourceBuildComplete(result.Sensors)) {
+					err = fmt.Errorf("sensor source build returned incomplete publication proof")
+				}
+			}
 			if asJSON {
-				if writeErr := a.writeJSON(result); writeErr != nil {
+				var output any = result
+				if request.Component == userspacebuild.ComponentSensors {
+					report := sensorBuildCLIReport{Result: result}
+					if err != nil {
+						report.Error = err.Error()
+					}
+					output = report
+				}
+				jsonWritten = true
+				if writeErr := a.writeJSON(output); writeErr != nil {
 					return writeErr
 				}
+				return err
+			}
+			if request.Component == userspacebuild.ComponentSensors {
+				if writeErr := a.writeSensorSourceBuildResult(result.Sensors, err); writeErr != nil {
+					return writeErr
+				}
+				return err
+			}
+			if err != nil && result.Component == "" {
 				return err
 			}
 			if writeErr := a.writeUserspaceBuildResult(result); writeErr != nil {
@@ -287,6 +348,10 @@ func (a *application) newUserspaceBuildCommand() *cobra.Command {
 	command.Flags().StringVar(&request.OutputDirectory, "output-dir", "", "component build output directory (camera paths are repository-relative)")
 	command.Flags().StringVar(&request.Image, "image", "", "iptsd ARM64 builder image (camera uses immutable compiled policy)")
 	command.Flags().StringVar(&request.WorkVolume, "work-volume", "", "iptsd case-sensitive Docker work volume")
+	command.Flags().StringVar(&request.SensorWorkParent, "sensor-work-parent", "", "existing private sensor work parent; no automatic creation")
+	// Keep preparation private until the normal native producer and CLI gates
+	// pass. No shipped catalogue entry or public help advertises sensors yet.
+	_ = command.Flags().MarkHidden("sensor-work-parent")
 	command.Flags().IntVar(&request.Jobs, "jobs", 0, "parallel build jobs (zero uses the compiled workflow default)")
 	command.Flags().IntVar(&request.MinimumFreeGiB, "minimum-free-gib", 0, "camera builder minimum free space in GiB")
 	command.Flags().BoolVar(&request.NoPull, "no-pull", false, "camera builder: require an already-present image")

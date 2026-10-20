@@ -29,6 +29,9 @@ const (
 	CameraComponent = "imx681-libcamera-v1"
 	// WiFiComponent installs board data derived from distribution firmware.
 	WiFiComponent = "wifi"
+	// SensorsComponent identifies source-only development builds, not an
+	// installed or hardware-qualified sensor stack.
+	SensorsComponent = "native-sensors"
 )
 
 // recommendedComponents is the deliberately small default pull set; optional
@@ -472,6 +475,8 @@ func ResolveComponentID(value string) (string, error) {
 		return CameraComponent, nil
 	case "wifi":
 		return WiFiComponent, nil
+	case "sensors", SensorsComponent:
+		return SensorsComponent, nil
 	default:
 		if strings.TrimSpace(value) == "" {
 			return "", errors.New("userspace component is required")
