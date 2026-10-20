@@ -2,6 +2,7 @@ package quality
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"go/parser"
@@ -69,7 +70,24 @@ func TestDocumentationUsesBritishEnglish(t *testing.T) {
 					}
 				}
 			}
-		case ".md", ".json":
+		case ".json":
+			content, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			prose, err := jsonProse(content)
+			if err != nil {
+				return fmt.Errorf("scan British-English JSON prose %s: %w", path, err)
+			}
+			scanner := bufio.NewScanner(bytes.NewReader(prose))
+			for lineNumber := 1; scanner.Scan(); lineNumber++ {
+				if spelling := americanEnglishPattern.FindString(scanner.Text()); spelling != "" {
+					relative, _ := filepath.Rel(repositoryRoot, path)
+					issues = append(issues, fmt.Sprintf("%s:%d: replace %q with British English", filepath.ToSlash(relative), lineNumber, spelling))
+				}
+			}
+			return scanner.Err()
+		case ".md":
 			file, err := os.Open(path)
 			if err != nil {
 				return err
