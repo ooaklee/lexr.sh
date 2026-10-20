@@ -311,7 +311,7 @@ func validateEvidence(files map[string][]byte, jobs int) (BuildReport, error) {
 	if err := validateDependencies(files); err != nil {
 		return report, err
 	}
-	if err := validateLoaders(files["loader-evidence.txt"], report.Loaders); err != nil {
+	if err := validateLoaders(files, report.Loaders); err != nil {
 		return report, err
 	}
 	return report, nil
@@ -455,10 +455,24 @@ func expectedLoaderProviders() map[string]map[string]string {
 }
 
 func parseLoader(text string) (map[string]string, error) {
+	observed, err := parseLoaderObservations(text)
+	if err != nil {
+		return nil, err
+	}
+	return observed.providers, nil
+}
+
+type loaderObservations struct {
+	providers map[string]string
+	resolved  map[string]string
+}
+
+func parseLoaderObservations(text string) (*loaderObservations, error) {
 	if strings.TrimSpace(text) == "" || strings.ContainsAny(text, "\x00\r") {
 		return nil, errors.New("empty or malformed loader evidence")
 	}
 	providers := map[string]string{}
+	resolved := map[string]string{}
 	seen := map[string]bool{}
 	for _, raw := range strings.Split(strings.TrimSpace(text), "\n") {
 		line := strings.TrimSpace(raw)
@@ -477,6 +491,9 @@ func parseLoader(text string) (map[string]string, error) {
 				return nil, errors.New("duplicate absolute loader row")
 			}
 			seen[match[1]] = true
+			// A real DSO may name the loader in DT_NEEDED. Its fixed absolute
+			// self-row resolves that SONAME; the virtual DSO row does not.
+			resolved["ld-linux-aarch64.so.1"] = match[1]
 			continue
 		}
 		match := loaderResolved.FindStringSubmatch(line)
@@ -495,16 +512,17 @@ func parseLoader(text string) (map[string]string, error) {
 		} else if !strings.HasPrefix(match[2], "/lib/") && !strings.HasPrefix(match[2], "/usr/lib/") {
 			return nil, errors.New("system loader dependency has unexpected route")
 		}
+		resolved[match[1]] = match[2]
 	}
 	if !seen["/lib/ld-linux-aarch64.so.1"] {
 		return nil, errors.New("loader evidence is missing the fixed absolute self-row")
 	}
-	return providers, nil
+	return &loaderObservations{providers: providers, resolved: resolved}, nil
 }
 
-func validateLoaders(data []byte, reported []Loader) error {
+func validateLoaders(files map[string][]byte, reported []Loader) error {
 	var raw map[string]string
-	if err := decodeJSON(data, &raw, false); err != nil {
+	if err := decodeJSON(files["loader-evidence.txt"], &raw, false); err != nil {
 		return fmt.Errorf("loader evidence JSON: %w", err)
 	}
 	expected := expectedLoaderProviders()
@@ -522,9 +540,18 @@ func validateLoaders(data []byte, reported []Loader) error {
 		if !ok {
 			return errors.New("raw loader record is absent")
 		}
-		observed, err := parseLoader(text)
-		if err != nil || !reflect.DeepEqual(observed, wanted) {
+		observed, err := parseLoaderObservations(text)
+		if err != nil || !reflect.DeepEqual(observed.providers, wanted) {
 			return errors.New("raw loader origins differ")
+		}
+		object, err := inspectNativeELF(record.Artifact, files[record.Artifact])
+		if err != nil {
+			return err
+		}
+		for dependency := range object.needed {
+			if _, ok := observed.resolved[dependency]; !ok {
+				return fmt.Errorf("%s: direct ELF dependency is absent from loader evidence: %s", record.Artifact, dependency)
+			}
 		}
 	}
 	return nil

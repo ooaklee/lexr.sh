@@ -58,6 +58,9 @@ func artifactFixture(t *testing.T) (map[string][]byte, map[string]fileRule) {
 	for _, name := range coreELFNames {
 		providers := expectedLoaderProviders()[name]
 		text := "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n"
+		if name == "monitor-sensor" {
+			text += "\tlibglib-2.0.so.0 => /lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n"
+		}
 		var names []string
 		for provider := range providers {
 			names = append(names, provider)
