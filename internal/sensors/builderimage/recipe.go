@@ -70,10 +70,66 @@ apt-get "${apt_options[@]}" install -y --no-install-recommends \
   binutils build-essential ca-certificates dbus-daemon gcc-14 \
   gir1.2-umockdev-1.0 libglib2.0-dev libgudev-1.0-dev libpolkit-gobject-1-dev \
   libprotobuf-c-dev libqrtr-glib-dev libudev-dev libxml2-utils linux-libc-dev \
-  meson ninja-build pkgconf protobuf-c-compiler protobuf-compiler \
+  meson ninja-build passwd pkgconf protobuf-c-compiler protobuf-compiler \
   python3 python3-dbus python3-dbusmock python3-gi python3-psutil \
   systemd-dev ubuntu-keyring umockdev
 apt-get clean
+
+# The offline source phase keeps this numeric identity, but its private D-Bus
+# fixtures also need a resolvable account. Register it in this fresh image only;
+# its runtime home is created later in the exclusively owned work volume.
+test -f /usr/sbin/nologin
+test -x /usr/sbin/nologin
+test ! -e /work/job/home
+test ! -L /work/job/home
+# LEXR_SENSOR_ACCOUNT_BEGIN
+python3 - <<'LEXR_SENSOR_ACCOUNT_UNUSED'
+import grp
+import pwd
+
+for lookup, key in ((pwd.getpwnam, 'lexr-sensor-build'),
+                    (pwd.getpwuid, 65532),
+                    (grp.getgrnam, 'lexr-sensor-build'),
+                    (grp.getgrgid, 65532)):
+    try:
+        lookup(key)
+    except KeyError:
+        continue
+    raise SystemExit('sensor build account name or numeric ID is already occupied')
+LEXR_SENSOR_ACCOUNT_UNUSED
+groupadd --system --gid 65532 --key SYS_GID_MAX=65532 lexr-sensor-build
+useradd --system --uid 65532 --gid 65532 --no-user-group \
+  --no-create-home --no-log-init --home-dir /work/job/home \
+  --shell /usr/sbin/nologin --comment 'Lexr sensor source builder' \
+  --password '!' --key SYS_UID_MAX=65532 lexr-sensor-build
+python3 - <<'LEXR_SENSOR_ACCOUNT_VERIFY'
+import grp
+import pwd
+
+user = pwd.getpwnam('lexr-sensor-build')
+group = grp.getgrnam('lexr-sensor-build')
+assert user == pwd.getpwuid(65532)
+assert (user.pw_name, user.pw_passwd, user.pw_uid, user.pw_gid,
+        user.pw_gecos, user.pw_dir, user.pw_shell) == (
+    'lexr-sensor-build', 'x', 65532, 65532, 'Lexr sensor source builder',
+    '/work/job/home', '/usr/sbin/nologin')
+assert group == grp.getgrgid(65532)
+assert (group.gr_name, group.gr_passwd, group.gr_gid, group.gr_mem) == (
+    'lexr-sensor-build', 'x', 65532, [])
+LEXR_SENSOR_ACCOUNT_VERIFY
+sensor_passwd_name="$(getent passwd lexr-sensor-build)"
+sensor_passwd_id="$(getent passwd 65532)"
+sensor_group_name="$(getent group lexr-sensor-build)"
+sensor_group_id="$(getent group 65532)"
+test "$sensor_passwd_name" = "$sensor_passwd_id"
+test "$sensor_group_name" = "$sensor_group_id"
+sensor_password_status="$(passwd --status lexr-sensor-build)"
+read -r sensor_status_name sensor_password_lock sensor_status_rest <<<"$sensor_password_status"
+test "$sensor_status_name" = lexr-sensor-build
+test "$sensor_password_lock" = L
+# LEXR_SENSOR_ACCOUNT_END
+test ! -e /work/job/home
+test ! -L /work/job/home
 
 test ! -L /usr/share/lexr
 test ! -e /usr/share/lexr/sensors-builder
@@ -85,6 +141,8 @@ dpkg-query -W -f='${binary:Package}=${Version}\n' | \
   printf '%s\n' 'lexr-sensors-builder-toolchain-v1'
   printf 'os_id=%s\nos_version=%s\n' "$ID" "$VERSION_ID"
   printf 'architecture=%s\n' "$(dpkg --print-architecture)"
+  printf '[build-identity]\n%s\n%s\npassword_status=%s\n' \
+    "$sensor_passwd_name" "$sensor_group_name" "$sensor_password_lock"
   printf '[gcc-version]\n'
   gcc-14 -dumpfullversion
   printf '[gcc-target]\n'

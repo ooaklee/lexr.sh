@@ -195,6 +195,12 @@ func validateInventories(packages, tools string) error {
 			return errors.New("package inventory has invalid or duplicate rows")
 		}
 	}
+	const identity = "[build-identity]\n" +
+		"lexr-sensor-build:x:65532:65532:Lexr sensor source builder:/work/job/home:/usr/sbin/nologin\n" +
+		"lexr-sensor-build:x:65532:\npassword_status=L\n"
+	if strings.Count(tools, "[build-identity]\n") != 1 || !strings.Contains(tools, identity) {
+		return errors.New("toolchain inventory lacks the exact locked sensor build identity")
+	}
 	for _, required := range []string{"lexr-sensors-builder-toolchain-v1\n", "os_id=ubuntu\nos_version=26.04\narchitecture=arm64\n", "[gcc-target]\naarch64-linux-gnu\n", "[gcc-version]\n", "[gcc-details]\n", "[linker]\n", "[readelf]\n", "[meson]\n", "[ninja]\n", "[python]\n", "[pkgconf]\n", "[protoc]\n", "[protoc-c]\n", "[development-api-versions:"} {
 		if !strings.Contains(tools, required) {
 			return fmt.Errorf("toolchain inventory lacks required section %q", required)

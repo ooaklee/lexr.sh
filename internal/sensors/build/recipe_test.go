@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/ooaklee/lexr.sh/internal/sensors/builderimage"
 )
 
 // TestRecipeDigests binds both reviewed scripts to their exact compiled bytes.
@@ -77,6 +79,34 @@ func TestInitRecipeHandsOffParentLast(t *testing.T) {
 	}
 	if strings.Count(InitScript, "\nchown ") != 2 {
 		t.Fatal("init must have only the exact child and final parent ownership transfers")
+	}
+}
+
+func TestSourceRecipeChecksRegisteredIdentityBeforeWork(t *testing.T) {
+	t.Parallel()
+	const start = "python3 - <<'LEXR_SENSOR_SOURCE_IDENTITY'\n"
+	_, tail, found := strings.Cut(SourceScript, start)
+	if !found || strings.Count(SourceScript, start) != 1 {
+		t.Fatal("missing or duplicated early source identity check")
+	}
+	body, _, found := strings.Cut(tail, "\nLEXR_SENSOR_SOURCE_IDENTITY\n")
+	if !found {
+		t.Fatal("source identity check has no fixed boundary")
+	}
+	_, dependency, found := strings.Cut(builderimage.DependencyScript, "python3 - <<'LEXR_SENSOR_ACCOUNT_VERIFY'\n")
+	if !found {
+		t.Fatal("missing dependency account verifier")
+	}
+	want, _, found := strings.Cut(dependency, "\nLEXR_SENSOR_ACCOUNT_VERIFY\n")
+	if !found || body != want {
+		t.Fatal("source and dependency phases disagree about the registered build identity")
+	}
+	check := strings.Index(SourceScript, start)
+	if check < strings.Index(SourceScript, `test "$(id -g)" = 65532`) ||
+		check > strings.Index(SourceScript, ". /etc/os-release") ||
+		check > strings.Index(SourceScript, "mkdir -m 0700") ||
+		check > strings.Index(SourceScript, "meson setup") {
+		t.Fatal("NSS identity is not checked immediately after numeric identity, before work")
 	}
 }
 

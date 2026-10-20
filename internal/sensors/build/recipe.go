@@ -49,6 +49,23 @@ case "$1" in [1-8]) ;; *) echo 'jobs must be a decimal integer from 1 through 8'
 JOBS="$1"
 test "$(id -u)" = 65532
 test "$(id -g)" = 65532
+# Numeric --user alone does not make the identity usable by private D-Bus.
+# Reject a stale or incorrectly provisioned image before touching the work job.
+python3 - <<'LEXR_SENSOR_SOURCE_IDENTITY'
+import grp
+import pwd
+
+user = pwd.getpwnam('lexr-sensor-build')
+group = grp.getgrnam('lexr-sensor-build')
+assert user == pwd.getpwuid(65532)
+assert (user.pw_name, user.pw_passwd, user.pw_uid, user.pw_gid,
+        user.pw_gecos, user.pw_dir, user.pw_shell) == (
+    'lexr-sensor-build', 'x', 65532, 65532, 'Lexr sensor source builder',
+    '/work/job/home', '/usr/sbin/nologin')
+assert group == grp.getgrgid(65532)
+assert (group.gr_name, group.gr_passwd, group.gr_gid, group.gr_mem) == (
+    'lexr-sensor-build', 'x', 65532, [])
+LEXR_SENSOR_SOURCE_IDENTITY
 . /etc/os-release
 test "$ID" = ubuntu
 test "$VERSION_ID" = 26.04

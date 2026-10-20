@@ -17,7 +17,7 @@ func TestDependencyRecipeIdentity(t *testing.T) {
 	if BaseImage != expectedBase {
 		t.Fatalf("base = %q, want reviewed immutable reference %q", BaseImage, expectedBase)
 	}
-	const expectedRecipe = "fa788880ee6cb31e5fd78528a7121a9c22da5fd9c6a4630da70ea3c35c48f828"
+	const expectedRecipe = "a69473cf303ef34cb26d04603fc2581e33f5297e510ed69d7916227432165a15"
 	if got := RecipeSHA256(); got != expectedRecipe {
 		t.Fatalf("recipe = %q, want reviewed script bytes %q", got, expectedRecipe)
 	}
@@ -49,7 +49,7 @@ func TestDependencyRecipeHasClosedPackageSet(t *testing.T) {
 		"binutils", "build-essential", "ca-certificates", "dbus-daemon", "gcc-14",
 		"gir1.2-umockdev-1.0", "libglib2.0-dev", "libgudev-1.0-dev", "libpolkit-gobject-1-dev",
 		"libprotobuf-c-dev", "libqrtr-glib-dev", "libudev-dev", "libxml2-utils", "linux-libc-dev",
-		"meson", "ninja-build", "pkgconf", "protobuf-c-compiler", "protobuf-compiler",
+		"meson", "ninja-build", "passwd", "pkgconf", "protobuf-c-compiler", "protobuf-compiler",
 		"python3", "python3-dbus", "python3-dbusmock", "python3-gi", "python3-psutil",
 		"systemd-dev", "ubuntu-keyring", "umockdev",
 	}
@@ -125,6 +125,53 @@ func TestDependencyRecipeCannotIngestOrCompileSource(t *testing.T) {
 	} {
 		if strings.Contains(DependencyScript, forbidden) {
 			t.Errorf("dependency-only script contains forbidden operation/input %q", forbidden)
+		}
+	}
+}
+
+// The account exists only in the new dependency image. Its home belongs to
+// the later private volume; registration must neither create it nor relax the
+// fixed unprivileged source identity.
+func TestDependencyAccountPolicyAndInventoryOrdering(t *testing.T) {
+	t.Parallel()
+	for _, required := range []string{
+		`test -f /usr/sbin/nologin`, `test -x /usr/sbin/nologin`,
+		`groupadd --system --gid 65532 --key SYS_GID_MAX=65532 lexr-sensor-build`,
+		`useradd --system --uid 65532 --gid 65532 --no-user-group`,
+		`--no-create-home --no-log-init --home-dir /work/job/home`,
+		`--shell /usr/sbin/nologin --comment 'Lexr sensor source builder'`,
+		`--password '!' --key SYS_UID_MAX=65532 lexr-sensor-build`,
+		`sensor_password_status="$(passwd --status lexr-sensor-build)"`,
+		`test "$sensor_status_name" = lexr-sensor-build`,
+		`test "$sensor_password_lock" = L`,
+		`printf '[build-identity]\n%s\n%s\npassword_status=%s\n'`,
+	} {
+		if strings.Count(DependencyScript, required) != 1 {
+			t.Errorf("fixed account policy missing or duplicated: %q", required)
+		}
+	}
+	var previous = -1
+	for _, marker := range []string{
+		"apt-get clean\n", "# LEXR_SENSOR_ACCOUNT_BEGIN\n", "groupadd --system", "useradd --system",
+		"python3 - <<'LEXR_SENSOR_ACCOUNT_VERIFY'", "sensor_passwd_name=", "sensor_password_status=",
+		"# LEXR_SENSOR_ACCOUNT_END\n", "dpkg-query -W", "printf '[build-identity]",
+	} {
+		i := strings.Index(DependencyScript, marker)
+		if i <= previous {
+			t.Fatalf("account preparation/verification/inventory order differs at %q", marker)
+		}
+		previous = i
+	}
+	for _, marker := range []string{"test ! -e /work/job/home", "test ! -L /work/job/home"} {
+		if strings.Count(DependencyScript, marker) != 2 ||
+			strings.Index(DependencyScript, marker) > strings.Index(DependencyScript, "# LEXR_SENSOR_ACCOUNT_BEGIN") ||
+			strings.LastIndex(DependencyScript, marker) < strings.Index(DependencyScript, "# LEXR_SENSOR_ACCOUNT_END") {
+			t.Fatalf("home absence must be checked before and after registration: %q", marker)
+		}
+	}
+	for _, forbidden := range []string{"usermod ", "groupmod ", "--non-unique", "--create-home", "--force", "mkdir /work"} {
+		if strings.Contains(DependencyScript, forbidden) {
+			t.Errorf("account policy contains forbidden adjustment %q", forbidden)
 		}
 	}
 }

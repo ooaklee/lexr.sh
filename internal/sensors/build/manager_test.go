@@ -397,7 +397,7 @@ func (r *controllerTestRunner) createContainer(args []string) (sourceContainerIn
 func controllerTestInventory(t *testing.T, packages bool) []byte {
 	t.Helper()
 	name := filepath.Base(builderimage.ToolchainInventoryPath)
-	text := "lexr-sensors-builder-toolchain-v1\nos_id=ubuntu\nos_version=26.04\narchitecture=arm64\n[gcc-target]\naarch64-linux-gnu\n[gcc-version]\n14.2.0\n[gcc-details]\nfixture gcc\n[linker]\nfixture ld\n[readelf]\nfixture readelf\n[meson]\n1.7\n[ninja]\n1.12\n[python]\n3.13\n[pkgconf]\n1.8\n[protoc]\n3.21\n[protoc-c]\n1.5\n[development-api-versions:fixture]\n1.0\n"
+	text := "lexr-sensors-builder-toolchain-v1\nos_id=ubuntu\nos_version=26.04\narchitecture=arm64\n[build-identity]\nlexr-sensor-build:x:65532:65532:Lexr sensor source builder:/work/job/home:/usr/sbin/nologin\nlexr-sensor-build:x:65532:\npassword_status=L\n[gcc-target]\naarch64-linux-gnu\n[gcc-version]\n14.2.0\n[gcc-details]\nfixture gcc\n[linker]\nfixture ld\n[readelf]\nfixture readelf\n[meson]\n1.7\n[ninja]\n1.12\n[python]\n3.13\n[pkgconf]\n1.8\n[protoc]\n3.21\n[protoc-c]\n1.5\n[development-api-versions:fixture]\n1.0\n"
 	if packages {
 		name = filepath.Base(builderimage.PackageInventoryPath)
 		var rows []string
