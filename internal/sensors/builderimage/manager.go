@@ -15,10 +15,16 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
+// nativeRequirement limits execution to supported native ARM64 controller hosts.
 var nativeRequirement = hostcap.Requirement{Operation: "native sensor dependency preparation", OperatingSystems: []string{"linux", "darwin"}, Architectures: []string{"arm64"}}
+
+// engineIdentity recognises a bounded observed Docker engine identity.
 var engineIdentity = regexp.MustCompile(`^[A-Za-z0-9:.-]{16,128}$`)
+
+// serverVersion recognises a bounded observed Docker server version.
 var serverVersion = regexp.MustCompile(`^[0-9][0-9A-Za-z.+~_-]{0,127}$`)
 
+// plan checks request and controller availability without Docker or filesystem effects.
 func (m *Manager) plan(ctx context.Context, r Request) (Plan, error) {
 	if m == nil || m.Runner == nil || m.token == nil || m.timeout <= 0 || m.recoveryTimeout <= 0 {
 		return Plan{}, errors.New("dependency producer is not initialized")
@@ -237,6 +243,7 @@ func (m *Manager) Prepare(ctx context.Context, request Request) (result Result, 
 	return result, nil
 }
 
+// engine observes and validates one native Linux ARM64 engine identity.
 func (m *Manager) engine(ctx context.Context) (string, string, error) {
 	b, _, err := m.command(ctx, 4096, "info", "--format", "{{.ID}}|{{.OSType}}|{{.Architecture}}|{{.ServerVersion}}")
 	if err != nil {
@@ -248,6 +255,8 @@ func (m *Manager) engine(ctx context.Context) (string, string, error) {
 	}
 	return fields[0], fields[3], nil
 }
+
+// image inspects the selected reference and applies the immutable-image policy.
 func (m *Manager) image(ctx context.Context, ref string) (imageInspection, error) {
 	var image imageInspection
 	b, _, err := m.command(ctx, 256<<10, "image", "inspect", "--format", "{{json .}}", ref)
@@ -259,6 +268,8 @@ func (m *Manager) image(ctx context.Context, ref string) (imageInspection, error
 	}
 	return image, validateImage(image)
 }
+
+// container decodes one bounded inspection of the selected container.
 func (m *Manager) container(ctx context.Context, ref string) (containerInspection, error) {
 	var c containerInspection
 	b, _, err := m.command(ctx, 256<<10, "container", "inspect", "--format", "{{json .}}", ref)
@@ -267,6 +278,8 @@ func (m *Manager) container(ctx context.Context, ref string) (containerInspectio
 	}
 	return c, decodeObject(b, &c)
 }
+
+// inventory copies only the fixed inventory member without extracting host files.
 func (m *Manager) inventory(ctx context.Context, cid, name string) (string, error) {
 	b, _, err := m.command(ctx, (1<<20)+16384, "cp", cid+":"+name, "-")
 	if err != nil {
@@ -275,14 +288,18 @@ func (m *Manager) inventory(ctx context.Context, cid, name string) (string, erro
 	return inventoryMember(b, name)
 }
 
+// validatePreparedImage requires the exact committed inert dependency configuration.
 func validatePreparedImage(image imageInspection, id string) error {
 	if image.ID != id || image.Config.User != "65532:65532" || image.Config.WorkingDir != "/" || !equalSet(image.Config.Entrypoint, []string{"/bin/false"}) || !equalSet(image.Config.Cmd, []string{"lexr-explicit-offline-runner-required"}) || image.Config.Labels[ownerLabel] != ownerValue || image.Config.Labels[recipeLabel] != RecipeSHA256() {
 		return errors.New("committed dependency image configuration differs")
 	}
 	return nil
 }
+
+// digest returns the lowercase SHA-256 identity of the supplied inventory text.
 func digest(s string) string { b := sha256.Sum256([]byte(s)); return hex.EncodeToString(b[:]) }
 
+// dependencyEnvironment validates inherited rows and fixes acquisition-time controls.
 func dependencyEnvironment(base []string) ([]string, error) {
 	seen := map[string]bool{}
 	env := make([]string, 0, len(base)+6)
@@ -302,6 +319,7 @@ func dependencyEnvironment(base []string) ([]string, error) {
 	return env, nil
 }
 
+// createArgs constructs the fixed bounded dependency container command.
 func createArgs(name, token, image string, env []string) []string {
 	args := []string{"create", "--pull=never", "--name", name, "--platform", "linux/arm64", "--network", "bridge", "--user", "0:0", "--workdir", "/", "--entrypoint", "/usr/bin/timeout", "--cap-drop", "ALL", "--cap-add", "CHOWN", "--cap-add", "DAC_OVERRIDE", "--cap-add", "FOWNER", "--cap-add", "SETUID", "--cap-add", "SETGID", "--security-opt", "no-new-privileges", "--pids-limit", "256", "--memory", "4g", "--cpus", "2", "--ipc", "private", "--restart", "no", "--tmpfs", "/tmp:rw,nosuid,nodev,size=1g,mode=1777", "--tmpfs", "/run:rw,nosuid,nodev,size=64m,mode=0755", "--label", ownerLabel + "=" + ownerValue, "--label", recipeLabel + "=" + RecipeSHA256(), "--label", tokenLabel + "=" + token}
 	for _, value := range env {
@@ -310,6 +328,7 @@ func createArgs(name, token, image string, env []string) []string {
 	return append(args, image, "--signal=TERM", "--kill-after=5s", "18m", "/bin/bash", "-euo", "pipefail", "-c", DependencyScript)
 }
 
+// boundedBuffer cancels its child when captured output exceeds the fixed limit.
 type boundedBuffer struct {
 	buffer   bytes.Buffer
 	limit    int
@@ -317,6 +336,7 @@ type boundedBuffer struct {
 	cancel   context.CancelFunc
 }
 
+// Write accepts a chunk only when it fits wholly within the remaining bound.
 func (b *boundedBuffer) Write(p []byte) (int, error) {
 	if len(p) > b.limit-b.Len() {
 		b.exceeded = true
@@ -330,9 +350,15 @@ func (b *boundedBuffer) Write(p []byte) (int, error) {
 
 // Do not embed bytes.Buffer: its promoted WriteString/ReadFrom methods would
 // bypass Write's bound through io.WriteString/io.Copy interface shortcuts.
-func (b *boundedBuffer) Len() int       { return b.buffer.Len() }
-func (b *boundedBuffer) Bytes() []byte  { return b.buffer.Bytes() }
+func (b *boundedBuffer) Len() int { return b.buffer.Len() }
+
+// Bytes returns the captured output through the buffer's bounded write path.
+func (b *boundedBuffer) Bytes() []byte { return b.buffer.Bytes() }
+
+// String returns the captured output as text.
 func (b *boundedBuffer) String() string { return b.buffer.String() }
+
+// command captures bounded Docker streams and propagates child cancellation/errors.
 func (m *Manager) command(ctx context.Context, limit int, args ...string) ([]byte, []byte, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 )
 
+// The dependency base and inventory paths are fixed inputs to image preparation.
 const (
 	// BaseImage is the pinned public Ubuntu 26.04 base also used by the camera
 	// builder. It is not an identity for a completed sensor dependency image.

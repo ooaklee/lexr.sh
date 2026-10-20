@@ -9,6 +9,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// inspectWorkParent requires an owned, private directory opened without symlinks.
 func inspectWorkParent(name string) error {
 	fd, err := unix.Open(name, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 	if err != nil {

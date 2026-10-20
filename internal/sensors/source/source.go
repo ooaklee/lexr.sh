@@ -19,6 +19,7 @@ import (
 	"unicode"
 )
 
+// Source authority and size limits are compiled policy, not checkout metadata.
 const (
 	approvedCommit     = "649cc875d08c04ce33bc8afc2a0ff7a22ce362e0"
 	sourcePrefix       = "userspace/sensors"
@@ -62,6 +63,7 @@ func (c Composition) Metadata() []File { return append([]File(nil), c.metadata..
 // Symlinks returns a defensive copy of the exact internal source links.
 func (c Composition) Symlinks() []Symlink { return append([]Symlink(nil), c.links...) }
 
+// metadataPin binds one metadata record to its expected digest, size and roster.
 type metadataPin struct {
 	name   string
 	sha256 string
@@ -70,6 +72,7 @@ type metadataPin struct {
 	links  int
 }
 
+// authority contains the fixed lineage and private hooks used by controlled tests.
 type authority struct {
 	commit     string
 	components []metadataPin
@@ -88,12 +91,14 @@ func approvedAuthority() authority {
 	}, checksums: metadataPin{name: "SOURCE.sha256", sha256: "4fd055d4d21700047d2970fdd0ae5ddf9deda350d4de7cc298a2fc7a64ae796d", bytes: 119728}}
 }
 
+// inventoryFile is one file description decoded from an authenticated inventory.
 type inventoryFile struct {
 	Bytes   int64  `json:"bytes"`
 	SHA256  string `json:"sha256"`
 	GitMode string `json:"git_mode"`
 }
 
+// inventory describes one component's closed file and symlink roster.
 type inventory struct {
 	Schema        string                   `json:"schema"`
 	Component     string                   `json:"component"`
@@ -103,10 +108,13 @@ type inventory struct {
 	Symlinks      map[string]string        `json:"symlinks"`
 }
 
+// capturedFile retains verified bytes alongside their expected source identity.
 type capturedFile struct {
 	identity File
 	data     []byte
 }
+
+// snapshot groups the authenticated composition and its captured regular files.
 type snapshot struct {
 	composition Composition
 	files       []capturedFile
@@ -130,6 +138,7 @@ func Stage(repositoryRoot, destination string) (Composition, error) {
 	return stage(repositoryRoot, destination, approvedAuthority())
 }
 
+// capture opens the repository root and reads the composition under fixed policy.
 func capture(repositoryRoot string, policy authority) (snapshot, error) {
 	if err := regularReadSupported(); err != nil {
 		return snapshot{}, err
@@ -142,6 +151,7 @@ func capture(repositoryRoot string, policy authority) (snapshot, error) {
 	return captureRoot(r, policy)
 }
 
+// captureRoot authenticates metadata and source bytes through one confined root.
 func captureRoot(r *os.Root, policy authority) (snapshot, error) {
 	for _, name := range []string{"userspace", sourcePrefix} {
 		if err := requireDirectory(r, name); err != nil {
@@ -222,6 +232,7 @@ func captureRoot(r *os.Root, policy authority) (snapshot, error) {
 	return s, nil
 }
 
+// inventoryNodes validates inventory paths and derives their complete node set.
 func inventoryNodes(inv inventory) (map[string]byte, error) {
 	wanted := map[string]byte{".": 'd'}
 	for name, file := range inv.Files {
@@ -250,6 +261,7 @@ func inventoryNodes(inv inventory) (map[string]byte, error) {
 	return wanted, nil
 }
 
+// addNode records a node and its parent directories, refusing conflicting kinds.
 func addNode(wanted map[string]byte, name string, kind byte) error {
 	if _, exists := wanted[name]; exists {
 		return errors.New("duplicate or overlapping source member")
@@ -264,6 +276,7 @@ func addNode(wanted map[string]byte, name string, kind byte) error {
 	return nil
 }
 
+// safeRelative admits canonical relative names without unsafe separators or bytes.
 func safeRelative(name string) bool {
 	if name == "." || !fs.ValidPath(name) || strings.Contains(name, "\\") || path.Clean(name) != name {
 		return false
@@ -276,11 +289,13 @@ func safeRelative(name string) bool {
 	return true
 }
 
+// validSHA256 recognises an exact lowercase hexadecimal SHA-256 digest.
 func validSHA256(value string) bool {
 	decoded, err := hex.DecodeString(value)
 	return err == nil && len(decoded) == sha256.Size && strings.ToLower(value) == value
 }
 
+// requireDirectory requires the selected confined entry to be a real directory.
 func requireDirectory(r *os.Root, name string) error {
 	info, err := r.Lstat(name)
 	if err != nil {
@@ -292,6 +307,7 @@ func requireDirectory(r *os.Root, name string) error {
 	return nil
 }
 
+// verifyTree compares the complete observed tree with the permitted node roster.
 func verifyTree(r *os.Root, base string, wanted map[string]byte) error {
 	seen := make(map[string]bool, len(wanted))
 	err := fs.WalkDir(r.FS(), base, func(name string, _ fs.DirEntry, walkErr error) error {
@@ -326,6 +342,7 @@ func verifyTree(r *os.Root, base string, wanted map[string]byte) error {
 	return nil
 }
 
+// gitMode projects filesystem permissions onto Git's regular executable-bit class.
 func gitMode(mode os.FileMode) string {
 	if mode.Perm()&0o111 != 0 {
 		return "100755"
@@ -333,6 +350,7 @@ func gitMode(mode os.FileMode) string {
 	return "100644"
 }
 
+// readVerified checks regular-file identity, size, mode and digest around its read.
 func readVerified(r *os.Root, name string, expected File, beforeOpen func(*os.Root, string) error) ([]byte, error) {
 	if !safeRelative(name) || expected.Bytes < 0 || expected.Bytes > maximumFileBytes || !validSHA256(expected.SHA256) {
 		return nil, errors.New("invalid compiled file authority")
@@ -374,6 +392,7 @@ func readVerified(r *os.Root, name string, expected File, beforeOpen func(*os.Ro
 	return data, nil
 }
 
+// stage copies captured bytes into a fresh confined destination without reuse.
 func stage(repositoryRoot, destination string, policy authority) (Composition, error) {
 	if err := regularReadSupported(); err != nil {
 		return Composition{}, err
@@ -492,6 +511,7 @@ func stage(repositoryRoot, destination string, policy authority) (Composition, e
 	return s.composition, nil
 }
 
+// writeCaptured exclusively creates one verified source file and rechecks its bytes.
 func writeCaptured(r *os.Root, captured capturedFile) error {
 	entry := captured.identity
 	file, err := r.OpenFile(entry.Path, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0o600)
@@ -530,6 +550,7 @@ func writeCaptured(r *os.Root, captured capturedFile) error {
 	return file.Close()
 }
 
+// overlap reports equal paths or ancestry in either pathname direction.
 func overlap(first, second string) bool {
 	within := func(base, candidate string) bool {
 		rel, err := filepath.Rel(base, candidate)
@@ -538,6 +559,7 @@ func overlap(first, second string) bool {
 	return within(first, second) || within(second, first)
 }
 
+// sortedKeys returns deterministic lexical ordering for a map's keys.
 func sortedKeys[V any](values map[string]V) []string {
 	keys := make([]string, 0, len(values))
 	for key := range values {
@@ -547,6 +569,7 @@ func sortedKeys[V any](values map[string]V) []string {
 	return keys
 }
 
+// sourceError labels a failed operation without exposing nested filesystem paths.
 func sourceError(action, member string, err error) error {
 	var pathErr *os.PathError
 	if errors.As(err, &pathErr) {

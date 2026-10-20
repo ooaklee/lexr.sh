@@ -25,13 +25,16 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/sensors/source"
 )
 
+// controllerTestEngine fixes the simulated daemon identity for controller lifecycle tests.
 const controllerTestEngine = "controller-fixture-engine-00000001"
 
+// Controller fixture image references are immutable synthetic identities, not local images.
 var (
 	controllerTestBase  = "sha256:" + strings.Repeat("a", 64)
 	controllerTestImage = "sha256:" + strings.Repeat("b", 64)
 )
 
+// controllerTestCall records the operation arguments and context state at the simulated boundary.
 type controllerTestCall struct {
 	args     []string
 	deadline bool
@@ -60,11 +63,13 @@ type controllerTestRunner struct {
 	onStart         func(string, *sourceContainerInspection)
 }
 
+// newControllerTestRunner creates an isolated in-memory daemon and resource registry.
 func newControllerTestRunner(t *testing.T) *controllerTestRunner {
 	t.Helper()
 	return &controllerTestRunner{t: t, engine: controllerTestEngine, version: "29.1.3", containers: map[string]*sourceContainerInspection{}, names: map[string]string{}, volumes: map[string]volumeInspection{}, inspections: map[string]int{}}
 }
 
+// controllerTestManager pairs production orchestration with bounded fake process and transport observations.
 func controllerTestManager(r *controllerTestRunner) *Manager {
 	m := New(r)
 	// Existing controller tests deliberately simulate execution/transport. The
@@ -77,6 +82,7 @@ func controllerTestManager(r *controllerTestRunner) *Manager {
 	return m
 }
 
+// controllerTestWriteJSON emits one simulated Docker observation through the supplied output stream.
 func controllerTestWriteJSON(w io.Writer, value any) error {
 	b, err := json.Marshal(value)
 	if err != nil {
@@ -86,6 +92,7 @@ func controllerTestWriteJSON(w io.Writer, value any) error {
 	return err
 }
 
+// controllerTestClone isolates nested fixture state before an inspection mutation.
 func controllerTestClone[T any](t *testing.T, value T) T {
 	t.Helper()
 	b, err := json.Marshal(value)
@@ -99,11 +106,13 @@ func controllerTestClone[T any](t *testing.T, value T) T {
 	return copy
 }
 
+// Capture refuses the unbounded process shortcut so controller commands must use bounded Run calls.
 func (r *controllerTestRunner) Capture(context.Context, platform.Command) ([]byte, error) {
 	r.captures++
 	return nil, errors.New("unbounded Capture is forbidden in controller tests")
 }
 
+// Run simulates only the declared Docker lifecycle while retaining all resources for assertions.
 func (r *controllerTestRunner) Run(ctx context.Context, command platform.Command) (err error) {
 	_, bounded := ctx.Deadline()
 	r.calls = append(r.calls, controllerTestCall{append([]string(nil), command.Args...), bounded, ctx.Err() != nil})
@@ -289,10 +298,12 @@ func (r *controllerTestRunner) Run(ctx context.Context, command platform.Command
 	}
 }
 
+// controllerTestDependencyEnv supplies the exact fixed environment expected by dependency preparation.
 func controllerTestDependencyEnv() []string {
 	return []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "DEBIAN_FRONTEND=noninteractive", "LANG=C.UTF-8", "LC_ALL=C.UTF-8", "TZ=UTC", "PYTHONDONTWRITEBYTECODE=1"}
 }
 
+// controllerTestPhase identifies the simulated dependency, initialisation or source phase.
 func controllerTestPhase(c sourceContainerInspection) string {
 	if strings.HasPrefix(c.Name, "/lexr-sensors-deps-") {
 		return "dependencies"
@@ -300,6 +311,7 @@ func controllerTestPhase(c sourceContainerInspection) string {
 	return c.Config.Labels[sourcePhaseLabel]
 }
 
+// createContainer decodes the closed fixture command grammar into requested and effective observations.
 func (r *controllerTestRunner) createContainer(args []string) (sourceContainerInspection, error) {
 	var c sourceContainerInspection
 	flags := map[string][]string{}
@@ -394,6 +406,7 @@ func (r *controllerTestRunner) createContainer(args []string) (sourceContainerIn
 	return c, nil
 }
 
+// controllerTestInventory wraps explicitly synthetic package or toolchain rows in a copy archive.
 func controllerTestInventory(t *testing.T, packages bool) []byte {
 	t.Helper()
 	name := filepath.Base(builderimage.ToolchainInventoryPath)
@@ -409,6 +422,7 @@ func controllerTestInventory(t *testing.T, packages bool) []byte {
 	return writeFixtureTar(t, []fixtureTarMember{{tar.Header{Name: name, Mode: 0o644, Typeflag: tar.TypeReg, Size: int64(len(text)), Format: tar.FormatUSTAR}, []byte(text)}})
 }
 
+// controllerTestParents creates fresh private repository, work and output parents for filesystem fixtures.
 func controllerTestParents(t *testing.T) Request {
 	t.Helper()
 	parent, err := filepath.EvalSymlinks(t.TempDir())
@@ -434,6 +448,7 @@ func controllerTestParents(t *testing.T) Request {
 	return r
 }
 
+// controllerTestNoEffects requires planning refusals to leave process and filesystem boundaries untouched.
 func controllerTestNoEffects(t *testing.T, r *controllerTestRunner, request Request) {
 	t.Helper()
 	if len(r.calls) != 0 || r.captures != 0 {
@@ -447,6 +462,7 @@ func controllerTestNoEffects(t *testing.T, r *controllerTestRunner, request Requ
 	}
 }
 
+// TestControllerSafeBlockedPlansAndDryRunsHaveNoEffects keeps unsupported plans non-executing.
 func TestControllerSafeBlockedPlansAndDryRunsHaveNoEffects(t *testing.T) {
 	for _, host := range []hostcap.Host{{GOOS: "linux", GOARCH: "amd64"}, {GOOS: "windows", GOARCH: "arm64"}, {}} {
 		t.Run(host.GOOS+"-"+host.GOARCH, func(t *testing.T) {
@@ -486,6 +502,7 @@ func TestControllerSafeBlockedPlansAndDryRunsHaveNoEffects(t *testing.T) {
 	})
 }
 
+// TestControllerInvalidRequestsAndUnauthenticatedSourceHaveNoEffects rejects invalid authority before work.
 func TestControllerInvalidRequestsAndUnauthenticatedSourceHaveNoEffects(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -540,6 +557,7 @@ func TestControllerInvalidRequestsAndUnauthenticatedSourceHaveNoEffects(t *testi
 	controllerTestNoEffects(t, r, request)
 }
 
+// approvedControllerRequest requires explicit authenticated OE sources before enabling composition fixtures.
 func approvedControllerRequest(t *testing.T) Request {
 	t.Helper()
 	root := os.Getenv("LEXR_TEST_SENSOR_OE_ROOT")
@@ -561,7 +579,7 @@ func approvedControllerRequest(t *testing.T) Request {
 	return r
 }
 
-// The archive contains serialized, nonexecuted ELF metadata fixtures. Actual
+// The archive contains serialised, nonexecuted ELF metadata fixtures. Actual
 // approved licence bytes are read only after the full source.Verify gate. The
 // unchanged public decoder supplies all authority; the fixture policy seam and
 // VerifiedArtifacts private fields are never used by this controller fixture.
@@ -586,6 +604,7 @@ func controllerTestArchive(t *testing.T, repository string, jobs int) []byte {
 	return copyBytes
 }
 
+// controllerTestAssertNoDeletion rejects unbounded, destructive or unowned simulator operations.
 func controllerTestAssertNoDeletion(t *testing.T, r *controllerTestRunner) {
 	t.Helper()
 	if r.captures != 0 {
@@ -604,6 +623,7 @@ func controllerTestAssertNoDeletion(t *testing.T, r *controllerTestRunner) {
 	}
 }
 
+// controllerTestCount counts a named operation across the recorded simulated command stream.
 func controllerTestCount(r *controllerTestRunner, operation string) int {
 	n := 0
 	for _, call := range r.calls {
@@ -614,6 +634,7 @@ func controllerTestCount(r *controllerTestRunner, operation string) int {
 	return n
 }
 
+// controllerTestWithheld checks that a failed chain publishes nothing and retains its resources.
 func controllerTestWithheld(t *testing.T, r *controllerTestRunner, result Result, err error) {
 	t.Helper()
 	if err == nil || result.Publication.Published || result.Publication.Directory != "" {
@@ -626,6 +647,7 @@ func controllerTestWithheld(t *testing.T, r *controllerTestRunner, result Result
 	controllerTestAssertNoDeletion(t, r)
 }
 
+// TestControllerApprovedPlanAndPublicationOptIn composes real source authority and decoding with simulated execution.
 func TestControllerApprovedPlanAndPublicationOptIn(t *testing.T) {
 	request := approvedControllerRequest(t)
 	r := newControllerTestRunner(t)
@@ -696,6 +718,7 @@ func TestControllerApprovedPlanAndPublicationOptIn(t *testing.T) {
 	controllerTestAssertNoDeletion(t, r)
 }
 
+// TestControllerApprovedRefusalsAndTerminalLifecycleOptIn withholds publication across phase and terminal failures.
 func TestControllerApprovedRefusalsAndTerminalLifecycleOptIn(t *testing.T) {
 	_ = approvedControllerRequest(t)
 	cases := []struct {
@@ -920,6 +943,7 @@ func TestControllerApprovedRefusalsAndTerminalLifecycleOptIn(t *testing.T) {
 	}
 }
 
+// TestControllerApprovedCancellationUsesFreshRecoveryOptIn observes owned termination through a fresh bounded context.
 func TestControllerApprovedCancellationUsesFreshRecoveryOptIn(t *testing.T) {
 	for _, boundary := range []string{"dependency-commit", "volume-create", "init-start", "source-start", "source-copy"} {
 		t.Run(boundary, func(t *testing.T) {
@@ -983,6 +1007,7 @@ func TestControllerApprovedCancellationUsesFreshRecoveryOptIn(t *testing.T) {
 	}
 }
 
+// TestControllerApprovedRetainsAndRevalidatesDependencyAfterSourceFailureOptIn preserves readiness without trusting a changed daemon.
 func TestControllerApprovedRetainsAndRevalidatesDependencyAfterSourceFailureOptIn(t *testing.T) {
 	request := approvedControllerRequest(t)
 	r := newControllerTestRunner(t)
@@ -1008,6 +1033,7 @@ func TestControllerApprovedRetainsAndRevalidatesDependencyAfterSourceFailureOptI
 	controllerTestAssertNoDeletion(t, r)
 }
 
+// TestControllerBoundedBufferRejectsWriteShortcuts prevents writer interfaces bypassing the output limit.
 func TestControllerBoundedBufferRejectsWriteShortcuts(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

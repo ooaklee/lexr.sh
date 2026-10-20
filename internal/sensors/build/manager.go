@@ -21,10 +21,17 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/sensors/source"
 )
 
+// buildTokenPattern fixes fresh operation tokens to the generated 96-bit form.
 var buildTokenPattern = regexp.MustCompile(`^[0-9a-f]{24}$`)
+
+// buildContainerIDPattern requires complete Docker IDs before ownership checks.
 var buildContainerIDPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
+// buildHostRequirement refuses implicit emulation or unsupported controller hosts.
 var buildHostRequirement = hostcap.Requirement{Operation: "native offline sensor source build", OperatingSystems: []string{"linux", "darwin"}, Architectures: []string{"arm64"}}
 
+// plan checks arguments, host support, disjoint parents and authenticated source
+// without acquiring dependencies, contacting Docker or creating build outputs.
 func (m *Manager) plan(ctx context.Context, r Request) (Plan, error) {
 	var p Plan
 	if m == nil || m.runner == nil || m.dependencies == nil || m.bindTransport == nil || m.token == nil || m.timeout <= 0 || m.initTimeout <= 0 || m.sourceTimeout <= 0 || m.recoveryTimeout <= 0 {
@@ -394,6 +401,7 @@ func (m *Manager) Run(ctx context.Context, r Request) (result Result, resultErr 
 	return result, nil
 }
 
+// writeBuildBytes retains one new private byte stream with a durability barrier.
 func writeBuildBytes(name string, data []byte) error {
 	f, err := os.OpenFile(name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
@@ -409,6 +417,7 @@ func writeBuildBytes(name string, data []byte) error {
 	return f.Close()
 }
 
+// writeBuildRecord writes a new private JSON checkpoint without replacing evidence.
 func writeBuildRecord(directory, name string, value any) error {
 	f, err := os.OpenFile(filepath.Join(directory, name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
@@ -424,6 +433,8 @@ func writeBuildRecord(directory, name string, value any) error {
 	return f.Close()
 }
 
+// readyImage rechecks the bound engine and exact image from this owner's opaque
+// Prepared handle before allowing either source phase to use it.
 func (m *Manager) readyImage(ctx context.Context) (string, string, string, []string, error) {
 	if m.prepared == nil {
 		return "", "", "", nil, errors.New("source dependency image is not prepared")
@@ -462,6 +473,7 @@ func (m *Manager) readyImage(ctx context.Context) (string, string, string, []str
 	return engine, version, image, env, err
 }
 
+// verifyVolume requires the owned local volume and unchanged recipe labels.
 func (m *Manager) verifyVolume(ctx context.Context, name, token string) error {
 	b, _, err := m.command(ctx, 256<<10, "volume", "inspect", name)
 	if err != nil {
@@ -474,6 +486,8 @@ func (m *Manager) verifyVolume(ctx context.Context, name, token string) error {
 	return validateOwnedVolume(v, name, token)
 }
 
+// inspectPhase rechecks the transport and exact container ownership before state
+// observations are used by execution, post-build checks or recovery.
 func (m *Manager) inspectPhase(ctx context.Context, spec sourceDockerSpec, id string) (sourceContainerInspection, error) {
 	var c sourceContainerInspection
 	if m.transport == nil {
@@ -496,6 +510,8 @@ func (m *Manager) inspectPhase(ctx context.Context, spec sourceDockerSpec, id st
 	return c, exactContainerOwnership(c, spec, id)
 }
 
+// runPhase creates and supervises one bounded owned container, then separately
+// observes stopped/successful state rather than trusting client exit alone.
 func (m *Manager) runPhase(parent context.Context, spec sourceDockerSpec, result *PhaseResult, deadline time.Duration) (stopped bool, resultErr error) {
 	ctx, cancel := context.WithTimeout(parent, deadline)
 	defer cancel()
@@ -558,6 +574,8 @@ func (m *Manager) runPhase(parent context.Context, spec sourceDockerSpec, result
 	return stopped, nil
 }
 
+// recoverPhase stops only a freshly re-identified owned container and retains
+// uncertainty when its final stopped state cannot be verified.
 func (m *Manager) recoverPhase(spec sourceDockerSpec, result *PhaseResult) error {
 	ctx, cancel := context.WithTimeout(context.Background(), m.recoveryTimeout)
 	defer cancel()
@@ -585,6 +603,8 @@ func (m *Manager) recoverPhase(spec sourceDockerSpec, result *PhaseResult) error
 	return nil
 }
 
+// verifyCompletedPhase requires unchanged policy and exact successful terminal
+// observations before completed work can contribute to publication.
 func (m *Manager) verifyCompletedPhase(ctx context.Context, spec sourceDockerSpec, want *Terminal) error {
 	if want == nil || !successfulSourceTerminal(*want) {
 		return errors.New("source phase has no successful terminal proof")
@@ -606,6 +626,7 @@ func (m *Manager) verifyCompletedPhase(ctx context.Context, spec sourceDockerSpe
 	return nil
 }
 
+// buildBoundedBuffer cancels the owning command instead of truncating excess data.
 type buildBoundedBuffer struct {
 	data     bytes.Buffer
 	limit    int
@@ -613,6 +634,7 @@ type buildBoundedBuffer struct {
 	cancel   context.CancelFunc
 }
 
+// Write rejects bytes beyond the fixed stream bound and requests cancellation.
 func (b *buildBoundedBuffer) Write(p []byte) (int, error) {
 	if len(p) > b.limit-b.data.Len() {
 		b.exceeded = true
@@ -621,6 +643,9 @@ func (b *buildBoundedBuffer) Write(p []byte) (int, error) {
 	}
 	return b.data.Write(p)
 }
+
+// command bounds stdout/stderr independently and preserves diagnostics with
+// cancellation or runner failures from the manager's selected Docker runner.
 func (m *Manager) command(parent context.Context, limit int, args ...string) ([]byte, []byte, error) {
 	if err := parent.Err(); err != nil {
 		return nil, nil, err

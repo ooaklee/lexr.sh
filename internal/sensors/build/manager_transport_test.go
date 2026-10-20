@@ -26,6 +26,7 @@ type controllerTestTransport struct {
 	hostPaths     []string
 }
 
+// controllerTestBindTransport admits only the exact controller simulator and retains its engine identity.
 func controllerTestBindTransport(ctx context.Context, runner platform.Runner, _ hostcap.Host) (sourceTransportBinding, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -37,12 +38,15 @@ func controllerTestBindTransport(ctx context.Context, runner platform.Runner, _ 
 	return &controllerTestTransport{runner: runner, underlying: r, engine: r.engine, version: r.version}, nil
 }
 
+// Runner returns the transport's original process boundary without reconstruction.
 func (b *controllerTestTransport) Runner() platform.Runner { return b.runner }
 
+// EngineIdentity reports the daemon identity captured by the simulated binding.
 func (b *controllerTestTransport) EngineIdentity() (string, string) {
 	return b.engine, b.version
 }
 
+// DaemonSnapshotPath records canonical source coordinates and applies the controlled fixture prefix.
 func (b *controllerTestTransport) DaemonSnapshotPath(host string) (string, error) {
 	if !filepath.IsAbs(host) || filepath.Clean(host) != host {
 		return "", errors.New("fake transport received a noncanonical host snapshot")
@@ -51,6 +55,7 @@ func (b *controllerTestTransport) DaemonSnapshotPath(host string) (string, error
 	return b.daemonPrefix + host, nil
 }
 
+// Verify checks cancellation and the pinned simulator engine identity on each reuse.
 func (b *controllerTestTransport) Verify(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -65,9 +70,13 @@ func (b *controllerTestTransport) Verify(ctx context.Context) error {
 	return nil
 }
 
+// controllerTestPinnedPrefix is the exact admitted selection prefix expected at the decorated boundary.
 var controllerTestPinnedPrefix = []string{"--config", "/fixture/docker-config", "--host", "unix:///fixture/docker.sock"}
+
+// controllerTestPinnedEnv lists the inherited transport selectors neutralised by the fixture runner.
 var controllerTestPinnedEnv = []string{"DOCKER_HOST=", "DOCKER_CONTEXT=", "DOCKER_TLS=", "DOCKER_TLS_VERIFY=", "DOCKER_CERT_PATH=", "DOCKER_API_VERSION="}
 
+// controllerTestPinnedCall preserves the decorated command and context state for routing assertions.
 type controllerTestPinnedCall struct {
 	name     string
 	args     []string
@@ -76,7 +85,7 @@ type controllerTestPinnedCall struct {
 	canceled bool
 }
 
-// A separate fake boundary validates the decorated command before normalizing
+// A separate fake boundary validates the decorated command before normalising
 // that exact prefix for the unchanged legacy Docker-operation simulator. If a
 // Manager/dependency/recovery path bypasses the bound Runner, counts diverge.
 type controllerTestPinnedBoundary struct {
@@ -84,6 +93,7 @@ type controllerTestPinnedBoundary struct {
 	calls  []controllerTestPinnedCall
 }
 
+// Run validates the frozen wrapper before delegating to the unchanged operation simulator.
 func (b *controllerTestPinnedBoundary) Run(ctx context.Context, command platform.Command) error {
 	_, bounded := ctx.Deadline()
 	b.calls = append(b.calls, controllerTestPinnedCall{command.Name, append([]string(nil), command.Args...), append([]string(nil), command.Env...), bounded, ctx.Err() != nil})
@@ -96,12 +106,15 @@ func (b *controllerTestPinnedBoundary) Run(ctx context.Context, command platform
 	return b.runner.Run(ctx, command)
 }
 
+// Capture refuses the unbounded capture shortcut at the pinned controller boundary.
 func (b *controllerTestPinnedBoundary) Capture(context.Context, platform.Command) ([]byte, error) {
 	return nil, errors.New("controller transport tests forbid Capture")
 }
 
+// controllerTestPinnedRunner applies the fixed transport wrapper before entering its paired boundary.
 type controllerTestPinnedRunner struct{ boundary *controllerTestPinnedBoundary }
 
+// Run decorates only the manager's expected unselected Docker commands.
 func (r *controllerTestPinnedRunner) Run(ctx context.Context, command platform.Command) error {
 	if command.Name != "docker" || len(command.Env) != 0 {
 		return errors.New("Manager supplied an unexpected command to its bound fake transport")
@@ -112,15 +125,18 @@ func (r *controllerTestPinnedRunner) Run(ctx context.Context, command platform.C
 	return r.boundary.Run(ctx, command)
 }
 
+// Capture keeps the manager tests on bounded Run observations rather than a capture shortcut.
 func (r *controllerTestPinnedRunner) Capture(context.Context, platform.Command) ([]byte, error) {
 	return nil, errors.New("controller transport tests forbid Capture")
 }
 
+// controllerTestPinnedTransport pairs a decorated process runner with its original simulator ownership.
 func controllerTestPinnedTransport(r *controllerTestRunner) (*controllerTestTransport, *controllerTestPinnedBoundary) {
 	boundary := &controllerTestPinnedBoundary{runner: r}
 	return &controllerTestTransport{runner: &controllerTestPinnedRunner{boundary}, underlying: r, engine: r.engine, version: r.version}, boundary
 }
 
+// controllerTestAssertPinned requires every dependency, source and recovery command to traverse the binding.
 func controllerTestAssertPinned(t *testing.T, r *controllerTestRunner, boundary *controllerTestPinnedBoundary) {
 	t.Helper()
 	if len(boundary.calls) == 0 || len(boundary.calls) != len(r.calls) {
@@ -134,6 +150,7 @@ func controllerTestAssertPinned(t *testing.T, r *controllerTestRunner, boundary 
 	controllerTestAssertNoDeletion(t, r)
 }
 
+// TestControllerTransportIsNotBoundForSafeRefusals rejects invalid requests before transport observations.
 func TestControllerTransportIsNotBoundForSafeRefusals(t *testing.T) {
 	for _, kind := range []string{"unsupported", "invalid", "no-pull"} {
 		t.Run(kind, func(t *testing.T) {
@@ -163,6 +180,7 @@ func TestControllerTransportIsNotBoundForSafeRefusals(t *testing.T) {
 	}
 }
 
+// TestControllerTransportDryRunDoesNotBindOptIn keeps authenticated planning independent of daemon readiness.
 func TestControllerTransportDryRunDoesNotBindOptIn(t *testing.T) {
 	request := approvedControllerRequest(t)
 	request.DryRun = true
@@ -182,6 +200,7 @@ func TestControllerTransportDryRunDoesNotBindOptIn(t *testing.T) {
 	controllerTestNoEffects(t, r, request)
 }
 
+// TestControllerTransportFailurePrecedesDependencyEffectsOptIn refuses an invalid binding before image preparation.
 func TestControllerTransportFailurePrecedesDependencyEffectsOptIn(t *testing.T) {
 	for _, kind := range []string{"factory", "verification"} {
 		t.Run(kind, func(t *testing.T) {
@@ -208,6 +227,7 @@ func TestControllerTransportFailurePrecedesDependencyEffectsOptIn(t *testing.T) 
 	}
 }
 
+// TestControllerTransportRetainsOriginAndPinsReuseOptIn preserves the original dependency producer and transport.
 func TestControllerTransportRetainsOriginAndPinsReuseOptIn(t *testing.T) {
 	for _, firstSourceFails := range []bool{false, true} {
 		t.Run(fmt.Sprintf("first-source-fails-%t", firstSourceFails), func(t *testing.T) {
@@ -260,6 +280,7 @@ func TestControllerTransportRetainsOriginAndPinsReuseOptIn(t *testing.T) {
 	}
 }
 
+// TestControllerTransportCancellationRecoveryStaysBoundOptIn uses the admitted endpoint for fresh recovery work.
 func TestControllerTransportCancellationRecoveryStaysBoundOptIn(t *testing.T) {
 	request := approvedControllerRequest(t)
 	r := newControllerTestRunner(t)
@@ -296,6 +317,7 @@ func TestControllerTransportCancellationRecoveryStaysBoundOptIn(t *testing.T) {
 	controllerTestAssertPinned(t, r, boundary)
 }
 
+// TestControllerTransportIdentityChangeWithholdsPublicationOptIn refuses success after daemon identity drift.
 func TestControllerTransportIdentityChangeWithholdsPublicationOptIn(t *testing.T) {
 	for _, field := range []string{"engine", "version"} {
 		t.Run(field, func(t *testing.T) {
@@ -336,6 +358,7 @@ func TestControllerTransportIdentityChangeWithholdsPublicationOptIn(t *testing.T
 	}
 }
 
+// TestControllerTransportDarwinStoredMountMappingOptIn keeps host and daemon coordinates distinct in controller policy.
 func TestControllerTransportDarwinStoredMountMappingOptIn(t *testing.T) {
 	for _, corruption := range []string{"none", "requested-host-path", "effective-host-path", "requested-wrong-suffix", "effective-double-prefix"} {
 		t.Run(corruption, func(t *testing.T) {

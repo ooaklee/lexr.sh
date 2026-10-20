@@ -7,9 +7,13 @@ import (
 	"testing"
 )
 
+// volumeTestToken supplies the fixed ownership token for simulated fresh volumes.
 const volumeTestToken = "0123456789abcdef01234567"
+
+// volumeTestName supplies the compiled-prefix name paired with the ownership token.
 const volumeTestName = "lexr-sensors-work-0123456789abcdef01234567"
 
+// volumeTestInspection constructs one accepted local-volume observation without Docker access.
 func volumeTestInspection() volumeInspection {
 	return volumeInspection{Name: volumeTestName, Driver: "local", Scope: "local", Mountpoint: "daemon-bookkeeping-not-a-host-access-grant", Labels: map[string]string{
 		"io.lexr.sensors.source":        "source-build-v1",
@@ -19,6 +23,7 @@ func volumeTestInspection() volumeInspection {
 	}}
 }
 
+// TestVolumeCreateArgumentsAreFixedAndIdentityBound checks exact driver, ownership and naming arguments.
 func TestVolumeCreateArgumentsAreFixedAndIdentityBound(t *testing.T) {
 	wanted := []string{"volume", "create", "--driver", "local", "--label", "io.lexr.sensors.source=source-build-v1", "--label", "io.lexr.sensors.token=" + volumeTestToken, "--label", "io.lexr.sensors.init-recipe=" + InitRecipeSHA256(), "--label", "io.lexr.sensors.source-recipe=" + SourceRecipeSHA256(), volumeTestName}
 	if got := volumeCreateArgs(volumeTestName, volumeTestToken); !reflect.DeepEqual(got, wanted) {
@@ -40,6 +45,7 @@ func TestVolumeCreateArgumentsAreFixedAndIdentityBound(t *testing.T) {
 	}
 }
 
+// TestOwnedVolumeRequiresExactFreshLocalPolicy refuses altered, shared or mismatched volume observations.
 func TestOwnedVolumeRequiresExactFreshLocalPolicy(t *testing.T) {
 	for _, options := range []map[string]string{nil, {}} {
 		v := volumeTestInspection()
@@ -78,7 +84,7 @@ func TestOwnedVolumeRequiresExactFreshLocalPolicy(t *testing.T) {
 			}
 		})
 	}
-	// No host filesystem access is authorized or needed by this pure validator.
+	// No host filesystem access is authorised or needed by this pure validator.
 	for _, mountpoint := range []string{"", "/path/that/does/not/exist", "../not-a-host-grant"} {
 		v := volumeTestInspection()
 		v.Mountpoint = mountpoint
@@ -88,6 +94,7 @@ func TestOwnedVolumeRequiresExactFreshLocalPolicy(t *testing.T) {
 	}
 }
 
+// volumeTestJSON encodes the accepted synthetic Docker volume-inspection response.
 func volumeTestJSON(t *testing.T) string {
 	t.Helper()
 	data, err := json.Marshal([]volumeInspection{volumeTestInspection()})
@@ -97,6 +104,7 @@ func volumeTestJSON(t *testing.T) string {
 	return string(data)
 }
 
+// TestVolumeInspectionDecodesOneTypedObject admits only the expected single-volume shape.
 func TestVolumeInspectionDecodesOneTypedObject(t *testing.T) {
 	for _, options := range []string{"null", "{}"} {
 		raw := strings.Replace(volumeTestJSON(t), `"Options":null`, `"Options":`+options, 1)
@@ -112,6 +120,7 @@ func TestVolumeInspectionDecodesOneTypedObject(t *testing.T) {
 	}
 }
 
+// TestVolumeInspectionRefusesAmbiguousJSONAndWrongTypes rejects duplicate keys and invalid primitive types.
 func TestVolumeInspectionRefusesAmbiguousJSONAndWrongTypes(t *testing.T) {
 	valid := volumeTestJSON(t)
 	cases := map[string]string{

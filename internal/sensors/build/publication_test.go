@@ -9,8 +9,10 @@ import (
 	"testing"
 )
 
+// publicationTestID fixes the publication identity used by filesystem-only fixtures.
 const publicationTestID = "aaaaaaaaaaaaaaaaaaaaaaaa"
 
+// publicationTestParent creates a private canonical parent for no-replace publication tests.
 func publicationTestParent(t *testing.T) string {
 	t.Helper()
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
@@ -35,6 +37,7 @@ func publicationTestArtifacts() *VerifiedArtifacts {
 	return v
 }
 
+// TestPublicationClosedSetRoundTripAndCollision verifies an exact publication and refuses replacement.
 func TestPublicationClosedSetRoundTripAndCollision(t *testing.T) {
 	parent := publicationTestParent(t)
 	fixture := publicationTestArtifacts()
@@ -84,6 +87,7 @@ func TestPublicationClosedSetRoundTripAndCollision(t *testing.T) {
 	}
 }
 
+// TestPublicationRejectsInvalidInputsBeforeCreatingOutput keeps invalid requests free of filesystem effects.
 func TestPublicationRejectsInvalidInputsBeforeCreatingOutput(t *testing.T) {
 	for _, name := range []string{"nil", "zero", "missing", "extra", "duplicate", "wrong-hash", "wrong-size", "wrong-mode", "changed-data", "missing-data", "missing-link", "duplicate-link", "escaping-link", "bad-id", "empty-id", "array-receipt", "null-receipt", "invalid-receipt", "trailing-receipt", "oversized-receipt"} {
 		t.Run(name, func(t *testing.T) {
@@ -143,6 +147,7 @@ func TestPublicationRejectsInvalidInputsBeforeCreatingOutput(t *testing.T) {
 	}
 }
 
+// TestPublicationRejectsNoncanonicalOrSymlinkParent requires the caller's exact owned output parent.
 func TestPublicationRejectsNoncanonicalOrSymlinkParent(t *testing.T) {
 	base := publicationTestParent(t)
 	parent := filepath.Join(base, "actual")
@@ -160,6 +165,7 @@ func TestPublicationRejectsNoncanonicalOrSymlinkParent(t *testing.T) {
 	}
 }
 
+// TestPublicationRetainsPartialOnWriteOrDirectorySyncFailure preserves evidence when publication cannot complete.
 func TestPublicationRetainsPartialOnWriteOrDirectorySyncFailure(t *testing.T) {
 	for _, phase := range []string{"file", "staging", "parent"} {
 		t.Run(phase, func(t *testing.T) {
@@ -195,6 +201,7 @@ func TestPublicationRetainsPartialOnWriteOrDirectorySyncFailure(t *testing.T) {
 	}
 }
 
+// TestPublicationRechecksStagedBytesModesLinksAndRoster refuses altered staging before the final rename.
 func TestPublicationRechecksStagedBytesModesLinksAndRoster(t *testing.T) {
 	for _, kind := range []string{"bytes", "mode", "link", "symlink-file", "hardlink-file", "extra"} {
 		t.Run(kind, func(t *testing.T) {
@@ -242,6 +249,7 @@ func TestPublicationRechecksStagedBytesModesLinksAndRoster(t *testing.T) {
 	}
 }
 
+// TestPublicationParentReplacementBeforeAndAfterRename distinguishes refused staging from uncertain publication.
 func TestPublicationParentReplacementBeforeAndAfterRename(t *testing.T) {
 	for _, timing := range []string{"before", "after"} {
 		t.Run(timing, func(t *testing.T) {
@@ -285,6 +293,7 @@ func TestPublicationParentReplacementBeforeAndAfterRename(t *testing.T) {
 	}
 }
 
+// TestPublicationCapturesCallerReceiptBytes prevents later caller mutation from changing the written receipt.
 func TestPublicationCapturesCallerReceiptBytes(t *testing.T) {
 	parent := publicationTestParent(t)
 	receipt := []byte(`{"captured":true}`)

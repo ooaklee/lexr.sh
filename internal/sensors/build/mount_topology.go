@@ -10,15 +10,18 @@ import (
 	"unicode/utf8"
 )
 
+// Mount-table bounds limit host metadata reads and parser work before effects.
 const (
 	maximumBuildMountInfoBytes   = 4 << 20
 	maximumBuildMountInfoRecords = 10000
 )
 
+// buildMountRecord maps a visible mountpoint to its underlying device/root.
 type buildMountRecord struct {
 	device, root, mountpoint string
 }
 
+// buildMountCoordinate identifies a selected path in underlying mount coordinates.
 type buildMountCoordinate struct {
 	device, name string
 }
@@ -92,6 +95,8 @@ func validateBuildMountTopology(data []byte, paths []string) error {
 	return nil
 }
 
+// parseBuildMountRecord decodes one bounded Linux mountinfo record without
+// guessing the visibility or meaning of malformed known fields.
 func parseBuildMountRecord(line string) (buildMountRecord, string, error) {
 	var zero buildMountRecord
 	// Kernel mountinfo has fixed space separators and escaped whitespace.
@@ -141,7 +146,7 @@ func parseBuildMountRecord(line string) (buildMountRecord, string, error) {
 		tag, value, colon := strings.Cut(field, ":")
 		if tag != "unbindable" && tag != "shared" && tag != "master" && tag != "propagate_from" {
 			// The Linux mountinfo ABI explicitly tells parsers to ignore
-			// unrecognized optional fields. They supply no path authority.
+			// unrecognised optional fields. They supply no path authority.
 			continue
 		}
 		valid := tag == "unbindable" && !colon
@@ -156,6 +161,7 @@ func parseBuildMountRecord(line string) (buildMountRecord, string, error) {
 	return buildMountRecord{fields[2], root, mountpoint}, fields[0], nil
 }
 
+// canonicalBuildMountNumber checks decimal mount identifiers without aliases.
 func canonicalBuildMountNumber(value string, allowZero bool, bits int) bool {
 	if value == "" || len(value) > 1 && value[0] == '0' || strings.Trim(value, "0123456789") != "" {
 		return false
@@ -164,11 +170,14 @@ func canonicalBuildMountNumber(value string, allowZero bool, bits int) bool {
 	return err == nil && (allowZero || n != 0)
 }
 
+// buildMountAccessOptions requires the leading read-only or read-write marker.
 func buildMountAccessOptions(value string) bool {
 	first, _, _ := strings.Cut(value, ",")
 	return first == "rw" || first == "ro"
 }
 
+// decodeBuildMountField accepts only the documented kernel whitespace escapes
+// and refuses unescaped controls or truncated field encodings.
 func decodeBuildMountField(raw string) (string, error) {
 	if raw == "" {
 		return "", errors.New("empty mountinfo field")
@@ -207,10 +216,12 @@ func decodeBuildMountField(raw string) (string, error) {
 	return result.String(), nil
 }
 
+// normalizedBuildMountPath requires canonical absolute UTF-8 POSIX coordinates.
 func normalizedBuildMountPath(name string) bool {
 	return utf8.ValidString(name) && strings.IndexByte(name, 0) < 0 && path.IsAbs(name) && path.Clean(name) == name
 }
 
+// buildMountContains tests whole-component ancestry rather than path prefixes.
 func buildMountContains(parent, child string) bool {
 	return parent == "/" || parent == child || strings.HasPrefix(child, parent+"/")
 }

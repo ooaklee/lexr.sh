@@ -15,6 +15,7 @@ import (
 	sensorbuild "github.com/ooaklee/lexr.sh/internal/sensors/build"
 )
 
+// recordingSensorBuilder captures native requests and returns a controlled typed result.
 type recordingSensorBuilder struct {
 	requests []sensorbuild.Request
 	contexts []context.Context
@@ -22,6 +23,7 @@ type recordingSensorBuilder struct {
 	err      error
 }
 
+// Run records delegation without starting dependency preparation or compilation.
 func (builder *recordingSensorBuilder) Run(ctx context.Context, request sensorbuild.Request) (sensorbuild.Result, error) {
 	builder.contexts = append(builder.contexts, ctx)
 	builder.requests = append(builder.requests, request)
@@ -44,12 +46,14 @@ func sensorAdapterRepository(t *testing.T) string {
 	return root
 }
 
+// sensorAdapterRequest creates an explicit fixture request with separate temporary parents.
 func sensorAdapterRequest(t *testing.T) Request {
 	t.Helper()
 	return Request{Component: ComponentSensors, RepositoryRoot: sensorAdapterRepository(t),
 		SensorWorkParent: t.TempDir(), OutputDirectory: t.TempDir(), Jobs: 4}
 }
 
+// TestSensorAdapterUsesTypedNativeRequestAndResult checks exact request forwarding and result preservation.
 func TestSensorAdapterUsesTypedNativeRequestAndResult(t *testing.T) {
 	runner := &recordingRunner{}
 	manager := New(runner)
@@ -83,6 +87,7 @@ func TestSensorAdapterUsesTypedNativeRequestAndResult(t *testing.T) {
 	}
 }
 
+// TestSensorAdapterPreservesPartialResultAndOriginalError retains failed native outcomes without flattening them.
 func TestSensorAdapterPreservesPartialResultAndOriginalError(t *testing.T) {
 	wantErr := errors.New("native source terminal remains uncertain")
 	native := &recordingSensorBuilder{err: wantErr, result: sensorbuild.Result{
@@ -97,6 +102,7 @@ func TestSensorAdapterPreservesPartialResultAndOriginalError(t *testing.T) {
 	}
 }
 
+// TestSensorAdapterRunAlsoDelegatesOnlyTheTypedWorkflow checks the convenience entry point uses the same native adapter.
 func TestSensorAdapterRunAlsoDelegatesOnlyTheTypedWorkflow(t *testing.T) {
 	native := &recordingSensorBuilder{}
 	manager := New(&recordingRunner{})
@@ -106,6 +112,7 @@ func TestSensorAdapterRunAlsoDelegatesOnlyTheTypedWorkflow(t *testing.T) {
 	}
 }
 
+// TestSensorAdapterPreservesNativeZeroAndMaximumJobs forwards both the native default and upper job limit unchanged.
 func TestSensorAdapterPreservesNativeZeroAndMaximumJobs(t *testing.T) {
 	for _, jobs := range []int{0, 1, 8} {
 		t.Run(strconv.Itoa(jobs), func(t *testing.T) {
@@ -121,6 +128,7 @@ func TestSensorAdapterPreservesNativeZeroAndMaximumJobs(t *testing.T) {
 	}
 }
 
+// TestSensorAdapterRejectsCrossComponentOptionsBeforeDelegation rejects unrelated image and cache controls.
 func TestSensorAdapterRejectsCrossComponentOptionsBeforeDelegation(t *testing.T) {
 	for _, test := range []struct {
 		name string
@@ -151,6 +159,7 @@ func TestSensorAdapterRejectsCrossComponentOptionsBeforeDelegation(t *testing.T)
 	}
 }
 
+// TestSensorAdapterRequiresExplicitExistingParentsWithoutCreatingThem checks missing parents cause no effects.
 func TestSensorAdapterRequiresExplicitExistingParentsWithoutCreatingThem(t *testing.T) {
 	for _, parent := range []string{"work", "output"} {
 		for _, kind := range []string{"empty", "whitespace", "missing", "regular-file", "broken-link"} {
@@ -193,6 +202,7 @@ func TestSensorAdapterRequiresExplicitExistingParentsWithoutCreatingThem(t *test
 	}
 }
 
+// TestSensorAdapterWorkParentCannotLeakIntoExistingComponents keeps the sensor-only option out of older workflows.
 func TestSensorAdapterWorkParentCannotLeakIntoExistingComponents(t *testing.T) {
 	for _, component := range []Component{ComponentIPTSD, ComponentCamera} {
 		t.Run(string(component), func(t *testing.T) {
@@ -207,6 +217,7 @@ func TestSensorAdapterWorkParentCannotLeakIntoExistingComponents(t *testing.T) {
 	}
 }
 
+// TestSensorAdapterDiscoveryUsesOnlyItsRegularInventoryMarker rejects non-regular discovery markers.
 func TestSensorAdapterDiscoveryUsesOnlyItsRegularInventoryMarker(t *testing.T) {
 	root := sensorAdapterRepository(t)
 	got, err := resolveRepositoryRoot(root, ComponentSensors)
@@ -229,6 +240,7 @@ func TestSensorAdapterDiscoveryUsesOnlyItsRegularInventoryMarker(t *testing.T) {
 	}
 }
 
+// TestSensorAdapterDiscoversSourceByWalkingUpward locates a repository from nested working directories.
 func TestSensorAdapterDiscoversSourceByWalkingUpward(t *testing.T) {
 	root := sensorAdapterRepository(t)
 	nested := filepath.Join(root, "nested", "directory")
@@ -250,6 +262,7 @@ func TestSensorAdapterDiscoversSourceByWalkingUpward(t *testing.T) {
 	}
 }
 
+// TestSensorAdapterDefaultBuilderRetainsNativeAuthenticationAndHostGate preserves real metadata and architecture refusals.
 func TestSensorAdapterDefaultBuilderRetainsNativeAuthenticationAndHostGate(t *testing.T) {
 	runner := &recordingRunner{}
 	manager := New(runner)
@@ -283,6 +296,7 @@ func TestSensorAdapterDefaultBuilderRetainsNativeAuthenticationAndHostGate(t *te
 	}
 }
 
+// TestSensorAdapterUnavailableBuilderAndContextFailWithoutEffects checks absent builders and invalid contexts before delegation.
 func TestSensorAdapterUnavailableBuilderAndContextFailWithoutEffects(t *testing.T) {
 	for _, kind := range []string{"unavailable", "nil-context", "canceled-context"} {
 		t.Run(kind, func(t *testing.T) {

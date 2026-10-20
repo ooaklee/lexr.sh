@@ -22,12 +22,17 @@ import (
 // This private binding is authority established before dependency effects, not
 // a user-selectable namespace alias or an interpretation of inspected mounts.
 type sourceTransportBinding interface {
+	// Runner returns the operation runner pinned to the admitted local transport.
 	Runner() platform.Runner
+	// EngineIdentity returns the engine ID/version captured during binding.
 	EngineIdentity() (string, string)
+	// DaemonSnapshotPath derives the admitted daemon coordinate for a host root.
 	DaemonSnapshotPath(string) (string, error)
+	// Verify rechecks local identities and the same engine without rebinding.
 	Verify(context.Context) error
 }
 
+// sourceTransportPathInfo retains inode, owner and type observations for pins.
 type sourceTransportPathInfo struct {
 	mode          fs.FileMode
 	uid           uint32
@@ -45,20 +50,31 @@ type sourceTransportObservations struct {
 	uid       func() int
 }
 
+// sourceTransportInfoFormat limits engine observations to the required fields.
 const sourceTransportInfoFormat = `{"ID":{{json .ID}},"ServerVersion":{{json .ServerVersion}},"OSType":{{json .OSType}},"Architecture":{{json .Architecture}},"OperatingSystem":{{json .OperatingSystem}}}`
 
+// sourceTransportContextName bounds a read-only Docker context selection name.
 var sourceTransportContextName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$`)
+
+// sourceTransportEngineID accepts only bounded observed daemon identities.
 var sourceTransportEngineID = regexp.MustCompile(`^[A-Za-z0-9:.-]{16,128}$`)
+
+// sourceTransportVersion accepts a bounded, nonempty daemon version token.
 var sourceTransportVersion = regexp.MustCompile(`^[0-9][0-9A-Za-z.+~_-]{0,127}$`)
+
+// sourceTransportClearedEnv lists ambient controls neutralised on bound commands.
 var sourceTransportClearedEnv = []string{
 	"DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_CONFIG", "DOCKER_TLS",
 	"DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH", "DOCKER_API_VERSION", "DOCKER_CUSTOM_HEADERS",
 }
 
+// sourceTransportEngine combines the native platform and daemon identity pins.
 type sourceTransportEngine struct {
 	ID, ServerVersion, OSType, Architecture, OperatingSystem string
 }
 
+// localSourceDockerTransport retains one admitted executable/config/socket and
+// engine binding for dependency preparation, source execution and recovery.
 type localSourceDockerTransport struct {
 	underlying                                         platform.Runner
 	observed                                           sourceTransportObservations
@@ -70,6 +86,7 @@ type localSourceDockerTransport struct {
 	engine                                             sourceTransportEngine
 }
 
+// bindSourceDockerTransport establishes a local binding from real host metadata.
 func bindSourceDockerTransport(ctx context.Context, runner platform.Runner, host hostcap.Host) (sourceTransportBinding, error) {
 	return bindSourceDockerTransportObserved(ctx, runner, host, sourceTransportObservations{
 		environ: os.Environ, home: os.UserHomeDir, lookPath: exec.LookPath,
@@ -77,11 +94,14 @@ func bindSourceDockerTransport(ctx context.Context, runner platform.Runner, host
 	})
 }
 
+// sourceTransportCleanPath checks canonical absolute mount-safe path syntax.
 func sourceTransportCleanPath(name string) bool {
 	return filepath.IsAbs(name) && filepath.Clean(name) == name && utf8.ValidString(name) &&
 		!strings.ContainsAny(name, ",\"") && strings.IndexFunc(name, unicode.IsControl) < 0
 }
 
+// sourceTransportEnvironment refuses ambiguous selectors and unsupported Docker
+// controls before any daemon request or dependency acquisition is attempted.
 func sourceTransportEnvironment(values []string) (map[string]string, error) {
 	out := make(map[string]string)
 	for _, value := range values {
@@ -115,6 +135,8 @@ func sourceTransportEnvironment(values []string) (map[string]string, error) {
 	return out, nil
 }
 
+// bindSourceDockerTransportObserved resolves one local endpoint and pins its
+// filesystem/engine identities using the selected read-only observations.
 func bindSourceDockerTransportObserved(ctx context.Context, runner platform.Runner, host hostcap.Host, observed sourceTransportObservations) (sourceTransportBinding, error) {
 	if ctx == nil || runner == nil || observed.environ == nil || observed.home == nil || observed.lookPath == nil || observed.canonical == nil || observed.lstat == nil || observed.uid == nil {
 		return nil, errors.New("source Docker transport observations are incomplete")
@@ -248,10 +270,13 @@ func bindSourceDockerTransportObserved(ctx context.Context, runner platform.Runn
 	return t, nil
 }
 
+// trusted requires root/current-user ownership and no world-writable entry.
 func (t *localSourceDockerTransport) trusted(info sourceTransportPathInfo) bool {
 	return (info.uid == 0 || info.uid == t.uid) && info.mode.Perm()&0o002 == 0
 }
 
+// checkLocal refuses replacement of the executable/config/socket or the later
+// appearance of a configuration location that was absent during binding.
 func (t *localSourceDockerTransport) checkLocal() error {
 	for name, expected := range map[string]sourceTransportPathInfo{t.executable: t.executableInfo, t.configAnchor: t.configInfo} {
 		actual, err := t.observed.lstat(name)
@@ -273,6 +298,8 @@ func (t *localSourceDockerTransport) checkLocal() error {
 	return nil
 }
 
+// command fixes executable/configuration and optionally endpoint arguments while
+// neutralising inherited Docker selectors and refusing per-command overrides.
 func (t *localSourceDockerTransport) command(command platform.Command, endpoint bool) (platform.Command, error) {
 	if t == nil || t.underlying == nil || t.executable == "" || endpoint && t.endpoint == "" {
 		return command, errors.New("source Docker transport is unbound")
@@ -298,6 +325,7 @@ func (t *localSourceDockerTransport) command(command platform.Command, endpoint 
 	return command, nil
 }
 
+// sourceTransportDecode bounds read-only Docker metadata before strict decoding.
 func sourceTransportDecode(data []byte, target any) error {
 	if len(data) > 64<<10 {
 		return errors.New("Docker transport observation exceeds fixed bound")
@@ -305,6 +333,8 @@ func sourceTransportDecode(data []byte, target any) error {
 	return decodeSourceInspection(data, target)
 }
 
+// capture bounds both metadata streams and observation time; unexpected stderr
+// or cancellation remains an error rather than usable transport evidence.
 func (t *localSourceDockerTransport) capture(parent context.Context, endpoint bool, args ...string) ([]byte, error) {
 	if err := parent.Err(); err != nil {
 		return nil, err
@@ -328,6 +358,8 @@ func (t *localSourceDockerTransport) capture(parent context.Context, endpoint bo
 	return stdout.data.Bytes(), err
 }
 
+// inspectEngine requires native Linux ARM64 identity and the platform marker
+// appropriate to the already admitted local Linux or Desktop transport.
 func (t *localSourceDockerTransport) inspectEngine(ctx context.Context) (sourceTransportEngine, error) {
 	var engine sourceTransportEngine
 	data, err := t.capture(ctx, true, "info", "--format", sourceTransportInfoFormat)
@@ -347,13 +379,18 @@ func (t *localSourceDockerTransport) inspectEngine(ctx context.Context) (sourceT
 	return engine, nil
 }
 
+// Runner exposes this binding's checked forwarding boundary to its owner.
 func (t *localSourceDockerTransport) Runner() platform.Runner { return t }
+
+// EngineIdentity returns captured daemon identity, or empty values if unbound.
 func (t *localSourceDockerTransport) EngineIdentity() (string, string) {
 	if t == nil {
 		return "", ""
 	}
 	return t.engine.ID, t.engine.ServerVersion
 }
+
+// Verify re-observes the same local daemon and refuses any identity/platform drift.
 func (t *localSourceDockerTransport) Verify(ctx context.Context) error {
 	if ctx == nil || t == nil || t.engine.ID == "" {
 		return errors.New("source Docker transport is unbound or has no context")
@@ -368,6 +405,8 @@ func (t *localSourceDockerTransport) Verify(ctx context.Context) error {
 	return nil
 }
 
+// DaemonSnapshotPath derives only the fixed mapping admitted by this binding,
+// after checking the selected host directory's canonical identity and ownership.
 func (t *localSourceDockerTransport) DaemonSnapshotPath(name string) (string, error) {
 	if t == nil || t.engine.ID == "" {
 		return "", errors.New("source Docker transport is unbound")
@@ -392,6 +431,8 @@ func (t *localSourceDockerTransport) DaemonSnapshotPath(name string) (string, er
 	return name, nil
 }
 
+// sourceTransportCommandAllowed confines forwarding to workflow operations and
+// refuses transport-selection flags hidden in caller arguments.
 func sourceTransportCommandAllowed(command platform.Command) error {
 	if command.Name != "docker" || len(command.Args) == 0 || strings.HasPrefix(command.Args[0], "-") {
 		return errors.New("bound runner accepts only operation-first Docker commands")
@@ -422,6 +463,8 @@ func sourceTransportCommandAllowed(command platform.Command) error {
 	return nil
 }
 
+// sourceTransportBashPayload distinguishes the compiled post-image bash position
+// from Docker's similarly named context-selection shorthand.
 func sourceTransportBashPayload(args []string, index int) bool {
 	return len(args) > index+1 && index >= 8 && args[0] == "create" && sourceObjectID.MatchString(args[index-7]) &&
 		args[index-6] == "--signal=TERM" && args[index-5] == "--kill-after=5s" &&
@@ -429,6 +472,7 @@ func sourceTransportBashPayload(args []string, index int) bool {
 		args[index-3] == "/bin/bash" && args[index-2] == "-euo" && args[index-1] == "pipefail"
 }
 
+// Run validates an operation and forwards it through the unchanged local binding.
 func (t *localSourceDockerTransport) Run(ctx context.Context, command platform.Command) error {
 	if ctx == nil {
 		return errors.New("source Docker command context is required")
@@ -446,6 +490,7 @@ func (t *localSourceDockerTransport) Run(ctx context.Context, command platform.C
 	return t.underlying.Run(ctx, bound)
 }
 
+// Capture applies the same bound command policy to captured-output operations.
 func (t *localSourceDockerTransport) Capture(ctx context.Context, command platform.Command) ([]byte, error) {
 	if ctx == nil {
 		return nil, errors.New("source Docker command context is required")

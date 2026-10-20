@@ -15,7 +15,7 @@ This extends the component-specific boundary in
 [ADR006](adr-006-userspace-companion.md) and the static-host decision in
 [ADR036](adr-036-operation-level-static-host-capability-guardrails.md).
 It does not rewrite or supersede those historical decisions. Existing audio,
-IPTSD, camera, Wi-Fi and recommended-component behavior remains unchanged.
+IPTSD, camera, Wi-Fi and recommended-component behaviour remains unchanged.
 
 ## Context
 
@@ -120,4 +120,4 @@ or working physical sensor.
   that demonstration is not the final user workflow.
 - Initial schema/source tests do not establish a usable CLI build command.
   Delivery remains gated on real-tree end-to-end production, refusal tests,
-  clean dry-run behavior and honest toolchain/output provenance.
+  clean dry-run behaviour and honest toolchain/output provenance.

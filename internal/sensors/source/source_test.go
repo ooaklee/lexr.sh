@@ -15,13 +15,16 @@ import (
 	"testing"
 )
 
+// fixture owns a small source tree and its separate synthetic authority.
 type fixture struct {
 	root   string
 	policy authority
 }
 
+// fixtureHash computes the digest used by the synthetic source inventories.
 func fixtureHash(data []byte) string { sum := sha256.Sum256(data); return hex.EncodeToString(sum[:]) }
 
+// newFixture creates isolated component files, inventories and matching fixture pins.
 func newFixture(t *testing.T) fixture {
 	t.Helper()
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
@@ -79,8 +82,10 @@ func newFixture(t *testing.T) fixture {
 	return f
 }
 
+// file resolves a fixture member beneath its temporary source prefix.
 func (f fixture) file(relative string) string { return filepath.Join(f.root, sourcePrefix, relative) }
 
+// changeInventory edits synthetic metadata and refreshes only the fixture's authority.
 func (f *fixture) changeInventory(t *testing.T, component string, change func(*inventory)) {
 	t.Helper()
 	p := f.file(component + "/SOURCE.json")
@@ -110,6 +115,7 @@ func (f *fixture) changeInventory(t *testing.T, component string, change func(*i
 	}
 }
 
+// TestVerifyFixtureWithoutGitAndDefensiveCopies checks archive-style input and immutable returned rosters.
 func TestVerifyFixtureWithoutGitAndDefensiveCopies(t *testing.T) {
 	f := newFixture(t)
 	if _, err := os.Stat(filepath.Join(f.root, ".git")); !errors.Is(err, os.ErrNotExist) {
@@ -135,6 +141,7 @@ func TestVerifyFixtureWithoutGitAndDefensiveCopies(t *testing.T) {
 	}
 }
 
+// TestMetadataDigestPrecedesParsing requires authentication before decoding editable metadata.
 func TestMetadataDigestPrecedesParsing(t *testing.T) {
 	f := newFixture(t)
 	member := f.file("libqmi/SOURCE.json")
@@ -153,6 +160,7 @@ func TestMetadataDigestPrecedesParsing(t *testing.T) {
 	}
 }
 
+// TestVerifyRefusesChangedSourceSet covers altered bytes, modes, links and unexpected entries.
 func TestVerifyRefusesChangedSourceSet(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -250,6 +258,7 @@ func TestVerifyRefusesChangedSourceSet(t *testing.T) {
 	}
 }
 
+// TestInventoryRejectsUnsafeGeometry rejects unsafe names and conflicting inventory nodes.
 func TestInventoryRejectsUnsafeGeometry(t *testing.T) {
 	for _, member := range []string{"../outside", "/absolute", "a/../outside", "a\\outside", "a//b", ".", "bad\nname"} {
 		t.Run(member, func(t *testing.T) {
@@ -291,6 +300,7 @@ func TestInventoryRejectsUnsafeGeometry(t *testing.T) {
 	}
 }
 
+// TestStageExactSnapshotAndReusedDestination checks exact copying and no destination reuse.
 func TestStageExactSnapshotAndReusedDestination(t *testing.T) {
 	f := newFixture(t)
 	destination := filepath.Join(t.TempDir(), "snapshot")
@@ -334,6 +344,7 @@ func TestStageExactSnapshotAndReusedDestination(t *testing.T) {
 	}
 }
 
+// TestStageRejectsOverlapAndChangedInputs refuses intersecting paths and stale source authority.
 func TestStageRejectsOverlapAndChangedInputs(t *testing.T) {
 	f := newFixture(t)
 	for _, destination := range []string{f.root, filepath.Join(f.root, "new-snapshot"), filepath.Dir(f.root)} {
@@ -366,6 +377,7 @@ func TestStageRejectsOverlapAndChangedInputs(t *testing.T) {
 	}
 }
 
+// TestStageRetainsPartialAndNeverOverwrites preserves owned failed output without replacing existing files.
 func TestStageRetainsPartialAndNeverOverwrites(t *testing.T) {
 	f := newFixture(t)
 	destination := filepath.Join(t.TempDir(), "snapshot")
@@ -398,6 +410,7 @@ func TestStageRetainsPartialAndNeverOverwrites(t *testing.T) {
 	}
 }
 
+// TestStageRefusesDestinationAndParentReplacement detects substituted staging path identities.
 func TestStageRefusesDestinationAndParentReplacement(t *testing.T) {
 	for _, replace := range []string{"destination", "parent"} {
 		t.Run(replace, func(t *testing.T) {
@@ -440,6 +453,7 @@ func TestStageRefusesDestinationAndParentReplacement(t *testing.T) {
 	}
 }
 
+// TestStageRefusesRepositoryReplacement rejects a changed source-root pathname during staging.
 func TestStageRefusesRepositoryReplacement(t *testing.T) {
 	f := newFixture(t)
 	heldRepository := filepath.Join(t.TempDir(), "held-repository")
@@ -472,6 +486,7 @@ func TestStageRefusesRepositoryReplacement(t *testing.T) {
 	}
 }
 
+// TestStageRefusesCaseAliasedSourceIdentity checks filesystem identity beyond lexical path comparisons.
 func TestStageRefusesCaseAliasedSourceIdentity(t *testing.T) {
 	f := newFixture(t)
 	alias := strings.ToUpper(f.root)
@@ -503,6 +518,7 @@ func TestStageRefusesCaseAliasedSourceIdentity(t *testing.T) {
 	}
 }
 
+// TestApprovedAuthorityIdentity binds the public source lineage to compiled metadata pins.
 func TestApprovedAuthorityIdentity(t *testing.T) {
 	a, b := approvedAuthority(), approvedAuthority()
 	a.components[0].sha256 = "changed"

@@ -195,7 +195,7 @@ func validateEvidence(add func(string, string, ...any), field string, value Comp
 	}
 }
 
-// validateUnqualifiedSource keeps source-only metadata from authorizing a
+// validateUnqualifiedSource keeps source-only metadata from authorising a
 // deployment action or asserting maturity unsupported by hardware evidence.
 // A compiled builder must still authenticate inputs independently; metadata
 // does not supply executable build policy.

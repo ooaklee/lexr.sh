@@ -10,7 +10,7 @@ import (
 // TestSavedNativeArtifactArchiveOptIn replays existing bytes through the public
 // consumer, including its real licence, ELF, provider and loader checks. It
 // does not extract files, run the contained programs, build, publish or install
-// anything. A pass is host-side artifact validation, not a new native build or
+// anything. A pass is host-side artefact validation, not a new native build or
 // physical sensor qualification.
 func TestSavedNativeArtifactArchiveOptIn(t *testing.T) {
 	archivePath := os.Getenv("LEXR_TEST_SENSOR_ARTIFACT_ARCHIVE")

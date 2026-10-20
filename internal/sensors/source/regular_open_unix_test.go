@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// TestRefusesFIFOAndDeterministicLeafSwap checks nonblocking refusal of substituted leaves.
 func TestRefusesFIFOAndDeterministicLeafSwap(t *testing.T) {
 	t.Run("existing-fifo", func(t *testing.T) {
 		f := newFixture(t)

@@ -6,8 +6,10 @@ import (
 	"testing"
 )
 
+// mountTestRoot supplies a fixed root mount for synthetic Linux mountinfo tables.
 const mountTestRoot = "1 1 8:1 / / rw,relatime - ext4 /dev/root rw\n"
 
+// mountTestRecord formats one controlled mountinfo record without consulting the host.
 func mountTestRecord(id int, device, root, mountpoint, optional string) string {
 	escape := strings.NewReplacer(`\`, `\134`, " ", `\040`, "\t", `\011`, "\n", `\012`)
 	if optional != "" {
@@ -16,6 +18,7 @@ func mountTestRecord(id int, device, root, mountpoint, optional string) string {
 	return fmt.Sprintf("%d 1 %s %s %s rw%s - ext4 /dev/fixture rw\n", id, device, escape.Replace(root), escape.Replace(mountpoint), optional)
 }
 
+// TestBuildMountTopologyAllowsDistinctCoordinates admits nonoverlapping source and output mappings.
 func TestBuildMountTopologyAllowsDistinctCoordinates(t *testing.T) {
 	for _, test := range []struct {
 		name, data string
@@ -43,6 +46,7 @@ func TestBuildMountTopologyAllowsDistinctCoordinates(t *testing.T) {
 	}
 }
 
+// TestBuildMountTopologyRejectsDirectDescendantAndReverseAliases refuses overlapping backing locations.
 func TestBuildMountTopologyRejectsDirectDescendantAndReverseAliases(t *testing.T) {
 	for _, test := range []struct {
 		name, data string
@@ -65,6 +69,7 @@ func TestBuildMountTopologyRejectsDirectDescendantAndReverseAliases(t *testing.T
 	}
 }
 
+// TestBuildMountTopologyRejectsAmbiguousOrMissingMappings requires one decisive mount identity per selection.
 func TestBuildMountTopologyRejectsAmbiguousOrMissingMappings(t *testing.T) {
 	paths := []string{"/source", "/alias/deep/work", "/output"}
 	for name, data := range map[string]string{
@@ -81,6 +86,7 @@ func TestBuildMountTopologyRejectsAmbiguousOrMissingMappings(t *testing.T) {
 	}
 }
 
+// TestBuildMountTopologyRefusesCorruptAndTruncatedTables preserves strict mountinfo parsing boundaries.
 func TestBuildMountTopologyRefusesCorruptAndTruncatedTables(t *testing.T) {
 	for name, data := range map[string]string{
 		"empty": "", "truncated": strings.TrimSuffix(mountTestRoot, "\n"), "blank-record": mountTestRoot + "\n",
@@ -108,6 +114,7 @@ func TestBuildMountTopologyRefusesCorruptAndTruncatedTables(t *testing.T) {
 	}
 }
 
+// TestBuildMountTopologyEnforcesBoundsAndCanonicalSelections bounds the table and refuses ambiguous paths.
 func TestBuildMountTopologyEnforcesBoundsAndCanonicalSelections(t *testing.T) {
 	paths := []string{"/source", "/work", "/output"}
 	var table strings.Builder

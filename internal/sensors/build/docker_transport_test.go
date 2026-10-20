@@ -17,6 +17,7 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
+// Transport fixtures use stable synthetic paths, engine identity and inspection grammar.
 const (
 	transportTestHome              = "/home/test"
 	transportTestConfig            = transportTestHome + "/.docker"
@@ -28,6 +29,7 @@ const (
 	transportTestEngineObservation = `{"ID":"transport-fixture-engine-00000001","ServerVersion":"29.8.2","OSType":"linux","Architecture":"aarch64","OperatingSystem":"Ubuntu"}`
 )
 
+// transportTestCall records one simulated command and whether its context is bounded.
 type transportTestCall struct {
 	ctx      context.Context
 	command  platform.Command
@@ -50,6 +52,7 @@ type transportTestFixture struct {
 	runner     *transportTestRunner
 }
 
+// transportTestRunner supplies configurable Docker observations without running a client.
 type transportTestRunner struct {
 	calls       []transportTestCall
 	captures    int
@@ -65,6 +68,7 @@ type transportTestRunner struct {
 	before      func(context.Context, platform.Command) (bool, error)
 }
 
+// newTransportTestFixture constructs an owned local Linux or Desktop transport observation set.
 func newTransportTestFixture(t *testing.T, goos string) *transportTestFixture {
 	t.Helper()
 	f := &transportTestFixture{
@@ -93,6 +97,7 @@ func newTransportTestFixture(t *testing.T, goos string) *transportTestFixture {
 	return f
 }
 
+// observations exposes controlled environment, lookup and filesystem inspection seams.
 func (f *transportTestFixture) observations() sourceTransportObservations {
 	return sourceTransportObservations{
 		environ: func() []string {
@@ -129,6 +134,7 @@ func (f *transportTestFixture) observations() sourceTransportObservations {
 	}
 }
 
+// bind requires the fixture's valid local observation set to produce an owned binding.
 func (f *transportTestFixture) bind(t *testing.T) sourceTransportBinding {
 	t.Helper()
 	binding, err := bindSourceDockerTransportObserved(context.Background(), f.runner, f.host, f.observations())
@@ -141,6 +147,7 @@ func (f *transportTestFixture) bind(t *testing.T) sourceTransportBinding {
 	return binding
 }
 
+// Capture routes simulated output through the same recorded command boundary as Run.
 func (r *transportTestRunner) Capture(ctx context.Context, command platform.Command) ([]byte, error) {
 	r.captures++
 	var stdout bytes.Buffer
@@ -151,6 +158,7 @@ func (r *transportTestRunner) Capture(ctx context.Context, command platform.Comm
 	return stdout.Bytes(), nil
 }
 
+// Run records immutable command copies and emits only the configured in-memory observations.
 func (r *transportTestRunner) Run(ctx context.Context, command platform.Command) error {
 	_, bounded := ctx.Deadline()
 	copy := command
@@ -208,6 +216,7 @@ func (r *transportTestRunner) Run(ctx context.Context, command platform.Command)
 	return nil
 }
 
+// transportTestOperation removes the admitted selection prefix before simulating an operation.
 func transportTestOperation(args []string) []string {
 	for len(args) >= 2 && (args[0] == "--config" || args[0] == "--host") {
 		args = args[2:]
@@ -215,6 +224,7 @@ func transportTestOperation(args []string) []string {
 	return args
 }
 
+// transportTestAssertBoundCommand checks frozen executable, endpoint and neutralised selectors.
 func transportTestAssertBoundCommand(t *testing.T, command platform.Command, endpoint string) {
 	t.Helper()
 	if command.Name != transportTestCLI {
@@ -240,6 +250,7 @@ func transportTestAssertBoundCommand(t *testing.T, command platform.Command, end
 	}
 }
 
+// TestSourceTransportBindsLocalSocketAndFreezesCommand prevents inherited environment changes redirecting work.
 func TestSourceTransportBindsLocalSocketAndFreezesCommand(t *testing.T) {
 	t.Parallel()
 	for _, goos := range []string{"linux", "darwin"} {
@@ -296,6 +307,7 @@ func TestSourceTransportBindsLocalSocketAndFreezesCommand(t *testing.T) {
 	}
 }
 
+// TestSourceTransportResolvesContextReadOnlyOnce observes the selected context without changing it.
 func TestSourceTransportResolvesContextReadOnlyOnce(t *testing.T) {
 	t.Parallel()
 	f := newTransportTestFixture(t, "darwin")
@@ -332,6 +344,7 @@ func TestSourceTransportResolvesContextReadOnlyOnce(t *testing.T) {
 	}
 }
 
+// TestSourceTransportUsesExplicitContextWithoutChangingSelection preserves caller context configuration.
 func TestSourceTransportUsesExplicitContextWithoutChangingSelection(t *testing.T) {
 	t.Parallel()
 	f := newTransportTestFixture(t, "darwin")
@@ -350,6 +363,7 @@ func TestSourceTransportUsesExplicitContextWithoutChangingSelection(t *testing.T
 	}
 }
 
+// TestSourceTransportRefusesUntrustedContextObservation rejects malformed, conflicting or remote selections.
 func TestSourceTransportRefusesUntrustedContextObservation(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct {
@@ -407,6 +421,7 @@ func TestSourceTransportRefusesUntrustedContextObservation(t *testing.T) {
 	}
 }
 
+// TestSourceTransportRejectsUntrustedSelectionBeforeEffects refuses unsupported selectors before daemon work.
 func TestSourceTransportRejectsUntrustedSelectionBeforeEffects(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -453,6 +468,7 @@ func TestSourceTransportRejectsUntrustedSelectionBeforeEffects(t *testing.T) {
 	}
 }
 
+// TestSourceTransportRequiresTrustedLocalIdentities checks socket, executable and configuration ownership.
 func TestSourceTransportRequiresTrustedLocalIdentities(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -557,6 +573,7 @@ func TestSourceTransportRequiresTrustedLocalIdentities(t *testing.T) {
 	}
 }
 
+// TestSourceTransportRechecksIdentitiesBeforeForwarding withholds commands after a pinned local identity changes.
 func TestSourceTransportRechecksIdentitiesBeforeForwarding(t *testing.T) {
 	t.Parallel()
 	for _, path := range []string{"/run/docker.sock", transportTestCLI, transportTestConfig} {
@@ -595,6 +612,7 @@ func TestSourceTransportRechecksIdentitiesBeforeForwarding(t *testing.T) {
 	}
 }
 
+// TestSourceTransportRejectsSocketReplacementDuringResolution refuses a changed endpoint during initial binding.
 func TestSourceTransportRejectsSocketReplacementDuringResolution(t *testing.T) {
 	t.Parallel()
 	f := newTransportTestFixture(t, "linux")
@@ -616,6 +634,7 @@ func TestSourceTransportRejectsSocketReplacementDuringResolution(t *testing.T) {
 	}
 }
 
+// TestSourceTransportCaptureUsesTheSameFrozenBinding keeps captured operations on the admitted transport.
 func TestSourceTransportCaptureUsesTheSameFrozenBinding(t *testing.T) {
 	t.Parallel()
 	f := newTransportTestFixture(t, "linux")
@@ -637,6 +656,7 @@ func TestSourceTransportCaptureUsesTheSameFrozenBinding(t *testing.T) {
 	transportTestAssertBoundCommand(t, f.runner.calls[len(f.runner.calls)-1].command, "unix:///run/docker.sock")
 }
 
+// TestSourceTransportPinsAbsentConfigAndItsExistingParent refuses later substitution of a missing configuration path.
 func TestSourceTransportPinsAbsentConfigAndItsExistingParent(t *testing.T) {
 	t.Parallel()
 	for _, change := range []string{"none", "config-appears", "parent-replaced", "parent-unobservable"} {
@@ -671,6 +691,7 @@ func TestSourceTransportPinsAbsentConfigAndItsExistingParent(t *testing.T) {
 	}
 }
 
+// TestSourceTransportRefusesUnknownForwardedOperation keeps the decorated runner's command vocabulary closed.
 func TestSourceTransportRefusesUnknownForwardedOperation(t *testing.T) {
 	t.Parallel()
 	for _, command := range []platform.Command{
@@ -695,6 +716,7 @@ func TestSourceTransportRefusesUnknownForwardedOperation(t *testing.T) {
 	}
 }
 
+// TestSourceTransportAllowsOnlyTheCompiledCreateBashPayload rejects arbitrary shell bodies at creation.
 func TestSourceTransportAllowsOnlyTheCompiledCreateBashPayload(t *testing.T) {
 	t.Parallel()
 	for _, phase := range []sourcePhase{sourceInit, sourceBuild} {
@@ -735,6 +757,7 @@ func TestSourceTransportAllowsOnlyTheCompiledCreateBashPayload(t *testing.T) {
 	}
 }
 
+// TestSourceTransportRefusesCommandSelectionOverrides blocks command-local endpoint and environment overrides.
 func TestSourceTransportRefusesCommandSelectionOverrides(t *testing.T) {
 	t.Parallel()
 	for _, args := range [][]string{
@@ -771,6 +794,7 @@ func TestSourceTransportRefusesCommandSelectionOverrides(t *testing.T) {
 	}
 }
 
+// TestSourceTransportVerifiesExactEngineIdentity requires the same observed daemon identity on reuse.
 func TestSourceTransportVerifiesExactEngineIdentity(t *testing.T) {
 	t.Parallel()
 	for _, field := range []string{"engine", "version", "architecture", "operating-system"} {
@@ -797,6 +821,7 @@ func TestSourceTransportVerifiesExactEngineIdentity(t *testing.T) {
 	}
 }
 
+// TestSourceTransportRejectsIncompatibleOrMalformedEngine refuses unsupported architecture and invalid metadata.
 func TestSourceTransportRejectsIncompatibleOrMalformedEngine(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct {
@@ -850,6 +875,7 @@ func TestSourceTransportRejectsIncompatibleOrMalformedEngine(t *testing.T) {
 	}
 }
 
+// TestSourceTransportMapsOnlyCanonicalOwnedSnapshotDirectory limits namespace translation to admitted snapshots.
 func TestSourceTransportMapsOnlyCanonicalOwnedSnapshotDirectory(t *testing.T) {
 	t.Parallel()
 	for _, goos := range []string{"linux", "darwin"} {
@@ -901,6 +927,7 @@ func TestSourceTransportMapsOnlyCanonicalOwnedSnapshotDirectory(t *testing.T) {
 	}
 }
 
+// TestSourceTransportRefusesMappingAfterLocalIdentityChanges rechecks local authority before deriving daemon paths.
 func TestSourceTransportRefusesMappingAfterLocalIdentityChanges(t *testing.T) {
 	t.Parallel()
 	f := newTransportTestFixture(t, "darwin")
@@ -918,6 +945,7 @@ func TestSourceTransportRefusesMappingAfterLocalIdentityChanges(t *testing.T) {
 	}
 }
 
+// TestSourceTransportCancellationStopsObservationAndForwarding prevents cancelled requests crossing either boundary.
 func TestSourceTransportCancellationStopsObservationAndForwarding(t *testing.T) {
 	t.Parallel()
 	f := newTransportTestFixture(t, "linux")
@@ -942,6 +970,7 @@ func TestSourceTransportCancellationStopsObservationAndForwarding(t *testing.T) 
 	}
 }
 
+// TestSourceTransportPropagatesCancellationDuringObservation returns the caller's cancellation without rebinding.
 func TestSourceTransportPropagatesCancellationDuringObservation(t *testing.T) {
 	t.Parallel()
 	f := newTransportTestFixture(t, "linux")
@@ -959,6 +988,7 @@ func TestSourceTransportPropagatesCancellationDuringObservation(t *testing.T) {
 	}
 }
 
+// TestSourceTransportInfoHonorsEarlierCallerDeadline preserves a shorter caller bound on daemon observations.
 func TestSourceTransportInfoHonorsEarlierCallerDeadline(t *testing.T) {
 	t.Parallel()
 	f := newTransportTestFixture(t, "linux")

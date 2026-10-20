@@ -7,7 +7,7 @@ import (
 
 // A Manager has one sequential owner. Commit the complete binding once, before
 // its producer can acquire dependencies. Retain the dependency Manager itself:
-// its process-local Prepared handle is authorized by that exact owner pointer.
+// its process-local Prepared handle is authorised by that exact owner pointer.
 func (m *Manager) ensureTransport(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err

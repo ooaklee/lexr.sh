@@ -22,19 +22,23 @@ import (
 	userspacemanager "github.com/ooaklee/lexr.sh/internal/userspace/manager"
 )
 
+// sensorBuildCatalogFixture selects the private build-only capability for CLI tests.
 const sensorBuildCatalogFixture = `{"schema_version":2,"description":"Build-only development fixture, not a shipped entry.","components":[{"id":"native-sensors","name":"Native sensor development sources","level":"experimental","capability":"sensors","redistribution":"source-required","support_actions":{"status":false,"pull":false,"build":true,"install":false},"compatibility_evidence":"unqualified_source","notes":["Not hardware qualification."],"remediation":"Leave distribution services unchanged."}]}`
 
+// recordingSensorCLIBuilder retains typed build requests and returns controlled outcomes.
 type recordingSensorCLIBuilder struct {
 	requests []userspacebuild.Request
 	result   userspacebuild.Result
 	err      error
 }
 
+// BuildWithResult records one CLI request without invoking a native producer.
 func (f *recordingSensorCLIBuilder) BuildWithResult(_ context.Context, request userspacebuild.Request) (userspacebuild.Result, error) {
 	f.requests = append(f.requests, request)
 	return f.result, f.err
 }
 
+// sensorCLIApplication creates an isolated application and optional private catalogue.
 func sensorCLIApplication(t *testing.T, catalog string) (*application, *bytes.Buffer) {
 	t.Helper()
 	output := &bytes.Buffer{}
@@ -48,6 +52,7 @@ func sensorCLIApplication(t *testing.T, catalog string) (*application, *bytes.Bu
 	return app, output
 }
 
+// runSensorCLI executes command routing with the selected controlled build workflow.
 func runSensorCLI(t *testing.T, app *application, workflow userspaceBuildWorkflow, args ...string) error {
 	t.Helper()
 	command := app.newUserspaceBuildCommandWithWorkflow(workflow)
@@ -56,6 +61,7 @@ func runSensorCLI(t *testing.T, app *application, workflow userspaceBuildWorkflo
 	return command.ExecuteContext(context.Background())
 }
 
+// TestSensorBuildCLIRouteAndRequest checks sensor routing and exact typed option forwarding.
 func TestSensorBuildCLIRouteAndRequest(t *testing.T) {
 	for _, alias := range []string{"sensors", "native-sensors", "SENSORS"} {
 		t.Run(alias, func(t *testing.T) {
@@ -76,6 +82,7 @@ func TestSensorBuildCLIRouteAndRequest(t *testing.T) {
 	}
 }
 
+// TestSensorBuildCLIDefaultCatalogStillRefuses keeps unqualified sensors out of the shipped catalogue.
 func TestSensorBuildCLIDefaultCatalogStillRefuses(t *testing.T) {
 	app, _ := sensorCLIApplication(t, "")
 	fake := &recordingSensorCLIBuilder{}
@@ -92,6 +99,7 @@ func TestSensorBuildCLIDefaultCatalogStillRefuses(t *testing.T) {
 	}
 }
 
+// TestSensorBuildCLIPreWorkflowRefusalsReturnOneJSONError checks a single failure envelope before delegation.
 func TestSensorBuildCLIPreWorkflowRefusalsReturnOneJSONError(t *testing.T) {
 	for _, catalog := range []string{"", "{broken", strings.Replace(sensorBuildCatalogFixture, `"capability":"sensors"`, `"capability":"camera"`, 1)} {
 		app, output := sensorCLIApplication(t, catalog)
@@ -110,6 +118,7 @@ func TestSensorBuildCLIPreWorkflowRefusalsReturnOneJSONError(t *testing.T) {
 	}
 }
 
+// TestSensorBuildCLIRejectsCatalogContractDrift refuses expanded actions or invented compatibility.
 func TestSensorBuildCLIRejectsCatalogContractDrift(t *testing.T) {
 	var document struct {
 		Components []userspacecatalog.Component `json:"components"`
@@ -154,6 +163,7 @@ func TestSensorBuildCLIRejectsCatalogContractDrift(t *testing.T) {
 	}
 }
 
+// TestSensorBuildCLIPartialJSONPreservesErrorAndUnknown retains producer failures and terminal uncertainty.
 func TestSensorBuildCLIPartialJSONPreservesErrorAndUnknown(t *testing.T) {
 	app, output := sensorCLIApplication(t, sensorBuildCatalogFixture)
 	failed := errors.New("fixture bound engine lost")
@@ -175,6 +185,7 @@ func TestSensorBuildCLIPartialJSONPreservesErrorAndUnknown(t *testing.T) {
 	}
 }
 
+// TestSensorBuildCLIRefusesFalseSuccess rejects empty or inconsistent successful responses.
 func TestSensorBuildCLIRefusesFalseSuccess(t *testing.T) {
 	for _, jsonFlag := range []bool{false, true} {
 		app, output := sensorCLIApplication(t, sensorBuildCatalogFixture)
@@ -193,6 +204,7 @@ func TestSensorBuildCLIRefusesFalseSuccess(t *testing.T) {
 	}
 }
 
+// TestSensorBuildCLIMismatchedResponseDoesNotInventSuccess rejects results for another component.
 func TestSensorBuildCLIMismatchedResponseDoesNotInventSuccess(t *testing.T) {
 	for _, kind := range []string{"iptsd", "camera", "dry-run"} {
 		for _, format := range []string{"human", "json"} {
@@ -228,6 +240,7 @@ func TestSensorBuildCLIMismatchedResponseDoesNotInventSuccess(t *testing.T) {
 	}
 }
 
+// completedSensorCLIFixture returns complete synthetic publication and lifecycle evidence.
 func completedSensorCLIFixture() sensorbuild.Result {
 	dependency, init, source := strings.Repeat("a", 64), strings.Repeat("b", 64), strings.Repeat("c", 64)
 	return sensorbuild.Result{
@@ -240,6 +253,7 @@ func completedSensorCLIFixture() sensorbuild.Result {
 	}
 }
 
+// TestSensorBuildCLICompletionRequiresObservedSuccess checks every required completion observation.
 func TestSensorBuildCLICompletionRequiresObservedSuccess(t *testing.T) {
 	baseline := completedSensorCLIFixture()
 	if !sensorSourceBuildComplete(&baseline) {
@@ -274,6 +288,7 @@ func TestSensorBuildCLICompletionRequiresObservedSuccess(t *testing.T) {
 	}
 }
 
+// TestSensorBuildCLIHumanOutcomeTruth distinguishes plans, incomplete outcomes and completed software builds.
 func TestSensorBuildCLIHumanOutcomeTruth(t *testing.T) {
 	for _, test := range []struct {
 		name   string
@@ -308,6 +323,7 @@ func TestSensorBuildCLIHumanOutcomeTruth(t *testing.T) {
 	}
 }
 
+// TestSensorBuildCLINilErrorUnknownNeverSucceeds keeps current uncertainty from inheriting historical success.
 func TestSensorBuildCLINilErrorUnknownNeverSucceeds(t *testing.T) {
 	for _, stage := range []string{"dependencies", "init", "source"} {
 		for _, field := range []string{"unknown", "recovery-error"} {
@@ -364,6 +380,7 @@ func TestSensorBuildCLINilErrorUnknownNeverSucceeds(t *testing.T) {
 	}
 }
 
+// TestSensorBuildCLINameOnlyPartialsRemainVisible retains names even before container identities are observed.
 func TestSensorBuildCLINameOnlyPartialsRemainVisible(t *testing.T) {
 	result := sensorbuild.Result{
 		Dependencies: builderimage.Result{ContainerName: "name-only-dependency", TerminalUnknown: true, RecoveryError: "dependency unknown"},
@@ -381,6 +398,7 @@ func TestSensorBuildCLINameOnlyPartialsRemainVisible(t *testing.T) {
 	}
 }
 
+// TestSensorBuildCLIHelpRemainsUndelivered avoids advertising the gated experimental workflow.
 func TestSensorBuildCLIHelpRemainsUndelivered(t *testing.T) {
 	app, _ := sensorCLIApplication(t, "")
 	command := app.newUserspaceBuildCommand()
@@ -395,6 +413,7 @@ func TestSensorBuildCLIHelpRemainsUndelivered(t *testing.T) {
 	}
 }
 
+// TestSensorBuildCLIRealReadOnlyPlanOptIn checks an approved tree without Docker or output creation.
 func TestSensorBuildCLIRealReadOnlyPlanOptIn(t *testing.T) {
 	root := os.Getenv("LEXR_TEST_SENSOR_OE_ROOT")
 	if root == "" {

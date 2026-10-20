@@ -1,9 +1,11 @@
 // Package build owns the native, offline sensor source-build contract.
-// Its artifacts are development outputs, not installable or qualified sensors.
+// Its artefacts are development outputs, not installable or qualified sensors.
 package build
 
 import "sort"
 
+// The source-build contract fixes archive names, source authority, private
+// provider location and the maximum accepted development archive size.
 const (
 	ArchiveName         = "sensor-source-artifacts.tar"
 	ReportName          = "build-report.json"
@@ -12,12 +14,14 @@ const (
 	MaximumArchiveBytes = 128 << 20
 )
 
+// fileRule bounds one regular archive member and optionally pins licence bytes.
 type fileRule struct {
 	maximum       int64
 	mode          int64
 	licenseSHA256 string
 }
 
+// expectedFiles returns the closed regular-member policy compiled into Lexr.
 func expectedFiles() map[string]fileRule {
 	return map[string]fileRule{
 		"libqmi-glib.so.5.12.0":    {64 << 20, 0o755, ""},
@@ -51,23 +55,28 @@ func ArtifactFiles() []string {
 	return names
 }
 
+// Link records one allowed flat symlink and its exact relative target.
 type Link struct {
 	Name   string `json:"name"`
 	Target string `json:"target"`
 }
 
+// ArtifactLinks returns the fixed private-provider symlinks allowed in outputs.
 func ArtifactLinks() []Link {
 	return []Link{{"libqmi-glib.so", "libqmi-glib.so.5"}, {"libqmi-glib.so.5", "libqmi-glib.so.5.12.0"}, {"libssc.so", "libssc.so.2"}}
 }
 
+// FixtureTargets lists the software-only proxy tests required by the build.
 func FixtureTargets() []string {
 	return []string{"test-mount-matrix", "test-orientation", "test-ssc-drivers", "test-iio-buffer", "test-iio-acquisition", "test-iio-sysfs-write", "test-sensor-selection"}
 }
 
+// ProxyInstallTargets lists expected staged paths without granting installation.
 func ProxyInstallTargets() []string {
 	return []string{"/usr/bin/monitor-sensor", "/usr/lib/systemd/system/iio-sensor-proxy.service", "/usr/lib/udev/rules.d/80-iio-sensor-proxy.rules", "/usr/libexec/iio-sensor-proxy", "/usr/share/dbus-1/system.d/net.hadess.SensorProxy.conf", "/usr/share/polkit-1/actions/net.hadess.SensorProxy.policy"}
 }
 
+// Artifact binds one output member to its byte count, digest and execution mode.
 type Artifact struct {
 	Name   string `json:"name"`
 	Bytes  int64  `json:"bytes"`
@@ -75,6 +84,7 @@ type Artifact struct {
 	Mode   int64  `json:"mode"`
 }
 
+// Provider records the private dependency selected by the compiled build recipe.
 type Provider struct {
 	Name            string `json:"name"`
 	Version         string `json:"version"`
@@ -83,6 +93,7 @@ type Provider struct {
 	SHA256          string `json:"sha256"`
 }
 
+// Loader records resolved dependencies for one binary in the closed output set.
 type Loader struct {
 	Artifact  string            `json:"artifact"`
 	Providers map[string]string `json:"providers"`

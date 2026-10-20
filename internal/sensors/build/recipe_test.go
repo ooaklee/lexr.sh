@@ -82,6 +82,7 @@ func TestInitRecipeHandsOffParentLast(t *testing.T) {
 	}
 }
 
+// TestSourceRecipeChecksRegisteredIdentityBeforeWork requires the locked builder account before source operations.
 func TestSourceRecipeChecksRegisteredIdentityBeforeWork(t *testing.T) {
 	t.Parallel()
 	const start = "python3 - <<'LEXR_SENSOR_SOURCE_IDENTITY'\n"

@@ -19,16 +19,16 @@ decisions below are retained unchanged.
 ## Context
 
 Source verification, a dependency image, a successful process log and an
-artifact decoder do not by themselves establish a completed source build.
+artefact decoder do not by themselves establish a completed source build.
 The controller must connect their authority boundaries, prevent compilation
-from starting before initialization succeeds, and account for daemon-side
+from starting before initialisation succeeds, and account for daemon-side
 containers after a cancelled Docker client.
 
 ## Decision
 
 The sensor build Manager privately owns its dependency-image producer and only
 caches a handle returned by that producer. Requests select source, work and
-output directories, job count, dry-run and no-pull behavior; they cannot supply
+output directories, job count, dry-run and no-pull behaviour; they cannot supply
 an image, script, reconstructed handle, source authority or decoder.
 
 Planning is read-only. Report unsupported hosts or missing same-process no-pull
@@ -46,7 +46,7 @@ that read-only check before workspace creation and atomic publication. This is
 not protection against an administrator changing mounts concurrently.
 The device/root/mountpoint mapping and treatment of stacked mounts follow the
 [Linux mountinfo ABI](https://man7.org/linux/man-pages/man5/proc_pid_mountinfo.5.html).
-Unknown optional fields are ignored as that ABI requires; they do not authorize
+Unknown optional fields are ignored as that ABI requires; they do not authorise
 paths. Malformed known coordinate fields or ambiguous containing stacks refuse.
 These are controller-namespace observations, not proof of a different Docker
 daemon's mount namespace or file-sharing implementation. Darwin retains the
@@ -62,9 +62,9 @@ driver/scope or any driver options, including host-bind and network-filesystem
 options. Volume mountpoints returned by Docker are bookkeeping, never grants
 to read, write or delete host paths.
 
-Run two separately inspected containers. Initialization has no source mount,
+Run two separately inspected containers. Initialisation has no source mount,
 uses a readonly root and no network, and grants only CHOWN after dropping all
-capabilities. It initializes the empty work directory and case probes. Only
+capabilities. It initialises the empty work directory and case probes. Only
 after its exact container exits successfully may the source container start.
 Compilation runs as UID/GID 65532 with no capabilities, network or physical
 device mounts, a readonly root/source, the fresh work volume and a bounded
@@ -88,7 +88,7 @@ immediately before atomic rename. A cancellation or error after rename must
 retain the truthful published outcome, not pretend the files were rolled back.
 
 Publish a host-path-free descriptive receipt with source metadata, dependency
-inventories, recipes, exact terminal observations and artifact hashes. Keep
+inventories, recipes, exact terminal observations and artefact hashes. Keep
 local paths and captured diagnostics in the private operation result. Neither
 receipt nor successful software fixtures enable sensor installation or claim
 physical roles, axes, calibration, rotation or suspend/resume compatibility.
@@ -99,7 +99,7 @@ physical roles, axes, calibration, rotation or suspend/resume compatibility.
   output acceptance; it does not rely on an arbitrary-image manual shortcut.
 - Native runtime and refusal tests must establish the complete composition.
   Synthetic ELF fixtures can test controller/decoder integration but cannot
-  demonstrate a successful C build or physical sensor behavior.
+  demonstrate a successful C build or physical sensor behaviour.
 - No Windows driver, DLL or service is a runtime dependency of this path.
 - Same-UID and Docker-administrator integrity remain trusted. Random names and
   labels establish consistency within that boundary, not protection against an

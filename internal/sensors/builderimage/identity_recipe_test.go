@@ -47,6 +47,7 @@ func identityRecipeSegment(t *testing.T) string {
 	return segment
 }
 
+// TestIdentityRecipeBoundaryAndRuntimeHomePolicy checks isolated account setup and the private runtime home.
 func TestIdentityRecipeBoundaryAndRuntimeHomePolicy(t *testing.T) {
 	// Home/nologin/package assertions below are static recipe checks. They do
 	// not inspect a real Linux image or execute its filesystem policy.
@@ -69,11 +70,13 @@ func TestIdentityRecipeBoundaryAndRuntimeHomePolicy(t *testing.T) {
 	}
 }
 
+// identityEvent records one simulated account-tool invocation.
 type identityEvent struct {
 	Command string   `json:"command"`
 	Args    []string `json:"args"`
 }
 
+// identityState captures the synthetic account database and ordered tool events.
 type identityState struct {
 	Config map[string]any  `json:"config"`
 	Users  [][]any         `json:"users"`
@@ -82,12 +85,14 @@ type identityState struct {
 	Phase  string          `json:"phase"`
 }
 
+// identityOutput bounds fixture output retained from the isolated recipe segment.
 type identityOutput struct {
 	mu       sync.Mutex
 	data     bytes.Buffer
 	overflow bool
 }
 
+// Write retains a bounded fixture-output prefix and records any discarded excess.
 func (o *identityOutput) Write(p []byte) (int, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -101,6 +106,7 @@ func (o *identityOutput) Write(p []byte) (int, error) {
 	return n, nil
 }
 
+// runIdentityRecipe executes only the account segment with simulated tools and NSS modules.
 func runIdentityRecipe(t *testing.T, config map[string]any, users, groups [][]any) (identityState, string, error) {
 	t.Helper()
 	python, err := exec.LookPath("python3")
@@ -165,6 +171,7 @@ func runIdentityRecipe(t *testing.T, config map[string]any, users, groups [][]an
 	return state, output.data.String(), runErr
 }
 
+// TestIdentityRecipeCreatesExactLockedAccountInOrder checks the complete ordered account contract.
 func TestIdentityRecipeCreatesExactLockedAccountInOrder(t *testing.T) {
 	state, output, err := runIdentityRecipe(t, nil, nil, nil)
 	if err != nil || output != "LEXR_IDENTITY_FIXTURE_COMPLETE\n" {
@@ -198,6 +205,7 @@ func TestIdentityRecipeCreatesExactLockedAccountInOrder(t *testing.T) {
 	}
 }
 
+// TestIdentityRecipeRejectsOccupiedOrUnavailableNSSBeforeMutation refuses conflicts before account-tool effects.
 func TestIdentityRecipeRejectsOccupiedOrUnavailableNSSBeforeMutation(t *testing.T) {
 	user := []any{"lexr-sensor-build", "x", 1234, 1234, "occupied", "/unused", "/unused"}
 	uid := []any{"another-user", "x", 65532, 1234, "occupied", "/unused", "/unused"}
@@ -233,6 +241,7 @@ func TestIdentityRecipeRejectsOccupiedOrUnavailableNSSBeforeMutation(t *testing.
 	}
 }
 
+// TestIdentityRecipeRejectsToolFailuresAndWrongPostIdentity withholds success for failed or incorrect account setup.
 func TestIdentityRecipeRejectsToolFailuresAndWrongPostIdentity(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -297,6 +306,7 @@ func TestIdentityRecipeRejectsToolFailuresAndWrongPostIdentity(t *testing.T) {
 	}
 }
 
+// identityFixturePython supplies synthetic NSS state and account-tool behaviour.
 const identityFixturePython = `import collections
 import json
 import os

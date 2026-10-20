@@ -17,7 +17,7 @@ not enable installation, catalogue entries or physical sensor qualification.
 ## Context
 
 An authenticated host snapshot and a daemon-reported mount path use different
-coordinate systems on Docker Desktop. A supervised run successfully initialized
+coordinate systems on Docker Desktop. A supervised run successfully initialised
 its private volume, then refused the source container before starting it:
 Docker reported the same translated path in both requested and effective mount
 metadata, while the verifier expected the host path verbatim.
@@ -40,9 +40,9 @@ are explicit refusals, not requests to rewrite the user's configuration.
 
 Pin the canonical local Unix socket and its ownership/identity, the canonical
 Docker executable and the selected client configuration location. Forward
-dependency, initialization, source, inspection and recovery commands through
+dependency, initialisation, source, inspection and recovery commands through
 the same bound runner, with explicit endpoint/configuration arguments and
-neutralized inherited endpoint/context/TLS/API selectors. Later environment or
+neutralised inherited endpoint/context/TLS/API selectors. Later environment or
 current-context changes must not redirect an operation. Recheck local identities
 and engine identity at the execution boundaries; fail without automatic
 fallback or rebinding when they differ.
@@ -70,7 +70,7 @@ Both requested and effective source mounts must independently equal the full
 derived daemon coordinate. Preserve read-only/private settings, unique mount
 destinations and every existing ownership, capability, resource and lifecycle
 check. Do not trim prefixes, try alternative paths, permit matching suffixes or
-adopt the observed mount as its own expected value. Initialization still has no
+adopt the observed mount as its own expected value. Initialisation still has no
 source mount; a created-but-never-started container is not successful execution.
 
 Record host/daemon coordinates only in the private local operation result.
@@ -92,7 +92,7 @@ environment changes, socket/engine replacement, retained producer ownership,
 Linux identity mapping, exact Desktop translation, differing requested/effective
 paths, misleading prefixes/suffixes and unchanged mount/lifecycle refusals.
 Software fixtures do not prove runtime source readability or a successful C
-build. A fresh normal producer run, complete terminal/artifact validation and
+build. A fresh normal producer run, complete terminal/artefact validation and
 diagnostic disposition remain required before CLI delivery.
 
 ## Consequences

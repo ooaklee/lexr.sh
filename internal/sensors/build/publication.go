@@ -14,6 +14,7 @@ import (
 	"strings"
 )
 
+// publicationReceiptName fixes the metadata member added to verified outputs.
 const publicationReceiptName = "lexr-sensors-source-build.json"
 
 // Publication describes filesystem outcomes, including failures after rename.
@@ -35,15 +36,20 @@ type publicationHooks struct {
 	syncDirectory func(*os.File, string) error
 }
 
+// publicationMember pairs one validated output identity with captured bytes.
 type publicationMember struct {
 	artifact Artifact
 	data     []byte
 }
 
+// publishArtifacts stages and atomically publishes a closed output set without
+// replacing existing work or treating publication as installation authority.
 func publishArtifacts(parent, buildID string, artifacts *VerifiedArtifacts, receipt []byte) (Publication, error) {
 	return publishArtifactsWithHooks(parent, buildID, artifacts, receipt, publicationHooks{})
 }
 
+// publishArtifactsWithHooks retains partial and post-rename outcomes while
+// rechecking descriptor identities, member bytes and directory durability.
 func publishArtifactsWithHooks(parent, buildID string, artifacts *VerifiedArtifacts, receipt []byte, hooks publicationHooks) (result Publication, resultErr error) {
 	if err := publicationSupported(); err != nil {
 		return result, err
@@ -175,6 +181,8 @@ func publishArtifactsWithHooks(parent, buildID string, artifacts *VerifiedArtifa
 	return result, nil
 }
 
+// publicationInputs captures defensive copies and rechecks the closed output
+// roster before any publication directory is created.
 func publicationInputs(verified *VerifiedArtifacts, receipt []byte) ([]publicationMember, []Link, error) {
 	trimmed := bytes.TrimSpace(receipt)
 	if len(receipt) > 1<<20 || len(trimmed) == 0 || trimmed[0] != '{' || !json.Valid(receipt) {
@@ -229,6 +237,8 @@ func publicationInputs(verified *VerifiedArtifacts, receipt []byte) ([]publicati
 	return members, links, nil
 }
 
+// writePublicationMember creates one new member exclusively and verifies its
+// mode, bytes and durable write before publication can proceed.
 func writePublicationMember(root *os.Root, member publicationMember, hooks publicationHooks) error {
 	f, err := root.OpenFile(member.artifact.Name, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0o600)
 	if err != nil {
@@ -255,6 +265,7 @@ func writePublicationMember(root *os.Root, member publicationMember, hooks publi
 	return f.Close()
 }
 
+// verifyPublicationFD compares an opened member's type, mode, size and digest.
 func verifyPublicationFD(f *os.File, expected Artifact) error {
 	info, err := f.Stat()
 	if err != nil || !info.Mode().IsRegular() || info.Mode()&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 || info.Mode().Perm() != os.FileMode(expected.Mode) || info.Size() != expected.Bytes {
@@ -271,6 +282,8 @@ func verifyPublicationFD(f *os.File, expected Artifact) error {
 	return nil
 }
 
+// verifyPublicationMembers rechecks regular bytes, exact symlink targets and
+// directory closure through the retained publication roots.
 func verifyPublicationMembers(root *os.Root, directory *os.File, members []publicationMember, links []Link) error {
 	wanted := make(map[string]bool, len(members)+len(links))
 	for _, member := range members {
@@ -308,6 +321,7 @@ func verifyPublicationMembers(root *os.Root, directory *os.File, members []publi
 	return nil
 }
 
+// publicationParentMatches refuses pathname replacement of the retained parent.
 func publicationParentMatches(parent string, opened *os.File) error {
 	canonical, err := filepath.EvalSymlinks(parent)
 	current, pathErr := os.Lstat(parent)
@@ -318,6 +332,7 @@ func publicationParentMatches(parent string, opened *os.File) error {
 	return nil
 }
 
+// publicationDirectoryMatches binds a selected child name to its retained FD.
 func publicationDirectoryMatches(parent *os.Root, name string, opened *os.File) error {
 	current, err := parent.Lstat(name)
 	identity, fdErr := opened.Stat()
@@ -327,6 +342,7 @@ func publicationDirectoryMatches(parent *os.Root, name string, opened *os.File) 
 	return nil
 }
 
+// publicationSyncDirectory performs the selected phase's durability barrier.
 func publicationSyncDirectory(directory *os.File, phase string, hooks publicationHooks) error {
 	if hooks.syncDirectory != nil {
 		return hooks.syncDirectory(directory, phase)
@@ -334,6 +350,7 @@ func publicationSyncDirectory(directory *os.File, phase string, hooks publicatio
 	return directory.Sync()
 }
 
+// publicationSHA256 hashes captured member or receipt bytes in canonical form.
 func publicationSHA256(data []byte) string {
 	digest := sha256.Sum256(data)
 	return hex.EncodeToString(digest[:])

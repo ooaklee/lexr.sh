@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 )
 
-// InitScript initializes only an exclusively new named-volume job. The
+// InitScript initialises only an exclusively new named-volume job. The
 // controller must run it as root with no capabilities except CHOWN. Case
 // probes remain available for diagnosis; neither script deletes old work.
 // Transfer the private parent last: CHOWN does not bypass directory search.
@@ -501,7 +501,7 @@ print('Created bounded development-artifact USTAR; not an installable or hardwar
 LEXR_SENSOR_EXPORT
 `
 
-// InitRecipeSHA256 identifies the exact volume-initialization command bytes.
+// InitRecipeSHA256 identifies the exact volume-initialisation command bytes.
 func InitRecipeSHA256() string {
 	digest := sha256.Sum256([]byte(InitScript))
 	return hex.EncodeToString(digest[:])

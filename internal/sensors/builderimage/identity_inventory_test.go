@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// These controlled Docker-boundary fixtures prove refusal/authority behavior,
+// These controlled Docker-boundary fixtures prove refusal/authority behaviour,
 // not Linux account creation, a working private bus or physical sensors.
 func TestManagerRejectsUnverifiedBuildIdentityInventory(t *testing.T) {
 	const user = "lexr-sensor-build:x:65532:65532:Lexr sensor source builder:/work/job/home:/usr/sbin/nologin\n"

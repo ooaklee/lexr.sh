@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// These are serialized ELF metadata fixtures, never executable/native compiler
+// These are serialised ELF metadata fixtures, never executable/native compiler
 // evidence. They exercise debug/elf and the actual production policy together.
 type fixtureSymbol struct{ name, version, library string }
 
@@ -380,6 +380,7 @@ func fixtureELF(t *testing.T, name string, mutate func(*fixtureELFSpec)) []byte 
 	return data
 }
 
+// fixtureELFs builds the complete nonexecuted ELF metadata roster for the production verifier.
 func fixtureELFs(t *testing.T) map[string][]byte {
 	t.Helper()
 	result := map[string][]byte{}
@@ -389,6 +390,7 @@ func fixtureELFs(t *testing.T) map[string][]byte {
 	return result
 }
 
+// TestNativeELFPolicyAcceptsSerializedMetadata accepts the complete bounded metadata fixture set.
 func TestNativeELFPolicyAcceptsSerializedMetadata(t *testing.T) {
 	if got := len(sscPublicVersions()); got != 97 {
 		t.Fatalf("public ABI count=%d", got)
@@ -398,6 +400,7 @@ func TestNativeELFPolicyAcceptsSerializedMetadata(t *testing.T) {
 	}
 }
 
+// TestNativeELFPolicyRefusesChangedArchitectureAndProviders rejects incompatible ELF and provider identities.
 func TestNativeELFPolicyRefusesChangedArchitectureAndProviders(t *testing.T) {
 	cases := []struct {
 		name, artifact string
@@ -445,6 +448,7 @@ func TestNativeELFPolicyRefusesChangedArchitectureAndProviders(t *testing.T) {
 	}
 }
 
+// TestNativeELFPreflightBoundsAndCompression refuses malformed geometry and unsupported compressed sections.
 func TestNativeELFPreflightBoundsAndCompression(t *testing.T) {
 	good := fixtureELF(t, "ssccli", nil)
 	for _, kind := range []string{"magic", "class", "endian", "truncated", "section-offset", "section-count", "compressed", "legacy-compressed", "symbol-count", "writable-executable", "zero-entry", "dynamic-mismatch"} {
@@ -485,6 +489,7 @@ func TestNativeELFPreflightBoundsAndCompression(t *testing.T) {
 	}
 }
 
+// TestNativeELFABIIsClosedAndDefensive keeps the required SSC ABI exact and protected from caller mutation.
 func TestNativeELFABIIsClosedAndDefensive(t *testing.T) {
 	versions := sscPublicVersions()
 	delete(versions, "ssc_sensor_sample_copy")
@@ -498,6 +503,7 @@ func TestNativeELFABIIsClosedAndDefensive(t *testing.T) {
 	}
 }
 
+// TestNativeELFLoaderAddressesMatchParsedMetadata binds dynamic loader addresses to their parsed tables.
 func TestNativeELFLoaderAddressesMatchParsedMetadata(t *testing.T) {
 	for _, kind := range []string{"string-address", "string-size", "symbol-address", "symbol-size", "version-address", "definition-count", "need-address", "duplicate-string-address", "load-filesize", "load-alignment", "dynamic-link", "symbol-link", "version-link"} {
 		t.Run(kind, func(t *testing.T) {

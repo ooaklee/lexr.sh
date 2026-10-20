@@ -9,6 +9,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// requirePrivateSnapshotParent requires a current-user-owned private directory.
 func requirePrivateSnapshotParent(root *os.Root) error {
 	file, err := root.Open(".")
 	if err != nil {

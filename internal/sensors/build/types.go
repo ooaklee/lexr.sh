@@ -59,7 +59,7 @@ type PhaseResult struct {
 
 // SourceBindObservation retains local host/daemon coordinates for diagnosis.
 // It is not included in the host-path-free published receipt and does not
-// prove the daemon's file-sharing implementation or physical sensor behavior.
+// prove the daemon's file-sharing implementation or physical sensor behaviour.
 type SourceBindObservation struct {
 	HostSnapshotPath   string `json:"host_snapshot_path"`
 	DaemonSnapshotPath string `json:"daemon_snapshot_path"`
@@ -104,6 +104,7 @@ type Manager struct {
 	recoveryTimeout time.Duration
 }
 
+// New creates a sequential build owner with fixed phase and recovery deadlines.
 func New(runner platform.Runner) *Manager {
 	if runner == nil {
 		runner = platform.NewDiagnosticRunner(nil)
@@ -115,6 +116,7 @@ func New(runner platform.Runner) *Manager {
 	}, timeout: 75 * time.Minute, initTimeout: 3 * time.Minute, sourceTimeout: 47 * time.Minute, recoveryTimeout: 25 * time.Second}
 }
 
+// Plan authenticates local inputs without contacting Docker or creating outputs.
 func (m *Manager) Plan(ctx context.Context, request Request) (Plan, error) {
 	return m.plan(ctx, request)
 }

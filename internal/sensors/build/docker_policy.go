@@ -24,12 +24,14 @@ import (
 // volume/container, inspect a daemon, or grant authority from adjacent labels.
 type sourcePhase string
 
+// Source phases select only the fixed initialisation and offline build recipes.
 const (
 	sourceInit       sourcePhase = "init"
 	sourceBuild      sourcePhase = "build"
 	sourcePhaseLabel             = "io.lexr.sensors.phase"
 )
 
+// Docker identity patterns bound the names accepted by source policy checks.
 var (
 	sourceObjectID      = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 	sourceContainerID   = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -53,6 +55,7 @@ type sourceDockerSpec struct {
 	Env                []string
 }
 
+// sourceHealthcheck retains image healthcheck fields so hidden execution is refused.
 type sourceHealthcheck struct {
 	Test          []string
 	Interval      int64
@@ -62,6 +65,7 @@ type sourceHealthcheck struct {
 	Retries       int
 }
 
+// sourceImageConfig captures command, environment and implicit-resource settings.
 type sourceImageConfig struct {
 	Image                     string
 	User                      string
@@ -76,6 +80,7 @@ type sourceImageConfig struct {
 	OpenStdin, StdinOnce, Tty bool
 }
 
+// sourceImageInspection binds source execution to an immutable native image.
 type sourceImageInspection struct {
 	ID           string `json:"Id"`
 	OS           string `json:"Os"`
@@ -83,6 +88,7 @@ type sourceImageInspection struct {
 	Config       sourceImageConfig
 }
 
+// sourceBindOptions records requested bind propagation and recursive mount policy.
 type sourceBindOptions struct {
 	Propagation            string
 	NonRecursive           bool
@@ -91,6 +97,7 @@ type sourceBindOptions struct {
 	ReadOnlyForceRecursive bool
 }
 
+// sourceVolumeOptions records volume settings that could change work ownership.
 type sourceVolumeOptions struct {
 	NoCopy       bool
 	Labels       map[string]string
@@ -98,6 +105,7 @@ type sourceVolumeOptions struct {
 	DriverConfig json.RawMessage `json:",omitempty"`
 }
 
+// sourceHostMount captures the daemon's recorded mount request for comparison.
 type sourceHostMount struct {
 	Type          string
 	Source        string
@@ -109,6 +117,7 @@ type sourceHostMount struct {
 	TmpfsOptions  json.RawMessage `json:",omitempty"`
 }
 
+// sourceEffectiveMount captures an independently checked effective mount route.
 type sourceEffectiveMount struct {
 	Type        string
 	Name        string
@@ -120,6 +129,8 @@ type sourceEffectiveMount struct {
 	RW          bool
 }
 
+// sourceContainerInspection retains ownership, isolation, mounts and state from
+// one owned container's typed inspection without granting trust from labels alone.
 type sourceContainerInspection struct {
 	ID           string `json:"Id"`
 	Name         string
@@ -181,6 +192,8 @@ type sourceDockerTerminal struct {
 	FinishedAt  string `json:"finished_at"`
 }
 
+// decodeSourceInspection accepts one bounded, canonically typed JSON object and
+// refuses duplicate names, missing observations and trailing data.
 func decodeSourceInspection(data []byte, into any) error {
 	trimmed := bytes.TrimSpace(data)
 	if len(trimmed) == 0 || trimmed[0] != '{' || len(data) > 256<<10 || !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
@@ -280,6 +293,8 @@ func validateSourceInspectionShape(raw json.RawMessage, model reflect.Type, loca
 	return nil
 }
 
+// requireSourceContainerObservations prevents absent primitive fields from
+// silently becoming safe-looking Go zero values during typed decoding.
 func requireSourceContainerObservations(container map[string]json.RawMessage, location string) error {
 	for section, required := range map[string][]string{
 		"State":      {"Status", "Running", "Paused", "Restarting", "Dead", "OOMKilled", "Pid", "ExitCode", "Error", "StartedAt", "FinishedAt"},
@@ -300,6 +315,7 @@ func requireSourceContainerObservations(container map[string]json.RawMessage, lo
 	return nil
 }
 
+// validateSourceEngine requires an identified Linux ARM64 engine observation.
 func validateSourceEngine(raw []byte) (string, string, error) {
 	var engine struct{ ID, ServerVersion, OSType, Architecture string }
 	if err := decodeSourceInspection(raw, &engine); err != nil {
@@ -311,6 +327,7 @@ func validateSourceEngine(raw []byte) (string, string, error) {
 	return engine.ID, engine.ServerVersion, nil
 }
 
+// validateSourceImage verifies the exact dependency image and its inert defaults.
 func validateSourceImage(image sourceImageInspection, exactID string) error {
 	if !sourceObjectID.MatchString(exactID) || image.ID != exactID || image.OS != "linux" || image.Architecture != "arm64" {
 		return errors.New("source builder must be the exact immutable Linux ARM64 image")
@@ -327,10 +344,12 @@ func validateSourceImage(image sourceImageInspection, exactID string) error {
 	return err
 }
 
+// emptySourceHealthcheck accepts only an absent or entirely inert healthcheck.
 func emptySourceHealthcheck(h *sourceHealthcheck) bool {
 	return h == nil || len(h.Test) == 0 && h.Interval == 0 && h.Timeout == 0 && h.StartPeriod == 0 && h.StartInterval == 0 && h.Retries == 0
 }
 
+// fixedSourceEnvironment returns the compiled deterministic execution variables.
 func fixedSourceEnvironment() []string {
 	return []string{
 		"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C.UTF-8", "LC_ALL=C.UTF-8", "TZ=UTC",
@@ -356,6 +375,8 @@ func sourceEnvironment(imageEnv []string) ([]string, error) {
 	return fixedSourceEnvironment(), nil
 }
 
+// validateSourceSpec checks phase identities, jobs and explicit mount coordinates
+// before any Docker creation command can be assembled.
 func validateSourceSpec(spec sourceDockerSpec) error {
 	if spec.Phase != sourceInit && spec.Phase != sourceBuild || !sourceTokenPattern.MatchString(spec.Token) || spec.Name != "lexr-sensors-"+string(spec.Phase)+"-"+spec.Token || !sourceObjectID.MatchString(spec.ImageID) || spec.VolumeName != sourceVolumePrefix+spec.Token || spec.Jobs < 1 || spec.Jobs > 8 {
 		return errors.New("source Docker identity or job policy differs")
@@ -377,6 +398,7 @@ func validateSourceSpec(spec sourceDockerSpec) error {
 	return nil
 }
 
+// sourceCommand selects a bounded fixed recipe, never a caller-supplied script.
 func sourceCommand(spec sourceDockerSpec) []string {
 	if spec.Phase == sourceInit {
 		return []string{"--signal=TERM", "--kill-after=5s", "2m", "/bin/bash", "-euo", "pipefail", "-c", InitScript}
@@ -384,6 +406,8 @@ func sourceCommand(spec sourceDockerSpec) []string {
 	return []string{"--signal=TERM", "--kill-after=5s", "45m", "/bin/bash", "-euo", "pipefail", "-c", SourceScript, "lexr-sensors-source-build", strconv.Itoa(spec.Jobs)}
 }
 
+// sourceCreateArgs encodes the validated phase's exact isolation and resource
+// policy, without permitting an image pull or automatic resource removal.
 func sourceCreateArgs(spec sourceDockerSpec) ([]string, error) {
 	if err := validateSourceSpec(spec); err != nil {
 		return nil, err
@@ -410,6 +434,8 @@ func sourceCreateArgs(spec sourceDockerSpec) ([]string, error) {
 	return append(args, sourceCommand(spec)...), nil
 }
 
+// exactContainerOwnership requires the selected ID, image, name and recipe labels
+// before supervision or recovery may act on a container.
 func exactContainerOwnership(c sourceContainerInspection, spec sourceDockerSpec, exactID string) error {
 	if err := validateSourceSpec(spec); err != nil {
 		return err
@@ -425,6 +451,8 @@ func exactContainerOwnership(c sourceContainerInspection, spec sourceDockerSpec,
 	return nil
 }
 
+// validateSourceContainerPolicy checks observed isolation, commands and limits
+// against compiled phase policy before treating a container as admissible.
 func validateSourceContainerPolicy(c sourceContainerInspection, spec sourceDockerSpec) error {
 	if err := validateSourceSpec(spec); err != nil {
 		return err
@@ -457,6 +485,8 @@ func validateSourceContainerPolicy(c sourceContainerInspection, spec sourceDocke
 	return validateSourceMounts(c, spec)
 }
 
+// validateSourceMounts separately verifies requested and effective mount records,
+// allowing only the owned workspace and selected read-only source coordinates.
 func validateSourceMounts(c sourceContainerInspection, spec sourceDockerSpec) error {
 	wanted := 1
 	if spec.Phase == sourceBuild {
@@ -523,14 +553,17 @@ func validateSourceMounts(c sourceContainerInspection, spec sourceDockerSpec) er
 	return nil
 }
 
+// sourceCanonicalPath requires a non-root absolute path without control bytes.
 func sourceCanonicalPath(name string) bool {
 	return filepath.IsAbs(name) && filepath.Clean(name) == name && name != "/" && utf8.ValidString(name) && strings.IndexFunc(name, unicode.IsControl) < 0
 }
 
+// sourceReadOnlyBindMode recognises only the admitted read-only/private spellings.
 func sourceReadOnlyBindMode(mode string) bool {
 	return mode == "" || mode == "ro" || mode == "ro,rprivate" || mode == "rprivate,ro"
 }
 
+// sourceNormalizeCaps compares Docker capability names without case/prefix noise.
 func sourceNormalizeCaps(values []string) []string {
 	result := make([]string, len(values))
 	for i, value := range values {
@@ -539,6 +572,7 @@ func sourceNormalizeCaps(values []string) []string {
 	return result
 }
 
+// sourceEqualSet compares sorted copies, retaining duplicate multiplicity.
 func sourceEqualSet(a, b []string) bool {
 	a, b = slices.Clone(a), slices.Clone(b)
 	slices.Sort(a)
@@ -546,6 +580,8 @@ func sourceEqualSet(a, b []string) bool {
 	return slices.Equal(a, b)
 }
 
+// observedSourceTerminal distinguishes verified stopped state from uncertain
+// execution; a never-started created container is stopped but not successful.
 func observedSourceTerminal(c sourceContainerInspection) (sourceDockerTerminal, error) {
 	s := c.State
 	terminal := sourceDockerTerminal{ContainerID: c.ID, Status: s.Status, Running: s.Running, PID: s.Pid, ExitCode: s.ExitCode, OOMKilled: s.OOMKilled, Error: s.Error, StartedAt: s.StartedAt, FinishedAt: s.FinishedAt}
@@ -555,6 +591,8 @@ func observedSourceTerminal(c sourceContainerInspection) (sourceDockerTerminal, 
 	return terminal, nil
 }
 
+// successfulSourceTerminal requires a clean exit with valid ordered timestamps,
+// no live PID and no daemon or out-of-memory failure.
 func successfulSourceTerminal(terminal sourceDockerTerminal) bool {
 	start, startErr := time.Parse(time.RFC3339Nano, terminal.StartedAt)
 	finish, finishErr := time.Parse(time.RFC3339Nano, terminal.FinishedAt)

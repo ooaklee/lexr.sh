@@ -23,6 +23,7 @@ type RepositorySnapshot struct {
 	closed           bool
 }
 
+// Path returns the snapshot pathname, or an empty value for a nil snapshot.
 func (s *RepositorySnapshot) Path() string {
 	if s == nil {
 		return ""
@@ -30,6 +31,7 @@ func (s *RepositorySnapshot) Path() string {
 	return s.name
 }
 
+// Composition returns the authenticated lineage associated with this snapshot.
 func (s *RepositorySnapshot) Composition() Composition {
 	if s == nil {
 		return Composition{}
@@ -62,6 +64,7 @@ func StageRepository(repositoryRoot, destination string) (*RepositorySnapshot, e
 	return stageRepository(repositoryRoot, destination, approvedAuthority())
 }
 
+// stageRepository stages the exact approved tree and retains its directory handles.
 func stageRepository(repositoryRoot, destination string, policy authority) (result *RepositorySnapshot, resultErr error) {
 	if err := regularReadSupported(); err != nil {
 		return nil, err
@@ -201,6 +204,7 @@ func stageRepository(repositoryRoot, destination string, policy authority) (resu
 	return s, nil
 }
 
+// pathsMatch rechecks both snapshot pathnames against their retained directories.
 func (s *RepositorySnapshot) pathsMatch() error {
 	if s == nil || s.closed || s.root == nil || s.parent == nil {
 		return errors.New("snapshot repository is closed or unavailable")
@@ -214,6 +218,7 @@ func (s *RepositorySnapshot) pathsMatch() error {
 	return directoryPathMatches(s.name, s.root)
 }
 
+// nodes constructs the closed set of directories, files and links in the snapshot.
 func (s *RepositorySnapshot) nodes() (map[string]byte, error) {
 	wanted := map[string]byte{".": 'd', "userspace": 'd', sourcePrefix: 'd'}
 	for _, member := range append(s.composition.SourceFiles(), s.composition.Metadata()...) {

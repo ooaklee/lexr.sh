@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// nativeELF retains the parsed dependency and symbol metadata used by policy.
 type nativeELF struct {
 	needed  map[string]bool
 	exports map[string]map[string]bool
@@ -21,11 +22,13 @@ type nativeELF struct {
 	qmiExports      map[string][]nativeQMIExport
 }
 
+// nativeQMIExport preserves each QMI definition and its executable-section flag.
 type nativeQMIExport struct {
 	symbol     elf.Symbol
 	executable bool
 }
 
+// coreELFNames fixes the complete binary roster requiring native ELF validation.
 var coreELFNames = []string{"libqmi-glib.so.5.12.0", "libssc.so.2", "ssccli", "iio-sensor-proxy", "monitor-sensor"}
 
 // preflightELF bounds the untrusted ELF tables before debug/elf can allocate
@@ -86,6 +89,7 @@ func preflightELF(data []byte) error {
 	return nil
 }
 
+// inspectNativeELF validates one native output and retains its provider metadata.
 func inspectNativeELF(name string, data []byte) (nativeELF, error) {
 	result := nativeELF{needed: map[string]bool{}, exports: map[string]map[string]bool{}, unversionedQMI: name == "libqmi-glib.so.5.12.0", qmiExports: map[string][]nativeQMIExport{}}
 	if err := preflightELF(data); err != nil {
@@ -375,6 +379,7 @@ func validateLoaderTables(f *elf.File, dynamic *elf.Section) error {
 	return nil
 }
 
+// indexOfSection returns the parsed table position or -1 for an absent section.
 func indexOfSection(f *elf.File, wanted *elf.Section) int {
 	for i, s := range f.Sections {
 		if s == wanted {
@@ -383,6 +388,8 @@ func indexOfSection(f *elf.File, wanted *elf.Section) int {
 	}
 	return -1
 }
+
+// sscVersionNode recognises only version nodes in the compiled SSC ABI.
 func sscVersionNode(name string) bool {
 	return name == "LIBSSC_0.4.0" || name == "LIBSSC_0.4.5" || name == "LIBSSC_0.4.6" || name == "LIBSSC_0.4.7"
 }
@@ -407,6 +414,8 @@ func unversionedSymbol(s elf.Symbol, object nativeELF, defined bool) bool {
 	return s.VersionIndex.Index() <= 1
 }
 
+// unversionedQMIImport requires a direct need and one strong executable provider
+// definition; empty version strings alone do not establish that relationship.
 func unversionedQMIImport(consumer, provider nativeELF, symbol elf.Symbol) bool {
 	if !provider.unversionedQMI || !consumer.needed["libqmi-glib.so.5"] || symbol.Section != elf.SHN_UNDEF || elf.ST_BIND(symbol.Info) != elf.STB_GLOBAL || elf.ST_TYPE(symbol.Info) != elf.STT_FUNC || elf.ST_VISIBILITY(symbol.Other) != elf.STV_DEFAULT || !unversionedSymbol(symbol, consumer, false) {
 		return false
@@ -420,6 +429,7 @@ func unversionedQMIImport(consumer, provider nativeELF, symbol elf.Symbol) bool 
 	return definition.executable && elf.ST_BIND(s.Info) == elf.STB_GLOBAL && elf.ST_TYPE(s.Info) == elf.STT_FUNC && elf.ST_VISIBILITY(s.Other) == elf.STV_DEFAULT && unversionedSymbol(s, provider, true)
 }
 
+// validateNativeELFs enforces native binary closure and exact QMI/SSC imports.
 func validateNativeELFs(files map[string][]byte) error {
 	objects := map[string]nativeELF{}
 	for _, name := range coreELFNames {

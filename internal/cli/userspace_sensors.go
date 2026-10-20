@@ -23,6 +23,7 @@ func validateSensorBuildCatalogComponent(component userspacecatalog.Component) e
 	return nil
 }
 
+// sensorSourceBuildComplete requires publication and clean observed build phases.
 func sensorSourceBuildComplete(result *sensorbuild.Result) bool {
 	if result == nil || !result.Publication.Published || !result.Publication.Durable ||
 		!result.Publication.LocationVerified || result.BuildReport == nil ||

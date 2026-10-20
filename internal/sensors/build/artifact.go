@@ -30,18 +30,23 @@ type VerifiedArtifacts struct {
 	valid     bool
 }
 
+// Files returns a copy of the verified regular-member roster, or nil if invalid.
 func (v *VerifiedArtifacts) Files() []Artifact {
 	if v == nil || !v.valid {
 		return nil
 	}
 	return append([]Artifact(nil), v.artifacts...)
 }
+
+// Links returns a copy of the verified symlink roster, or nil if invalid.
 func (v *VerifiedArtifacts) Links() []Link {
 	if v == nil || !v.valid {
 		return nil
 	}
 	return append([]Link(nil), v.links...)
 }
+
+// Data copies one verified member's bytes without exposing internal storage.
 func (v *VerifiedArtifacts) Data(name string) ([]byte, bool) {
 	if v == nil || !v.valid {
 		return nil, false
@@ -49,6 +54,8 @@ func (v *VerifiedArtifacts) Data(name string) ([]byte, bool) {
 	data, ok := v.files[name]
 	return bytes.Clone(data), ok
 }
+
+// Report returns a deep copy of validated observations, not installation policy.
 func (v *VerifiedArtifacts) Report() BuildReport {
 	if v == nil || !v.valid {
 		return BuildReport{}
@@ -74,8 +81,10 @@ func (v *VerifiedArtifacts) Report() BuildReport {
 	return r
 }
 
+// bytesDigest hashes received bytes using the contract's lowercase SHA-256 form.
 func bytesDigest(data []byte) string { sum := sha256.Sum256(data); return hex.EncodeToString(sum[:]) }
 
+// safeFlatName permits only bounded ASCII basenames, never archive path traversal.
 func safeFlatName(name string) bool {
 	if name == "" || name == "." || name == ".." || len(name) > 128 {
 		return false
@@ -88,6 +97,7 @@ func safeFlatName(name string) bool {
 	return true
 }
 
+// checkRosterNames rejects unsafe names and case aliases in the compiled roster.
 func checkRosterNames(files map[string]fileRule, links []Link) error {
 	seen := map[string]bool{}
 	for name := range files {
@@ -105,6 +115,7 @@ func checkRosterNames(files map[string]fileRule, links []Link) error {
 	return nil
 }
 
+// validHeader bounds common tar metadata and optionally requires plain USTAR.
 func validHeader(h *tar.Header, ustar bool) bool {
 	return h != nil && (!ustar || h.Format == tar.FormatUSTAR) && len(h.PAXRecords) == 0 && len(h.Xattrs) == 0 && safeFlatName(h.Name) && h.Mode >= 0 && h.Mode&^int64(0o777) == 0
 }
@@ -125,11 +136,13 @@ func endOfArchive(reader *bytes.Reader, before int) error {
 }
 
 // DecodeDockerCopy validates Docker's transport tar, then the independent inner
-// artifact contract. No pathname from either stream is extracted or followed.
+// artefact contract. No pathname from either stream is extracted or followed.
 func DecodeDockerCopy(data []byte, expectedJobs int) (*VerifiedArtifacts, error) {
 	return decodeDockerCopy(data, expectedJobs, expectedFiles())
 }
 
+// decodeDockerCopy requires exactly one fixed inner archive and complete endings.
+// Only package fixtures substitute the regular-member licence rules.
 func decodeDockerCopy(data []byte, expectedJobs int, rules map[string]fileRule) (*VerifiedArtifacts, error) {
 	if len(data) == 0 || len(data) > MaximumArchiveBytes+(64<<10) || len(data)%512 != 0 {
 		return nil, errors.New("Docker copy archive size/alignment differs")
@@ -240,6 +253,8 @@ func decodeArtifactArchive(data []byte, expectedJobs int, rules map[string]fileR
 	return &VerifiedArtifacts{files: files, artifacts: artifacts, links: links, report: report, valid: true}, nil
 }
 
+// decodeJSON requires UTF-8 evidence without NULs or duplicate member names and
+// optionally refuses fields outside the destination schema.
 func decodeJSON(data []byte, into any, strict bool) error {
 	if !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
 		return errors.New("evidence is not valid UTF-8 text")
@@ -257,6 +272,8 @@ func decodeJSON(data []byte, into any, strict bool) error {
 	return nil
 }
 
+// validateEvidence cross-checks reported identities, resources and observations
+// against compiled authority and the actual received output bytes.
 func validateEvidence(files map[string][]byte, jobs int) (BuildReport, error) {
 	var report BuildReport
 	for _, name := range []string{ReportName, "testlog.json", "testlog.txt", "qmi-dependencies.json", "ssc-dependencies.json", "proxy-dependencies.json", "loader-evidence.txt"} {
@@ -317,6 +334,8 @@ func validateEvidence(files map[string][]byte, jobs int) (BuildReport, error) {
 	return report, nil
 }
 
+// validateTestLog requires every selected Meson fixture to finish successfully
+// with recorded output and a matching entry in the retained text log.
 func validateTestLog(data, text []byte) error {
 	wanted := map[string]bool{}
 	for _, name := range FixtureTargets() {
@@ -348,6 +367,7 @@ func validateTestLog(data, text []byte) error {
 	return nil
 }
 
+// dependencyEvidence retains Meson's selected provider identity and build flags.
 type dependencyEvidence struct {
 	Name        string   `json:"name"`
 	Version     string   `json:"version"`
@@ -355,6 +375,8 @@ type dependencyEvidence struct {
 	LinkArgs    []string `json:"link_args"`
 }
 
+// validateDependencies requires the fixed private QMI/SSC providers at each
+// dependent build stage rather than trusting version strings alone.
 func validateDependencies(files map[string][]byte) error {
 	for _, component := range []string{"qmi", "ssc", "proxy"} {
 		var entries []dependencyEvidence
@@ -391,6 +413,7 @@ func validateDependencies(files map[string][]byte) error {
 	return nil
 }
 
+// validateProviderFlags checks private headers and library routes in Meson flags.
 func validateProviderFlags(entry dependencyEvidence, includeSSC bool) error {
 	includes := map[string]bool{}
 	privateLibDir := false
@@ -444,16 +467,23 @@ func validateProviderFlags(entry dependencyEvidence, includeSSC bool) error {
 	return nil
 }
 
+// loaderResolved recognises one named dependency resolved to an absolute path.
 var loaderResolved = regexp.MustCompile(`^([^[:space:]]+) => (/[^[:space:]]+) \(0x[0-9a-fA-F]+\)$`)
+
+// loaderAbsolute recognises the loader's absolute self-route with its address.
 var loaderAbsolute = regexp.MustCompile(`^(/[^[:space:]]+) \(0x[0-9a-fA-F]+\)$`)
+
+// loaderVirtual recognises the fixed virtual DSO row without inventing a file.
 var loaderVirtual = regexp.MustCompile(`^linux-vdso\.so\.1 \(0x[0-9a-fA-F]+\)$`)
 
+// expectedLoaderProviders fixes private runtime routes for every output binary.
 func expectedLoaderProviders() map[string]map[string]string {
 	qmi := ProviderDirectory + "/lib/libqmi-glib.so.5"
 	ssc := ProviderDirectory + "/lib/libssc.so.2"
 	return map[string]map[string]string{"libqmi-glib.so.5.12.0": {}, "libssc.so.2": {"libqmi-glib.so.5": qmi}, "ssccli": {"libqmi-glib.so.5": qmi, "libssc.so.2": ssc}, "iio-sensor-proxy": {"libqmi-glib.so.5": qmi, "libssc.so.2": ssc}, "monitor-sensor": {}}
 }
 
+// parseLoader returns private providers only after validating every loader row.
 func parseLoader(text string) (map[string]string, error) {
 	observed, err := parseLoaderObservations(text)
 	if err != nil {
@@ -462,11 +492,14 @@ func parseLoader(text string) (map[string]string, error) {
 	return observed.providers, nil
 }
 
+// loaderObservations separates private providers from all named resolutions.
 type loaderObservations struct {
 	providers map[string]string
 	resolved  map[string]string
 }
 
+// parseLoaderObservations refuses ambiguous, unnamed and unexpected loader routes
+// while retaining system dependencies needed for direct ELF-need checks.
 func parseLoaderObservations(text string) (*loaderObservations, error) {
 	if strings.TrimSpace(text) == "" || strings.ContainsAny(text, "\x00\r") {
 		return nil, errors.New("empty or malformed loader evidence")
@@ -520,6 +553,8 @@ func parseLoaderObservations(text string) (*loaderObservations, error) {
 	return &loaderObservations{providers: providers, resolved: resolved}, nil
 }
 
+// validateLoaders binds reported private origins and direct ELF needs to the
+// independently parsed loader listings for the complete binary roster.
 func validateLoaders(files map[string][]byte, reported []Loader) error {
 	var raw map[string]string
 	if err := decodeJSON(files["loader-evidence.txt"], &raw, false); err != nil {

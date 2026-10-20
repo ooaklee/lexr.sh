@@ -1,7 +1,7 @@
 ---
 id: adrs-adr043
 title: "ADR043: Sensor source snapshots and output publication"
-description: Keep authenticated source authority, build evidence and development artifacts separate.
+description: Keep authenticated source authority, build evidence and development artefacts separate.
 ---
 
 ## Status
@@ -15,8 +15,8 @@ installation support or physical sensor qualification.
 ## Context
 
 A mutable repository cannot remain the execution authority after an initial
-checksum pass. Likewise, a manifest emitted by a compiler job cannot authorize
-its own outputs. A failed or cancelled job must not leave artifacts that look
+checksum pass. Likewise, a manifest emitted by a compiler job cannot authorise
+its own outputs. A failed or cancelled job must not leave artefacts that look
 like a completed build, and a successful filesystem rename must not be reported
 as though it never happened if a later durability check fails.
 
@@ -30,7 +30,7 @@ bytes, links, execution bits, readonly modes and path identities immediately
 around future controller use. A snapshot path or descriptive lineage commit
 alone grants no execution authority. Do not modify the original checkout.
 
-The compiled native recipe separates minimal volume initialization from
+The compiled native recipe separates minimal volume initialisation from
 unprivileged offline compilation. It builds QMI, SSC and the proxy against
 private providers, checks the proxy's six logical installation destinations
 before compilation, and stages installation into a private root. Only the
@@ -41,13 +41,13 @@ for that supervisor.
 
 Export a fixed flat archive of two shared libraries, three executables,
 retained licences and software-build evidence, with three exact library
-aliases. This is a development artifact set, not a complete SDK or installable
+aliases. This is a development artefact set, not a complete SDK or installable
 bundle. The in-band report records actual hashes and observations but remains
 descriptive. The host decoder independently enforces the compiled closed file
 roster, modes, limits, licence digests, link targets and report consistency.
 It parses bounded tar streams without filesystem extraction, rejects additional
 members and checks selected ELF and private-provider metadata. Static ELF
-checks are not complete relocation, executable-behavior or hardware proof.
+checks are not complete relocation, executable-behaviour or hardware proof.
 Keep the fixed loader's isolated output as separate evidence.
 
 After all future supervisor and decoder gates pass, publish into an exclusive
@@ -67,11 +67,11 @@ build observations and cannot enable an installer or a compatibility claim.
 ## Consequences
 
 - Source checkout, container execution and published output have separate
-  authority boundaries. No Windows runtime artifact is required.
+  authority boundaries. No Windows runtime artefact is required.
 - The host user and Docker administrator remain trusted. Readonly copies do
   not defend against another process with equivalent authority.
 - Software fixtures, dependency identities and filesystem checks remain
-  distinct from physical sensor roles, calibration, clocks, desktop behavior
+  distinct from physical sensor roles, calibration, clocks, desktop behaviour
   and suspend/resume qualification.
 - A real supervised normal-path build and its failure/refusal tests remain
   required before CLI or catalogue delivery. This record does not announce

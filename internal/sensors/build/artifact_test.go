@@ -13,7 +13,7 @@ import (
 )
 
 // The positive fixture substitutes only four licence texts through an
-// unexported policy seam. ELF metadata is serialized by fixtureELF and goes
+// unexported policy seam. ELF metadata is serialised by fixtureELF and goes
 // through the real debug/elf verifier; no test claims native execution.
 func artifactFixture(t *testing.T) (map[string][]byte, map[string]fileRule) {
 	t.Helper()
@@ -82,6 +82,7 @@ func artifactFixture(t *testing.T) (map[string][]byte, map[string]fileRule) {
 	return files, rules
 }
 
+// rewriteFixtureReport refreshes the in-band report after a controlled fixture mutation.
 func rewriteFixtureReport(t *testing.T, files map[string][]byte, mutate func(*BuildReport)) {
 	t.Helper()
 	var report BuildReport
@@ -114,11 +115,13 @@ func rewriteFixtureReport(t *testing.T, files map[string][]byte, mutate func(*Bu
 	files[ReportName] = append(b, '\n')
 }
 
+// fixtureTarMember supplies one explicit tar header and payload for archive tests.
 type fixtureTarMember struct {
 	header tar.Header
 	data   []byte
 }
 
+// writeFixtureTar serialises supplied members without executing their contents.
 func writeFixtureTar(t *testing.T, members []fixtureTarMember) []byte {
 	t.Helper()
 	var output bytes.Buffer
@@ -138,6 +141,7 @@ func writeFixtureTar(t *testing.T, members []fixtureTarMember) []byte {
 	return output.Bytes()
 }
 
+// fixtureMembers assembles the regular and link members expected by the closed archive contract.
 func fixtureMembers(files map[string][]byte) []fixtureTarMember {
 	var result []fixtureTarMember
 	for _, name := range ArtifactFiles() {
@@ -153,11 +157,13 @@ func fixtureMembers(files map[string][]byte) []fixtureTarMember {
 	return result
 }
 
+// wrapFixtureCopy encloses an inner source archive in its Docker-copy transport member.
 func wrapFixtureCopy(t *testing.T, inner []byte) []byte {
 	t.Helper()
 	return writeFixtureTar(t, []fixtureTarMember{{tar.Header{Name: ArchiveName, Mode: 0o600, Size: int64(len(inner)), Typeflag: tar.TypeReg, Format: tar.FormatUSTAR}, inner}})
 }
 
+// TestArtifactArchiveAndDockerTransportPositiveFixture exercises both accepted archive layers.
 func TestArtifactArchiveAndDockerTransportPositiveFixture(t *testing.T) {
 	files, rules := artifactFixture(t)
 	inner := writeFixtureTar(t, fixtureMembers(files))
@@ -179,6 +185,7 @@ func TestArtifactArchiveAndDockerTransportPositiveFixture(t *testing.T) {
 	}
 }
 
+// TestArtifactAccessorsAreDefensiveAndZeroValuesUntrusted rejects caller mutation and unsealed results.
 func TestArtifactAccessorsAreDefensiveAndZeroValuesUntrusted(t *testing.T) {
 	files, rules := artifactFixture(t)
 	v, err := decodeArtifactArchive(writeFixtureTar(t, fixtureMembers(files)), 2, rules)
@@ -223,6 +230,7 @@ func TestArtifactAccessorsAreDefensiveAndZeroValuesUntrusted(t *testing.T) {
 	}
 }
 
+// TestArtifactInnerArchiveRefusesChangedHeadersAndClosure rejects deviations from the exact member roster.
 func TestArtifactInnerArchiveRefusesChangedHeadersAndClosure(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -280,6 +288,7 @@ func TestArtifactInnerArchiveRefusesChangedHeadersAndClosure(t *testing.T) {
 	}
 }
 
+// TestArtifactArchiveEndRecordsAndDeclaredSizeBounds covers truncated endings and oversized declarations.
 func TestArtifactArchiveEndRecordsAndDeclaredSizeBounds(t *testing.T) {
 	files, rules := artifactFixture(t)
 	good := writeFixtureTar(t, fixtureMembers(files))
@@ -318,6 +327,7 @@ func TestArtifactArchiveEndRecordsAndDeclaredSizeBounds(t *testing.T) {
 	}
 }
 
+// TestArtifactInnerTimestampsRequireCompiledEpoch refuses timestamps outside the fixed source contract.
 func TestArtifactInnerTimestampsRequireCompiledEpoch(t *testing.T) {
 	for _, kind := range []string{"regular", "alias"} {
 		t.Run(kind, func(t *testing.T) {
@@ -344,6 +354,7 @@ func TestArtifactInnerTimestampsRequireCompiledEpoch(t *testing.T) {
 	}
 }
 
+// TestDockerCopyOuterArchiveRefusesWrongTransport rejects unexpected Docker-copy structure.
 func TestDockerCopyOuterArchiveRefusesWrongTransport(t *testing.T) {
 	files, rules := artifactFixture(t)
 	inner := writeFixtureTar(t, fixtureMembers(files))
@@ -384,6 +395,7 @@ func TestDockerCopyOuterArchiveRefusesWrongTransport(t *testing.T) {
 	}
 }
 
+// TestBuildReportAndRawEvidenceRefuseSelfAttestation compares reported claims with independent bytes.
 func TestBuildReportAndRawEvidenceRefuseSelfAttestation(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -458,6 +470,7 @@ func TestBuildReportAndRawEvidenceRefuseSelfAttestation(t *testing.T) {
 	}
 }
 
+// TestNestedLocaleSkipDoesNotBecomeWholeFixtureSkip keeps one permitted locale skip narrowly scoped.
 func TestNestedLocaleSkipDoesNotBecomeWholeFixtureSkip(t *testing.T) {
 	files, rules := artifactFixture(t)
 	files["testlog.json"] = bytes.ReplaceAll(files["testlog.json"], []byte(`ok 1 /local/fixture`), []byte(`ok 1 /French # SKIP locale unavailable`))
@@ -467,6 +480,7 @@ func TestNestedLocaleSkipDoesNotBecomeWholeFixtureSkip(t *testing.T) {
 	}
 }
 
+// TestLoaderAndRosterParserRefusals exercises malformed loader and member-roster evidence.
 func TestLoaderAndRosterParserRefusals(t *testing.T) {
 	for _, text := range []string{"", "libqmi-glib.so.5 => not found\n", "libc.so.6 => /tmp/libc.so.6 (0x1)\n", "libssc.so.1 => /work/job/providers/lib/libssc.so.1 (0x1)\n", "libc.so.6 => /lib/libc.so.6 (0x1)\nlibc.so.6 => /lib/libc.so.6 (0x2)\n", "nonsense\n", "/tmp/loader (0x1)\n"} {
 		if _, err := parseLoader(text); err == nil {
@@ -483,6 +497,7 @@ func TestLoaderAndRosterParserRefusals(t *testing.T) {
 	}
 }
 
+// TestLoaderEvidenceRequiresExactlyOneFixedSelfRow prevents missing, duplicate or substituted executable rows.
 func TestLoaderEvidenceRequiresExactlyOneFixedSelfRow(t *testing.T) {
 	dependency := "libc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x1)\n"
 	self := "/lib/ld-linux-aarch64.so.1 (0x2)\n"

@@ -133,7 +133,7 @@ func TestLoaderContractGoldenProvenance(t *testing.T) {
 	}
 }
 
-// TestLoaderContractGoAndArchive exercises the real Go parser and refreshed serialized ELF archives.
+// TestLoaderContractGoAndArchive exercises the real Go parser and refreshed serialised ELF archives.
 func TestLoaderContractGoAndArchive(t *testing.T) {
 	for _, row := range readLoaderContractCorpus(t).Cases {
 		t.Run(row.ID, func(t *testing.T) {

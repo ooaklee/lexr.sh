@@ -6,9 +6,10 @@ import (
 	"testing"
 )
 
-// These full-archive cases use serialized ELF fixtures, not a native loader or
+// These full-archive cases use serialised ELF fixtures, not a native loader or
 // target-OS compatibility proof. Every mutation refreshes the product hashes so
 // the direct-dependency gate, rather than stale report evidence, must reject it.
+// rewriteLoaderFixture refreshes loader evidence and its digest after a controlled observation change.
 func rewriteLoaderFixture(t *testing.T, files map[string][]byte, change func(map[string]string)) {
 	t.Helper()
 	var raw map[string]string
@@ -24,6 +25,7 @@ func rewriteLoaderFixture(t *testing.T, files map[string][]byte, change func(map
 	rewriteFixtureReport(t, files, nil)
 }
 
+// requireDirectLoaderRefusal checks that the exact missing direct dependency is reported.
 func requireDirectLoaderRefusal(t *testing.T, files map[string][]byte, rules map[string]fileRule, artifact, soname string) {
 	t.Helper()
 	if err := validateNativeELFs(files); err != nil {
@@ -41,6 +43,7 @@ func requireDirectLoaderRefusal(t *testing.T, files map[string][]byte, rules map
 	}
 }
 
+// TestArtifactDirectNeededRequiresOwnLoaderResolution binds each direct ELF need to its own loader observation.
 func TestArtifactDirectNeededRequiresOwnLoaderResolution(t *testing.T) {
 	for _, name := range coreELFNames {
 		t.Run(name, func(t *testing.T) {
@@ -61,6 +64,7 @@ func TestArtifactDirectNeededRequiresOwnLoaderResolution(t *testing.T) {
 	}
 }
 
+// TestArtifactDirectNeededRejectsMissingOrWrongSONAMERow refuses absent or mismatched dependency rows.
 func TestArtifactDirectNeededRejectsMissingOrWrongSONAMERow(t *testing.T) {
 	for _, name := range coreELFNames {
 		for _, wrongKey := range []bool{false, true} {
@@ -87,6 +91,7 @@ func TestArtifactDirectNeededRejectsMissingOrWrongSONAMERow(t *testing.T) {
 	}
 }
 
+// TestArtifactVirtualDSODoesNotResolveDirectNeeded prevents a virtual DSO row satisfying a direct dependency.
 func TestArtifactVirtualDSODoesNotResolveDirectNeeded(t *testing.T) {
 	files, rules := artifactFixture(t)
 	files["monitor-sensor"] = fixtureELF(t, "monitor-sensor", func(spec *fixtureELFSpec) {
@@ -95,6 +100,7 @@ func TestArtifactVirtualDSODoesNotResolveDirectNeeded(t *testing.T) {
 	requireDirectLoaderRefusal(t, files, rules, "monitor-sensor", "linux-vdso.so.1")
 }
 
+// TestArtifactDirectLoaderNeededUsesFixedAbsoluteSelfRow checks the interpreter against the exact self path.
 func TestArtifactDirectLoaderNeededUsesFixedAbsoluteSelfRow(t *testing.T) {
 	files, rules := artifactFixture(t)
 	for _, name := range coreELFNames {
@@ -108,6 +114,7 @@ func TestArtifactDirectLoaderNeededUsesFixedAbsoluteSelfRow(t *testing.T) {
 	}
 }
 
+// TestArtifactLoaderAllowsResolvedTransitiveSystemExtras permits resolved system dependencies beyond direct needs.
 func TestArtifactLoaderAllowsResolvedTransitiveSystemExtras(t *testing.T) {
 	files, rules := artifactFixture(t)
 	rewriteLoaderFixture(t, files, func(raw map[string]string) {
@@ -120,6 +127,7 @@ func TestArtifactLoaderAllowsResolvedTransitiveSystemExtras(t *testing.T) {
 	}
 }
 
+// TestArtifactLoaderKeepsPrivateProviderOriginChecks retains exact private QMI and SSC path requirements.
 func TestArtifactLoaderKeepsPrivateProviderOriginChecks(t *testing.T) {
 	for _, soname := range []string{"libqmi-glib.so.5", "libssc.so.2"} {
 		t.Run(soname, func(t *testing.T) {

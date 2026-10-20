@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// Source-volume labels bind a fresh local volume to its owner, token and recipes.
 const (
 	sourceOwnerLabel       = "io.lexr.sensors.source"
 	sourceOwnerValue       = "source-build-v1"
@@ -18,7 +19,7 @@ const (
 	maximumVolumeJSONBytes = 256 << 10
 )
 
-// Mountpoint is daemon bookkeeping only. It must never authorize a host read,
+// Mountpoint is daemon bookkeeping only. It must never authorise a host read,
 // write, bind mount, cleanup or other filesystem operation.
 type volumeInspection struct {
 	Name       string            `json:"Name"`
@@ -29,6 +30,7 @@ type volumeInspection struct {
 	Options    map[string]string `json:"Options"`
 }
 
+// validSourceVolumeIdentity requires the fixed name prefix and exact token form.
 func validSourceVolumeIdentity(name, token string) bool {
 	return len(token) == 24 && strings.Trim(token, "0123456789abcdef") == "" && name == sourceVolumePrefix+token
 }
@@ -46,6 +48,7 @@ func volumeCreateArgs(name, token string) []string {
 		"--label", sourceRecipeLabel + "=" + SourceRecipeSHA256(), name}
 }
 
+// validateOwnedVolume rejects foreign volumes, driver options and recipe drift.
 func validateOwnedVolume(v volumeInspection, name, token string) error {
 	if !validSourceVolumeIdentity(name, token) || v.Name != name {
 		return errors.New("source work volume identity differs")
@@ -119,6 +122,7 @@ func decodeVolumeInspection(data []byte) (volumeInspection, error) {
 	return result, nil
 }
 
+// volumeJSONString refuses null and non-string values in authority fields.
 func volumeJSONString(raw json.RawMessage) error {
 	var value *string
 	if err := json.Unmarshal(raw, &value); err != nil || value == nil {

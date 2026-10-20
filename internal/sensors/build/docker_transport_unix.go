@@ -8,8 +8,11 @@ import (
 	"syscall"
 )
 
+// sourceTransportCurrentUID returns the current real user's ownership identity.
 func sourceTransportCurrentUID() int { return os.Getuid() }
 
+// sourceTransportLstat captures type, owner and inode identity without following
+// the final filesystem entry when establishing a local Docker transport.
 func sourceTransportLstat(name string) (sourceTransportPathInfo, error) {
 	info, err := os.Lstat(name)
 	if err != nil {

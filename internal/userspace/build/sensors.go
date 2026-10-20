@@ -17,9 +17,11 @@ const sensorSourceInventoryMarker = "userspace/sensors/libssc/SOURCE.json"
 // The private seam permits typed adapter tests without exposing arbitrary
 // images, recipes, dependency handles or a public execution interface.
 type sensorBuildManager interface {
+	// Run delegates an explicit typed request to the native source controller.
 	Run(context.Context, sensorbuild.Request) (sensorbuild.Result, error)
 }
 
+// validateSensorAdapterRequest refuses unrelated options and implicit parent paths.
 func validateSensorAdapterRequest(request Request) error {
 	if request.Image != "" || request.WorkVolume != "" || request.MinimumFreeGiB != 0 || request.NoPull {
 		return errors.New("sensors builds do not accept image, work-volume, minimum-free-gib or no-pull; the native manager owns immutable policy and fresh dependency readiness")
@@ -38,12 +40,13 @@ func validateSensorAdapterRequest(request Request) error {
 			return fmt.Errorf("%s must name an existing directory for sensors builds", parent.label)
 		}
 	}
-	// Canonicalization, ownership/mode, overlap, mount topology, free-space and
+	// Canonicalisation, ownership/mode, overlap, mount topology, free-space and
 	// full source checks remain the native manager's own gates. No defaults,
 	// directory creation, filesystem cleanup or Docker calls occur here.
 	return nil
 }
 
+// runSensors preserves the native controller's typed result and original failure.
 func (m *Manager) runSensors(ctx context.Context, root string, request Request) (Result, error) {
 	if ctx == nil {
 		return Result{}, errors.New("sensor build context is required")

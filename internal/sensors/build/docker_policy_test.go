@@ -10,12 +10,14 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/sensors/builderimage"
 )
 
+// Policy fixtures use stable source, image and ownership identities without a daemon.
 const (
 	policyTestToken = "0123456789abcdef01234567"
 	policyTestImage = "sha256:" + "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	policyTestCID   = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 )
 
+// policyTestSpec constructs the accepted creation policy for one fixed build phase.
 func policyTestSpec(phase sourcePhase) sourceDockerSpec {
 	spec := sourceDockerSpec{Phase: phase, Name: "lexr-sensors-" + string(phase) + "-" + policyTestToken, Token: policyTestToken, ImageID: policyTestImage, VolumeName: sourceVolumePrefix + policyTestToken, Jobs: 3, Env: fixedSourceEnvironment()}
 	if phase == sourceBuild {
@@ -25,6 +27,7 @@ func policyTestSpec(phase sourcePhase) sourceDockerSpec {
 	return spec
 }
 
+// policyTestContainer supplies the matching requested and effective container observations.
 func policyTestContainer(phase sourcePhase) sourceContainerInspection {
 	spec := policyTestSpec(phase)
 	c := sourceContainerInspection{ID: policyTestCID, Name: "/" + spec.Name, Image: spec.ImageID}
@@ -49,6 +52,7 @@ func policyTestContainer(phase sourcePhase) sourceContainerInspection {
 	return c
 }
 
+// TestSourceCreatePolicyHasOnlyFixedPhaseCommands checks immutable entrypoints and isolated phase resources.
 func TestSourceCreatePolicyHasOnlyFixedPhaseCommands(t *testing.T) {
 	t.Parallel()
 	for _, phase := range []sourcePhase{sourceInit, sourceBuild} {
@@ -120,6 +124,7 @@ func TestSourceMountPolicySeparatesHostAndDaemonCoordinates(t *testing.T) {
 	}
 }
 
+// TestSourceMountPolicyRejectsDaemonCoordinateAliasesAndDivergence refuses inferred or conflicting mount paths.
 func TestSourceMountPolicyRejectsDaemonCoordinateAliasesAndDivergence(t *testing.T) {
 	t.Parallel()
 	spec := policyTestSpec(sourceBuild)
@@ -174,6 +179,7 @@ func TestSourceMountPolicyRejectsDaemonCoordinateAliasesAndDivergence(t *testing
 	}
 }
 
+// TestSourceCreateRefusesUnvalidatedSpec prevents container creation from incomplete policy inputs.
 func TestSourceCreateRefusesUnvalidatedSpec(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -228,6 +234,7 @@ func TestSourceCreateRefusesUnvalidatedSpec(t *testing.T) {
 	}
 }
 
+// TestSourceInspectionDecodeAndNativeEngine verifies typed inspection and the Linux ARM64 engine gate.
 func TestSourceInspectionDecodeAndNativeEngine(t *testing.T) {
 	t.Parallel()
 	good := `{"ID":"01234567-abcd-0123-abcd-0123456789ab","ServerVersion":"29.1.2","OSType":"linux","Architecture":"aarch64","Labels":["not-native-authority"]}`
@@ -241,6 +248,7 @@ func TestSourceInspectionDecodeAndNativeEngine(t *testing.T) {
 	}
 }
 
+// TestSourceInspectionAcceptsCanonicalDockerShapeWithOptionalNulls permits only documented nullable observations.
 func TestSourceInspectionAcceptsCanonicalDockerShapeWithOptionalNulls(t *testing.T) {
 	t.Parallel()
 	raw := editPolicyJSON(t, func(root map[string]any) {
@@ -277,6 +285,7 @@ func TestSourceInspectionAcceptsCanonicalDockerShapeWithOptionalNulls(t *testing
 	}
 }
 
+// TestSourceInspectionRequiresPrimitiveObservations rejects missing or wrongly typed security-relevant fields.
 func TestSourceInspectionRequiresPrimitiveObservations(t *testing.T) {
 	t.Parallel()
 	for section, names := range map[string][]string{
@@ -338,6 +347,7 @@ func TestSourceInspectionRequiresPrimitiveObservations(t *testing.T) {
 	}
 }
 
+// TestSourceInspectionRejectsKnownStructCaseAliases prevents case-insensitive JSON decoding from hiding ambiguity.
 func TestSourceInspectionRejectsKnownStructCaseAliases(t *testing.T) {
 	t.Parallel()
 	for name, edit := range map[string]func(map[string]any){
@@ -383,6 +393,7 @@ func TestSourceInspectionRejectsKnownStructCaseAliases(t *testing.T) {
 	}
 }
 
+// editPolicyJSON applies one controlled mutation to a complete synthetic inspection response.
 func editPolicyJSON(t *testing.T, edit func(map[string]any)) []byte {
 	t.Helper()
 	data, err := json.Marshal(policyTestContainer(sourceBuild))
@@ -401,6 +412,7 @@ func editPolicyJSON(t *testing.T, edit func(map[string]any)) []byte {
 	return data
 }
 
+// policyJSONObject selects a required fixture object while reporting an invalid test shape clearly.
 func policyJSONObject(t *testing.T, parent map[string]any, key string) map[string]any {
 	t.Helper()
 	object, ok := parent[key].(map[string]any)
@@ -410,6 +422,7 @@ func policyJSONObject(t *testing.T, parent map[string]any, key string) map[strin
 	return object
 }
 
+// TestSourceEnvironmentAndPreparedImage binds the command environment to the verified dependency image.
 func TestSourceEnvironmentAndPreparedImage(t *testing.T) {
 	t.Parallel()
 	base := []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "DEBIAN_FRONTEND=noninteractive", "LANG=C.UTF-8", "LC_ALL=C.UTF-8", "TZ=UTC", "PYTHONDONTWRITEBYTECODE=1"}
@@ -461,6 +474,7 @@ func TestSourceEnvironmentAndPreparedImage(t *testing.T) {
 	}
 }
 
+// TestSourceOwnershipRequiresExactContainerImageAndRecipe refuses borrowed or altered container identities.
 func TestSourceOwnershipRequiresExactContainerImageAndRecipe(t *testing.T) {
 	t.Parallel()
 	for _, phase := range []sourcePhase{sourceInit, sourceBuild} {
@@ -490,6 +504,7 @@ func TestSourceOwnershipRequiresExactContainerImageAndRecipe(t *testing.T) {
 	}
 }
 
+// TestSourceContainerPolicyRefusesEscalations rejects added privileges, devices and mutable isolation settings.
 func TestSourceContainerPolicyRefusesEscalations(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -562,6 +577,7 @@ func TestSourceContainerPolicyRefusesEscalations(t *testing.T) {
 	}
 }
 
+// TestSourceMountPolicyRequiresRequestedAndEffectiveIdentity checks both mount observation surfaces independently.
 func TestSourceMountPolicyRequiresRequestedAndEffectiveIdentity(t *testing.T) {
 	t.Parallel()
 	for _, phase := range []sourcePhase{sourceInit, sourceBuild} {
@@ -625,6 +641,7 @@ func TestSourceMountPolicyRequiresRequestedAndEffectiveIdentity(t *testing.T) {
 	}
 }
 
+// TestSourceWorkspaceEffectiveModesRemainNarrow refuses widened writable workspace settings.
 func TestSourceWorkspaceEffectiveModesRemainNarrow(t *testing.T) {
 	t.Parallel()
 	for _, phase := range []sourcePhase{sourceInit, sourceBuild} {
@@ -697,6 +714,7 @@ func TestSourceWorkspaceEffectiveModesRemainNarrow(t *testing.T) {
 	}
 }
 
+// TestSourceTerminalSeparatesStoppedFromSuccessful distinguishes termination evidence from accepted completion.
 func TestSourceTerminalSeparatesStoppedFromSuccessful(t *testing.T) {
 	t.Parallel()
 	c := policyTestContainer(sourceBuild)
@@ -742,6 +760,7 @@ func TestSourceTerminalSeparatesStoppedFromSuccessful(t *testing.T) {
 	}
 }
 
+// clonePolicyContainer isolates nested synthetic observations before refusal mutations.
 func clonePolicyContainer(t *testing.T, value sourceContainerInspection) sourceContainerInspection {
 	t.Helper()
 	data, err := json.Marshal(value)

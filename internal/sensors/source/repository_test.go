@@ -10,6 +10,7 @@ import (
 	"testing"
 )
 
+// snapshotTestParent creates a canonical private parent for one temporary snapshot.
 func snapshotTestParent(t *testing.T) string {
 	t.Helper()
 	parent := t.TempDir()
@@ -36,6 +37,7 @@ func restoreSnapshotForTest(t *testing.T, name string) {
 	})
 }
 
+// TestRepositorySnapshotCopiesReadonlyWithoutChangingOriginal checks exact read-only copies and source preservation.
 func TestRepositorySnapshotCopiesReadonlyWithoutChangingOriginal(t *testing.T) {
 	f := newFixture(t)
 	parent := snapshotTestParent(t)
@@ -96,6 +98,7 @@ func TestRepositorySnapshotCopiesReadonlyWithoutChangingOriginal(t *testing.T) {
 	}
 }
 
+// TestRepositorySnapshotRefusesOverlapAndReuseBeforeSourceWrites protects existing source and destinations.
 func TestRepositorySnapshotRefusesOverlapAndReuseBeforeSourceWrites(t *testing.T) {
 	f := newFixture(t)
 	inside := filepath.Join(f.root, "forbidden-snapshot")
@@ -128,6 +131,7 @@ func TestRepositorySnapshotRefusesOverlapAndReuseBeforeSourceWrites(t *testing.T
 	}
 }
 
+// TestRepositorySnapshotRetainsInvalidSourcePartialWithoutGrant keeps failed staging evidence without authority.
 func TestRepositorySnapshotRetainsInvalidSourcePartialWithoutGrant(t *testing.T) {
 	f := newFixture(t)
 	if err := os.WriteFile(f.file("libqmi/source/data.c"), []byte("tamper"), 0o644); err != nil {
@@ -144,6 +148,7 @@ func TestRepositorySnapshotRetainsInvalidSourcePartialWithoutGrant(t *testing.T)
 	}
 }
 
+// TestRepositorySnapshotRechecksClosedWrapperModesBytesAndLinks detects post-staging tree mutations.
 func TestRepositorySnapshotRechecksClosedWrapperModesBytesAndLinks(t *testing.T) {
 	for _, kind := range []string{"mode", "bytes", "extra-wrapper", "link", "path-replacement", "parent-mode"} {
 		t.Run(kind, func(t *testing.T) {
@@ -220,6 +225,7 @@ func TestRepositorySnapshotRechecksClosedWrapperModesBytesAndLinks(t *testing.T)
 	}
 }
 
+// TestApprovedRepositorySnapshotOptIn stages an explicitly selected approved source tree without building it.
 func TestApprovedRepositorySnapshotOptIn(t *testing.T) {
 	root := os.Getenv("LEXR_TEST_SENSOR_OE_ROOT")
 	if root == "" {
@@ -251,6 +257,7 @@ func TestApprovedRepositorySnapshotOptIn(t *testing.T) {
 	}
 }
 
+// TestRepositorySnapshotRequiresPrivateParentBeforeWrites checks parent permissions before staging effects.
 func TestRepositorySnapshotRequiresPrivateParentBeforeWrites(t *testing.T) {
 	f := newFixture(t)
 	parent := snapshotTestParent(t)

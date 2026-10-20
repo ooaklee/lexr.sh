@@ -10,6 +10,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// regularReadSupported admits platforms with the required confined-read APIs.
 func regularReadSupported() error { return nil }
 
 // Root.OpenFile resolves confined symlinks, even with O_NOFOLLOW supplied.
@@ -38,6 +39,7 @@ func openRegularLeaf(root *os.Root, name string) (*os.File, error) {
 	return file, nil
 }
 
+// validateRegularFD requires an ordinary singly linked file without special bits.
 func validateRegularFD(file *os.File) error {
 	var info unix.Stat_t
 	if err := unix.Fstat(int(file.Fd()), &info); err != nil {
@@ -90,6 +92,7 @@ func directoryContains(ancestor, descendant *os.Root) (bool, error) {
 	return false, errors.New("directory ancestry exceeds its fixed safety bound")
 }
 
+// directoryPathMatches checks that a pathname still names its retained directory.
 func directoryPathMatches(name string, root *os.Root) error {
 	// O_DIRECTORY makes a concurrent FIFO/type substitution nonblocking too.
 	fd, err := unix.Open(name, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)

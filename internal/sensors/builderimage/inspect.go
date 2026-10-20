@@ -15,16 +15,31 @@ import (
 	"time"
 )
 
+// objectID recognises the immutable image identity supplied by Docker.
 var objectID = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+
+// containerID recognises a complete Docker container identity.
 var containerID = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
+// tokenPattern recognises the fixed random ownership-token shape.
 var tokenPattern = regexp.MustCompile(`^[0-9a-f]{24}$`)
 
+// ownerLabel names the dependency producer's ownership label.
 const ownerLabel = "io.lexr.sensors.builder"
+
+// recipeLabel binds a dependency object to the compiled recipe digest.
 const recipeLabel = "io.lexr.sensors.recipe"
+
+// tokenLabel binds a created container to this producer attempt.
 const tokenLabel = "io.lexr.sensors.token"
+
+// ownerValue distinguishes dependency preparation from other Lexr operations.
 const ownerValue = "dependencies-v1"
+
+// containerPrefix scopes fresh dependency container names.
 const containerPrefix = "lexr-sensors-deps-"
 
+// imageConfig records the Docker configuration fields relevant to image policy.
 type imageConfig struct {
 	User       string
 	WorkingDir string
@@ -34,12 +49,16 @@ type imageConfig struct {
 	Labels     map[string]string
 	Volumes    map[string]json.RawMessage
 }
+
+// imageInspection records an immutable image and its observed platform settings.
 type imageInspection struct {
 	ID           string `json:"Id"`
 	OS           string `json:"Os"`
 	Architecture string
 	Config       imageConfig
 }
+
+// containerInspection records ownership, isolation and lifecycle observations.
 type containerInspection struct {
 	ID           string `json:"Id"`
 	Name         string
@@ -75,6 +94,7 @@ type containerInspection struct {
 	}
 }
 
+// decodeObject decodes exactly one inspection object and refuses trailing data.
 func decodeObject(data []byte, into any) error {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	if err := decoder.Decode(into); err != nil {
@@ -87,6 +107,7 @@ func decodeObject(data []byte, into any) error {
 	return nil
 }
 
+// validateImage requires an immutable native image without implicit volumes.
 func validateImage(image imageInspection) error {
 	if !objectID.MatchString(image.ID) || image.OS != "linux" || image.Architecture != "arm64" {
 		return errors.New("image must be an immutable Linux ARM64 object")
@@ -97,6 +118,7 @@ func validateImage(image imageInspection) error {
 	return nil
 }
 
+// ownership checks the complete container identity against the owned attempt.
 func ownership(c containerInspection, name, id, token, baseID string) error {
 	if !containerID.MatchString(c.ID) || id != "" && c.ID != id || c.Name != "/"+name || c.Image != baseID || c.Config.Labels[ownerLabel] != ownerValue || c.Config.Labels[recipeLabel] != RecipeSHA256() || c.Config.Labels[tokenLabel] != token {
 		return errors.New("owned dependency container identity differs")
@@ -104,6 +126,7 @@ func ownership(c containerInspection, name, id, token, baseID string) error {
 	return nil
 }
 
+// validateContainerPolicy checks the fixed dependency command and isolation policy.
 func validateContainerPolicy(c containerInspection, env []string) error {
 	h := c.HostConfig
 	if h.Privileged || h.ReadonlyRootfs || h.AutoRemove || h.NetworkMode != "bridge" || len(h.Binds) != 0 || len(h.VolumesFrom) != 0 || len(h.Devices) != 0 || len(h.DeviceRequests) != 0 || len(c.Config.Volumes) != 0 {
@@ -129,6 +152,7 @@ func validateContainerPolicy(c containerInspection, env []string) error {
 	return nil
 }
 
+// normalizeCaps returns comparable capability spellings without mutating input.
 func normalizeCaps(values []string) []string {
 	result := make([]string, len(values))
 	for i, v := range values {
@@ -136,6 +160,8 @@ func normalizeCaps(values []string) []string {
 	}
 	return result
 }
+
+// equalSet compares sorted copies, preserving duplicate counts and caller slices.
 func equalSet(a, b []string) bool {
 	a = slices.Clone(a)
 	b = slices.Clone(b)
@@ -143,10 +169,13 @@ func equalSet(a, b []string) bool {
 	slices.Sort(b)
 	return slices.Equal(a, b)
 }
+
+// dependencyTmpfs returns the exact bounded temporary mounts used for preparation.
 func dependencyTmpfs() map[string]string {
 	return map[string]string{"/tmp": "rw,nosuid,nodev,size=1g,mode=1777", "/run": "rw,nosuid,nodev,size=64m,mode=0755"}
 }
 
+// terminal records stopped-state evidence while refusing running or unstable states.
 func terminal(c containerInspection) (Terminal, error) {
 	s := c.State
 	t := Terminal{ContainerID: c.ID, Status: s.Status, Running: s.Running, PID: s.Pid, ExitCode: s.ExitCode, OOMKilled: s.OOMKilled, Error: s.Error, StartedAt: s.StartedAt, FinishedAt: s.FinishedAt}
@@ -156,6 +185,7 @@ func terminal(c containerInspection) (Terminal, error) {
 	return t, nil
 }
 
+// successful requires a clean exit and ordered nonzero lifecycle timestamps.
 func successful(t Terminal) bool {
 	start, startErr := time.Parse(time.RFC3339Nano, t.StartedAt)
 	finish, finishErr := time.Parse(time.RFC3339Nano, t.FinishedAt)
@@ -183,8 +213,10 @@ func inventoryMember(data []byte, name string) (string, error) {
 	return string(b), nil
 }
 
+// packageLine recognises one bounded package-name and observed-version row.
 var packageLine = regexp.MustCompile(`^[a-z0-9][a-z0-9.+:-]*=[^\x00-\x20\x7f]+$`)
 
+// validateInventories requires sorted packages and the complete toolchain identity.
 func validateInventories(packages, tools string) error {
 	lines := strings.Split(strings.TrimSuffix(packages, "\n"), "\n")
 	if len(lines) < 27 || !slices.IsSorted(lines) {

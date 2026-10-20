@@ -250,14 +250,18 @@ func (a *application) newUserspaceBuildCommand() *cobra.Command {
 // userspaceBuildWorkflow is a delivery-only seam. Production always delegates
 // to the userspace manager, whose compiled producer owns source/image policy.
 type userspaceBuildWorkflow interface {
+	// BuildWithResult delegates a typed request and preserves partial outcomes.
 	BuildWithResult(context.Context, userspacebuild.Request) (userspacebuild.Result, error)
 }
 
+// sensorBuildCLIReport keeps the typed source-build result beside its error.
 type sensorBuildCLIReport struct {
 	userspacebuild.Result
 	Error string `json:"error,omitempty"`
 }
 
+// newUserspaceBuildCommandWithWorkflow injects a delivery seam while retaining
+// the compiled manager's component-specific execution and option boundaries.
 func (a *application) newUserspaceBuildCommandWithWorkflow(workflow userspaceBuildWorkflow) *cobra.Command {
 	request := userspacebuild.Request{}
 	var asJSON bool

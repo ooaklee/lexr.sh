@@ -21,13 +21,22 @@ import (
 	"github.com/ooaklee/lexr.sh/internal/platform"
 )
 
+// managerTestEngine is the synthetic engine identity used by controlled observations.
 const managerTestEngine = "fixture-engine-0000000000000001"
+
+// managerTestToken fixes ownership names without using real Docker resources.
 const managerTestToken = "dddddddddddddddddddddddd"
 
+// managerTestCID is the complete synthetic container identity.
 var managerTestCID = strings.Repeat("c", 64)
+
+// managerTestBase identifies the synthetic immutable dependency base.
 var managerTestBase = "sha256:" + strings.Repeat("a", 64)
+
+// managerTestImage identifies the synthetic committed dependency image.
 var managerTestImage = "sha256:" + strings.Repeat("b", 64)
 
+// managerTestCall records a simulated Docker command and its context state.
 type managerTestCall struct {
 	args         []string
 	contextError error
@@ -48,10 +57,12 @@ type managerTestRunner struct {
 	mutateContainer           func(int, *containerInspection)
 }
 
+// managerTestEnvironment returns the fixed environment expected by dependency fixtures.
 func managerTestEnvironment() []string {
 	return []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "DEBIAN_FRONTEND=noninteractive", "LANG=C.UTF-8", "LC_ALL=C.UTF-8", "TZ=UTC", "PYTHONDONTWRITEBYTECODE=1"}
 }
 
+// newManagerTestRunner supplies complete successful observations entirely in memory.
 func newManagerTestRunner(t *testing.T) *managerTestRunner {
 	t.Helper()
 	f := &managerTestRunner{}
@@ -69,6 +80,7 @@ func newManagerTestRunner(t *testing.T) *managerTestRunner {
 	return f
 }
 
+// newManagerUnderTest fixes the synthetic host and ownership token for one manager.
 func newManagerUnderTest(r *managerTestRunner) *Manager {
 	m := New(r)
 	m.host = hostcap.Host{GOOS: "linux", GOARCH: "arm64"}
@@ -77,6 +89,7 @@ func newManagerUnderTest(r *managerTestRunner) *Manager {
 	return m
 }
 
+// managerTestContainer returns a container matching the fixed dependency policy.
 func managerTestContainer() containerInspection {
 	c := containerInspection{ID: managerTestCID, Name: "/lexr-sensors-deps-" + managerTestToken, Image: managerTestBase}
 	c.Config = imageConfig{User: "0:0", WorkingDir: "/", Entrypoint: []string{"/usr/bin/timeout"}, Cmd: []string{"--signal=TERM", "--kill-after=5s", "18m", "/bin/bash", "-euo", "pipefail", "-c", DependencyScript}, Env: managerTestEnvironment(), Labels: map[string]string{"io.lexr.sensors.builder": "dependencies-v1", "io.lexr.sensors.recipe": RecipeSHA256(), "io.lexr.sensors.token": managerTestToken}}
@@ -92,6 +105,7 @@ func managerTestContainer() containerInspection {
 	return c
 }
 
+// observedContainer projects the fixture's current running, created or exited state.
 func (f *managerTestRunner) observedContainer() containerInspection {
 	c := managerTestContainer()
 	if f.started {
@@ -109,6 +123,7 @@ func (f *managerTestRunner) observedContainer() containerInspection {
 	return c
 }
 
+// managerTestJSON writes one synthetic inspection response to the supplied stream.
 func managerTestJSON(w io.Writer, value any) error {
 	b, err := json.Marshal(value)
 	if err != nil {
@@ -118,11 +133,13 @@ func managerTestJSON(w io.Writer, value any) error {
 	return err
 }
 
+// Capture refuses the alternate runner API so fixtures exercise streamed bounds.
 func (f *managerTestRunner) Capture(context.Context, platform.Command) ([]byte, error) {
 	f.captures++
 	return nil, errors.New("Capture must not be used by the bounded producer")
 }
 
+// Run simulates dependency operations and records effects without contacting Docker.
 func (f *managerTestRunner) Run(ctx context.Context, c platform.Command) error {
 	_, deadline := ctx.Deadline()
 	f.calls = append(f.calls, managerTestCall{append([]string(nil), c.Args...), ctx.Err(), deadline})
@@ -207,6 +224,7 @@ func (f *managerTestRunner) Run(ctx context.Context, c platform.Command) error {
 	}
 }
 
+// managerTestTar serialises inventory-copy fixture members without filesystem extraction.
 func managerTestTar(t *testing.T, headers []tar.Header, bodies [][]byte) []byte {
 	t.Helper()
 	var b bytes.Buffer
@@ -227,6 +245,7 @@ func managerTestTar(t *testing.T, headers []tar.Header, bodies [][]byte) []byte 
 	return b.Bytes()
 }
 
+// managerTestCount counts one operation in the fixture's recorded Docker calls.
 func managerTestCount(f *managerTestRunner, operation string) int {
 	n := 0
 	for _, c := range f.calls {
@@ -237,6 +256,7 @@ func managerTestCount(f *managerTestRunner, operation string) int {
 	return n
 }
 
+// managerTestNoGrant requires refusal without returning usable prepared-image authority.
 func managerTestNoGrant(t *testing.T, f *managerTestRunner, result Result, err error, allowCommit bool) {
 	t.Helper()
 	if err == nil || result.Prepared != nil || result.Provenance != nil {
@@ -255,6 +275,7 @@ func managerTestNoGrant(t *testing.T, f *managerTestRunner, result Result, err e
 	}
 }
 
+// TestManagerPlansAndEarlyRefusalsHaveNoEffects checks read-only plans and invalid request boundaries.
 func TestManagerPlansAndEarlyRefusalsHaveNoEffects(t *testing.T) {
 	for _, host := range []hostcap.Host{{GOOS: "linux", GOARCH: "arm64"}, {GOOS: "darwin", GOARCH: "arm64"}, {GOOS: "linux", GOARCH: "amd64"}, {GOOS: "windows", GOARCH: "arm64"}, {}} {
 		t.Run(host.GOOS+"-"+host.GOARCH, func(t *testing.T) {
@@ -317,6 +338,7 @@ func TestManagerPlansAndEarlyRefusalsHaveNoEffects(t *testing.T) {
 	}
 }
 
+// TestManagerControlledPreparationExactOrderAndOpaqueReuse checks the full synthetic preparation and handle-reuse sequence.
 func TestManagerControlledPreparationExactOrderAndOpaqueReuse(t *testing.T) {
 	f := newManagerTestRunner(t)
 	m := newManagerUnderTest(f)
@@ -378,6 +400,7 @@ func TestManagerControlledPreparationExactOrderAndOpaqueReuse(t *testing.T) {
 	}
 }
 
+// TestManagerRejectsEngineAndBaseBeforeCreate rejects unsupported observations before container creation.
 func TestManagerRejectsEngineAndBaseBeforeCreate(t *testing.T) {
 	for _, value := range []string{"short|linux|arm64|29.1.3", managerTestEngine + "|windows|arm64|29.1.3", managerTestEngine + "|linux|amd64|29.1.3", managerTestEngine + "|linux|arm64|29.1\x00.3", managerTestEngine + "|linux|arm64|29.1\n.3", managerTestEngine + "|linux|arm64|29.1\r.3"} {
 		t.Run(value, func(t *testing.T) {
@@ -415,6 +438,7 @@ func TestManagerRejectsEngineAndBaseBeforeCreate(t *testing.T) {
 	}
 }
 
+// TestManagerRejectsAdversarialCreatedInspection withholds execution for changed ownership or isolation policy.
 func TestManagerRejectsAdversarialCreatedInspection(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -446,6 +470,7 @@ func TestManagerRejectsAdversarialCreatedInspection(t *testing.T) {
 	}
 }
 
+// TestManagerWithholdsImageForTerminalFailures rejects incomplete or unsuccessful lifecycle observations.
 func TestManagerWithholdsImageForTerminalFailures(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -465,6 +490,7 @@ func TestManagerWithholdsImageForTerminalFailures(t *testing.T) {
 	}
 }
 
+// TestManagerCancellationObservesAndStopsOnlyOwnedCID limits recovery effects to the exact owned container.
 func TestManagerCancellationObservesAndStopsOnlyOwnedCID(t *testing.T) {
 	f := newManagerTestRunner(t)
 	m := newManagerUnderTest(f)
@@ -499,6 +525,7 @@ func TestManagerCancellationObservesAndStopsOnlyOwnedCID(t *testing.T) {
 	}
 }
 
+// TestManagerRecoveryRetainsUncertaintyAndDoesNotStopForeignObjects preserves unknown outcomes and foreign resources.
 func TestManagerRecoveryRetainsUncertaintyAndDoesNotStopForeignObjects(t *testing.T) {
 	for _, mode := range []string{"stop-failure", "foreign-owner", "observation-failure"} {
 		t.Run(mode, func(t *testing.T) {
@@ -557,6 +584,7 @@ func TestManagerRecoveryRetainsUncertaintyAndDoesNotStopForeignObjects(t *testin
 	}
 }
 
+// TestManagerOutputBoundsCancelChildAndWithholdAuthority checks bounded stdout and stderr refusal paths.
 func TestManagerOutputBoundsCancelChildAndWithholdAuthority(t *testing.T) {
 	for _, stream := range []string{"stdout", "stderr"} {
 		t.Run(stream, func(t *testing.T) {
@@ -583,6 +611,7 @@ func TestManagerOutputBoundsCancelChildAndWithholdAuthority(t *testing.T) {
 	}
 }
 
+// TestManagerInventoryStreamsRejectMalformedArchives covers invalid inventory members and text.
 func TestManagerInventoryStreamsRejectMalformedArchives(t *testing.T) {
 	good := []byte("fixture=1\n")
 	name := path.Base(PackageInventoryPath)
@@ -647,6 +676,7 @@ func TestManagerInventoryStreamsRejectMalformedArchives(t *testing.T) {
 	}
 }
 
+// TestManagerPostCommitAndReuseChangesNeverGrantAuthority rejects changed images and lifecycle identities.
 func TestManagerPostCommitAndReuseChangesNeverGrantAuthority(t *testing.T) {
 	for _, mode := range []string{"image-user", "image-recipe", "image-identity", "image-volume", "final-terminal"} {
 		t.Run(mode, func(t *testing.T) {
@@ -703,6 +733,7 @@ func TestManagerPostCommitAndReuseChangesNeverGrantAuthority(t *testing.T) {
 	}
 }
 
+// TestManagerInventoryCopyOutputBoundRetainsKnownTerminal retains stopped evidence when a copied stream exceeds its bound.
 func TestManagerInventoryCopyOutputBoundRetainsKnownTerminal(t *testing.T) {
 	for _, stream := range []string{"stdout", "stderr"} {
 		t.Run(stream, func(t *testing.T) {
@@ -740,6 +771,7 @@ func TestManagerInventoryCopyOutputBoundRetainsKnownTerminal(t *testing.T) {
 	}
 }
 
+// TestManagerInspectRejectsTrailingJSONObject refuses additional inspection objects at every selected boundary.
 func TestManagerInspectRejectsTrailingJSONObject(t *testing.T) {
 	for _, phase := range []string{"base-image", "created-container"} {
 		t.Run(phase, func(t *testing.T) {
@@ -770,6 +802,7 @@ func TestManagerInspectRejectsTrailingJSONObject(t *testing.T) {
 	}
 }
 
+// TestManagerCommitWarningPrefixNeverGrantsAuthority rejects image output with a warning prefix.
 func TestManagerCommitWarningPrefixNeverGrantsAuthority(t *testing.T) {
 	f := newManagerTestRunner(t)
 	f.hook = func(_ context.Context, c platform.Command) (bool, error) {
@@ -795,6 +828,7 @@ func TestManagerCommitWarningPrefixNeverGrantsAuthority(t *testing.T) {
 	}
 }
 
+// TestManagerCommittedImageRequiresFailClosedConfiguration checks inert image defaults before authority is granted.
 func TestManagerCommittedImageRequiresFailClosedConfiguration(t *testing.T) {
 	cases := []struct {
 		name   string

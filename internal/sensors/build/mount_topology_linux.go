@@ -8,6 +8,7 @@ import (
 	"os"
 )
 
+// verifyBuildMountTopology reads a bounded Linux mount table for overlap checks.
 func verifyBuildMountTopology(paths []string) error {
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
