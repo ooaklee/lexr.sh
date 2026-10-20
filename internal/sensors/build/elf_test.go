@@ -12,20 +12,32 @@ import (
 // These are serialized ELF metadata fixtures, never executable/native compiler
 // evidence. They exercise debug/elf and the actual production policy together.
 type fixtureSymbol struct{ name, version, library string }
+
+// fixtureELFSpec describes serialised metadata, including reserved unversioned
+// indices independently of named GNU version definitions and requirements.
 type fixtureELFSpec struct {
-	exports      map[string]string
-	imports      []fixtureSymbol
-	needed       []string
-	soname       string
-	interpreter  string
-	extraTag     elf.DynTag
-	extraValue   string
-	machine      elf.Machine
-	osabi        byte
-	hiddenSymbol string
-	objectSymbol string
+	exports                map[string]string
+	imports                []fixtureSymbol
+	needed                 []string
+	soname                 string
+	interpreter            string
+	extraTag               elf.DynTag
+	extraValue             string
+	machine                elf.Machine
+	osabi                  byte
+	hiddenSymbol           string
+	objectSymbol           string
+	weakSymbol             string
+	localSymbol            string
+	privateSymbol          string
+	undefinedSymbol        string
+	nonExecutableSymbol    string
+	unversionedImportIndex uint16
+	omitVersym             bool
+	versionIndices         map[string]uint16
 }
 
+// fixtureELF serialises bounded, nonexecuted ELF metadata for the real decoder.
 func fixtureELF(t *testing.T, name string, mutate func(*fixtureELFSpec)) []byte {
 	t.Helper()
 	s := fixtureELFSpec{exports: map[string]string{}, needed: []string{"libc.so.6"}, machine: elf.EM_AARCH64}
@@ -79,7 +91,7 @@ func fixtureELF(t *testing.T, name string, mutate func(*fixtureELFSpec)) []byte 
 	versionSet := map[string]bool{}
 	for _, name := range names {
 		v := s.exports[name]
-		if !versionSet[v] {
+		if v != "" && !versionSet[v] {
 			versionSet[v] = true
 			versions = append(versions, v)
 		}
@@ -119,6 +131,9 @@ func fixtureELF(t *testing.T, name string, mutate func(*fixtureELFSpec)) []byte 
 	var importVersions []fixtureSymbol
 	importIDs := map[string]uint16{}
 	for _, symbol := range s.imports {
+		if symbol.version == "" {
+			continue
+		}
 		key := symbol.library + "\x00" + symbol.version
 		if _, ok := importIDs[key]; !ok {
 			importIDs[key] = uint16(10 + len(importVersions))
@@ -149,6 +164,18 @@ func fixtureELF(t *testing.T, name string, mutate func(*fixtureELFSpec)) []byte 
 		if name == s.objectSymbol {
 			entry[4] = byte(elf.STB_GLOBAL)<<4 | byte(elf.STT_OBJECT)
 		}
+		if name == s.weakSymbol {
+			entry[4] = byte(elf.STB_WEAK)<<4 | byte(elf.ST_TYPE(entry[4]))
+		}
+		if name == s.localSymbol {
+			entry[4] = byte(elf.STB_LOCAL)<<4 | byte(elf.ST_TYPE(entry[4]))
+		}
+		if name == s.privateSymbol {
+			entry[5] = byte(elf.STV_HIDDEN)
+		}
+		if name == s.undefinedSymbol {
+			defined = false
+		}
 		index := uint16(0)
 		if defined {
 			if name != "" && sscVersionNode(name) {
@@ -156,15 +183,27 @@ func fixtureELF(t *testing.T, name string, mutate func(*fixtureELFSpec)) []byte 
 				bo.PutUint16(entry[6:], uint16(elf.SHN_ABS))
 			} else {
 				bo.PutUint16(entry[6:], 1)
+				if name == s.nonExecutableSymbol {
+					bo.PutUint16(entry[6:], 2)
+				}
 				bo.PutUint64(entry[8:], 0x400100)
 				bo.PutUint64(entry[16:], 4)
 			}
-			index = versionIDs[version]
+			index = 1
+			if version != "" {
+				index = versionIDs[version]
+			}
 			if name == s.hiddenSymbol {
 				index |= 0x8000
 			}
 		} else {
-			index = importIDs[library+"\x00"+version]
+			index = s.unversionedImportIndex
+			if version != "" {
+				index = importIDs[library+"\x00"+version]
+			}
+		}
+		if raw, ok := s.versionIndices[name]; ok {
+			index = raw
 		}
 		symbols.Write(entry)
 		v := make([]byte, 2)
@@ -197,7 +236,9 @@ func fixtureELF(t *testing.T, name string, mutate func(*fixtureELFSpec)) []byte 
 	writeDynamic(elf.DT_STRSZ, uint64(len(dynstr)))
 	writeDynamic(elf.DT_SYMTAB, 0)
 	writeDynamic(elf.DT_SYMENT, 24)
-	writeDynamic(elf.DT_VERSYM, 0)
+	if !s.omitVersym {
+		writeDynamic(elf.DT_VERSYM, 0)
+	}
 	if len(versions) > 0 {
 		writeDynamic(elf.DT_VERDEF, 0)
 		writeDynamic(elf.DT_VERDEFNUM, uint64(len(versions)))
@@ -219,6 +260,16 @@ func fixtureELF(t *testing.T, name string, mutate func(*fixtureELFSpec)) []byte 
 		nameIndex uint32
 	}
 	sections := []section{{}, {name: ".text", typ: elf.SHT_PROGBITS, flags: uint64(elf.SHF_ALLOC | elf.SHF_EXECINSTR), data: []byte{0xc0, 0x03, 0x5f, 0xd6}}, {name: ".dynstr", typ: elf.SHT_STRTAB, flags: uint64(elf.SHF_ALLOC), data: dynstr}, {name: ".dynsym", typ: elf.SHT_DYNSYM, flags: uint64(elf.SHF_ALLOC), data: symbols.Bytes(), link: 2, entsize: 24}, {name: ".gnu.version", typ: elf.SHT_GNU_VERSYM, flags: uint64(elf.SHF_ALLOC), data: versym.Bytes(), link: 3, entsize: 2}, {name: ".gnu.version_d", typ: elf.SHT_GNU_VERDEF, flags: uint64(elf.SHF_ALLOC), data: defs.Bytes(), link: 2, info: uint32(len(versions))}, {name: ".gnu.version_r", typ: elf.SHT_GNU_VERNEED, flags: uint64(elf.SHF_ALLOC), data: needs.Bytes(), link: 2, info: uint32(len(importVersions))}, {name: ".dynamic", typ: elf.SHT_DYNAMIC, flags: uint64(elf.SHF_ALLOC), data: dynamic.Bytes(), link: 2, entsize: 16}, {name: ".shstrtab", typ: elf.SHT_STRTAB}}
+	// Keep stable fixture section indices, but do not invent empty GNU tables.
+	if s.omitVersym {
+		sections[4] = section{}
+	}
+	if len(versions) == 0 {
+		sections[5] = section{}
+	}
+	if len(importVersions) == 0 {
+		sections[6] = section{}
+	}
 	shstr := []byte{0}
 	for i := 1; i < len(sections); i++ {
 		sections[i].nameIndex = uint32(len(shstr))
@@ -287,7 +338,7 @@ func fixtureELF(t *testing.T, name string, mutate func(*fixtureELFSpec)) []byte 
 	bo.PutUint64(p[40:], uint64(len(sections[7].data)))
 	bo.PutUint64(p[48:], 8)
 	for i := 0; i < len(names); i++ {
-		if !sscVersionNode(names[i]) {
+		if !sscVersionNode(names[i]) && names[i] != s.undefinedSymbol {
 			bo.PutUint64(data[sections[3].offset+uint64(i+1)*24+8:], 0x400000+sections[1].offset)
 		}
 	}

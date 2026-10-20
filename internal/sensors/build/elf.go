@@ -13,7 +13,17 @@ import (
 type nativeELF struct {
 	needed  map[string]bool
 	exports map[string]map[string]bool
-	imports []elf.ImportedSymbol
+	imports []elf.Symbol
+
+	versionSymbols  bool
+	versionMetadata bool
+	unversionedQMI  bool
+	qmiExports      map[string][]nativeQMIExport
+}
+
+type nativeQMIExport struct {
+	symbol     elf.Symbol
+	executable bool
 }
 
 var coreELFNames = []string{"libqmi-glib.so.5.12.0", "libssc.so.2", "ssccli", "iio-sensor-proxy", "monitor-sensor"}
@@ -77,7 +87,7 @@ func preflightELF(data []byte) error {
 }
 
 func inspectNativeELF(name string, data []byte) (nativeELF, error) {
-	result := nativeELF{needed: map[string]bool{}, exports: map[string]map[string]bool{}}
+	result := nativeELF{needed: map[string]bool{}, exports: map[string]map[string]bool{}, unversionedQMI: name == "libqmi-glib.so.5.12.0", qmiExports: map[string][]nativeQMIExport{}}
 	if err := preflightELF(data); err != nil {
 		return result, fmt.Errorf("%s: %w", name, err)
 	}
@@ -109,6 +119,23 @@ func inspectNativeELF(name string, data []byte) (nativeELF, error) {
 	}
 	if err := validateLoaderTables(f, dynamicSection); err != nil {
 		return result, fmt.Errorf("%s: %w", name, err)
+	}
+	for _, section := range f.Sections {
+		if section.FileSize == 0 {
+			continue
+		}
+		switch section.Type {
+		case elf.SHT_GNU_VERSYM:
+			result.versionSymbols = true
+		case elf.SHT_GNU_VERDEF:
+			result.versionMetadata = true
+			result.unversionedQMI = false
+		case elf.SHT_GNU_VERNEED:
+			result.versionMetadata = true
+		}
+	}
+	if result.versionMetadata && !result.versionSymbols {
+		result.unversionedQMI = false
 	}
 	for _, p := range f.Progs {
 		if p.Type == elf.PT_LOAD && p.Flags&elf.PF_X != 0 {
@@ -190,12 +217,21 @@ func inspectNativeELF(name string, data []byte) (nativeELF, error) {
 		}
 		binding, visibility := elf.ST_BIND(s.Info), elf.ST_VISIBILITY(s.Other)
 		if s.Section == elf.SHN_UNDEF {
-			if binding == elf.STB_GLOBAL {
-				result.imports = append(result.imports, elf.ImportedSymbol{Name: s.Name, Version: s.Version, Library: s.Library})
+			if binding == elf.STB_GLOBAL || strings.HasPrefix(s.Name, "qmi_") || strings.HasPrefix(s.Name, "ssc_") {
+				// Retain raw-version resolution and binding information. In
+				// particular, do not silently filter weak required imports.
+				result.imports = append(result.imports, s)
 			}
 			continue
 		}
+		if name == "libqmi-glib.so.5.12.0" && strings.HasPrefix(s.Name, "qmi_") {
+			executable := int(s.Section) < len(f.Sections) && f.Sections[s.Section].Flags&elf.SHF_EXECINSTR != 0
+			result.qmiExports[s.Name] = append(result.qmiExports[s.Name], nativeQMIExport{s, executable})
+		}
 		if (binding == elf.STB_GLOBAL || binding == elf.STB_WEAK) && (visibility == elf.STV_DEFAULT || visibility == elf.STV_PROTECTED) {
+			if s.Version != "" || s.Library != "" || result.versionSymbols && (!s.HasVersion || s.VersionIndex.Index() > 1) {
+				result.unversionedQMI = false
+			}
 			if name == "libssc.so.2" {
 				_, isFunction := publicSSC[s.Name]
 				if isFunction {
@@ -351,6 +387,39 @@ func sscVersionNode(name string) bool {
 	return name == "LIBSSC_0.4.0" || name == "LIBSSC_0.4.5" || name == "LIBSSC_0.4.6" || name == "LIBSSC_0.4.7"
 }
 
+// A SONAME/library version does not imply ELF symbol versioning. The compiled
+// QMI provider has unversioned exports, unlike SSC's closed versioned ABI.
+// With a VERSYM table, debug/elf also reports an unresolved index as empty
+// Version/Library, so absence of those strings alone must never grant this path.
+func unversionedSymbol(s elf.Symbol, object nativeELF, defined bool) bool {
+	if s.Version != "" || s.Library != "" || object.versionMetadata && !object.versionSymbols {
+		return false
+	}
+	if !object.versionSymbols {
+		return !s.HasVersion
+	}
+	if !s.HasVersion || s.VersionIndex.IsHidden() {
+		return false
+	}
+	if defined {
+		return s.VersionIndex.Index() == 1
+	}
+	return s.VersionIndex.Index() <= 1
+}
+
+func unversionedQMIImport(consumer, provider nativeELF, symbol elf.Symbol) bool {
+	if !provider.unversionedQMI || !consumer.needed["libqmi-glib.so.5"] || symbol.Section != elf.SHN_UNDEF || elf.ST_BIND(symbol.Info) != elf.STB_GLOBAL || elf.ST_TYPE(symbol.Info) != elf.STT_FUNC || elf.ST_VISIBILITY(symbol.Other) != elf.STV_DEFAULT || !unversionedSymbol(symbol, consumer, false) {
+		return false
+	}
+	definitions := provider.qmiExports[symbol.Name]
+	if len(definitions) != 1 {
+		return false
+	}
+	definition := definitions[0]
+	s := definition.symbol
+	return definition.executable && elf.ST_BIND(s.Info) == elf.STB_GLOBAL && elf.ST_TYPE(s.Info) == elf.STT_FUNC && elf.ST_VISIBILITY(s.Other) == elf.STV_DEFAULT && unversionedSymbol(s, provider, true)
+}
+
 func validateNativeELFs(files map[string][]byte) error {
 	objects := map[string]nativeELF{}
 	for _, name := range coreELFNames {
@@ -394,8 +463,14 @@ func validateNativeELFs(files map[string][]byte) error {
 				soname = "libssc.so.2"
 				sscImports++
 			}
-			if provider != "" && (symbol.Library != soname || symbol.Version == "" || !objects[provider].exports[symbol.Name][symbol.Version]) {
-				return fmt.Errorf("%s: required provider import is unsatisfied: %s@%s", name, symbol.Name, symbol.Version)
+			if provider != "" {
+				matched := elf.ST_BIND(symbol.Info) == elf.STB_GLOBAL && symbol.Library == soname && symbol.Version != "" && objects[provider].exports[symbol.Name][symbol.Version]
+				if provider == "libqmi-glib.so.5.12.0" && symbol.Version == "" {
+					matched = unversionedQMIImport(objects[name], objects[provider], symbol)
+				}
+				if !matched {
+					return fmt.Errorf("%s: required provider import is unsatisfied: %s@%s", name, symbol.Name, symbol.Version)
+				}
 			}
 		}
 		if (name == "ssccli" || name == "iio-sensor-proxy") && sscImports == 0 {
