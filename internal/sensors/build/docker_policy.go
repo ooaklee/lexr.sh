@@ -494,7 +494,10 @@ func validateSourceMounts(c sourceContainerInspection, spec sourceDockerSpec) er
 		seen[mount.Destination] = true
 		switch mount.Destination {
 		case "/work":
-			if mount.Type != "volume" || mount.Name != spec.VolumeName || mount.Driver != "local" || !mount.RW || !sourceCanonicalPath(mount.Source) || mount.Mode != "" && mount.Mode != "rw" || mount.Propagation != "" {
+			// Docker may report the exact mode "z" for a local named volume
+			// whose requested mode was empty. This does not permit relabeling
+			// modes or combinations on source binds, tmpfs, or other volumes.
+			if mount.Type != "volume" || mount.Name != spec.VolumeName || mount.Driver != "local" || !mount.RW || !sourceCanonicalPath(mount.Source) || mount.Mode != "" && mount.Mode != "rw" && mount.Mode != "z" || mount.Propagation != "" {
 				return errors.New("source workspace effective mount differs")
 			}
 		case "/source":

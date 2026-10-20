@@ -526,6 +526,78 @@ func TestSourceMountPolicyRequiresRequestedAndEffectiveIdentity(t *testing.T) {
 	}
 }
 
+func TestSourceWorkspaceEffectiveModesRemainNarrow(t *testing.T) {
+	t.Parallel()
+	for _, phase := range []sourcePhase{sourceInit, sourceBuild} {
+		for _, mode := range []string{"", "rw", "z"} {
+			t.Run(string(phase)+"/accepted/"+mode, func(t *testing.T) {
+				c := policyTestContainer(phase)
+				c.Mounts[0].Mode = mode
+				if err := validateSourceContainerPolicy(c, policyTestSpec(phase)); err != nil {
+					t.Fatalf("owned local RW volume mode %q refused: %v", mode, err)
+				}
+			})
+		}
+		for _, mode := range []string{"Z", "ro", "RW", "rw,z", "ro,z", "z,rw", "z,ro", "rw,Z", "ro,Z", "z,Z", "z,z", "z,rprivate", " z", "z "} {
+			t.Run(string(phase)+"/refused/"+mode, func(t *testing.T) {
+				c := policyTestContainer(phase)
+				c.Mounts[0].Mode = mode
+				if err := validateSourceContainerPolicy(c, policyTestSpec(phase)); err == nil {
+					t.Fatalf("unobserved workspace mode %q accepted", mode)
+				}
+			})
+		}
+		for name, edit := range map[string]func(*sourceContainerInspection){
+			"effective-bind":         func(c *sourceContainerInspection) { c.Mounts[0].Type = "bind" },
+			"effective-tmpfs":        func(c *sourceContainerInspection) { c.Mounts[0].Type = "tmpfs" },
+			"foreign-name":           func(c *sourceContainerInspection) { c.Mounts[0].Name += "-foreign" },
+			"non-local-driver":       func(c *sourceContainerInspection) { c.Mounts[0].Driver = "nfs" },
+			"read-only":              func(c *sourceContainerInspection) { c.Mounts[0].RW = false },
+			"noncanonical-source":    func(c *sourceContainerInspection) { c.Mounts[0].Source = "/var/lib/../foreign" },
+			"propagating-workspace":  func(c *sourceContainerInspection) { c.Mounts[0].Propagation = "rshared" },
+			"copy-enabled":           func(c *sourceContainerInspection) { c.HostConfig.Mounts[0].VolumeOptions.NoCopy = false },
+			"requested-bind":         func(c *sourceContainerInspection) { c.HostConfig.Mounts[0].Type = "bind" },
+			"requested-foreign":      func(c *sourceContainerInspection) { c.HostConfig.Mounts[0].Source += "-foreign" },
+			"requested-read-only":    func(c *sourceContainerInspection) { c.HostConfig.Mounts[0].ReadOnly = true },
+			"missing-volume-options": func(c *sourceContainerInspection) { c.HostConfig.Mounts[0].VolumeOptions = nil },
+			"volume-subpath":         func(c *sourceContainerInspection) { c.HostConfig.Mounts[0].VolumeOptions.Subpath = "foreign" },
+			"volume-driver-config": func(c *sourceContainerInspection) {
+				c.HostConfig.Mounts[0].VolumeOptions.DriverConfig = json.RawMessage(`{}`)
+			},
+			"volume-option-labels": func(c *sourceContainerInspection) {
+				c.HostConfig.Mounts[0].VolumeOptions.Labels = map[string]string{"foreign": "option"}
+			},
+		} {
+			t.Run(string(phase)+"/z-identity-refusal/"+name, func(t *testing.T) {
+				c := policyTestContainer(phase)
+				c.Mounts[0].Mode = "z"
+				edit(&c)
+				if err := validateSourceContainerPolicy(c, policyTestSpec(phase)); err == nil {
+					t.Fatal("z bypassed the exact workspace/requested-volume policy")
+				}
+			})
+		}
+		for _, mode := range []string{"z", "Z", "rw,z", "ro,z", "z,rw", "z,ro"} {
+			t.Run(string(phase)+"/tmpfs-refusal/"+mode, func(t *testing.T) {
+				c := policyTestContainer(phase)
+				c.Mounts = append(c.Mounts, sourceEffectiveMount{Type: "tmpfs", Destination: "/tmp", Mode: mode, RW: true})
+				if err := validateSourceContainerPolicy(c, policyTestSpec(phase)); err == nil {
+					t.Fatalf("workspace compatibility leaked into tmpfs mode %q", mode)
+				}
+			})
+			if phase == sourceBuild {
+				t.Run("build/source-bind-refusal/"+mode, func(t *testing.T) {
+					c := policyTestContainer(phase)
+					c.Mounts[1].Mode = mode
+					if err := validateSourceContainerPolicy(c, policyTestSpec(phase)); err == nil {
+						t.Fatalf("workspace compatibility leaked into source-bind mode %q", mode)
+					}
+				})
+			}
+		}
+	}
+}
+
 func TestSourceTerminalSeparatesStoppedFromSuccessful(t *testing.T) {
 	t.Parallel()
 	c := policyTestContainer(sourceBuild)
