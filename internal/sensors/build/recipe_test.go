@@ -44,7 +44,7 @@ func TestInitRecipeOwnsOnlyFreshVolume(t *testing.T) {
 		`printf 'upper\n' >/work/job/CaseProbe`, `printf 'lower\n' >/work/job/caseprobe`,
 		`test ! /work/job/CaseProbe -ef /work/job/caseprobe`,
 		`chmod 0444 /work/job/CaseProbe /work/job/caseprobe`,
-		`chown 65532:65532 /work/job /work/job/home /work/job/cache /work/job/tmp`,
+		`chown 65532:65532 /work/job/home /work/job/cache /work/job/tmp`,
 	} {
 		if !strings.Contains(InitScript, required) {
 			t.Errorf("missing init boundary %q", required)
@@ -60,6 +60,23 @@ func TestInitRecipeOwnsOnlyFreshVolume(t *testing.T) {
 		if strings.Contains(InitScript, forbidden) {
 			t.Errorf("initialization contains unrelated operation %q", forbidden)
 		}
+	}
+}
+
+// CHOWN alone does not bypass directory traversal permissions. After handing
+// off the private parent, root cannot resolve its children; the native init
+// therefore must transfer the parent only after every child, with no later
+// filesystem operation under that parent.
+func TestInitRecipeHandsOffParentLast(t *testing.T) {
+	t.Parallel()
+	const handoff = "chown 65532:65532 /work/job/home /work/job/cache /work/job/tmp \\\n" +
+		"  /work/job/CaseProbe /work/job/caseprobe\n" +
+		"chown 65532:65532 /work/job\n"
+	if !strings.HasSuffix(InitScript, handoff) {
+		t.Fatal("CHOWN-only init must transfer all children before the private parent, then exit")
+	}
+	if strings.Count(InitScript, "\nchown ") != 2 {
+		t.Fatal("init must have only the exact child and final parent ownership transfers")
 	}
 }
 

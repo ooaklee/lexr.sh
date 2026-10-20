@@ -8,6 +8,7 @@ import (
 // InitScript initializes only an exclusively new named-volume job. The
 // controller must run it as root with no capabilities except CHOWN. Case
 // probes remain available for diagnosis; neither script deletes old work.
+// Transfer the private parent last: CHOWN does not bypass directory search.
 const InitScript = `#!/bin/bash
 set -euo pipefail
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
@@ -28,8 +29,9 @@ test ! /work/job/CaseProbe -ef /work/job/caseprobe
 mkdir -m 0700 /work/job/home /work/job/cache /work/job/tmp
 chmod 0700 /work/job /work/job/home /work/job/cache /work/job/tmp
 chmod 0444 /work/job/CaseProbe /work/job/caseprobe
-chown 65532:65532 /work/job /work/job/home /work/job/cache /work/job/tmp \
+chown 65532:65532 /work/job/home /work/job/cache /work/job/tmp \
   /work/job/CaseProbe /work/job/caseprobe
+chown 65532:65532 /work/job
 `
 
 // SourceScript is fixed native, offline build policy. The controller supplies
