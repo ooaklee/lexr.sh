@@ -150,6 +150,11 @@ that do not apply.
 
 ### Fixed
 
+- Preserve legitimate case-distinct paths in local kernel snapshots. Validate
+  their complete namespace on the extraction filesystem before writing payloads,
+  reject aliases, duplicate paths, non-directory ancestors and escaping link
+  chains, and retain exact reconstructed tree and commit checks. The source
+  checkout must still be clean; no dirty-source or identity bypass is added.
 - Recognize both legacy `/etc/kernel` hooks and newer Ubuntu image packages
   that also use `/usr/share/kernel` hooks during `kernel build` inspection.
   Validate the complete known lifecycle bodies, exact ABI and trigger ownership;

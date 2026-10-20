@@ -164,16 +164,22 @@ case "$source_kind" in
       rm -rf -- "$candidate"
       mkdir -m 0700 "$candidate"
       python3 - "$source_archive" "$candidate" "$source_file_count" <<'PY_LOCAL_SOURCE'
+import os
 import posixpath
 import sys
 import tarfile
+import tempfile
 
 archive_path, destination, expected_text = sys.argv[1:]
 expected_files = int(expected_text)
 seen = set()
-folded = {}
+namespace = {}
+links = {}
 members = []
 files = 0
+if os.path.islink(destination) or not os.path.isdir(destination) or os.listdir(destination):
+    raise ValueError("local source destination must be a fresh non-symlink directory")
+
 with tarfile.open(archive_path, "r:") as archive:
     for member in archive:
         name = member.name
@@ -182,28 +188,101 @@ with tarfile.open(archive_path, "r:") as archive:
         parts = name.split("/")
         if any(part in {"", ".", ".."} for part in parts) or len(name.encode("utf-8")) > 4096:
             raise ValueError("local source archive contains an unsafe path")
-        if name in seen or (name.casefold() in folded and folded[name.casefold()] != name):
-            raise ValueError("local source archive contains a duplicate or case-folded collision")
+        if any(ord(character) < 0x20 or ord(character) == 0x7f for character in name):
+            raise ValueError("local source archive contains a control character in a path")
+        if any(part.casefold() == ".git" for part in parts):
+            raise ValueError("local source archive contains a reserved Git metadata path")
+        if name in seen:
+            raise ValueError("local source archive contains a duplicate path")
         seen.add(name)
-        folded[name.casefold()] = name
+        if len(seen) > 2000000:
+            raise ValueError("local source archive exceeds the member-count limit")
         if member.isfile():
             if member.size < 0 or member.size > 17179869184:
                 raise ValueError("local source archive member is oversized")
+            kind = "file"
             files += 1
         elif member.issym():
             target = member.linkname
             if not target or target.startswith("/") or len(target.encode("utf-8")) > 4096:
                 raise ValueError("local source archive contains an unsafe symbolic link")
+            if any(ord(character) < 0x20 or ord(character) == 0x7f for character in target):
+                raise ValueError("local source archive contains an unsafe symbolic link")
             resolved = posixpath.normpath(posixpath.join(posixpath.dirname(name), target))
             if resolved == ".." or resolved.startswith("../") or resolved.startswith("/"):
                 raise ValueError("local source archive symbolic link escapes the source tree")
+            kind = "symlink"
+            links[name] = target
             files += 1
-        elif not member.isdir():
+        elif member.isdir():
+            kind = "directory"
+        else:
             raise ValueError("local source archive contains an unsupported member type")
+
+        for index in range(1, len(parts)):
+            ancestor = "/".join(parts[:index])
+            if ancestor in namespace and namespace[ancestor] != "directory":
+                raise ValueError("local source archive has a non-directory ancestor")
+            namespace[ancestor] = "directory"
+        if name in namespace and namespace[name] != kind:
+            raise ValueError("local source archive has a non-directory ancestor")
+        namespace[name] = kind
+        if len(namespace) > 2000000:
+            raise ValueError("local source archive exceeds the namespace-count limit")
         members.append(member)
     if files != expected_files:
         raise ValueError("local source archive file count differs from the reviewed tree")
-    archive.extractall(destination, members=members, filter="data")
+
+    # Probe the actual names and implicit directories on this filesystem, not
+    # an OS label or Unicode fold. Symlinks are only empty regular sentinels.
+    # No archive payload is extracted until the entire namespace can coexist.
+    try:
+        with tempfile.TemporaryDirectory(prefix=".lexr-path-probe-", dir=destination) as probe:
+            # Git will initialise this directory after extraction. Names which
+            # alias it on this filesystem must not become source payloads.
+            os.mkdir(os.path.join(probe, ".git"), mode=0o700)
+            children = {"": {".git"}}
+            for name in sorted(namespace, key=lambda item: (item.count("/"), item)):
+                candidate = os.path.join(probe, *name.split("/"))
+                if namespace[name] == "directory":
+                    os.mkdir(candidate, mode=0o700)
+                else:
+                    with open(candidate, "xb"):
+                        pass
+                parent, leaf = posixpath.split(name)
+                children.setdefault(parent, set()).add(leaf)
+                if namespace[name] == "directory":
+                    children.setdefault(name, set())
+            for parent, expected in children.items():
+                actual = set(os.listdir(os.path.join(probe, parent)))
+                if actual != expected:
+                    raise OSError("filesystem changed committed path spelling")
+    except OSError as error:
+        raise ValueError("local source destination cannot represent distinct source paths") from error
+
+    # data_filter may normalise link text on newer Python releases. Keep its
+    # path/type/ownership/permission checks but retain the exact Git link text.
+    # No member can have a symlink ancestor; complete final chains are checked
+    # below before Git reconstruction or compilation can consume this tree.
+    def exact_source_filter(member, extraction_path):
+        filtered = tarfile.data_filter(member, extraction_path)
+        if filtered is not None and member.issym():
+            return filtered.replace(linkname=links[member.name])
+        return filtered
+
+    archive.extractall(destination, members=members, filter=exact_source_filter)
+
+# Final chains must remain contained regardless of archive order. In-tree
+# dangling links remain representable; the raw target is still in Git's tree.
+destination_real = os.path.realpath(destination)
+for member in members:
+    if member.issym():
+        link_path = os.path.join(destination, member.name)
+        if os.readlink(link_path) != links[member.name]:
+            raise ValueError("local source archive symbolic link text changed during extraction")
+        resolved = os.path.realpath(link_path)
+        if os.path.commonpath([destination_real, resolved]) != destination_real:
+            raise ValueError("local source archive symbolic link escapes the source tree")
 PY_LOCAL_SOURCE
       git -C "$candidate" init
       git -C "$candidate" add -A

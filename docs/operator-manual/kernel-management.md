@@ -166,6 +166,17 @@ verifies the same commit and tree inside the container, and retains
 `local-git-commit` and records the optional local revision plus the retained
 archive digest and size without exposing the checkout path.
 
+Kernel source can contain different files whose names differ only by case.
+Such a source checkout needs a case-sensitive filesystem to remain clean.
+Do not reset or hide changes caused by a case-insensitive checkout. Local
+snapshots preserve exact Git paths and test their complete namespace on the
+container destination before extracting payloads; an unrepresentable namespace
+fails rather than merging files. Duplicate paths, non-directory ancestors,
+reserved Git metadata and escaping symlinks are rejected, and the reconstructed
+tree and commit must still match exactly. The proposed policy and its historical
+relationship to ADR037 are recorded in
+[ADR041](../adr/adr-041-exact-path-local-kernel-snapshots.md).
+
 ### Allow for the local snapshot
 
 The snapshot is an uncompressed Git tar archive, so allow approximately the

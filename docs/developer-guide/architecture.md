@@ -109,6 +109,9 @@ the decision closest to the question you are asking:
 Read an ADR as historical reasoning, then check current code and task guides for
 the implemented contract. [ADR040: installation-scoped GRUB ownership](../adr/adr-040-installation-scoped-grub-ownership.md)
 records the native multiboot validation boundary and partially supersedes ADR029.
+The proposed [ADR041: exact-path local kernel snapshots](../adr/adr-041-exact-path-local-kernel-snapshots.md)
+records destination namespace checks for legitimate case-distinct kernel paths
+and the unchanged source-identity boundaries inherited from ADR037.
 When an agreed change needs a new record, use the
 [ADR template](../adr/_adr-XXXX-template.md) and follow the coordination rule in
 [`CONTRIBUTING.md`](https://github.com/ooaklee/lexr.sh/blob/main/CONTRIBUTING.md#before-you-start).
