@@ -27,7 +27,7 @@ var buildHostRequirement = hostcap.Requirement{Operation: "native offline sensor
 
 func (m *Manager) plan(ctx context.Context, r Request) (Plan, error) {
 	var p Plan
-	if m == nil || m.runner == nil || m.dependencies == nil || m.token == nil || m.timeout <= 0 || m.initTimeout <= 0 || m.sourceTimeout <= 0 || m.recoveryTimeout <= 0 {
+	if m == nil || m.runner == nil || m.dependencies == nil || m.bindTransport == nil || m.token == nil || m.timeout <= 0 || m.initTimeout <= 0 || m.sourceTimeout <= 0 || m.recoveryTimeout <= 0 {
 		return p, errors.New("sensor source manager is not initialized")
 	}
 	if err := ctx.Err(); err != nil {
@@ -129,6 +129,12 @@ func (m *Manager) Run(ctx context.Context, r Request) (result Result, resultErr 
 	}
 	ctx, cancel := context.WithTimeout(ctx, m.timeout)
 	defer cancel()
+	// Resolve and bind local transport before dependency acquisition or resource
+	// creation. Later runs and recovery retain it rather than re-resolving an
+	// ambient context which could now point at another daemon.
+	if err = m.ensureTransport(ctx); err != nil {
+		return result, err
+	}
 	depRequest := builderimage.Request{NoPull: r.NoPull}
 	if r.NoPull {
 		depRequest.Prepared = m.prepared
@@ -183,7 +189,12 @@ func (m *Manager) Run(ctx context.Context, r Request) (result Result, resultErr 
 	}
 	result.VolumeName = sourceVolumePrefix + token
 	initSpec := sourceDockerSpec{Phase: sourceInit, Name: "lexr-sensors-init-" + token, Token: token, ImageID: image, VolumeName: result.VolumeName, Jobs: p.Jobs, Env: env}
-	sourceSpec := sourceDockerSpec{Phase: sourceBuild, Name: "lexr-sensors-build-" + token, Token: token, ImageID: image, VolumeName: result.VolumeName, SnapshotPath: snapshot.Path(), Jobs: p.Jobs, Env: env}
+	daemonSnapshotPath, err := m.transport.DaemonSnapshotPath(snapshot.Path())
+	if err != nil {
+		return result, err
+	}
+	result.SourceBind = &SourceBindObservation{HostSnapshotPath: snapshot.Path(), DaemonSnapshotPath: daemonSnapshotPath, EngineID: engine, ServerVersion: version}
+	sourceSpec := sourceDockerSpec{Phase: sourceBuild, Name: "lexr-sensors-build-" + token, Token: token, ImageID: image, VolumeName: result.VolumeName, SnapshotPath: snapshot.Path(), DaemonSnapshotPath: daemonSnapshotPath, Jobs: p.Jobs, Env: env}
 	result.Init.Name, result.Source.Name = initSpec.Name, sourceSpec.Name
 	// Journal every resource name before a client can create it remotely. Files
 	// are fresh and exclusive; partials and diagnostics are retained on failure.
@@ -358,6 +369,9 @@ func (m *Manager) Run(ctx context.Context, r Request) (result Result, resultErr 
 			if err := ctx.Err(); err != nil {
 				return err
 			}
+			if err := m.transport.Verify(ctx); err != nil {
+				return err
+			}
 			if err := verifyBuildMountTopology([]string{p.RepositoryRoot, p.WorkParent, p.OutputParent}); err != nil {
 				return err
 			}
@@ -414,6 +428,9 @@ func (m *Manager) readyImage(ctx context.Context) (string, string, string, []str
 	if m.prepared == nil {
 		return "", "", "", nil, errors.New("source dependency image is not prepared")
 	}
+	if m.transport == nil {
+		return "", "", "", nil, errors.New("source Docker transport is not bound")
+	}
 	b, _, err := m.command(ctx, 64<<10, "info", "--format", "{{json .}}")
 	if err != nil {
 		return "", "", "", nil, err
@@ -421,6 +438,10 @@ func (m *Manager) readyImage(ctx context.Context) (string, string, string, []str
 	engine, version, err := validateSourceEngine(b)
 	if err != nil {
 		return "", "", "", nil, err
+	}
+	boundEngine, boundVersion := m.transport.EngineIdentity()
+	if engine != boundEngine || version != boundVersion {
+		return "", "", "", nil, errors.New("source Docker engine differs from its bound local transport")
 	}
 	if engine != m.prepared.Provenance().EngineID {
 		return "", "", "", nil, errors.New("prepared source image belongs to another engine")
@@ -455,6 +476,12 @@ func (m *Manager) verifyVolume(ctx context.Context, name, token string) error {
 
 func (m *Manager) inspectPhase(ctx context.Context, spec sourceDockerSpec, id string) (sourceContainerInspection, error) {
 	var c sourceContainerInspection
+	if m.transport == nil {
+		return c, errors.New("source Docker transport is not bound")
+	}
+	if err := m.transport.Verify(ctx); err != nil {
+		return c, err
+	}
 	ref := id
 	if ref == "" {
 		ref = spec.Name
@@ -473,6 +500,12 @@ func (m *Manager) runPhase(parent context.Context, spec sourceDockerSpec, result
 	ctx, cancel := context.WithTimeout(parent, deadline)
 	defer cancel()
 	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if m.transport == nil {
+		return false, errors.New("source Docker transport is not bound")
+	}
+	if err := m.transport.Verify(ctx); err != nil {
 		return false, err
 	}
 	args, err := sourceCreateArgs(spec)

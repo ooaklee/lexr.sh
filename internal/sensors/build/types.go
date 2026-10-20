@@ -57,23 +57,34 @@ type PhaseResult struct {
 	Stderr          string    `json:"stderr,omitempty"`
 }
 
+// SourceBindObservation retains local host/daemon coordinates for diagnosis.
+// It is not included in the host-path-free published receipt and does not
+// prove the daemon's file-sharing implementation or physical sensor behavior.
+type SourceBindObservation struct {
+	HostSnapshotPath   string `json:"host_snapshot_path"`
+	DaemonSnapshotPath string `json:"daemon_snapshot_path"`
+	EngineID           string `json:"engine_id"`
+	ServerVersion      string `json:"server_version"`
+}
+
 // Result is a local operation report; it may contain local paths/diagnostics.
 // The separately published receipt deliberately omits those fields. Publication
 // is a source-build result, never installability or physical qualification.
 type Result struct {
-	Plan              Plan                `json:"plan"`
-	BuildID           string              `json:"build_id,omitempty"`
-	WorkDirectory     string              `json:"work_directory,omitempty"`
-	SnapshotDirectory string              `json:"snapshot_directory,omitempty"`
-	TransportArchive  string              `json:"transport_archive,omitempty"`
-	VolumeName        string              `json:"volume_name,omitempty"`
-	VolumeVerified    bool                `json:"volume_verified"`
-	Dependencies      builderimage.Result `json:"dependencies"`
-	Init              PhaseResult         `json:"init"`
-	Source            PhaseResult         `json:"source"`
-	Artifacts         []Artifact          `json:"artifacts,omitempty"`
-	BuildReport       *BuildReport        `json:"build_report,omitempty"`
-	Publication       Publication         `json:"publication"`
+	Plan              Plan                   `json:"plan"`
+	BuildID           string                 `json:"build_id,omitempty"`
+	WorkDirectory     string                 `json:"work_directory,omitempty"`
+	SnapshotDirectory string                 `json:"snapshot_directory,omitempty"`
+	SourceBind        *SourceBindObservation `json:"source_bind,omitempty"`
+	TransportArchive  string                 `json:"transport_archive,omitempty"`
+	VolumeName        string                 `json:"volume_name,omitempty"`
+	VolumeVerified    bool                   `json:"volume_verified"`
+	Dependencies      builderimage.Result    `json:"dependencies"`
+	Init              PhaseResult            `json:"init"`
+	Source            PhaseResult            `json:"source"`
+	Artifacts         []Artifact             `json:"artifacts,omitempty"`
+	BuildReport       *BuildReport           `json:"build_report,omitempty"`
+	Publication       Publication            `json:"publication"`
 }
 
 // Manager owns dependency readiness and every source/init resource it creates.
@@ -83,6 +94,8 @@ type Manager struct {
 	runner          platform.Runner
 	dependencies    *builderimage.Manager
 	prepared        *builderimage.Prepared
+	transport       sourceTransportBinding
+	bindTransport   func(context.Context, platform.Runner, hostcap.Host) (sourceTransportBinding, error)
 	host            hostcap.Host
 	token           func() (string, error)
 	timeout         time.Duration
@@ -95,7 +108,7 @@ func New(runner platform.Runner) *Manager {
 	if runner == nil {
 		runner = platform.NewDiagnosticRunner(nil)
 	}
-	return &Manager{runner: runner, dependencies: builderimage.New(runner), host: hostcap.Current(), token: func() (string, error) {
+	return &Manager{runner: runner, dependencies: builderimage.New(runner), bindTransport: bindSourceDockerTransport, host: hostcap.Current(), token: func() (string, error) {
 		var b [12]byte
 		_, err := rand.Read(b[:])
 		return hex.EncodeToString(b[:]), err

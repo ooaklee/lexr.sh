@@ -20,6 +20,7 @@ func policyTestSpec(phase sourcePhase) sourceDockerSpec {
 	spec := sourceDockerSpec{Phase: phase, Name: "lexr-sensors-" + string(phase) + "-" + policyTestToken, Token: policyTestToken, ImageID: policyTestImage, VolumeName: sourceVolumePrefix + policyTestToken, Jobs: 3, Env: fixedSourceEnvironment()}
 	if phase == sourceBuild {
 		spec.SnapshotPath = "/private/owned/source snapshot"
+		spec.DaemonSnapshotPath = spec.SnapshotPath
 	}
 	return spec
 }
@@ -41,8 +42,8 @@ func policyTestContainer(phase sourcePhase) sourceContainerInspection {
 		c.Config.User, h.PidsLimit, h.Memory, h.NanoCpus = "0:0", 64, 256<<20, 2_000_000_000
 		h.CapAdd = []string{"CHOWN"}
 	} else {
-		h.Mounts = append(h.Mounts, sourceHostMount{Type: "bind", Source: spec.SnapshotPath, Target: "/source", ReadOnly: true, BindOptions: &sourceBindOptions{Propagation: "rprivate"}})
-		c.Mounts = append(c.Mounts, sourceEffectiveMount{Type: "bind", Source: spec.SnapshotPath, Destination: "/source", Propagation: "rprivate"})
+		h.Mounts = append(h.Mounts, sourceHostMount{Type: "bind", Source: spec.DaemonSnapshotPath, Target: "/source", ReadOnly: true, BindOptions: &sourceBindOptions{Propagation: "rprivate"}})
+		c.Mounts = append(c.Mounts, sourceEffectiveMount{Type: "bind", Source: spec.DaemonSnapshotPath, Destination: "/source", Propagation: "rprivate"})
 	}
 	c.State.Status = "created"
 	return c
@@ -88,6 +89,91 @@ func TestSourceCreatePolicyHasOnlyFixedPhaseCommands(t *testing.T) {
 	}
 }
 
+// These are supplied expected coordinates, not mapping authority. The normal
+// controller must obtain the daemon coordinate from its private binding before
+// assembling this policy spec; these tests never inspect a real daemon.
+func TestSourceMountPolicySeparatesHostAndDaemonCoordinates(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct{ name, host, daemon string }{
+		{"linux-identity", "/private/owned/source snapshot", "/private/owned/source snapshot"},
+		{"desktop-derived-full-path", "/Users/tester/owned/source snapshot", "/host_mnt/Users/tester/owned/source snapshot"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			spec, c := policyTestSpec(sourceBuild), policyTestContainer(sourceBuild)
+			spec.SnapshotPath, spec.DaemonSnapshotPath = test.host, test.daemon
+			c.HostConfig.Mounts[1].Source, c.Mounts[1].Source = test.daemon, test.daemon
+			if err := validateSourceContainerPolicy(c, spec); err != nil {
+				t.Fatalf("exact supplied daemon coordinate refused: %v", err)
+			}
+			args, err := sourceCreateArgs(spec)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := "type=bind,src=" + test.host + ",dst=/source,readonly,bind-propagation=rprivate"
+			if !slices.Contains(args, want) {
+				t.Fatal("create did not preserve the exact host coordinate")
+			}
+			if test.host != test.daemon && slices.Contains(args, "type=bind,src="+test.daemon+",dst=/source,readonly,bind-propagation=rprivate") {
+				t.Fatal("daemon inspection coordinate leaked into the client create request")
+			}
+		})
+	}
+}
+
+func TestSourceMountPolicyRejectsDaemonCoordinateAliasesAndDivergence(t *testing.T) {
+	t.Parallel()
+	spec := policyTestSpec(sourceBuild)
+	spec.SnapshotPath = "/Users/tester/owned/source snapshot"
+	spec.DaemonSnapshotPath = "/host_mnt" + spec.SnapshotPath
+	good := policyTestContainer(sourceBuild)
+	good.HostConfig.Mounts[1].Source, good.Mounts[1].Source = spec.DaemonSnapshotPath, spec.DaemonSnapshotPath
+	if err := validateSourceContainerPolicy(good, spec); err != nil {
+		t.Fatal("daemon-coordinate refusal baseline is not valid", err)
+	}
+	for name, observed := range map[string]string{
+		"empty": "", "untranslated-host": spec.SnapshotPath, "prefix-only": "/host_mnt",
+		"double-prefix":  "/host_mnt" + spec.DaemonSnapshotPath,
+		"trailing-slash": spec.DaemonSnapshotPath + "/", "sibling-prefix": spec.DaemonSnapshotPath + "-other",
+		"descendant": spec.DaemonSnapshotPath + "/nested", "case-alias": strings.ToLower(spec.DaemonSnapshotPath),
+		"unclean-alias": "/host_mnt/Users/tester/owned/../owned/source snapshot",
+	} {
+		for _, coordinate := range []string{"requested", "effective", "both"} {
+			t.Run(name+"/"+coordinate, func(t *testing.T) {
+				c := clonePolicyContainer(t, good)
+				if coordinate != "effective" {
+					c.HostConfig.Mounts[1].Source = observed
+				}
+				if coordinate != "requested" {
+					c.Mounts[1].Source = observed
+				}
+				if err := validateSourceContainerPolicy(c, spec); err == nil {
+					t.Fatal("observed source path supplied an unverified alias or disagreed with the exact expected daemon path")
+				}
+			})
+		}
+	}
+	for name, edit := range map[string]func(*sourceContainerInspection){
+		"requested-writable": func(c *sourceContainerInspection) { c.HostConfig.Mounts[1].ReadOnly = false },
+		"effective-writable": func(c *sourceContainerInspection) { c.Mounts[1].RW = true },
+		"requested-shared":   func(c *sourceContainerInspection) { c.HostConfig.Mounts[1].BindOptions.Propagation = "rshared" },
+		"effective-shared":   func(c *sourceContainerInspection) { c.Mounts[1].Propagation = "rshared" },
+		"nonrecursive":       func(c *sourceContainerInspection) { c.HostConfig.Mounts[1].BindOptions.NonRecursive = true },
+		"duplicate-request": func(c *sourceContainerInspection) {
+			c.HostConfig.Mounts = append(c.HostConfig.Mounts, c.HostConfig.Mounts[1])
+		},
+		"duplicate-effective": func(c *sourceContainerInspection) { c.Mounts = append(c.Mounts, c.Mounts[1]) },
+		"work-mode-leak":      func(c *sourceContainerInspection) { c.Mounts[1].Mode = "z" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			c := clonePolicyContainer(t, good)
+			edit(&c)
+			if err := validateSourceContainerPolicy(c, spec); err == nil {
+				t.Fatal("daemon translation weakened the source bind policy")
+			}
+		})
+	}
+}
+
 func TestSourceCreateRefusesUnvalidatedSpec(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -105,13 +191,24 @@ func TestSourceCreateRefusesUnvalidatedSpec(t *testing.T) {
 		{"duplicate-env", func(s *sourceDockerSpec) { s.Env = append(s.Env, s.Env[0]) }},
 		{"missing-env", func(s *sourceDockerSpec) { s.Env = s.Env[1:] }},
 		{"changed-env", func(s *sourceDockerSpec) { s.Env[0] = "PATH=/tmp" }},
+		{"missing-source", func(s *sourceDockerSpec) { s.SnapshotPath = "" }},
 		{"relative-source", func(s *sourceDockerSpec) { s.SnapshotPath = "relative" }},
 		{"unclean-source", func(s *sourceDockerSpec) { s.SnapshotPath = "/private/a/../source" }},
 		{"broad-source", func(s *sourceDockerSpec) { s.SnapshotPath = "/" }},
+		{"trailing-slash-source", func(s *sourceDockerSpec) { s.SnapshotPath += "/" }},
 		{"comma-source", func(s *sourceDockerSpec) { s.SnapshotPath = "/private/source,readonly=false" }},
 		{"quote-source", func(s *sourceDockerSpec) { s.SnapshotPath = "/private/source\"" }},
 		{"control-source", func(s *sourceDockerSpec) { s.SnapshotPath = "/private/source\n" }},
 		{"invalid-utf8-source", func(s *sourceDockerSpec) { s.SnapshotPath = "/private/" + string([]byte{0xff}) }},
+		{"missing-daemon-source", func(s *sourceDockerSpec) { s.DaemonSnapshotPath = "" }},
+		{"relative-daemon-source", func(s *sourceDockerSpec) { s.DaemonSnapshotPath = "relative" }},
+		{"unclean-daemon-source", func(s *sourceDockerSpec) { s.DaemonSnapshotPath = "/host_mnt/private/a/../source" }},
+		{"broad-daemon-source", func(s *sourceDockerSpec) { s.DaemonSnapshotPath = "/" }},
+		{"trailing-slash-daemon-source", func(s *sourceDockerSpec) { s.DaemonSnapshotPath += "/" }},
+		{"comma-daemon-source", func(s *sourceDockerSpec) { s.DaemonSnapshotPath = "/host_mnt/private/source,readonly=false" }},
+		{"quote-daemon-source", func(s *sourceDockerSpec) { s.DaemonSnapshotPath += "\"" }},
+		{"control-daemon-source", func(s *sourceDockerSpec) { s.DaemonSnapshotPath += "\n" }},
+		{"invalid-utf8-daemon-source", func(s *sourceDockerSpec) { s.DaemonSnapshotPath = "/host_mnt/private/" + string([]byte{0xff}) }},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -122,10 +219,12 @@ func TestSourceCreateRefusesUnvalidatedSpec(t *testing.T) {
 			}
 		})
 	}
-	init := policyTestSpec(sourceInit)
-	init.SnapshotPath = "/private/source"
-	if _, err := sourceCreateArgs(init); err == nil {
-		t.Fatal("initialization received source")
+	for _, paths := range [][2]string{{"/private/source", ""}, {"", "/host_mnt/private/source"}, {"/private/source", "/host_mnt/private/source"}} {
+		init := policyTestSpec(sourceInit)
+		init.SnapshotPath, init.DaemonSnapshotPath = paths[0], paths[1]
+		if _, err := sourceCreateArgs(init); err == nil {
+			t.Fatal("initialization received a host or daemon source coordinate")
+		}
 	}
 }
 

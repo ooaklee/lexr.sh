@@ -42,14 +42,15 @@ var (
 // own opaque builderimage.Prepared result and authenticated source snapshot.
 // A matching spec is necessary policy, not proof of either prerequisite.
 type sourceDockerSpec struct {
-	Phase        sourcePhase
-	Name         string
-	Token        string
-	ImageID      string
-	VolumeName   string
-	SnapshotPath string
-	Jobs         int
-	Env          []string
+	Phase              sourcePhase
+	Name               string
+	Token              string
+	ImageID            string
+	VolumeName         string
+	SnapshotPath       string // Host coordinate used only in the create request.
+	DaemonSnapshotPath string // Exact expected inspection coordinate from the private verified binding.
+	Jobs               int
+	Env                []string
 }
 
 type sourceHealthcheck struct {
@@ -363,11 +364,15 @@ func validateSourceSpec(spec sourceDockerSpec) error {
 		return errors.New("source Docker environment differs from fixed policy")
 	}
 	if spec.Phase == sourceInit {
-		if spec.SnapshotPath != "" {
+		if spec.SnapshotPath != "" || spec.DaemonSnapshotPath != "" {
 			return errors.New("source initialization must not receive a source mount")
 		}
-	} else if !sourceCanonicalPath(spec.SnapshotPath) || strings.ContainsAny(spec.SnapshotPath, ",\"") {
-		return errors.New("source snapshot must have a canonical absolute comma/quote-free mount path")
+	} else {
+		for _, name := range []string{spec.SnapshotPath, spec.DaemonSnapshotPath} {
+			if !sourceCanonicalPath(name) || strings.ContainsAny(name, ",\"") {
+				return errors.New("source snapshot host and daemon coordinates must have canonical absolute comma/quote-free mount paths")
+			}
+		}
 	}
 	return nil
 }
@@ -474,7 +479,7 @@ func validateSourceMounts(c sourceContainerInspection, spec sourceDockerSpec) er
 			}
 		case "/source":
 			b := mount.BindOptions
-			if spec.Phase != sourceBuild || mount.Type != "bind" || mount.Source != spec.SnapshotPath || !mount.ReadOnly || mount.VolumeOptions != nil || b == nil || b.Propagation != "rprivate" || b.NonRecursive || b.CreateMountpoint || b.ReadOnlyNonRecursive || b.ReadOnlyForceRecursive {
+			if spec.Phase != sourceBuild || mount.Type != "bind" || mount.Source != spec.DaemonSnapshotPath || !mount.ReadOnly || mount.VolumeOptions != nil || b == nil || b.Propagation != "rprivate" || b.NonRecursive || b.CreateMountpoint || b.ReadOnlyNonRecursive || b.ReadOnlyForceRecursive {
 				return errors.New("source snapshot bind differs from the exact read-only private mount")
 			}
 		default:
@@ -501,7 +506,7 @@ func validateSourceMounts(c sourceContainerInspection, spec sourceDockerSpec) er
 				return errors.New("source workspace effective mount differs")
 			}
 		case "/source":
-			if spec.Phase != sourceBuild || mount.Type != "bind" || mount.Name != "" || mount.Driver != "" || mount.Source != spec.SnapshotPath || mount.RW || !sourceReadOnlyBindMode(mount.Mode) || mount.Propagation != "rprivate" {
+			if spec.Phase != sourceBuild || mount.Type != "bind" || mount.Name != "" || mount.Driver != "" || mount.Source != spec.DaemonSnapshotPath || mount.RW || !sourceReadOnlyBindMode(mount.Mode) || mount.Propagation != "rprivate" {
 				return errors.New("source snapshot effective mount differs")
 			}
 		case "/tmp":

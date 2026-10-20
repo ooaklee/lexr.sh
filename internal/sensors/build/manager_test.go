@@ -67,6 +67,9 @@ func newControllerTestRunner(t *testing.T) *controllerTestRunner {
 
 func controllerTestManager(r *controllerTestRunner) *Manager {
 	m := New(r)
+	// Existing controller tests deliberately simulate execution/transport. The
+	// dedicated transport tests exercise endpoint attestation and frozen argv.
+	m.bindTransport = controllerTestBindTransport
 	m.host = hostcap.Host{GOOS: "linux", GOARCH: "arm64"}
 	n := 0
 	m.token = func() (string, error) { n++; return fmt.Sprintf("%024x", n), nil }
@@ -818,7 +821,9 @@ func TestControllerApprovedRefusalsAndTerminalLifecycleOptIn(t *testing.T) {
 				}
 				return nil
 			}
-		}, false, false, false},
+			// Earlier terminal observations cannot establish current state after
+			// the bound engine identity changes. Recovery must refuse, not rebind.
+		}, false, true, false},
 		{"image-changed-after-copy", func(r *controllerTestRunner, _ *Manager, _ Request) {
 			changed := false
 			r.after = func(_ context.Context, c platform.Command) error {
@@ -866,6 +871,29 @@ func TestControllerApprovedRefusalsAndTerminalLifecycleOptIn(t *testing.T) {
 			}
 			if (controllerTestCount(r, "stop") != 0) != tc.wantStop {
 				t.Fatalf("unexpected recovery stop count: %d", controllerTestCount(r, "stop"))
+			}
+			if tc.name == "engine-changed-after-copy" {
+				for _, phase := range []PhaseResult{result.Init, result.Source} {
+					if !phase.TerminalUnknown || !strings.Contains(phase.RecoveryError, "engine identity changed") || phase.Terminal == nil || !successfulSourceTerminal(*phase.Terminal) || phase.Terminal.ContainerID != phase.ContainerID {
+						t.Fatalf("engine change lost historical proof or claimed current terminal authority: %+v", phase)
+					}
+				}
+				copySeen := false
+				for _, call := range r.calls {
+					if call.args[0] == "cp" && strings.HasSuffix(call.args[1], "/"+ArchiveName) {
+						if copySeen {
+							t.Fatal("engine-change fixture copied the archive more than once")
+						}
+						copySeen = true
+						continue
+					}
+					if copySeen && (call.args[0] == "stop" || call.args[0] == "container" && call.args[1] == "inspect") {
+						t.Fatal("engine change allowed inspection or recovery stop against an unbound engine")
+					}
+				}
+				if !copySeen {
+					t.Fatal("engine-change fixture never reached the copy boundary")
+				}
 			}
 			if tc.wantStop {
 				for _, call := range r.calls {
