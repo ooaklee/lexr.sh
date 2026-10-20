@@ -222,12 +222,14 @@ ELFS = {
     'iio-sensor-proxy': JOB / 'proxy-root/usr/libexec/iio-sensor-proxy',
     'monitor-sensor': JOB / 'proxy-root/usr/bin/monitor-sensor',
 }
+# LEXR_SENSOR_LOADER_POLICY_BEGIN
 QMI_MAP = {'libqmi-glib.so.5': str(PREFIX / 'lib/libqmi-glib.so.5')}
 BOTH_MAP = {**QMI_MAP, 'libssc.so.2': str(PREFIX / 'lib/libssc.so.2')}
 EXPECTED_LOADERS = {
     'libqmi-glib.so.5.12.0': {}, 'libssc.so.2': QMI_MAP,
     'ssccli': BOTH_MAP, 'iio-sensor-proxy': BOTH_MAP, 'monitor-sensor': {},
 }
+# LEXR_SENSOR_LOADER_POLICY_END
 
 def regular_bytes(path, maximum):
     assert path.is_absolute() and path.resolve(strict=True) == path
@@ -244,13 +246,57 @@ def regular_bytes(path, maximum):
         assert stat.S_ISREG(current.st_mode)
     return data
 
-def observe(argv):
+# LEXR_SENSOR_LOADER_OBSERVER_BEGIN
+def observe(argv, *, env=None):
     result = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                            text=True, timeout=30, check=False)
+                            text=True, timeout=30, check=False, env=env)
     sys.stdout.write(result.stdout)
     sys.stderr.write(result.stderr)
     assert result.returncode == 0, argv
     return result.stdout
+
+def observe_loader(path):
+    # Explicit non-secure loader invocation: value 1 initialises ordinary trace
+    # mode before --list. Copy, never mutate, the environment (including the
+    # private LD_LIBRARY_PATH); never skip or rewrite an unnamed output row.
+    environment = os.environ.copy()
+    environment['LD_TRACE_LOADED_OBJECTS'] = '1'
+    return observe(['/lib/ld-linux-aarch64.so.1', '--list', str(path)], env=environment)
+# LEXR_SENSOR_LOADER_OBSERVER_END
+
+# LEXR_SENSOR_LOADER_PARSER_BEGIN
+def parse_loader_listing(raw, expected):
+    assert raw.strip() and not any(char in raw for char in '\x00\r')
+    providers, seen = {}, set()
+    for row in raw.strip().split('\n'):
+        row = row.strip()
+        assert row
+        selected = re.fullmatch(r'([^\s/]+) => (/[^\s]+) \(0x[0-9a-fA-F]+\)', row)
+        if selected:
+            soname, origin = selected.groups()
+            assert re.fullmatch(r'[A-Za-z0-9._+-]{1,128}', soname) and soname not in ('.', '..')
+            assert soname != 'ld-linux-aarch64.so.1'
+            assert soname not in seen
+            assert not origin.startswith('//') and posixpath.normpath(origin) == origin
+            seen.add(soname)
+            if soname.startswith(('libqmi-glib.so', 'libssc.so')):
+                assert soname in BOTH_MAP
+                assert origin == BOTH_MAP[soname]
+                providers[soname] = origin
+            else:
+                assert origin.startswith(('/lib/', '/usr/lib/'))
+        elif re.fullmatch(r'linux-vdso.so.1 \(0x[0-9a-fA-F]+\)', row):
+            assert 'linux-vdso.so.1' not in seen
+            seen.add('linux-vdso.so.1')
+        else:
+            assert re.fullmatch(r'/(?:lib|usr/lib)/[^\s]+ \(0x[0-9a-fA-F]+\)', row), row
+            assert row == '/lib/ld-linux-aarch64.so.1 ' + row[row.index('('):]
+            assert '/lib/ld-linux-aarch64.so.1' not in seen
+            seen.add('/lib/ld-linux-aarch64.so.1')
+    assert '/lib/ld-linux-aarch64.so.1' in seen
+    assert providers == expected
+    return providers
+# LEXR_SENSOR_LOADER_PARSER_END
 
 def write_product(name, data):
     rule = RULES[name]
@@ -293,34 +339,9 @@ for name, path in ELFS.items():
     assert re.search(r'^\s*Machine:\s+AArch64\s*$', header, re.M)
     dynamic = observe(['/usr/bin/readelf', '-dW', str(path)])
     assert not re.search(r'\((?:RPATH|RUNPATH)\)', dynamic)
-    raw = observe(['/lib/ld-linux-aarch64.so.1', '--list', str(path)])
+    raw = observe_loader(path)
     raw_loaders[name] = raw
-    providers, seen = {}, set()
-    for row in raw.splitlines():
-        row = row.strip()
-        if not row:
-            continue
-        selected = re.fullmatch(r'([^\s/]+) => (/[^\s]+) \(0x[0-9a-fA-F]+\)', row)
-        if selected:
-            soname, origin = selected.groups()
-            assert soname != 'ld-linux-aarch64.so.1'
-            assert soname not in seen
-            seen.add(soname)
-            if soname in ('libqmi-glib.so.5', 'libssc.so.2'):
-                assert origin == BOTH_MAP[soname]
-                providers[soname] = origin
-            else:
-                assert origin.startswith(('/lib/', '/usr/lib/'))
-        elif re.fullmatch(r'linux-vdso.so.1 \(0x[0-9a-fA-F]+\)', row):
-            assert 'linux-vdso.so.1' not in seen
-            seen.add('linux-vdso.so.1')
-        else:
-            assert re.fullmatch(r'/(?:lib|usr/lib)/[^\s]+ \(0x[0-9a-fA-F]+\)', row), row
-            assert row == '/lib/ld-linux-aarch64.so.1 ' + row[row.index('('):]
-            assert '/lib/ld-linux-aarch64.so.1' not in seen
-            seen.add('/lib/ld-linux-aarch64.so.1')
-    assert '/lib/ld-linux-aarch64.so.1' in seen
-    assert providers == EXPECTED_LOADERS[name]
+    providers = parse_loader_listing(raw, EXPECTED_LOADERS[name])
     loaders.append({'artifact': name, 'providers': providers})
     write_product(name, data)
 
