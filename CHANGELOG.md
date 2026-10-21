@@ -50,6 +50,22 @@ that do not apply.
 
 ---
 
+## [0.6.0] - Unreleased
+
+### Added
+
+- Introduce schema-3 Stubble inventory observations with exact embedded payload
+  order and HWID-table bytes. Retain optional shared-route payloads without
+  advertising them as supported devices; required-device routes remain unique.
+- Recheck the installed image against its ordered observation before reporting
+  installation success. Keep existing schema-2 bundles and their strict
+  unique-route interpretation compatible.
+
+### Fixed
+
+- Align local and release manifest readers on one bounded 1 MiB ceiling so
+  complete multi-device DTB inventories retain all selection provenance.
+
 ## [0.5.0] - Unreleased
 
 ### Added

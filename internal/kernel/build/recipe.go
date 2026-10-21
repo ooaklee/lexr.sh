@@ -1239,6 +1239,9 @@ if delivery == "embedded":
     selection_evidence.sort(key=lambda record: record["device"])
     write_public_json(selection_output, selection_evidence)
 PY_SELECTION
+if [ "$effective_delivery" = embedded ]; then
+  cp -- "$inspection_image" "$provenance_dir/stubble-inspected-image.efi"
+fi
 printf '%s' "$effective_delivery" > "$provenance_dir/effective-dtb-delivery"
 printf '%s' "$dtbauto_sections" > "$provenance_dir/embedded-dtb-count"
 `

@@ -2,6 +2,7 @@
 package kernel
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -16,8 +17,8 @@ import (
 	"unicode/utf8"
 )
 
-// BundleSchemaVersion identifies the kernel-bundle manifest format emitted by
-// this version of the CLI.
+// BundleSchemaVersion identifies the existing unique-route manifest format.
+// Ordered Stubble inventories explicitly opt into OrderedBundleSchemaVersion.
 const BundleSchemaVersion = 2
 
 // PackageRole identifies how a Debian package contributes to a kernel bundle.
@@ -83,6 +84,9 @@ type DeviceTree struct {
 // DTBSelectionProvenance identifies the Stubble implementation and HWID
 // database which produced an embedded delivery set.
 type DTBSelectionProvenance struct {
+	// StubbleSelection is measured ordered inventory evidence for schema 3.
+	// Nil preserves the globally unique-route contract of schema 2.
+	StubbleSelection *StubbleSelection `json:"stubble_selection,omitempty"`
 	// Tool is the stable public tool name.
 	Tool string `json:"tool"`
 	// Version is the exact tool or package version reported by the build.
@@ -212,7 +216,7 @@ const (
 )
 
 // NewBundle derives and validates the ABI/version from Debian package
-// filenames and returns one canonical schema-2 delivery contract.
+// filenames and returns a canonical unique-route or ordered-inventory contract.
 func NewBundle(options BundleOptions) (Bundle, error) {
 	bundle := Bundle{
 		SchemaVersion:          BundleSchemaVersion,
@@ -225,6 +229,9 @@ func NewBundle(options BundleOptions) (Bundle, error) {
 		DTBSelectionProvenance: cloneDTBSelectionProvenance(options.DTBSelectionProvenance),
 		Packages:               append([]Package(nil), options.Packages...),
 		DeviceTrees:            CloneDeviceTrees(options.DeviceTrees),
+	}
+	if bundle.DTBSelectionProvenance != nil && bundle.DTBSelectionProvenance.StubbleSelection != nil {
+		bundle.SchemaVersion = OrderedBundleSchemaVersion
 	}
 	var problems []error
 	if !validRequestedBootImageMode(bundle.RequestedBootImageMode) {
@@ -320,7 +327,7 @@ func NewBundle(options BundleOptions) (Bundle, error) {
 			problems = append(problems, fmt.Errorf("boot-support package version %q differs from kernel version %q", bootSupportVersion, bundle.Version))
 		}
 	}
-	if err := validateDeviceTreeInventory(bundle.ABI, bundle.EffectiveDTBDelivery, bundle.EmbeddedDTBCount, bundle.DeviceTrees); err != nil {
+	if err := validateDeviceTreeInventory(bundle.ABI, bundle.EffectiveDTBDelivery, bundle.EmbeddedDTBCount, bundle.DeviceTrees, bundle.DTBSelectionProvenance); err != nil {
 		problems = append(problems, err)
 	}
 	if err := errors.Join(problems...); err != nil {
@@ -388,6 +395,7 @@ func cloneDTBSelectionProvenance(source *DTBSelectionProvenance) *DTBSelectionPr
 		return nil
 	}
 	copy := *source
+	copy.StubbleSelection = cloneStubbleSelection(source.StubbleSelection)
 	if source.Selections == nil {
 		return &copy
 	}
@@ -454,7 +462,10 @@ func validateDTBSelectionProvenance(provenance *DTBSelectionProvenance, trees []
 	if len(provenance.Selections) == 0 || len(provenance.Selections) > maximumBundleDeviceTrees {
 		return errors.New("detailed DTB selection provenance has an invalid device count")
 	}
-	return validateDTBSelectionEvidence(provenance, trees)
+	if err := validateDTBSelectionEvidence(provenance, trees); err != nil {
+		return err
+	}
+	return validateStubbleSelection(provenance, trees)
 }
 
 // validateDTBSelectionEvidence checks exact agreement between detailed source
@@ -471,7 +482,7 @@ func validateDTBSelectionEvidence(provenance *DTBSelectionProvenance, trees []De
 		if !exists || seenDevices[selection.Device] {
 			return fmt.Errorf("DTB selection evidence has unknown or duplicate device %q", selection.Device)
 		}
-		if tree.EmbeddedMatches != 1 {
+		if tree.EmbeddedMatches != 1 || len(tree.CompatibleStrings) == 0 {
 			return fmt.Errorf("DTB selection evidence for %s has no embedded payload", selection.Device)
 		}
 		seenDevices[selection.Device] = true
@@ -564,6 +575,11 @@ func CloneDeviceTrees(source []DeviceTree) []DeviceTree {
 func (bundle Bundle) BootPlatforms() []string {
 	var platforms []string
 	for _, tree := range bundle.DeviceTrees {
+		// Schema 3 distinguishes byte inventory from explicit profile claims.
+		// Optional, possibly shadowed payloads are never advertised as support.
+		if bundle.SchemaVersion == OrderedBundleSchemaVersion && !tree.Required {
+			continue
+		}
 		selected := bundle.EffectiveDTBDelivery == DTBDeliveryEmbedded && tree.EmbeddedMatches == 1 && len(tree.Selectors) > 0
 		selected = selected || bundle.EffectiveDTBDelivery == DTBDeliveryExternalRequired && tree.Required
 		if selected {
@@ -585,13 +601,18 @@ func (tree DeviceTree) FirmwareRelativePath(abi string) (string, bool) {
 }
 
 // validateDeviceTreeInventory checks deterministic packaged and embedded evidence.
-func validateDeviceTreeInventory(abi string, delivery DTBDelivery, embeddedDTBCount int, trees []DeviceTree) error {
+func validateDeviceTreeInventory(abi string, delivery DTBDelivery, embeddedDTBCount int, trees []DeviceTree, provenance *DTBSelectionProvenance) error {
 	if len(trees) == 0 || len(trees) > maximumBundleDeviceTrees {
 		return fmt.Errorf("kernel bundle contains %d device trees; expected between 1 and %d", len(trees), maximumBundleDeviceTrees)
 	}
 	devices := make(map[string]struct{}, len(trees))
 	paths := make(map[string]struct{}, len(trees))
 	routes := make(map[DeviceTreeSelector]string)
+	requiredOwners := make(map[string]bool, len(trees))
+	for _, tree := range trees {
+		requiredOwners[tree.Device] = tree.Required
+	}
+	ordered := provenance != nil && provenance.StubbleSelection != nil && delivery == DTBDeliveryEmbedded
 	embedded := 0
 	required := 0
 	prefix := "usr/lib/firmware/" + abi + "/device-tree/"
@@ -644,7 +665,9 @@ func validateDeviceTreeInventory(abi string, delivery DTBDelivery, embeddedDTBCo
 				return fmt.Errorf("device tree %s selectors are duplicate or not sorted", tree.Device)
 			}
 			if owner, duplicate := routes[selector]; duplicate {
-				return fmt.Errorf("device trees %s and %s declare the same selection route", owner, tree.Device)
+				if !ordered || tree.Required || requiredOwners[owner] {
+					return fmt.Errorf("device trees %s and %s declare the same selection route", owner, tree.Device)
+				}
 			}
 			routes[selector] = tree.Device
 			previousSelector = selector
@@ -701,10 +724,22 @@ func (b Bundle) Package(role PackageRole) (Package, bool) {
 	return Package{}, false
 }
 
-// WriteJSON writes a stable, indented bundle manifest without HTML escaping.
+// WriteJSON writes a stable, indented manifest which every bounded consumer
+// can read. An oversized declaration is rejected before any output is written.
 func (b Bundle) WriteJSON(w io.Writer) error {
-	encoder := json.NewEncoder(w)
+	var output bytes.Buffer
+	encoder := json.NewEncoder(&output)
 	encoder.SetIndent("", "  ")
 	encoder.SetEscapeHTML(false)
-	return encoder.Encode(b)
+	if err := encoder.Encode(b); err != nil {
+		return err
+	}
+	if int64(output.Len()) > MaximumBundleManifestBytes {
+		return fmt.Errorf("kernel bundle manifest exceeds the %d-byte consumer limit", MaximumBundleManifestBytes)
+	}
+	n, err := w.Write(output.Bytes())
+	if err == nil && n != output.Len() {
+		return io.ErrShortWrite
+	}
+	return err
 }

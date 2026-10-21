@@ -30,7 +30,7 @@ const (
 	// releaseBundleManifestName is the authoritative published delivery contract.
 	releaseBundleManifestName = "lexr-kernel-bundle.json"
 	// maximumReleaseBundleBytes bounds the downloaded delivery contract.
-	maximumReleaseBundleBytes = 1 << 20
+	maximumReleaseBundleBytes = kernel.MaximumBundleManifestBytes
 )
 
 // Asset is the subset of GitHub release-asset metadata needed for verified
@@ -305,8 +305,8 @@ func decodeReleaseBundle(path string) (kernel.Bundle, error) {
 	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
 		return kernel.Bundle{}, errors.New("release kernel bundle contains trailing JSON")
 	}
-	if recorded.SchemaVersion != kernel.BundleSchemaVersion {
-		return kernel.Bundle{}, fmt.Errorf("release kernel bundle schema is %d, expected %d", recorded.SchemaVersion, kernel.BundleSchemaVersion)
+	if err := recorded.ValidateSchemaVersion(); err != nil {
+		return kernel.Bundle{}, fmt.Errorf("release kernel bundle: %w", err)
 	}
 	current, err := os.Lstat(path)
 	if err != nil || current.Mode()&os.ModeSymlink != 0 || !os.SameFile(listed, current) || current.Size() != listed.Size() {

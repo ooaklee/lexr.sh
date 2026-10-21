@@ -8,6 +8,10 @@ description: Architecture decision for proving embedded device trees or provisio
 
 Accepted on 2026-09-04.
 
+[ADR042](adr-042-ordered-stubble-inventory.md) proposes a versioned successor
+for ordered optional inventories and selector/support-claim separation. This
+historical decision remains the schema-2 contract.
+
 On 2026-09-28, [ADR040](adr-040-installation-scoped-grub-ownership.md)
 partially superseded native GRUB matching and recovery assumptions with
 installation-scoped ownership; bundle and package lifecycle decisions remain.

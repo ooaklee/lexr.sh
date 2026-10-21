@@ -187,6 +187,9 @@ const (
 // verification. SHA256 identifies either the embedded payload or the
 // boot-side external DTB; GRUBEntryCount includes normal and recovery entries.
 type DeviceTreeBootEvidence struct {
+	// OrderedInventoryVerified records a successful schema-3 comparison of the
+	// whole installed image, physical payload order, and encoded HWID records.
+	OrderedInventoryVerified bool `json:"ordered_inventory_verified,omitempty"`
 	// Mode identifies the verified embedded or external delivery path.
 	Mode DeviceTreeBootMode `json:"mode"`
 	// SHA256 is the exact digest shared by every verified boot-time DTB path.
@@ -270,6 +273,9 @@ type GRUBEntry struct {
 type Plan struct {
 	// ownership pins private mounted identity without serialising identifiers.
 	ownership bootidentity.Identity
+	// orderedTrees retains the immutable full FDT inventory for the final
+	// image/table-order check; the public plan records its observed policy.
+	orderedTrees []kernel.DeviceTree
 	// Profile is the canonical hardware identity selected for this installation.
 	Profile string `json:"profile,omitempty"`
 	// BootHookCleanup records recognised competing hooks to back up and retire.
@@ -307,6 +313,8 @@ type Plan struct {
 	Packages []Package `json:"packages"`
 	// DeviceTrees lists the exact DTBs that the installed modules must provide.
 	DeviceTrees []DeviceTree `json:"device_trees"`
+	// OrderedSelection binds schema-3 image order to measured package bytes.
+	OrderedSelection *kernel.StubbleSelection `json:"ordered_selection,omitempty"`
 	// Fallback captures the bootable recovery kernel before any mutation.
 	Fallback BootEvidence `json:"fallback"`
 	// Commands previews the direct commands using reviewed source package paths.

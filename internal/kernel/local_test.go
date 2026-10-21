@@ -3,9 +3,11 @@ package kernel
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -331,6 +333,115 @@ func TestDiscoverLocalBundlePreservesExternalDelivery(t *testing.T) {
 	}
 	if support, ok := bundle.Package(RoleBootSupport); !ok || support.Name != supportName || !support.Verified {
 		t.Fatalf("boot-support package = %#v, present=%t", support, ok)
+	}
+}
+
+// Complete multi-device Stubble evidence must survive local acquisition without
+// pruning the inventory or the source records to fit the former 64 KiB bound.
+func TestDiscoverLocalBundlePreservesLargeStubbleManifest(t *testing.T) {
+	t.Parallel()
+	directory := t.TempDir()
+	want, manifest := writeLargeLocalBundleManifest(t, directory)
+	if len(manifest) <= 64<<10 || len(manifest) > 1<<20 {
+		t.Fatalf("manifest size = %d, want above 64 KiB and within the 1 MiB delivery ceiling", len(manifest))
+	}
+	got, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.DeviceTrees) != 39 || got.EmbeddedDTBCount != 39 || len(got.Packages) != 4 {
+		t.Fatalf("complete delivery counts = %d/%d/%d", len(got.DeviceTrees), got.EmbeddedDTBCount, len(got.Packages))
+	}
+	if !reflect.DeepEqual(got.DeviceTrees, want.DeviceTrees) || !reflect.DeepEqual(got.DTBSelectionProvenance, want.DTBSelectionProvenance) {
+		t.Fatal("large manifest lost device-tree or selection-provenance records")
+	}
+	for _, pkg := range got.Packages {
+		if !pkg.Verified {
+			t.Errorf("package %s was not checksum verified", pkg.Name)
+		}
+	}
+}
+
+// The higher ceiling remains a strict byte limit, including otherwise valid
+// JSON whitespace, rather than an unbounded decoder allowance.
+func TestDiscoverLocalBundleManifestSizeBoundary(t *testing.T) {
+	t.Parallel()
+	for _, extra := range []int{0, 1} {
+		t.Run(fmt.Sprintf("limit-plus-%d", extra), func(t *testing.T) {
+			t.Parallel()
+			directory := t.TempDir()
+			writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+			manifestPath := filepath.Join(directory, localBundleManifest)
+			data, err := os.ReadFile(manifestPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			data = append(data, []byte(strings.Repeat(" ", int(maximumLocalBundleManifestBytes)-len(data)+extra))...)
+			writeLocalFile(t, manifestPath, string(data))
+			_, err = DiscoverLocalBundle(directory)
+			if extra == 0 {
+				if err != nil {
+					t.Fatalf("manifest at the byte ceiling was rejected: %v", err)
+				}
+			} else {
+				assertLocalErrorContains(t, err, localBundleManifest, "no larger than 1048576 bytes")
+			}
+		})
+	}
+}
+
+// Manifests above the old bound retain the same syntax, source-evidence,
+// canonical-path and package-byte validation as smaller declarations.
+func TestDiscoverLocalBundleLargeManifestRemainsStrict(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		mutate func(string, Bundle) string
+		want   []string
+	}{
+		{"malformed JSON", func(s string, _ Bundle) string { return s[:len(s)-2] + "!\n" }, []string{"decode"}},
+		{"unknown field", func(s string, _ Bundle) string {
+			return strings.Replace(s, "{\n", "{\n  \"unknown\": true,\n", 1)
+		}, []string{"unknown field"}},
+		{"trailing value", func(s string, _ Bundle) string { return s + "{}\n" }, []string{"trailing"}},
+		{"unsafe DTB path", func(_ string, b Bundle) string {
+			b.DeviceTrees[0].Path = "../outside.dtb"
+			data, err := json.MarshalIndent(b, "", "  ")
+			if err != nil {
+				panic(err)
+			}
+			return string(data)
+		}, []string{"invalid package path"}},
+		{"package digest mismatch", func(_ string, b Bundle) string {
+			b.Packages[0].SHA256 = strings.Repeat("0", 64)
+			data, err := json.MarshalIndent(b, "", "  ")
+			if err != nil {
+				panic(err)
+			}
+			return string(data)
+		}, []string{"disagrees", localChecksumManifest}},
+		{"missing selection evidence", func(_ string, b Bundle) string {
+			b.DTBSelectionProvenance.Selections = b.DTBSelectionProvenance.Selections[1:]
+			data, err := json.MarshalIndent(b, "", "  ")
+			if err != nil {
+				panic(err)
+			}
+			return string(data)
+		}, []string{"no detailed selection evidence"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			directory := t.TempDir()
+			bundle, manifest := writeLargeLocalBundleManifest(t, directory)
+			changed := test.mutate(manifest, bundle)
+			if len(changed) <= 64<<10 || int64(len(changed)) > maximumLocalBundleManifestBytes {
+				t.Fatalf("mutated manifest size = %d, want within the newly admitted range", len(changed))
+			}
+			writeLocalFile(t, filepath.Join(directory, localBundleManifest), changed)
+			_, err := DiscoverLocalBundleWithOptions(directory, LocalBundleOptions{PackageSet: LocalPackageSetAll})
+			assertLocalErrorContains(t, err, test.want...)
+		})
 	}
 }
 
@@ -840,6 +951,63 @@ func writeLocalBundleManifest(t *testing.T, directory, abi, version string, incl
 		t.Fatal(err)
 	}
 	writeLocalFile(t, filepath.Join(directory, localBundleManifest), output.String())
+}
+
+// writeLargeLocalBundleManifest creates full, valid synthetic 39-device routing
+// evidence. Every route is unique so this byte-bound regression is independent
+// of the separate shared-selector policy and never weakens that validator.
+func writeLargeLocalBundleManifest(t *testing.T, directory string) (Bundle, string) {
+	t.Helper()
+	writeLocalPair(t, directory, testLocalABI, testLocalVersion)
+	writeLocalHeaderPair(t, directory, testLocalABI, testLocalVersion)
+	writeLocalCompleteChecksumManifest(t, directory, testLocalABI, testLocalVersion)
+	writeLocalBundleManifest(t, directory, testLocalABI, testLocalVersion, true)
+	base, present, err := loadLocalBundleManifest(directory)
+	if err != nil || !present {
+		t.Fatalf("load base manifest: present=%t, error=%v", present, err)
+	}
+	provenance := detailedBundleSelectionProvenance()
+	provenance.Selections = nil
+	trees := make([]DeviceTree, 0, 39)
+	for index := 0; index < 39; index++ {
+		device := fmt.Sprintf("fixture-device-%02d", index)
+		basename := device + ".dtb"
+		compatible := "example," + device
+		if index == 0 {
+			device, basename, compatible = "surface-pro-11-x1e-oled", "x1e80100-microsoft-denali-oled.dtb", "microsoft,denali"
+		}
+		selectors := []DeviceTreeSelector{{Kind: DeviceTreeSelectorCompatible, Value: compatible}}
+		hwids := make([]string, 0, 14)
+		for number := 0; number < 14; number++ {
+			hwid := fmt.Sprintf("%08x-1111-5111-8111-%012x", index+1, number+1)
+			hwids = append(hwids, hwid)
+			selectors = append(selectors, DeviceTreeSelector{Kind: DeviceTreeSelectorHWID, Value: hwid})
+		}
+		trees = append(trees, DeviceTree{
+			Device: device, Basename: basename,
+			Path:              "usr/lib/firmware/" + testLocalABI + "/device-tree/qcom/" + basename,
+			CompatibleStrings: []string{compatible, "qcom,x1e80100"}, SHA256: localDigest(device),
+			EmbeddedMatches: 1, Selectors: selectors, Required: index == 0,
+		})
+		provenance.Selections = append(provenance.Selections, DeviceTreeSelectionEvidence{
+			Device: device, Records: []DTBSelectionRecord{{Source: "hwids", Compatible: compatible, HWIDs: hwids}},
+		})
+	}
+	bundle, err := NewBundle(BundleOptions{
+		Release: base.Release, Repository: base.Repository,
+		RequestedBootImageMode: RequestedBootImageModeStubble,
+		EffectiveDTBDelivery:   DTBDeliveryEmbedded, EmbeddedDTBCount: 39,
+		DTBSelectionProvenance: provenance, Packages: base.Packages, DeviceTrees: trees,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output strings.Builder
+	if err := bundle.WriteJSON(&output); err != nil {
+		t.Fatal(err)
+	}
+	writeLocalFile(t, filepath.Join(directory, localBundleManifest), output.String())
+	return bundle, output.String()
 }
 
 // writeLocalExternalBundleManifest emits a source-policy raw-image contract.
