@@ -285,7 +285,9 @@ for member in members:
             raise ValueError("local source archive symbolic link escapes the source tree")
 PY_LOCAL_SOURCE
       git -C "$candidate" init
-      git -C "$candidate" add -A
+      # The authenticated archive may contain committed files matching ignore
+      # rules. A fresh index must retain them; exact tree comparison stays fatal.
+      git -C "$candidate" add --force --all
       tree="$(git -C "$candidate" write-tree)"
       if [ "$tree" != "$expected_tree" ]; then
         echo "Extracted local source tree differs from the reviewed Git tree." >&2
