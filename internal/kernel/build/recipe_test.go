@@ -584,7 +584,7 @@ func TestRecipeRejectsUndeclaredFixedDTBFallback(t *testing.T) {
 func TestRecipeVerifiesGeneratedKernelHookContract(t *testing.T) {
 	t.Parallel()
 	for _, required := range []string{
-		`dpkg-deb --ctrl-tarfile "$selected_package"`,
+		`dpkg-deb --ctrl-tarfile "$lifecycle_image_package"`,
 		`printf 'interest linux-update-%s\n' "$abi"`,
 		`cmp -s "$expected_image_triggers" "$image_triggers"`,
 		`[ "$(wc -c < "$image_postinst")" -gt 131072 ]`,

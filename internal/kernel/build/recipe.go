@@ -417,7 +417,15 @@ embedded_sections="$inspection_root/embedded-sections.tsv"
 dtb_scan_output="$inspection_root/selected-dtbs.tsv"
 dtb_scan_root="$inspection_root/selected-dtbs"
 dtb_scanner="$inspection_root/scan-package-dtbs.py"
-selected_package=""
+boot_payload_package=""
+lifecycle_image_package=""
+lifecycle_modules_package=""
+image_package_name=""
+modules_package_name=""
+image_package_version=""
+modules_package_version=""
+image_package_count=0
+modules_package_count=0
 selected_member=""
 vmlinuz_count=0
 declare -a runtime_packages=()
@@ -427,24 +435,62 @@ for package in \
   "$artifact_dir"/linux-modules-*-qcom-x1e_*_arm64.deb; do
   [ -f "$package" ] || continue
   runtime_packages+=("$package")
+  if ! package_name="$(dpkg-deb --field "$package" Package)" ||
+     ! package_version="$(dpkg-deb --field "$package" Version)" ||
+     ! package_architecture="$(dpkg-deb --field "$package" Architecture)"; then
+    echo "Could not inspect generated runtime package identity." >&2
+    exit 1
+  fi
+  case "$package_name" in ''|*[!a-z0-9+.-]*) echo "Generated runtime Package field is unsafe." >&2; exit 1 ;; esac
+  case "$package_version" in ''|*[!A-Za-z0-9.+:~_-]*) echo "Generated runtime Version field is unsafe." >&2; exit 1 ;; esac
+  if [ "${#package_name}" -gt 255 ] || [ "${#package_version}" -gt 256 ] ||
+     [ "$package_architecture" != arm64 ] ||
+     [ "$(basename "$package")" != "${package_name}_${package_version}_arm64.deb" ]; then
+    echo "Generated runtime package filename does not match its bounded ARM64 control identity." >&2
+    exit 1
+  fi
+  case "$package_name" in
+    linux-image-*)
+      image_package_count=$((image_package_count + 1))
+      lifecycle_image_package="$package"
+      image_package_name="$package_name"
+      image_package_version="$package_version"
+      ;;
+    linux-modules-*)
+      modules_package_count=$((modules_package_count + 1))
+      lifecycle_modules_package="$package"
+      modules_package_name="$package_name"
+      modules_package_version="$package_version"
+      ;;
+    *) echo "Generated runtime package has an unsupported control role." >&2; exit 1 ;;
+  esac
   if ! dpkg-deb --fsys-tarfile "$package" | tar -tf - > "$member_list"; then
     echo "Could not inspect a generated runtime package." >&2
     exit 1
   fi
   while IFS= read -r member; do
-    selected_package="$package"
+    boot_payload_package="$package"
     selected_member="$member"
     vmlinuz_count=$((vmlinuz_count + 1))
   done < <(awk '/^\.\/boot\/vmlinuz-[^/]+$/ { print }' "$member_list")
 done
 
-if [ "$vmlinuz_count" -ne 1 ] || [ "${#runtime_packages[@]}" -ne 2 ]; then
+if [ "$vmlinuz_count" -ne 1 ] || [ "${#runtime_packages[@]}" -ne 2 ] ||
+   [ "$image_package_count" -ne 1 ] || [ "$modules_package_count" -ne 1 ]; then
   echo "Kernel delivery validation requires exactly one packaged /boot/vmlinuz ABI across the runtime packages." >&2
   exit 1
 fi
 abi=${selected_member#./boot/vmlinuz-}
 case "$abi" in ''|.*|*[!A-Za-z0-9._+~-]*|-*) echo "Generated kernel ABI is unsafe." >&2; exit 1 ;; esac
-if ! dpkg-deb --ctrl-tarfile "$selected_package" | tar -tf - > "$control_member_list"; then
+if [ "$image_package_name" != "linux-image-$abi" ] ||
+   [ "$modules_package_name" != "linux-modules-$abi" ] ||
+   [ "$image_package_version" != "$modules_package_version" ]; then
+  echo "Generated runtime package roles must match the exact boot ABI and package version." >&2
+  exit 1
+fi
+# Stubble may place vmlinuz in linux-modules. The image package still owns the
+# lifecycle and exact-ABI trigger; payload location must not select that role.
+if ! dpkg-deb --ctrl-tarfile "$lifecycle_image_package" | tar -tf - > "$control_member_list"; then
   echo "Could not inspect the generated linux-image control archive." >&2
   exit 1
 fi
@@ -457,9 +503,9 @@ if [ "$(printf '%s\n' "$postinst_member" | awk 'NF { count++ } END { print count
   echo "Generated linux-image package must contain exactly one postinst, postrm, and triggers control member." >&2
   exit 1
 fi
-if ! dpkg-deb --ctrl-tarfile "$selected_package" | tar -xOf - "$postinst_member" > "$image_postinst" ||
-   ! dpkg-deb --ctrl-tarfile "$selected_package" | tar -xOf - "$postrm_member" > "$image_postrm" ||
-   ! dpkg-deb --ctrl-tarfile "$selected_package" | tar -xOf - "$triggers_member" > "$image_triggers"; then
+if ! dpkg-deb --ctrl-tarfile "$lifecycle_image_package" | tar -xOf - "$postinst_member" > "$image_postinst" ||
+   ! dpkg-deb --ctrl-tarfile "$lifecycle_image_package" | tar -xOf - "$postrm_member" > "$image_postrm" ||
+   ! dpkg-deb --ctrl-tarfile "$lifecycle_image_package" | tar -xOf - "$triggers_member" > "$image_triggers"; then
   echo "Could not extract the generated linux-image maintainer contract." >&2
   exit 1
 fi
@@ -556,7 +602,7 @@ try:
 except (OSError, UnicodeError, ValueError) as error:
     raise SystemExit("Generated linux-image maintainer contract rejected: " + str(error))
 PY_KERNEL_HOOK_CONTRACT
-if ! dpkg-deb --fsys-tarfile "$selected_package" | tar -xOf - "$selected_member" > "$inspection_image"; then
+if ! dpkg-deb --fsys-tarfile "$boot_payload_package" | tar -xOf - "$selected_member" > "$inspection_image"; then
   echo "Could not extract the generated boot image for structural validation." >&2
   exit 1
 fi
