@@ -52,15 +52,19 @@ that do not apply.
 
 ## [0.6.0] - Unreleased
 
-## [0.6.0-alpha] - 2026-10-21
+## [0.6.0-alpha] - 2026-10-22
 
-This opt-in alpha covers kernel source capture, Ubuntu packaging and embedded
-device-tree validation. The separate experimental native-sensor builder is not
-included. Embedded inventory is not a claim of hardware qualification for every
+This opt-in alpha covers explicit CLI release selection, kernel source capture,
+Ubuntu packaging and embedded device-tree validation. The separate experimental
+native-sensor builder is not included. Embedded inventory is not a claim of hardware qualification for every
 device it contains.
 
 ### Added
 
+- Select an exact published release with `lexr upgrade --version <version>`,
+  including an opt-in prerelease or intentional downgrade. Plain `lexr upgrade`
+  keeps the stable channel. Reject malformed pins, mismatched or draft release
+  metadata and missing or invalid checksums before replacing the executable.
 - Introduce schema-3 Stubble inventory observations with exact embedded payload
   order and HWID-table bytes. Retain optional shared-route payloads without
   advertising them as supported devices; required-device routes remain unique.
