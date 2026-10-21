@@ -145,7 +145,7 @@ jobs:
             sed -E 's#^output directory: .*$#output directory: [job-local]#'
 
       - name: Upload the verified portable kernel packages
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kernel-build
           path: |
@@ -248,7 +248,7 @@ jobs:
           printf 'release-name=%s\n' "${release_name}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload validated release assets
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ inputs.release && steps.release-assets.outputs.release-name != '' }}
         with:
           name: release-assets
@@ -282,7 +282,7 @@ jobs:
         run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o "${RUNNER_TEMP}/lexr" ./cmd/lexr
 
       - name: Download validated release assets
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release-assets
           path: release-assets
