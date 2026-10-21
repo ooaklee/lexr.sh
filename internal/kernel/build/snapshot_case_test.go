@@ -335,7 +335,7 @@ type snapshotCaseIndexEntry struct {
 }
 
 // snapshotCaseIndexTree uses Git plumbing only; none of the additional paths
-// are materialized in the fixture worktree, including on case-insensitive macOS.
+// are materialised in the fixture worktree, including on case-insensitive macOS.
 func snapshotCaseIndexTree(t *testing.T, entries []snapshotCaseIndexEntry) (string, []byte) {
 	t.Helper()
 	source := filepath.Join(t.TempDir(), "source")

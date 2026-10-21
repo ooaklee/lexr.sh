@@ -52,6 +52,13 @@ that do not apply.
 
 ## [0.6.0] - Unreleased
 
+## [0.6.0-alpha] - 2026-10-21
+
+This opt-in alpha covers kernel source capture, Ubuntu packaging and embedded
+device-tree validation. The separate experimental native-sensor builder is not
+included. Embedded inventory is not a claim of hardware qualification for every
+device it contains.
+
 ### Added
 
 - Introduce schema-3 Stubble inventory observations with exact embedded payload
@@ -63,6 +70,26 @@ that do not apply.
 
 ### Fixed
 
+- Preserve legitimate case-distinct paths in local kernel snapshots. Validate
+  their complete namespace on the extraction filesystem before writing payloads,
+  reject aliases, duplicate paths, non-directory ancestors and escaping link
+  chains, and retain exact reconstructed tree and commit checks. The source
+  checkout must still be clean; no dirty-source or identity bypass is added.
+- Retain committed source files matched by ignore rules and declare a captured
+  commit's shallow history boundary without changing its original commit or
+  tree. Reject incomplete or changed reconstructed source and incompatible
+  cached snapshots.
+- Recognise both legacy `/etc/kernel` hooks and newer Ubuntu image packages
+  that also use `/usr/share/kernel` hooks during `kernel build` inspection.
+  Validate the complete known lifecycle bodies, exact ABI and trigger ownership;
+  reject changed actions, arguments, control flow and malformed deferred hooks
+  instead of accepting matching command snippets.
+- Resolve the kernel payload and image lifecycle from their separate Debian
+  package roles. Validate the coherent image/modules pair without assuming
+  that the image package itself contains `vmlinuz`.
+- Inspect the complete same-ABI packaged DTB inventory for embedded fallback
+  and boot diagnostics, while retaining selected-device attribution and strict
+  external-DTB checks. Do not assume every embedded payload is a Denali variant.
 - Align local and release manifest readers on one bounded 1 MiB ceiling so
   complete multi-device DTB inventories retain all selection provenance.
 
@@ -166,16 +193,6 @@ that do not apply.
 
 ### Fixed
 
-- Preserve legitimate case-distinct paths in local kernel snapshots. Validate
-  their complete namespace on the extraction filesystem before writing payloads,
-  reject aliases, duplicate paths, non-directory ancestors and escaping link
-  chains, and retain exact reconstructed tree and commit checks. The source
-  checkout must still be clean; no dirty-source or identity bypass is added.
-- Recognize both legacy `/etc/kernel` hooks and newer Ubuntu image packages
-  that also use `/usr/share/kernel` hooks during `kernel build` inspection.
-  Validate the complete known lifecycle bodies, exact ABI and trigger ownership;
-  reject changed actions, arguments, control flow and malformed deferred hooks
-  instead of accepting matching command snippets.
 - Remove the duplicate title from generated image release notes and link to
   the canonical Windows preparation and Etcher guide. Continue validating
   unchanged release notes produced by Lexr 0.5.0-rc.3.

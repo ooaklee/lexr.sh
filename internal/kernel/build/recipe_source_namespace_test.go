@@ -260,7 +260,7 @@ func TestRecipeSourceNamespaceRejectsBeforePayload(t *testing.T) {
 }
 
 // TestRecipeSourceNamespaceRejectsFinalEscapingLinkChains covers both orders:
-// lexical normalization of a/.. is inside, but a -> . makes it escape after
+// lexical normalisation of a/.. is inside, but a -> . makes it escape after
 // the complete set of links exists. No claim of preflight rejection is made.
 func TestRecipeSourceNamespaceRejectsFinalEscapingLinkChains(t *testing.T) {
 	for _, reverse := range []bool{false, true} {
@@ -371,7 +371,7 @@ builtins.open = injected_namespace_alias
 }
 
 // recipeSourceNamespaceNodes expands implicit parents without folding or
-// normalizing spelling. It is used only for the valid positive fixtures.
+// normalising spelling. It is used only for the valid positive fixtures.
 func recipeSourceNamespaceNodes(members []recipeTarMember) map[string]bool {
 	nodes := make(map[string]bool)
 	for _, member := range members {

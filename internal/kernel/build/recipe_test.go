@@ -580,7 +580,7 @@ func TestRecipeRejectsUndeclaredFixedDTBFallback(t *testing.T) {
 
 // TestRecipeVerifiesGeneratedKernelHookContract keeps finished-package
 // extraction and ownership checks wired to the executable text validator.
-// Behavioral tests separately exercise both supported lifecycle families.
+// Behavioural tests separately exercise both supported lifecycle families.
 func TestRecipeVerifiesGeneratedKernelHookContract(t *testing.T) {
 	t.Parallel()
 	for _, required := range []string{

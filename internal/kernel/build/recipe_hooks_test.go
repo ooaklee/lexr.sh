@@ -19,6 +19,7 @@ import (
 // manager, Docker or kernel build is invoked.
 const recipeKernelHookScriptBound = 131072
 
+// recipeKernelHookInput holds inert rendered maintainer scripts and their ABI.
 type recipeKernelHookInput struct {
 	abi      string
 	postinst string
@@ -26,6 +27,7 @@ type recipeKernelHookInput struct {
 	triggers string
 }
 
+// recipeKernelHookSources describes the independently pinned source fixtures.
 type recipeKernelHookSources struct {
 	Fixtures []struct {
 		Name           string `json:"name"`
@@ -115,6 +117,7 @@ func recipeKernelHookSourceFixture(t *testing.T, name string) recipeKernelHookIn
 	return recipeKernelHookInput{}
 }
 
+// recipeKernelHookReplaceOnce applies a mutation only to an unambiguous fixture.
 func recipeKernelHookReplaceOnce(t *testing.T, input, before, after string) string {
 	t.Helper()
 	if count := strings.Count(input, before); count != 1 {
@@ -123,6 +126,7 @@ func recipeKernelHookReplaceOnce(t *testing.T, input, before, after string) stri
 	return strings.Replace(input, before, after, 1)
 }
 
+// recipeKernelHookReparameterize substitutes one exact ABI throughout a fixture.
 func recipeKernelHookReparameterize(t *testing.T, input recipeKernelHookInput, abi string) recipeKernelHookInput {
 	t.Helper()
 	original := input.abi
@@ -155,6 +159,7 @@ func recipeKernelHookReindent(input string) string {
 	return strings.Join(lines, "")
 }
 
+// recipeKernelHookPad extends a fixture with an inert comment to an exact size.
 func recipeKernelHookPad(t *testing.T, script string, size int) string {
 	t.Helper()
 	remaining := size - len(script)
@@ -164,6 +169,8 @@ func recipeKernelHookPad(t *testing.T, script string, size int) string {
 	return script + "#" + strings.Repeat("p", remaining-2) + "\n"
 }
 
+// TestRecipeKernelHookContractAcceptsPinnedSourceTemplates checks both source
+// families and harmless changes outside their literal payloads.
 func TestRecipeKernelHookContractAcceptsPinnedSourceTemplates(t *testing.T) {
 	for _, name := range []string{"legacy", "upstream729"} {
 		t.Run(name, func(t *testing.T) {
@@ -202,6 +209,7 @@ func TestRecipeKernelHookContractAcceptsPinnedSourceTemplates(t *testing.T) {
 	}
 }
 
+// TestRecipeKernelHookContractAcceptsExactScriptBound checks the inclusive limit.
 func TestRecipeKernelHookContractAcceptsExactScriptBound(t *testing.T) {
 	for _, name := range []string{"legacy", "upstream729"} {
 		t.Run(name, func(t *testing.T) {
@@ -215,6 +223,8 @@ func TestRecipeKernelHookContractAcceptsExactScriptBound(t *testing.T) {
 	}
 }
 
+// TestRecipeKernelHookContractRejectsBrokenLifecycle checks altered lifecycle,
+// ABI, control-flow, forwarding and trigger contracts.
 func TestRecipeKernelHookContractRejectsBrokenLifecycle(t *testing.T) {
 	original := recipeKernelHookSourceFixture(t, "upstream729")
 	wrongABI := "7.2.9-jg-0sp11v998-qcom-x1e"
@@ -303,6 +313,8 @@ func TestRecipeKernelHookContractRejectsBrokenLifecycle(t *testing.T) {
 	}
 }
 
+// TestRecipeKernelHookContractRejectsMixedTemplateFamilies prevents combining
+// incompatible source lifecycle families in one package.
 func TestRecipeKernelHookContractRejectsMixedTemplateFamilies(t *testing.T) {
 	for _, name := range []string{"legacy", "upstream729"} {
 		t.Run(name, func(t *testing.T) {
@@ -318,6 +330,7 @@ func TestRecipeKernelHookContractRejectsMixedTemplateFamilies(t *testing.T) {
 	}
 }
 
+// TestRecipeKernelHookContractRejectsUnsafeABI checks unsafe ABI spellings.
 func TestRecipeKernelHookContractRejectsUnsafeABI(t *testing.T) {
 	for _, abi := range []string{"", ".hidden", "-leading", "../escape", "bad/abi", "bad\nabi", "bad\rabi", "bad abi"} {
 		t.Run(fmt.Sprintf("%q", abi), func(t *testing.T) {
@@ -327,6 +340,8 @@ func TestRecipeKernelHookContractRejectsUnsafeABI(t *testing.T) {
 	}
 }
 
+// TestRecipeKernelHookContractRejectsEmptyOversizedOrNontextScripts checks the
+// required script size and text-encoding boundaries.
 func TestRecipeKernelHookContractRejectsEmptyOversizedOrNontextScripts(t *testing.T) {
 	for _, target := range []string{"postinst", "postrm"} {
 		for _, name := range []string{"empty", "oversized", "NUL", "CRLF", "invalid UTF8"} {
@@ -354,6 +369,8 @@ func TestRecipeKernelHookContractRejectsEmptyOversizedOrNontextScripts(t *testin
 	}
 }
 
+// TestRecipeKernelHookContractRejectsEmptyOversizedOrNontextTriggers checks the
+// exact trigger payload and its size and text-encoding boundaries.
 func TestRecipeKernelHookContractRejectsEmptyOversizedOrNontextTriggers(t *testing.T) {
 	for _, name := range []string{"empty", "oversized", "NUL", "CRLF", "invalid UTF8", "extra trigger"} {
 		t.Run(name, func(t *testing.T) {
@@ -377,6 +394,8 @@ func TestRecipeKernelHookContractRejectsEmptyOversizedOrNontextTriggers(t *testi
 	}
 }
 
+// TestRecipeKernelHookContractRejectsCommentDecoys rejects a nonfunctional
+// lifecycle even when its expected text survives inside comments.
 func TestRecipeKernelHookContractRejectsCommentDecoys(t *testing.T) {
 	input := recipeKernelHookSourceFixture(t, "upstream729")
 	input.postinst = "#!/bin/sh\nset -e\nexit 0\n# " + strings.ReplaceAll(input.postinst, "\n", "\n# ")
