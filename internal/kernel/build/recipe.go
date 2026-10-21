@@ -150,6 +150,7 @@ case "$source_kind" in
     elif [ -d "$source_dir/.git" ] &&
          [ "$(cat "$source_dir/.git/lexr-source-kind" 2>/dev/null || true)" = local-git-commit ] &&
          [ "$(cat "$source_dir/.git/lexr-source-archive-sha256" 2>/dev/null || true)" = "$source_archive_sha256" ] &&
+         [ "$(cat "$source_dir/.git/shallow" 2>/dev/null || true)" = "$local_revision" ] &&
          [ "$(git -C "$source_dir" rev-parse --verify HEAD 2>/dev/null || true)" = "$local_revision" ] &&
          [ "$(git -C "$source_dir" rev-parse --verify 'HEAD^{tree}' 2>/dev/null || true)" = "$expected_tree" ]; then
       reuse_local=true
@@ -298,6 +299,9 @@ PY_LOCAL_SOURCE
         echo "Local source commit object differs from the reviewed revision." >&2
         exit 1
       fi
+      # Only the authenticated commit and its tree were captured, not its
+      # ancestors. Declare that boundary without rewriting the raw commit.
+      printf '%s\n' "$revision" > "$candidate/.git/shallow"
       git -C "$candidate" update-ref refs/heads/lexr-local "$revision"
       git -C "$candidate" symbolic-ref HEAD refs/heads/lexr-local
       git -C "$candidate" reset --hard "$revision"
