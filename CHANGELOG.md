@@ -50,6 +50,35 @@ that do not apply.
 
 ---
 
+## [0.7.0] - Unreleased
+
+### Added
+
+- Authenticate per-component userspace compatibility manifests and evaluate
+  the selected OS, architecture, device, Lexr release and scoped kernel identity
+  consistently. Use canonical hardware profile IDs and include X Elite OLED
+  and X Plus LCD in the existing component declarations, initially unverified.
+  Preserve exact historical bundles through explicit legacy
+  profiles; new release preparation requires portable compatibility evidence
+  ([#44](https://github.com/ooaklee/lexr.sh/issues/44)).
+- Allow an optional bounded, human-readable component description without
+  granting executable policy. New declarations require Lexr `0.7.0` and omit
+  unknown Lexr tested-through evidence; their empty OS test records remain
+  unverified rather than claiming future qualification.
+
+### Changed
+
+- Retain exact published legacy component bundles and authenticated native
+  camera schema-1 build/release inputs. New manifest-aware camera production
+  uses schema 2; adding metadata does not convert an old bundle or establish
+  new payload, OS, kernel or hardware qualification.
+
+### Fixed
+
+- Keep camera/IPTSD source acquisition independent of deployment compatibility,
+  while recognising only compiled default output paths in prepared checkouts.
+  Preserve exact commit, input and checkout-mutation checks.
+
 ## [0.6.0] - Unreleased
 
 ### Added

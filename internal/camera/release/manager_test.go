@@ -27,7 +27,10 @@ func (rejectingRunner) Run(context.Context, platform.Command) error {
 }
 
 // Capture rejects every command because tests inject the already validated bundle.
-func (rejectingRunner) Capture(context.Context, platform.Command) ([]byte, error) {
+func (rejectingRunner) Capture(ctx context.Context, command platform.Command) ([]byte, error) {
+	if command.Name == "git" {
+		return (platform.ExecRunner{}).Capture(ctx, command)
+	}
 	return nil, errors.New("unexpected release command")
 }
 
@@ -39,7 +42,7 @@ type releaseFixture struct {
 	authoritySHA string
 }
 
-// makeReleaseFixture creates exactly eight regular build artefacts beneath a repo.
+// makeReleaseFixture creates exactly nine regular build artefacts beneath a repo.
 func makeReleaseFixture(t *testing.T) releaseFixture {
 	t.Helper()
 	root, err := filepath.EvalSymlinks(t.TempDir())
@@ -50,9 +53,19 @@ func makeReleaseFixture(t *testing.T) releaseFixture {
 	if err := os.MkdirAll(artifacts, 0o700); err != nil {
 		t.Fatal(err)
 	}
+
+	declaration := sourceCompatibilityFixture(t, root)
+	for _, args := range [][]string{{"init", "-q"}, {"config", "user.name", "Camera test"}, {"config", "user.email", "camera@example.invalid"}, {"add", "."}, {"commit", "-q", "-m", "Add declaration"}} {
+		if err := (platform.ExecRunner{}).Run(context.Background(), platform.Command{Name: "git", Args: append([]string{"-C", root}, args...)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	record := prepareFixtureRecord(t, root)
+	writeFixtureFile(t, artifacts, "lexr-component-compatibility.json", declaration)
 	version := "0.7.0-1ubuntu2+sp11.2.20260830123456." + strings.Repeat("1", 24)
 	bundle := camerabuild.BundleReceipt{
 		SchemaVersion:     camerabuild.SchemaVersion,
+		Compatibility:     &record,
 		Status:            "verified",
 		BuildID:           "20260830123456." + strings.Repeat("1", 24),
 		PackageVersion:    version,
@@ -112,6 +125,7 @@ func writeFixtureFile(t *testing.T, directory, name string, data []byte) camerab
 // fixtureRequest returns the explicit current-generation release pairing.
 func fixtureRequest(fixture releaseFixture) Request {
 	return Request{
+		PayloadTarget: cameraPayloadTarget(), AllowUnverifiedCompatibility: true,
 		RepositoryRoot:               fixture.root,
 		ArtifactsDirectory:           fixture.artifacts,
 		Tag:                          "sp11-imx681-libcamera-v2",
@@ -192,8 +206,8 @@ func TestPrepareRejectsUnsupportedHostBeforeBundleValidation(t *testing.T) {
 	}
 }
 
-// TestPrepareCreatesClosedElevenFileRelease verifies local atomic preparation.
-func TestPrepareCreatesClosedElevenFileRelease(t *testing.T) {
+// TestPrepareCreatesClosedTwelveFileRelease verifies local atomic preparation.
+func TestPrepareCreatesClosedTwelveFileRelease(t *testing.T) {
 	fixture := makeReleaseFixture(t)
 	manager := executableReleaseManager(fixture.bundle)
 	var validationRequests []camerabuild.ValidationRequest
@@ -224,14 +238,14 @@ func TestPrepareCreatesClosedElevenFileRelease(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 11 || len(receipt.Manifest.BuildArtifacts) != 8 || len(receipt.Manifest.GeneratedFiles) != 2 {
+	if len(entries) != 12 || len(receipt.Manifest.BuildArtifacts) != 9 || len(receipt.Manifest.GeneratedFiles) != 2 {
 		t.Fatalf("release shape entries=%d manifest=%+v", len(entries), receipt.Manifest)
 	}
 	checksums, err := os.ReadFile(filepath.Join(receipt.Plan.ReleaseDirectory, ChecksumName))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Count(string(checksums), "\n") != 8 {
+	if strings.Count(string(checksums), "\n") != 9 {
 		t.Fatalf("checksum entries = %q", checksums)
 	}
 	notes, err := os.ReadFile(filepath.Join(receipt.Plan.ReleaseDirectory, NotesName))

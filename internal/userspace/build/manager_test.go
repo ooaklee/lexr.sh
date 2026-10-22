@@ -2,8 +2,12 @@ package build
 
 import (
 	"context"
+	"encoding/json"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -45,7 +49,10 @@ func (r *recordingRunner) Run(_ context.Context, command platform.Command) error
 
 // Capture satisfies the platform runner contract for tests that do not require
 // command output.
-func (*recordingRunner) Capture(context.Context, platform.Command) ([]byte, error) {
+func (*recordingRunner) Capture(ctx context.Context, command platform.Command) ([]byte, error) {
+	if command.Name == "git" {
+		return (platform.ExecRunner{}).Capture(ctx, command)
+	}
 	return nil, nil
 }
 
@@ -67,15 +74,44 @@ func TestIPTSDBuildUsesCompiledDockerRecipe(t *testing.T) {
 		if payload != filepath.Join(resolvedOutput, "stage") || integration != filepath.Join(root, "userspace", "iptsd-sp11") {
 			t.Fatalf("payload validation = %s, %s", payload, integration)
 		}
-		return nil
+		if err := os.MkdirAll(payload, 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(payload, "SHA256SUMS"), []byte("fixture payload checksum\n"), 0o644)
 	}
 	err := manager.Run(context.Background(), Request{
 		Component: ComponentIPTSD, RepositoryRoot: root,
 		OutputDirectory: output, Image: "ubuntu:26.04",
 		WorkVolume: "lexr-iptsd", Jobs: 8,
+		PayloadTarget: compatibility.Target{Architecture: "arm64", DeviceProfile: "x1e80100-microsoft-denali-oled", OSID: "ubuntu", OSVersion: "26.04", KernelABI: "7.2.0-jg-0sp11v19-qcom-x1e"}, AllowUnverifiedCompatibility: true,
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(output, "iptsd-build-compatibility.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var assessment iptsdBuildCompatibility
+	if err := json.Unmarshal(data, &assessment); err != nil {
+		t.Fatal(err)
+	}
+	if assessment.Compatibility.Decision.Status != compatibility.Unverified || !assessment.Compatibility.AllowUnverified {
+		t.Fatal("build omitted recorded compatibility override")
+	}
+	declaration, err := os.ReadFile(filepath.Join(output, compatibility.Filename))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := producer.ValidatePublication(declaration, assessment.Compatibility); err != nil {
+		t.Fatal(err)
+	}
+	checksums, err := os.ReadFile(filepath.Join(output, "SHA256SUMS"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(checksums), compatibility.ReferenceFor(declaration).SHA256+"  "+compatibility.Filename) || !strings.Contains(string(checksums), assessment.PayloadChecksum.SHA256+"  stage/SHA256SUMS") {
+		t.Fatal("build checksum coverage is incomplete")
 	}
 	if len(runner.commands) != 3 {
 		t.Fatalf("commands = %d, want 3", len(runner.commands))
@@ -216,6 +252,26 @@ func fakeRepository(t *testing.T) string {
 		}
 		if err := os.WriteFile(path, []byte("fixture\n"), 0o644); err != nil {
 			t.Fatal(err)
+		}
+	}
+	declaration, err := os.ReadFile("../producer/testdata/declarations/iptsd-v1/" + compatibility.Filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	declarationPath := filepath.Join(root, producer.DeclarationPath("iptsd-v1"))
+	if err := os.MkdirAll(filepath.Dir(declarationPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(declarationPath, declaration, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("/build/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"init", "-q"}, {"add", "."}, {"-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "commit", "-qm", "fixture"}} {
+		cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("Git fixture: %v %s", err, output)
 		}
 	}
 	return root

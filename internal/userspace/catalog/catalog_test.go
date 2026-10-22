@@ -77,7 +77,7 @@ func TestLoadProvidesDeterministicDefensiveHelpers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadBytes() error = %v", err)
 	}
-	if loaded.SchemaVersion != CurrentSchemaVersion || loaded.Description != "Test userspace catalog." {
+	if loaded.SchemaVersion != 2 || loaded.Description != "Test userspace catalog." {
 		t.Fatalf("catalog metadata = %d/%q", loaded.SchemaVersion, loaded.Description)
 	}
 	if loaded.Len() != 2 {
@@ -145,10 +145,10 @@ func TestSemanticValidationRules(t *testing.T) {
 		{
 			name: "schema version",
 			mutate: func(document map[string]any) {
-				document["schema_version"] = float64(3)
+				document["schema_version"] = float64(4)
 			},
 			wantField: "schema_version",
-			wantText:  "must be 2",
+			wantText:  "must be 3",
 		},
 		{
 			name: "description",

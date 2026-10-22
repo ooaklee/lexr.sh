@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
 	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
 )
 
@@ -92,6 +93,13 @@ func verifyBundle(directory string, spec releaseSpec) (verifiedBundle, error) {
 	expected := make(map[string]immutableFile, len(spec.files))
 	for _, file := range spec.files {
 		expected[file.name] = file
+	}
+	if metadata, found := expected[compatibility.Filename]; found {
+		if manifest.Compatibility == nil || *manifest.Compatibility != (compatibility.Reference{Size: metadata.size, SHA256: metadata.sha256}) {
+			return verifiedBundle{}, errors.New("bundle compatibility receipt disagrees with independently pinned metadata")
+		}
+	} else if manifest.Compatibility != nil {
+		return verifiedBundle{}, errors.New("legacy bundle carries unauthorised compatibility metadata")
 	}
 	if len(manifest.Files) != len(expected) {
 		return verifiedBundle{}, fmt.Errorf("bundle manifest contains %d files, expected %d", len(manifest.Files), len(expected))

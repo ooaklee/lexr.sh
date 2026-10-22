@@ -17,6 +17,8 @@ import (
 	"strings"
 
 	"github.com/ooaklee/lexr.sh/internal/artifact"
+	"github.com/ooaklee/lexr.sh/internal/userspace/assessment"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
 )
 
 // DefaultRepository is the public release source used when a validated spec
@@ -53,6 +55,9 @@ type githubRelease struct {
 // evidence such as release notes that the publisher intentionally excludes
 // from SHA256SUMS.
 type Spec struct {
+	// Compatibility is the independent repository-owned manifest pin.
+	Compatibility *compatibility.Reference
+
 	// Component identifies the catalogue component represented by the bundle.
 	Component string
 	// Repository is the GitHub owner and repository; empty selects DefaultRepository.
@@ -85,6 +90,9 @@ type File struct {
 // Bundle describes one complete verified userspace release in its local cache
 // directory.
 type Bundle struct {
+	// Compatibility records the verified manifest identity, never compatibility authority.
+	Compatibility *compatibility.Reference `json:"compatibility,omitempty"`
+
 	// Component is the stable userspace catalogue identifier.
 	Component string `json:"component"`
 	// Repository names the GitHub source used for acquisition.
@@ -183,6 +191,9 @@ func (c *Client) Download(ctx context.Context, spec Spec, directory string) (Bun
 	sort.Strings(names)
 	for _, name := range names {
 		assetItem := assets[name]
+		if name == compatibility.Filename && spec.Compatibility != nil && (assetItem.Size != spec.Compatibility.Size || checksums[name] != spec.Compatibility.SHA256) {
+			return Bundle{}, errors.New("compatibility manifest disagrees with independent catalogue pin")
+		}
 		githubDigest, err := githubSHA256(assetItem)
 		if err != nil {
 			return Bundle{}, err
@@ -207,6 +218,17 @@ func (c *Client) Download(ctx context.Context, spec Spec, directory string) (Bun
 	bundle := Bundle{
 		Component: spec.Component, Repository: spec.Repository, Release: spec.Tag,
 		Directory: absoluteDirectory, Files: files,
+	}
+	if spec.Compatibility != nil {
+		data, err := assessment.ReadManifest(absoluteDirectory)
+		if err != nil {
+			return Bundle{}, err
+		}
+		if _, err := compatibility.Verify(data, *spec.Compatibility, spec.Component, spec.Tag); err != nil {
+			return Bundle{}, err
+		}
+		reference := *spec.Compatibility
+		bundle.Compatibility = &reference
 	}
 	if err := writeBundleManifest(absoluteDirectory, bundle); err != nil {
 		return Bundle{}, err
@@ -253,6 +275,23 @@ func (c *Client) resolve(ctx context.Context, repository, tag string) (githubRel
 // validateSpec enforces a flat tag, a complete unique asset set containing
 // SHA256SUMS, and a valid subset of intentionally unchecksummed evidence files.
 func validateSpec(spec Spec) error {
+	hasManifest := false
+	for _, name := range spec.ExactAssets {
+		if name == compatibility.Filename {
+			hasManifest = true
+		}
+	}
+	if hasManifest != (spec.Compatibility != nil) {
+		return errors.New("compatibility asset requires an independent manifest reference")
+	}
+	if spec.Compatibility != nil && (spec.Compatibility.Size <= 0 || spec.Compatibility.Size > compatibility.MaxBytes) {
+		return errors.New("compatibility manifest size is outside its bound")
+	}
+	for _, name := range spec.UnchecksummedAssets {
+		if name == compatibility.Filename {
+			return errors.New("compatibility manifest must be checksummed")
+		}
+	}
 	if strings.TrimSpace(spec.Component) == "" {
 		return errors.New("userspace component is required")
 	}

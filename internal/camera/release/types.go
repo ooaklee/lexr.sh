@@ -4,6 +4,8 @@ package release
 
 import (
 	"context"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 	"time"
 
 	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
@@ -13,10 +15,10 @@ import (
 
 const (
 	// SchemaVersion identifies the structured local release manifest contract.
-	SchemaVersion = 1
+	SchemaVersion = 2
 	// DefaultOutputDirectory stores fresh locally prepared camera releases.
 	DefaultOutputDirectory = "build/lexr/camera/releases"
-	// ChecksumName is the exact digest authority covering the eight build artefacts.
+	// ChecksumName is the exact digest authority covering the nine build artefacts.
 	ChecksumName = "SHA256SUMS"
 	// NotesName is the exact British-English human release record.
 	NotesName = "RELEASE-NOTES.md"
@@ -26,9 +28,13 @@ const (
 
 // Request contains the complete local release-preparation decision.
 type Request struct {
+	// PayloadTarget describes the payload independently of the build host.
+	PayloadTarget compatibility.Target
+	// AllowUnverifiedCompatibility records the dedicated compatibility override.
+	AllowUnverifiedCompatibility bool
 	// RepositoryRoot supplies current HEAD-authenticated camera inputs.
 	RepositoryRoot string
-	// ArtifactsDirectory is the exact eight-file native build output.
+	// ArtifactsDirectory is the exact nine-file native build output.
 	ArtifactsDirectory string
 	// OutputDirectory selects a release parent relative to RepositoryRoot.
 	OutputDirectory string
@@ -46,6 +52,8 @@ type Request struct {
 
 // Plan is the deterministic local release-preparation decision.
 type Plan struct {
+	// Compatibility is the authenticated preparation decision.
+	Compatibility *producer.Record `json:"compatibility,omitempty"`
 	// RepositoryRoot is the canonical support-tree boundary.
 	RepositoryRoot string `json:"repository_root"`
 	// ArtifactsDirectory is the canonical native build bundle.
@@ -84,6 +92,8 @@ type GeneratedFile struct {
 
 // Manifest is the path-free structured local release authority.
 type Manifest struct {
+	// Compatibility binds the source declaration and payload decision.
+	Compatibility *producer.Record `json:"compatibility,omitempty"`
 	// SchemaVersion identifies this contract.
 	SchemaVersion int `json:"schema_version"`
 	// Status reports successful local verification and preparation.
@@ -100,7 +110,7 @@ type Manifest struct {
 	BuildReceiptName string `json:"build_receipt_name"`
 	// Build embeds the validated, path-free native build authority.
 	Build camerabuild.BundleReceipt `json:"build"`
-	// BuildArtifacts contains all eight copied build artefacts, including receipt.
+	// BuildArtifacts contains all nine copied build artefacts, including receipt.
 	BuildArtifacts []GeneratedFile `json:"build_artifacts"`
 	// GeneratedFiles contains SHA256SUMS and the human release notes.
 	GeneratedFiles []GeneratedFile `json:"generated_files"`
@@ -142,7 +152,7 @@ type Receipt struct {
 type ValidationRequest struct {
 	// RepositoryRoot supplies the current support-tree input authority.
 	RepositoryRoot string
-	// Directory is the exact eleven-file local release directory.
+	// Directory is the exact twelve-file local release directory.
 	Directory string
 	// ExpectedAuthoritySHA256 is the independent release-manifest hand-off.
 	ExpectedAuthoritySHA256 string

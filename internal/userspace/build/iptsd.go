@@ -13,6 +13,7 @@ import (
 
 	"github.com/ooaklee/lexr.sh/internal/platform"
 	userspaceiptsd "github.com/ooaklee/lexr.sh/internal/userspace/iptsd"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 )
 
 // maximumDockerMetadataBytes bounds every programmatically consumed Docker
@@ -25,6 +26,12 @@ const iptsdContainerRecipe = `
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 export TZ=UTC
+
+# The compiled payload is Ubuntu 26.04 ARM64, independent of the Docker host.
+. /etc/os-release
+test "$ID" = ubuntu
+test "$VERSION_ID" = 26.04
+test "$(uname -m)" = aarch64
 
 apt-get update >/dev/null
 apt-get install -y --no-install-recommends \
@@ -116,23 +123,23 @@ chown -R "$HOST_UID:$HOST_GID" /out/stage
 
 // runIPTSD validates immutable integration input, resolves Docker provenance,
 // executes the compiled container recipe, then natively validates its output.
-func (manager *Manager) runIPTSD(ctx context.Context, root string, request Request) error {
+func (manager *Manager) runIPTSD(ctx context.Context, root string, request Request) (producer.Record, error) {
 	if request.MinimumFreeGiB != 0 || request.NoPull || request.DryRun {
-		return errors.New("minimum-free-gib, no-pull, and dry-run apply only to the camera builder")
+		return producer.Record{}, errors.New("minimum-free-gib, no-pull, and dry-run apply only to the camera builder")
 	}
 	image := request.Image
 	if image == "" {
 		image = userspaceiptsd.DefaultBuildImage
 	}
 	if !safeDockerReference(image) {
-		return errors.New("image must be a bounded Docker reference")
+		return producer.Record{}, errors.New("image must be a bounded Docker reference")
 	}
 	volume := request.WorkVolume
 	if volume == "" {
 		volume = userspaceiptsd.DefaultWorkVolume
 	}
 	if !safeDockerName(volume) {
-		return errors.New("work volume must be a safe Docker volume name")
+		return producer.Record{}, errors.New("work volume must be a safe Docker volume name")
 	}
 	jobs := request.Jobs
 	if jobs == 0 {
@@ -140,28 +147,41 @@ func (manager *Manager) runIPTSD(ctx context.Context, root string, request Reque
 	}
 	integration := filepath.Join(root, "userspace", "iptsd-sp11")
 	if err := manager.validateIPTSDIntegration(integration); err != nil {
-		return fmt.Errorf("validate repository IPTSD integration: %w", err)
+		return producer.Record{}, fmt.Errorf("validate repository IPTSD integration: %w", err)
+	}
+	if request.PayloadTarget.Architecture != "arm64" || request.PayloadTarget.OSID != "ubuntu" || request.PayloadTarget.OSVersion != "26.04" {
+		return producer.Record{}, errors.New("IPTSD payload must declare arm64 Ubuntu 26.04, matching the compiled builder")
+	}
+	record, declaration, err := producer.Prepare(ctx, manager.Runner, producer.Request{Component: "iptsd-v1", RepositoryRoot: root, PayloadTarget: request.PayloadTarget, AllowUnverifiedCompatibility: request.AllowUnverifiedCompatibility})
+	if err != nil {
+		return record, err
 	}
 	output, err := prepareIPTSDOutput(root, request.OutputDirectory)
 	if err != nil {
-		return err
+		return producer.Record{}, err
 	}
 	imageID, imageDigest, err := manager.resolveDockerImage(ctx, image)
 	if err != nil {
-		return err
+		return producer.Record{}, err
 	}
 	if err := manager.ensureDockerVolume(ctx, volume); err != nil {
-		return err
+		return producer.Record{}, err
 	}
 	command := iptsdDockerCommand(image, imageID, imageDigest, volume, output, integration, jobs)
 	if err := manager.Runner.Run(ctx, command); err != nil {
-		return fmt.Errorf("build pinned IPTSD payload: %w", err)
+		return producer.Record{}, fmt.Errorf("build pinned IPTSD payload: %w", err)
 	}
 	stage := filepath.Join(output, "stage")
 	if err := manager.validateIPTSDPayload(stage, integration); err != nil {
-		return fmt.Errorf("validate built IPTSD payload: %w", err)
+		return producer.Record{}, fmt.Errorf("validate built IPTSD payload: %w", err)
 	}
-	return nil
+	if err := producer.Revalidate(ctx, manager.Runner, root, record); err != nil {
+		return record, err
+	}
+	if err := writeIPTSDCompatibility(output, declaration, record); err != nil {
+		return record, err
+	}
+	return record, nil
 }
 
 // prepareIPTSDOutput creates and resolves the host output directory while

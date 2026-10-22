@@ -12,7 +12,9 @@ import (
 	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 	sensorbuild "github.com/ooaklee/lexr.sh/internal/sensors/build"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
 	userspaceiptsd "github.com/ooaklee/lexr.sh/internal/userspace/iptsd"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 )
 
 // Component identifies a buildable userspace component.
@@ -36,6 +38,10 @@ const (
 // Fields that do not apply to the selected component are rejected
 // instead of being silently ignored.
 type Request struct {
+	// PayloadTarget names the intended userspace environment, never the host.
+	PayloadTarget compatibility.Target
+	// AllowUnverifiedCompatibility records the dedicated evidence override.
+	AllowUnverifiedCompatibility bool
 	// Component selects the supported userspace source build to run.
 	Component Component
 	// RepositoryRoot optionally identifies the checkout containing source data; an
@@ -63,6 +69,8 @@ type Request struct {
 
 // Result records component-specific native build output for delivery layers.
 type Result struct {
+	// Compatibility records the authenticated IPTSD payload target decision.
+	Compatibility *producer.Record `json:"compatibility,omitempty"`
 	// Component is the exact compiled userspace workflow which ran.
 	Component Component `json:"component"`
 	// Camera contains the native camera plan and receipt when selected.
@@ -127,6 +135,9 @@ func (m *Manager) RunWithResult(ctx context.Context, request Request) (Result, e
 		return Result{}, errors.New("jobs must be between 1 and 64, or zero to use the workflow default")
 	}
 	if request.Component == ComponentSensors {
+		if request.PayloadTarget != (compatibility.Target{}) || request.AllowUnverifiedCompatibility {
+			return Result{}, errors.New("sensors builds have no deployment compatibility contract; omit payload target and compatibility override")
+		}
 		if err := validateSensorAdapterRequest(request); err != nil {
 			return Result{}, err
 		}
@@ -143,10 +154,8 @@ func (m *Manager) RunWithResult(ctx context.Context, request Request) (Result, e
 		if m.validateIPTSDIntegration == nil || m.validateIPTSDPayload == nil {
 			return Result{}, errors.New("IPTSD build validators are unavailable")
 		}
-		if err := m.runIPTSD(ctx, root, request); err != nil {
-			return Result{}, err
-		}
-		return Result{Component: ComponentIPTSD}, nil
+		record, err := m.runIPTSD(ctx, root, request)
+		return Result{Component: ComponentIPTSD, Compatibility: &record}, err
 	case ComponentCamera:
 		if m.cameraBuilder == nil {
 			return Result{}, errors.New("native camera build manager is unavailable")
@@ -158,12 +167,14 @@ func (m *Manager) RunWithResult(ctx context.Context, request Request) (Result, e
 			return Result{}, errors.New("minimum-free-gib cannot be negative")
 		}
 		cameraReceipt, err := m.cameraBuilder.Run(ctx, camerabuild.Request{
-			RepositoryRoot:  root,
-			OutputDirectory: request.OutputDirectory,
-			Jobs:            request.Jobs,
-			MinimumFreeGiB:  request.MinimumFreeGiB,
-			NoPull:          request.NoPull,
-			DryRun:          request.DryRun,
+			PayloadTarget:                request.PayloadTarget,
+			AllowUnverifiedCompatibility: request.AllowUnverifiedCompatibility,
+			RepositoryRoot:               root,
+			OutputDirectory:              request.OutputDirectory,
+			Jobs:                         request.Jobs,
+			MinimumFreeGiB:               request.MinimumFreeGiB,
+			NoPull:                       request.NoPull,
+			DryRun:                       request.DryRun,
 		})
 		result := Result{Component: ComponentCamera, Camera: &cameraReceipt}
 		if err != nil {

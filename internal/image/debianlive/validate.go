@@ -216,7 +216,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 func validateManifest(manifest imagecontract.Manifest) (sourceLayout, mediaContract, []imagecontract.ArtifactRecord, error) {
 	var layout sourceLayout
 	var empty mediaContract
-	if manifest.SchemaVersion != imagecontract.ManifestSchemaVersion || manifest.Adapter != AdapterID || manifest.Layout != "hybrid-iso" || manifest.SecureBoot != secureBootPolicy || manifest.ToolVersion == "" || manifest.CreatedAt.IsZero() {
+	if !imagecontract.SupportedManifestSchema(manifest) || manifest.Adapter != AdapterID || manifest.Layout != "hybrid-iso" || manifest.SecureBoot != secureBootPolicy || manifest.ToolVersion == "" || manifest.CreatedAt.IsZero() {
 		return layout, empty, nil, errors.New("unsupported or incomplete Debian manifest identity")
 	}
 	if !kernelABIPattern.MatchString(manifest.KernelBundle.ABI) || manifest.KernelBundle.EffectiveDTBDelivery != kernel.DTBDeliveryExternalRequired {
@@ -231,7 +231,7 @@ func validateManifest(manifest imagecontract.Manifest) (sourceLayout, mediaContr
 	if manifest.SourceImage.SHA256 != inspectedSourceISOHash || manifest.SourceImage.Size != inspectedSourceISOSize {
 		return layout, empty, nil, errors.New("unrecognised Debian source snapshot")
 	}
-	if err := companion.ValidateRecord(manifest.CompanionBundle); err != nil {
+	if err := companion.ValidateImageRecord(manifest); err != nil {
 		return layout, empty, nil, err
 	}
 	media := manifest.MediaDiscovery

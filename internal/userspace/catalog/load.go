@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
 	"io"
 	"io/fs"
 	"os"
@@ -39,17 +40,19 @@ type document struct {
 // documentComponent retains the JSON representation, including pointer-backed
 // booleans needed to distinguish an explicit false value from a missing field.
 type documentComponent struct {
-	ID                    string                 `json:"id"`
-	Name                  string                 `json:"name"`
-	Level                 Level                  `json:"level"`
-	Capability            Capability             `json:"capability"`
-	Redistribution        Redistribution         `json:"redistribution"`
-	SupportActions        documentSupportActions `json:"support_actions"`
-	Release               *Release               `json:"release,omitempty"`
-	CompatibilityEvidence CompatibilityEvidence  `json:"compatibility_evidence"`
-	KernelCompatibility   *KernelCompatibility   `json:"kernel_compatibility,omitempty"`
-	Notes                 []string               `json:"notes"`
-	Remediation           string                 `json:"remediation"`
+	Compatibility         *compatibility.Reference `json:"compatibility,omitempty"`
+	LegacyProfile         string                   `json:"legacy_profile,omitempty"`
+	ID                    string                   `json:"id"`
+	Name                  string                   `json:"name"`
+	Level                 Level                    `json:"level"`
+	Capability            Capability               `json:"capability"`
+	Redistribution        Redistribution           `json:"redistribution"`
+	SupportActions        documentSupportActions   `json:"support_actions"`
+	Release               *Release                 `json:"release,omitempty"`
+	CompatibilityEvidence CompatibilityEvidence    `json:"compatibility_evidence"`
+	KernelCompatibility   *KernelCompatibility     `json:"kernel_compatibility,omitempty"`
+	Notes                 []string                 `json:"notes"`
+	Remediation           string                   `json:"remediation"`
 }
 
 // documentSupportActions preserves whether every required action flag appeared
@@ -146,12 +149,20 @@ func validateDocumentShape(data []byte) error {
 		componentPath := fmt.Sprintf("components[%d]", index)
 		componentFields, err := decodeExactObject(componentData, componentPath, []string{
 			"id", "name", "level", "capability", "redistribution", "support_actions",
-			"release", "compatibility_evidence", "kernel_compatibility", "notes", "remediation",
+			"release", "compatibility_evidence", "kernel_compatibility", "notes", "remediation", "compatibility", "legacy_profile",
 		})
 		if err != nil {
 			return err
 		}
 
+		if referenceData, ok := componentFields["compatibility"]; ok {
+			if _, err := decodeExactObject(referenceData, componentPath+".compatibility", []string{"size", "sha256"}); err != nil {
+				return err
+			}
+		}
+		if value, ok := componentFields["legacy_profile"]; ok && isJSONNull(value) {
+			return fmt.Errorf("%s.legacy_profile must not be null", componentPath)
+		}
 		if actionsData, ok := componentFields["support_actions"]; ok {
 			if _, err := decodeExactObject(actionsData, componentPath+".support_actions", []string{
 				"status", "pull", "build", "install",
@@ -362,7 +373,8 @@ func build(raw document) (*Catalog, error) {
 	components := make([]Component, len(raw.Components))
 	for index, rawComponent := range raw.Components {
 		component := Component{
-			ID:                    rawComponent.ID,
+			ID:            rawComponent.ID,
+			Compatibility: rawComponent.Compatibility, LegacyProfile: rawComponent.LegacyProfile,
 			Name:                  rawComponent.Name,
 			Level:                 rawComponent.Level,
 			Capability:            rawComponent.Capability,

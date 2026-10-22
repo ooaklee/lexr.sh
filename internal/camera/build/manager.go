@@ -18,6 +18,8 @@ import (
 
 	"github.com/ooaklee/lexr.sh/internal/hostcap"
 	"github.com/ooaklee/lexr.sh/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 )
 
 const (
@@ -71,7 +73,9 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (Plan, err
 	if _, err := authenticateInputs(ctx, manager.Runner, plan.RepositoryRoot); err != nil {
 		return Plan{}, err
 	}
-	return plan, nil
+	record, _, err := prepareCompatibility(ctx, manager.Runner, request, plan.RepositoryRoot)
+	plan.Compatibility = &record
+	return plan, err
 }
 
 // basePlan validates bounded local choices and static host availability without
@@ -157,6 +161,12 @@ func (manager *Manager) Run(ctx context.Context, request Request) (receipt Execu
 	if err != nil {
 		return receipt, err
 	}
+	record, declaration, err := prepareCompatibility(ctx, manager.Runner, request, plan.RepositoryRoot)
+	if err != nil {
+		return receipt, err
+	}
+	plan.Compatibility = &record
+	receipt.Plan = plan
 	if plan.DryRun {
 		return receipt, nil
 	}
@@ -221,7 +231,14 @@ func (manager *Manager) Run(ctx context.Context, request Request) (receipt Execu
 	if err != nil {
 		return receipt, err
 	}
-	published, authoritySHA256, err := publishBundle(plan, transaction, publication, bundle, manager.beforeAuthorityCheck)
+	bundle.Compatibility = &record
+	if err := validateReceiptCommit(ctx, manager.Runner, plan.RepositoryRoot, bundle, inputs); err != nil {
+		return receipt, err
+	}
+	if err := producer.Revalidate(ctx, manager.Runner, plan.RepositoryRoot, record); err != nil {
+		return receipt, err
+	}
+	published, authoritySHA256, err := publishBundle(plan, transaction, publication, bundle, declaration, manager.beforeAuthorityCheck)
 	if err != nil {
 		return receipt, err
 	}
@@ -531,7 +548,7 @@ func platformCommand(command Command) platform.Command {
 
 // publishBundle writes the public receipt, derives its authority before
 // publication, and atomically renames a closed directory.
-func publishBundle(plan Plan, transaction, publication string, bundle BundleReceipt, beforeAuthorityCheck func(string) error) (string, string, error) {
+func publishBundle(plan Plan, transaction, publication string, bundle BundleReceipt, declaration []byte, beforeAuthorityCheck func(string) error) (string, string, error) {
 	artifacts := filepath.Join(transaction, "exchange", "artifacts")
 	staging := filepath.Join(plan.OutputDirectory, ".publish-"+bundle.BuildID)
 	if err := os.Mkdir(staging, 0o700); err != nil {
@@ -547,6 +564,15 @@ func publishBundle(plan Plan, transaction, publication string, bundle BundleRece
 		if err := copyRegularFile(filepath.Join(artifacts, artifact.Name), filepath.Join(staging, artifact.Name), 0o644); err != nil {
 			return "", "", err
 		}
+	}
+	if bundle.Compatibility == nil {
+		return "", "", errors.New("camera build compatibility is required")
+	}
+	if err := producer.ValidatePublication(declaration, *bundle.Compatibility); err != nil {
+		return "", "", err
+	}
+	if err := writeExclusive(filepath.Join(staging, compatibility.Filename), declaration, 0o644); err != nil {
+		return "", "", err
 	}
 	receiptData, err := json.MarshalIndent(bundle, "", "  ")
 	if err != nil {
@@ -631,4 +657,12 @@ func syncDirectory(path string) error {
 		return fmt.Errorf("flush camera publication directory: %w", err)
 	}
 	return nil
+}
+
+// prepareCompatibility authenticates explicit payload evidence before staging or Docker.
+func prepareCompatibility(ctx context.Context, runner platform.Runner, request Request, root string) (producer.Record, []byte, error) {
+	if request.PayloadTarget.Architecture != Architecture || request.PayloadTarget.OSID != "ubuntu" || request.PayloadTarget.OSVersion != "26.04" {
+		return producer.Record{}, nil, errors.New("camera payload must declare arm64 Ubuntu 26.04, matching the compiled builder")
+	}
+	return producer.Prepare(ctx, runner, producer.Request{Component: "imx681-libcamera-v1", RepositoryRoot: root, PayloadTarget: request.PayloadTarget, AllowUnverifiedCompatibility: request.AllowUnverifiedCompatibility})
 }

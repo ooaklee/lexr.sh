@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 	"io"
 	"os"
 	"path/filepath"
@@ -15,7 +16,8 @@ import (
 
 // Validate repeats the closed-set, provenance, pairing, and digest proofs.
 func (manager *Manager) Validate(ctx context.Context, request ValidationRequest) (ValidationReceipt, error) {
-	if manager == nil || len(manager.policy.sources) != 4 || len(manager.policy.artefacts) != 4 {
+	if manager == nil || len(manager.legacyPolicy.sources) != 4 || len(manager.legacyPolicy.artefacts) != 4 ||
+		manager.legacyPolicy.tag == "" || manager.nextPolicy.tag == "" || manager.legacyPolicy.tag == manager.nextPolicy.tag {
 		return ValidationReceipt{}, errors.New("audio release validator is unavailable")
 	}
 	if err := ctx.Err(); err != nil {
@@ -52,7 +54,16 @@ func (manager *Manager) Validate(ctx context.Context, request ValidationRequest)
 	if !bytes.Equal(manifestData, canonical) {
 		return ValidationReceipt{}, errors.New("audio release manifest is not canonical deterministic JSON")
 	}
-	if err := validateDirectory(ctx, directory, manifest, manager.policy, true); err != nil {
+	selected, err := manager.selectPolicy(manifest.Tag)
+	if err != nil {
+		return ValidationReceipt{}, err
+	}
+	if selected.requiresCompatibility && manifest.Compatibility != nil {
+		if err := producer.Revalidate(ctx, manager.runner, repositoryRoot, *manifest.Compatibility); err != nil {
+			return ValidationReceipt{}, err
+		}
+	}
+	if err := validateDirectory(ctx, directory, manifest, selected, true); err != nil {
 		return ValidationReceipt{}, err
 	}
 	return ValidationReceipt{Directory: directory, Manifest: manifest, Valid: true}, nil
@@ -167,12 +178,15 @@ func inspectPolicyArtefacts(ctx context.Context, directory string, selected poli
 	return artefacts, nil
 }
 
-// validateDirectory verifies the exact seven files and every deterministic record.
+// validateDirectory verifies the exact closed file set and every deterministic
+// record. The legacy v19c contract keeps exactly seven files; the next
+// packaging additionally requires the canonical compatibility declaration and
+// its authenticated record.
 func validateDirectory(ctx context.Context, directory string, manifest Manifest, selected policy, requireTagDirectory bool) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if manifest.SchemaVersion != SchemaVersion || manifest.Status != "verified-local-preparation" || manifest.Tag != selected.tag ||
+	if manifest.SchemaVersion != map[bool]int{false: 1, true: SchemaVersion}[selected.requiresCompatibility] || manifest.Status != "verified-local-preparation" || manifest.Tag != selected.tag ||
 		(requireTagDirectory && manifest.Tag != filepath.Base(directory)) || manifest.RemoteMutation || !manifest.ProtectedVendorBytes {
 		return errors.New("audio release manifest header is inconsistent")
 	}
@@ -183,12 +197,34 @@ func validateDirectory(ctx context.Context, directory string, manifest Manifest,
 	if err := validateSourceProvenance(manifest.Source, selected); err != nil {
 		return err
 	}
-	if err := validateClosedSet(directory); err != nil {
+	if selected.requiresCompatibility && manifest.Compatibility == nil {
+		return errors.New("the next audio packaging must record its compatibility decision")
+	}
+	if !selected.requiresCompatibility && manifest.Compatibility != nil {
+		return errors.New("the legacy v19c packaging must not record a compatibility decision")
+	}
+	if err := validateClosedSet(directory, selected.requiresCompatibility); err != nil {
 		return err
 	}
 	artefacts, err := inspectPolicyArtefacts(ctx, directory, selected)
 	if err != nil {
 		return err
+	}
+	if selected.requiresCompatibility {
+		if manifest.Compatibility.Component != "audio-fullio-v19c" || manifest.Compatibility.Release != manifest.Tag || manifest.Compatibility.Decision.Target.KernelABI != manifest.KernelABI {
+			return errors.New("audio compatibility record disagrees with release identity or kernel")
+		}
+		compatibilityData, compatibilityRecord, err := readRegularData(ctx, filepath.Join(directory, CompatibilityName), maximumManifestBytes)
+		if err != nil {
+			return err
+		}
+		if compatibilityRecord.SHA256 != manifest.Compatibility.Manifest.SHA256 || compatibilityRecord.Size != manifest.Compatibility.Manifest.Size {
+			return errors.New("staged compatibility declaration differs from its recorded authority")
+		}
+		if err := producer.ValidatePublication(compatibilityData, *manifest.Compatibility); err != nil {
+			return err
+		}
+		artefacts = append(artefacts, compatibilityRecord)
 	}
 	if !reflect.DeepEqual(artefacts, manifest.Artefacts) {
 		return errors.New("audio release manifest artefacts differ from staged bytes or order")
@@ -198,7 +234,7 @@ func validateDirectory(ctx context.Context, directory string, manifest Manifest,
 		return err
 	}
 	expectedChecksum := inspectData(ChecksumName, checksumData)
-	if expectedChecksum.SHA256 != selected.checksum.sha256 || expectedChecksum.Size != selected.checksum.size {
+	if selected.checksum.sha256 != "" && (expectedChecksum.SHA256 != selected.checksum.sha256 || expectedChecksum.Size != selected.checksum.size) {
 		return errors.New("audio checksum policy is internally inconsistent")
 	}
 	checksumDataOnDisk, checksumRecord, err := readRegularData(ctx, filepath.Join(directory, ChecksumName), maximumTextBytes)
@@ -254,10 +290,13 @@ func validateSourceProvenance(source SourceProvenance, selected policy) error {
 }
 
 // validateClosedSet rejects missing, extra, linked, nested, or non-regular entries.
-func validateClosedSet(directory string) error {
+func validateClosedSet(directory string, withCompatibility bool) error {
 	expected := map[string]struct{}{
 		TopologyName: {}, CardUCMName: {}, HiFiUCMName: {}, MatcherName: {},
 		ChecksumName: {}, NotesName: {}, ManifestName: {},
+	}
+	if withCompatibility {
+		expected[CompatibilityName] = struct{}{}
 	}
 	entries, err := os.ReadDir(directory)
 	if err != nil {

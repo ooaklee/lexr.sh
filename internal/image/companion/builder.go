@@ -17,7 +17,9 @@ import (
 	mediacatalog "github.com/ooaklee/lexr.sh/internal/catalog"
 	imagecontract "github.com/ooaklee/lexr.sh/internal/image"
 	"github.com/ooaklee/lexr.sh/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/userspace/assessment"
 	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
 	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
 )
 
@@ -70,6 +72,11 @@ const (
 // BuildRequest contains the explicit source, staging, identity, catalogue, and
 // verified offline-release inputs for one companion bundle.
 type BuildRequest struct {
+	// Target is the explicit image tuple, including its observed OS identity.
+	Target compatibility.Target
+	// AllowUnverifiedCompatibility records the dedicated evidence override.
+	AllowUnverifiedCompatibility bool
+
 	// SourceDirectory is the canonical absolute Lexr source root.
 	SourceDirectory string
 	// DestinationDirectory is the canonical absolute host staging root beneath
@@ -119,6 +126,8 @@ type sourceFile struct {
 // preparedUserspaceBundle retains a verified catalogue component, portable
 // receipt bytes, and deterministically ordered source files.
 type preparedUserspaceBundle struct {
+	compatibility *assessment.Record
+
 	component      userspacecatalog.Component
 	bundle         userspacerelease.Bundle
 	files          []userspacerelease.File
@@ -342,6 +351,9 @@ func prepare(ctx context.Context, runner platform.Runner, request BuildRequest) 
 	}
 	userspaceBundles, err := prepareUserspaceBundles(request.UserspaceCatalog, request.UserspaceBundles)
 	if err != nil {
+		return preparedRequest{}, err
+	}
+	if err := assessCompanion(request, userspaceBundles); err != nil {
 		return preparedRequest{}, err
 	}
 	return preparedRequest{
@@ -635,6 +647,7 @@ func stageUserspace(bundles []preparedUserspaceBundle, temporaryRoot string) ([]
 		sortArtifactRecords(artifacts)
 		records = append(records, imagecontract.OfflineUserspaceRecord{
 			Component:      prepared.bundle.Component,
+			Compatibility:  prepared.compatibility,
 			Release:        prepared.bundle.Release,
 			Redistribution: string(prepared.component.Redistribution),
 			Root:           path.Join(ISOFilesystemRoot, relativeRoot),

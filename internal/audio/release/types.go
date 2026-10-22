@@ -4,13 +4,17 @@ package release
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ooaklee/lexr.sh/internal/hostcap"
+	"github.com/ooaklee/lexr.sh/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 )
 
 const (
 	// SchemaVersion identifies the strict structured audio release contract.
-	SchemaVersion = 1
+	SchemaVersion = 2
 	// DefaultOutputDirectory is the fixed repository-relative release parent.
 	DefaultOutputDirectory = "build/release"
 	// ManifestName is the path-free structured release authority.
@@ -19,6 +23,9 @@ const (
 	ChecksumName = "SHA256SUMS"
 	// NotesName is the deterministic British-English release guide.
 	NotesName = "RELEASE-NOTES.md"
+	// CompatibilityName is the canonical component compatibility asset every
+	// newly prepared audio release must carry.
+	CompatibilityName = "lexr-component-compatibility.json"
 )
 
 // Request contains the complete local audio release preparation decision.
@@ -35,10 +42,19 @@ type Request struct {
 	KernelABI string `json:"kernel_abi"`
 	// DryRun validates inputs and returns the plan without writing output.
 	DryRun bool `json:"dry_run"`
+	// PayloadTarget is the complete target evidence for the payload being
+	// prepared. It describes the payload target, never the build host.
+	PayloadTarget compatibility.Target `json:"payload_target,omitempty"`
+	// AllowUnverifiedCompatibility is the dedicated override recorded when the
+	// payload target is within hard bounds but beyond recorded evidence. It is
+	// deliberately separate from any general confirmation flag.
+	AllowUnverifiedCompatibility bool `json:"allow_unverified_compatibility,omitempty"`
 }
 
 // Plan is the immutable, path-bounded local preparation decision.
 type Plan struct {
+	// Compatibility retains the authenticated decision even in a dry run.
+	Compatibility *producer.Record `json:"compatibility"`
 	// RepositoryRoot is the canonical local support-repository boundary.
 	RepositoryRoot string `json:"repository_root"`
 	// SourceRoot is the canonical, explicit audio source checkout.
@@ -117,6 +133,9 @@ type Manifest struct {
 	Artefacts []FileRecord `json:"artefacts"`
 	// GeneratedFiles identifies SHA256SUMS and the release notes.
 	GeneratedFiles []FileRecord `json:"generated_files"`
+	// Compatibility records the Git-HEAD-authenticated declaration identity
+	// and the producer decision when this release carries the canonical asset.
+	Compatibility *producer.Record `json:"compatibility,omitempty"`
 	// ProtectedVendorBytes records the explicit redistribution boundary.
 	ProtectedVendorBytes bool `json:"protected_vendor_bytes"`
 	// RemoteMutation is always false because preparation never publishes remotely.
@@ -153,22 +172,40 @@ type ValidationReceipt struct {
 
 // Manager owns bounded source validation, generation, and local publication.
 type Manager struct {
-	// policy is the compiled release contract selected at construction.
-	policy policy
+	// legacyPolicy is the compiled legacy v19c release contract.
+	legacyPolicy policy
+	// nextPolicy is the compiled next compatibility-bearing packaging contract.
+	nextPolicy policy
 	// host records the static publication capability for deterministic tests.
 	host hostcap.Host
+	// runner executes read-only Git commands for declaration authentication.
+	runner platform.Runner
 	// afterPlan is a test seam before any snapshotted source is copied.
 	afterPlan func(Plan) error
 	// beforePublish is a test seam immediately before cancellation and publication.
 	beforePublish func(context.Context, Plan) error
 }
 
-// New constructs a manager using the reviewed FullIO v19c release contract.
+// New constructs a manager using the reviewed FullIO v19c release contracts.
 func New() *Manager {
-	return newManagerWithPolicy(productionPolicy())
+	return newManagerWithPolicies(productionPolicy(SupportedTag), productionPolicy(NextTag))
 }
 
-// newManagerWithPolicy constructs a manager around a complete immutable policy.
-func newManagerWithPolicy(selected policy) *Manager {
-	return &Manager{policy: selected, host: hostcap.Current()}
+// newManagerWithPolicies constructs a manager around immutable policies.
+func newManagerWithPolicies(legacy, next policy) *Manager {
+	return &Manager{legacyPolicy: legacy, nextPolicy: next, host: hostcap.Current(), runner: platform.ExecRunner{}}
+}
+
+// selectPolicy resolves the compiled contract for one requested identity.
+func (manager *Manager) selectPolicy(tag string) (policy, error) {
+	if manager == nil {
+		return policy{}, fmt.Errorf("audio release manager is unavailable")
+	}
+	switch tag {
+	case manager.legacyPolicy.tag:
+		return manager.legacyPolicy, nil
+	case manager.nextPolicy.tag:
+		return manager.nextPolicy, nil
+	}
+	return policy{}, fmt.Errorf("audio release tag must be a reviewed %q or %q identity", manager.legacyPolicy.tag, manager.nextPolicy.tag)
 }

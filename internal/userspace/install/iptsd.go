@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ooaklee/lexr.sh/internal/platform"
+	"github.com/ooaklee/lexr.sh/internal/userspace/assessment"
 	userspaceiptsd "github.com/ooaklee/lexr.sh/internal/userspace/iptsd"
 )
 
@@ -61,6 +62,8 @@ type iptsdMaskPlan struct {
 
 // iptsdReceipt is the private durable account of one native transaction.
 type iptsdReceipt struct {
+	// Compatibility records the exact manifest and decision for this transaction.
+	Compatibility *assessment.Record `json:"compatibility,omitempty"`
 	// SchemaVersion permits strict future receipt evolution.
 	SchemaVersion int `json:"schema_version"`
 	// Component identifies the exact installed contract.
@@ -110,6 +113,10 @@ func (installer *Installer) IPTSD(ctx context.Context, options Options) (Result,
 	if err != nil {
 		return Result{}, err
 	}
+	compatibilityRecord, err := assessCompatibility(options, IPTSDComponent)
+	if err != nil {
+		return Result{Component: IPTSDComponent, Root: options.Root, DryRun: options.DryRun, Compatibility: compatibilityRecord}, err
+	}
 	if installer.detectNativeIPTSD == nil {
 		return Result{}, errors.New("Fedora-native IPTSD detection policy is unavailable")
 	}
@@ -123,7 +130,7 @@ func (installer *Installer) IPTSD(ctx context.Context, options Options) (Result,
 	if nativeState == fedoraNativeIPTSDPartial {
 		return Result{}, errors.New("refusing portable IPTSD installation: target contains a partial, mutated, or incompatible Fedora-native lexr-sp11-iptsd /usr layout; repair or remove those native files first")
 	}
-	bundle, err := verifyBundle(options.BundleDir, iptsdSpec)
+	bundle, err := verifyBundle(options.BundleDir, compatibilitySpec(iptsdSpec, options))
 	if err != nil {
 		return Result{}, err
 	}
@@ -161,8 +168,15 @@ func (installer *Installer) IPTSD(ctx context.Context, options Options) (Result,
 	if err != nil {
 		return Result{}, err
 	}
+	result.Compatibility = compatibilityRecord
+	if err := planCompatibilityRecords(options, IPTSDComponent, &result); err != nil {
+		return result, err
+	}
 	if options.DryRun {
 		return result, nil
+	}
+	if err := revalidateCompatibility(options, IPTSDComponent, compatibilityRecord); err != nil {
+		return result, err
 	}
 	if err := installer.requireRoot(false); err != nil {
 		return Result{}, err
@@ -177,6 +191,9 @@ func (installer *Installer) IPTSD(ctx context.Context, options Options) (Result,
 			if err := installer.beforeIPTSDPublish(index, plan.change.Target); err != nil {
 				return result, errors.Join(err, rollbackIPTSD(applied, mask, maskCreated))
 			}
+		}
+		if err := revalidateCompatibility(options, IPTSDComponent, compatibilityRecord); err != nil {
+			return result, errors.Join(err, rollbackIPTSD(applied, mask, maskCreated))
 		}
 		if err := revalidateIPTSDTarget(options.Root, plan); err != nil {
 			return result, errors.Join(err, rollbackIPTSD(applied, mask, maskCreated))
@@ -209,6 +226,9 @@ func (installer *Installer) IPTSD(ctx context.Context, options Options) (Result,
 		if err := syncDirectory(filepath.Dir(mask.path)); err != nil {
 			return result, errors.Join(err, rollbackIPTSD(applied, mask, maskCreated))
 		}
+	}
+	if err := persistCompatibilityRecords(options, IPTSDComponent, &result); err != nil {
+		return result, err
 	}
 	result.FilesInstalled = true
 	if !result.ActivationRequired {
@@ -504,11 +524,15 @@ func writePrivateFile(path string, data []byte, digest string, size int64) error
 // state in the private transaction directory.
 func writeIPTSDReceipt(result Result, installedAt time.Time) error {
 	receipt := iptsdReceipt{
+		Compatibility: result.Compatibility,
 		SchemaVersion: iptsdReceiptSchemaVersion, Component: result.Component,
 		InstalledAt: installedAt.UTC().Format(time.RFC3339Nano), Root: result.Root,
 		Files: result.Files, Commands: result.Commands, FilesInstalled: result.FilesInstalled,
 		ActivationRequired: result.ActivationRequired, ActivationComplete: result.ActivationComplete,
 		ActivationError: result.ActivationError,
+	}
+	if result.Compatibility != nil {
+		receipt.SchemaVersion = 2
 	}
 	data, err := json.MarshalIndent(receipt, "", "  ")
 	if err != nil {

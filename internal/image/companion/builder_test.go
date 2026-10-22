@@ -498,6 +498,26 @@ func TestBuilderRejectsCatalogueRedirectOfApprovedIPTSD(t *testing.T) {
 	if err := os.WriteFile(cataloguePath, []byte(modified), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := userspacecatalog.LoadFile(cataloguePath); err == nil || !strings.Contains(err.Error(), "new releases require a compatibility manifest") {
+		t.Fatalf("schema 3 redirect error = %v", err)
+	}
+	// The legacy loader remains readable, but compiled companion policy still
+	// refuses a redirected release at the inclusion boundary.
+	var legacy map[string]any
+	if err := json.Unmarshal([]byte(modified), &legacy); err != nil {
+		t.Fatal(err)
+	}
+	legacy["schema_version"] = 2
+	for _, value := range legacy["components"].([]any) {
+		delete(value.(map[string]any), "legacy_profile")
+	}
+	legacyData, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cataloguePath, legacyData, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	componentCatalog, err := userspacecatalog.LoadFile(cataloguePath)
 	if err != nil {
 		t.Fatal(err)

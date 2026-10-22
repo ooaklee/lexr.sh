@@ -201,6 +201,9 @@ func ValidateDirectory(record imagecontract.CompanionBundleRecord, companionDire
 		return fmt.Errorf("extracted companion is missing declared files: %s", strings.Join(missing, ", "))
 	}
 	executablePath := filepath.Join(companionDirectory, filepath.FromSlash(executableRelativePath))
+	if err := validateCompatibilityRecords(record, companionDirectory); err != nil {
+		return err
+	}
 	info, err := os.Lstat(executablePath)
 	if err != nil {
 		return err

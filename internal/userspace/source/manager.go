@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
+	camerarelease "github.com/ooaklee/lexr.sh/internal/camera/release"
 	"github.com/ooaklee/lexr.sh/internal/platform"
 	userspaceiptsd "github.com/ooaklee/lexr.sh/internal/userspace/iptsd"
 )
@@ -163,6 +165,9 @@ func (m *Manager) Prepare(ctx context.Context, request Request) (receipt Receipt
 	if err := os.Mkdir(info, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
 		return receipt, err
 	}
+	if err := writeGeneratedOutputExclusions(root, request.Component); err != nil {
+		return receipt, err
+	}
 	patterns := "/userspace/iptsd-sp11/\n"
 	if request.Component == "camera" {
 		patterns = ""
@@ -188,7 +193,7 @@ func (m *Manager) Prepare(ctx context.Context, request Request) (receipt Receipt
 	if err := m.validate(ctx, request.Component, root); err != nil {
 		return receipt, fmt.Errorf("validate %s source inputs: %w", request.Component, err)
 	}
-	if err := m.checkSource(ctx, root, commit, tree); err != nil {
+	if err := m.checkSource(ctx, root, request.Component, commit, tree); err != nil {
 		return receipt, err
 	}
 	if m.beforePublish != nil {
@@ -208,7 +213,7 @@ func (m *Manager) Prepare(ctx context.Context, request Request) (receipt Receipt
 	if err := m.validate(ctx, request.Component, root); err != nil {
 		return receipt, fmt.Errorf("revalidate %s source inputs before publication: %w", request.Component, err)
 	}
-	if err := m.checkSource(ctx, root, commit, tree); err != nil {
+	if err := m.checkSource(ctx, root, request.Component, commit, tree); err != nil {
 		return receipt, err
 	}
 	completed := receipt
@@ -382,12 +387,79 @@ func (m *Manager) validateComponent(ctx context.Context, component, root string)
 	if component == "iptsd" {
 		return userspaceiptsd.ValidateRepositoryIntegration(filepath.Join(root, "userspace", "iptsd-sp11"))
 	}
-	_, err := camerabuild.New(m.runner).Run(ctx, camerabuild.Request{RepositoryRoot: root, DryRun: true})
-	return err
+	return camerabuild.AuthenticateSource(ctx, m.runner, root)
 }
 
-// checkSource fences commit, full tree, detached HEAD and checkout mutation.
-func (m *Manager) checkSource(ctx context.Context, root, commit, tree string) error {
+// generatedOutputDirectories names only compiled default output directories,
+// never a source path or an operator-selected publication destination.
+func generatedOutputDirectories(component string) []string {
+	if component == "camera" {
+		return []string{camerabuild.DefaultWorkDirectory, camerabuild.DefaultOutputDirectory, camerarelease.DefaultOutputDirectory}
+	}
+	if component == "iptsd" {
+		// This exact default is owned by prepareIPTSDOutput in userspace/build.
+		return []string{"build/iptsd-sp11"}
+	}
+	return nil
+}
+
+// generatedOutputExclusions ignores only compiled default output directories.
+// Source repository ignore files and operator-selected output paths are not
+// imported into the prepared checkout's cleanliness boundary.
+func generatedOutputExclusions(component string) string {
+	var contents strings.Builder
+	for _, directory := range generatedOutputDirectories(component) {
+		contents.WriteString("/" + directory + "/\n")
+	}
+	return contents.String()
+}
+
+// writeGeneratedOutputExclusions creates private, machine-owned Git metadata
+// in the new repository without evaluating or replacing repository rules.
+func writeGeneratedOutputExclusions(root, component string) error {
+	contents := generatedOutputExclusions(component)
+	if contents == "" {
+		return errors.New("component has no compiled generated-output exclusions")
+	}
+	file, err := os.OpenFile(filepath.Join(root, ".git", "info", "exclude"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return fmt.Errorf("create private generated-output exclusions: %w", err)
+	}
+	_, writeErr := io.WriteString(file, contents)
+	return errors.Join(writeErr, file.Sync(), file.Close())
+}
+
+// validateGeneratedOutputExclusions refuses altered or replaced ignore metadata
+// before source publication; it never permits a broader path or rule set.
+func validateGeneratedOutputExclusions(root, component string) error {
+	expected := generatedOutputExclusions(component)
+	filePath := filepath.Join(root, ".git", "info", "exclude")
+	info, err := os.Lstat(filePath)
+	if err != nil || expected == "" || !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 || info.Size() != int64(len(expected)) {
+		return errors.New("prepared generated-output exclusions are missing or changed")
+	}
+	file, err := os.Open(filePath)
+	if err != nil {
+		return errors.New("prepared generated-output exclusions cannot be inspected")
+	}
+	defer file.Close()
+	actual, err := file.Stat()
+	if err != nil || !os.SameFile(info, actual) || !actual.Mode().IsRegular() || actual.Mode().Perm() != 0o600 {
+		return errors.New("prepared generated-output exclusions changed while opening")
+	}
+	contents, err := io.ReadAll(io.LimitReader(file, int64(len(expected)+1)))
+	if err != nil || string(contents) != expected {
+		return errors.New("prepared generated-output exclusions differ from compiled policy")
+	}
+	return nil
+}
+
+// checkSource fences commit, full tree, detached HEAD, owned exclusions and
+// checkout mutation without treating generated output as source authority.
+func (m *Manager) checkSource(ctx context.Context, root, component, commit, tree string) error {
+	if err := validateGeneratedOutputExclusions(root, component); err != nil {
+		return err
+	}
 	for _, check := range [][2]string{{"HEAD^{commit}", commit}, {"HEAD^{tree}", tree}} {
 		actual, err := m.capture(ctx, root, "rev-parse", "--verify", check[0])
 		if err != nil || actual != check[1] {
@@ -398,9 +470,31 @@ func (m *Manager) checkSource(ctx context.Context, root, commit, tree string) er
 	if err != nil || detached != "HEAD" {
 		return errors.New("prepared userspace source must have detached HEAD")
 	}
-	status, err := m.capture(ctx, root, "status", "--porcelain=v1", "--untracked-files=all")
+	status, err := m.capture(ctx, root, "status", "--porcelain=v1", "--untracked-files=no")
 	if err != nil || status != "" {
-		return errors.New("prepared userspace source has changed or untracked files")
+		return errors.New("prepared userspace source has changed tracked files")
+	}
+	// Sparse Git may consult a committed .gitignore from the index even when
+	// that file is not materialised. Enumerate without --exclude-standard so
+	// repository rules cannot hide unrelated files from this source fence.
+	untracked, err := m.capture(ctx, root, "ls-files", "--others", "-z")
+	if err != nil {
+		return errors.New("prepared userspace untracked files cannot be inspected")
+	}
+	if untracked == "" {
+		return nil
+	}
+	if !strings.HasSuffix(untracked, "\x00") {
+		return errors.New("prepared userspace untracked file metadata is malformed")
+	}
+	for _, relative := range strings.Split(strings.TrimSuffix(untracked, "\x00"), "\x00") {
+		generated := false
+		for _, directory := range generatedOutputDirectories(component) {
+			generated = generated || strings.HasPrefix(relative, directory+"/")
+		}
+		if !generated {
+			return errors.New("prepared userspace source has untracked files outside compiled default outputs")
+		}
 	}
 	return nil
 }

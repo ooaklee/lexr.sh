@@ -11,6 +11,7 @@ import (
 
 	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
 	camerarelease "github.com/ooaklee/lexr.sh/internal/camera/release"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 )
 
 const (
@@ -25,6 +26,8 @@ const (
 // cameraInput identifies the five runtime packages selected by one completely
 // validated camera authority.
 type cameraInput struct {
+	// compatibility is authenticated through independent native receipt authority.
+	compatibility *producer.Record
 	// paths maps each verified runtime package basename to its canonical source.
 	paths map[string]string
 	// runtimeFiles preserves the compiled package installation order.
@@ -76,7 +79,7 @@ func (installer *Installer) verifyCameraInput(ctx context.Context, options Optio
 		if options.RepositoryRoot != "" || options.CameraAuthoritySHA256 != "" {
 			return cameraInput{}, errors.New("repository root and camera authority SHA-256 apply only to native camera input")
 		}
-		bundle, err := verifyBundle(options.BundleDir, cameraSpec)
+		bundle, err := verifyBundle(options.BundleDir, compatibilitySpec(cameraSpec, options))
 		if err != nil {
 			return cameraInput{}, err
 		}
@@ -182,5 +185,5 @@ func nativeCameraInput(directory string, receipt camerabuild.BundleReceipt) (cam
 		runtimeFiles = append(runtimeFiles, immutableFile{name: name, sha256: artifact.SHA256, size: artifact.Size})
 		paths[name] = path
 	}
-	return cameraInput{paths: paths, runtimeFiles: runtimeFiles}, nil
+	return cameraInput{paths: paths, runtimeFiles: runtimeFiles, compatibility: receipt.Compatibility}, nil
 }

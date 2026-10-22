@@ -61,10 +61,14 @@ func generateMatcher(base []byte) ([]byte, error) {
 	return output.Bytes(), nil
 }
 
-// renderChecksums emits the four installable artefact identities in policy order.
+// renderChecksums emits the fixed payload set and optional migration manifest.
 func renderChecksums(artefacts []FileRecord) ([]byte, error) {
-	if len(artefacts) != 4 {
+	if len(artefacts) != 4 && (len(artefacts) != 5 || artefacts[4].Name != CompatibilityName) {
 		return nil, errors.New("exactly four installable audio artefacts are required")
+	}
+	if len(artefacts) == 5 {
+		artefacts = append([]FileRecord(nil), artefacts...)
+		sort.Slice(artefacts, func(i, j int) bool { return artefacts[i].Name < artefacts[j].Name })
 	}
 	var output strings.Builder
 	for _, artefact := range artefacts {

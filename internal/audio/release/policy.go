@@ -1,8 +1,10 @@
 package release
 
 const (
-	// SupportedTag is the reviewed FullIO v19c release identity.
+	// SupportedTag is the reviewed legacy FullIO v19c release identity.
 	SupportedTag = "sp11-audio-v19c"
+	// NextTag is the next compatibility-bearing FullIO v19c packaging.
+	NextTag = "sp11-audio-v19c-full"
 	// SourceRelease identifies the reviewed upstream deployment release.
 	SourceRelease = "native-audio-fullio-v19c-20260826"
 	// SourceRevision identifies the reviewed upstream source commit.
@@ -57,11 +59,14 @@ type policy struct {
 	artefacts []artefactSpec
 	// checksum identifies the exact deterministic generated SHA256SUMS.
 	checksum artefactSpec
+	// requiresCompatibility selects the next packaging whose SHA256SUMS must
+	// include the canonical compatibility declaration.
+	requiresCompatibility bool
 }
 
 // productionPolicy returns the reviewed FullIO v19c source and output pins.
-func productionPolicy() policy {
-	return policy{
+func productionPolicy(tag string) policy {
+	selected := policy{
 		tag:                  SupportedTag,
 		sourceRelease:        SourceRelease,
 		sourceRevision:       SourceRevision,
@@ -80,4 +85,18 @@ func productionPolicy() policy {
 		},
 		checksum: artefactSpec{name: ChecksumName, sha256: "e490d2ca28278442f12d376b579db13b2b46060b28c7e040b67370161c8588f2", size: 368},
 	}
+	switch tag {
+	case SupportedTag:
+	case NextTag:
+		selected.tag = NextTag
+		// The next packaging regenerates SHA256SUMS over the same four
+		// installable artefacts plus the canonical compatibility declaration.
+		// Its digest is bounded at validation time instead of a compiled pin
+		// because the declaration evolves with reviewed repository evidence.
+		selected.requiresCompatibility = true
+		selected.checksum = artefactSpec{name: ChecksumName}
+	default:
+		selected.tag = ""
+	}
+	return selected
 }

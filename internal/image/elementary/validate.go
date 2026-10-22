@@ -230,7 +230,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 func validateManifest(manifest imagecontract.Manifest) (sourceLayout, caspermedia.Contract, []imagecontract.ArtifactRecord, error) {
 	var layout sourceLayout
 	var empty caspermedia.Contract
-	if manifest.SchemaVersion != imagecontract.ManifestSchemaVersion || manifest.Adapter != AdapterID || manifest.Layout != "hybrid-iso" || manifest.SecureBoot != secureBootPolicy || manifest.ToolVersion == "" || manifest.CreatedAt.IsZero() {
+	if !imagecontract.SupportedManifestSchema(manifest) || manifest.Adapter != AdapterID || manifest.Layout != "hybrid-iso" || manifest.SecureBoot != secureBootPolicy || manifest.ToolVersion == "" || manifest.CreatedAt.IsZero() {
 		return layout, empty, nil, errors.New("unsupported or incomplete elementary manifest identity")
 	}
 	if !kernelABIPattern.MatchString(manifest.KernelBundle.ABI) || manifest.KernelBundle.EffectiveDTBDelivery != kernel.DTBDeliveryExternalRequired {
@@ -242,7 +242,7 @@ func validateManifest(manifest imagecontract.Manifest) (sourceLayout, caspermedi
 	if err := imagecontract.ValidateArtifactRecord(manifest.SourceImage); err != nil {
 		return layout, empty, nil, err
 	}
-	if err := companion.ValidateRecord(manifest.CompanionBundle); err != nil {
+	if err := companion.ValidateImageRecord(manifest); err != nil {
 		return layout, empty, nil, err
 	}
 	media := manifest.MediaDiscovery

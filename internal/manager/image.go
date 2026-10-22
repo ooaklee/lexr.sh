@@ -43,6 +43,9 @@ var portableISOOutputExpression = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+~
 // CreateImageRequest describes source, kernel, cache, workspace, and publication
 // choices for the complete image-creation workflow.
 type CreateImageRequest struct {
+	// AllowUnverifiedCompatibility permits only an explicitly unverified component pairing.
+	AllowUnverifiedCompatibility bool
+
 	// Profile is the intended hardware identity for both embedded and external DTBs.
 	Profile string
 	// CatalogPath optionally overrides the embedded supported-image catalogue.
@@ -333,6 +336,12 @@ func (m *ImageManager) Create(ctx context.Context, request CreateImageRequest) (
 		selected, _ := profile.Resolve(request.Profile)
 		adapterRequest.KernelProfile = selected.Platform
 	}
+	selectedProfile, err := profile.Resolve(request.Profile)
+	if err != nil {
+		return CreateImageResult{}, err
+	}
+	companionRequest.Target.DeviceProfile = selectedProfile.ID
+	companionRequest.AllowUnverifiedCompatibility = request.AllowUnverifiedCompatibility
 	adapterRequest.Companion = companionRequest
 	adapterRequest.CompanionUserspace = companionBundleComponentIDs(companionRequest)
 	result, err := operation.adapter.Create(ctx, adapterRequest)

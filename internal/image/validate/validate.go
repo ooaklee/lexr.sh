@@ -121,7 +121,7 @@ func (v *Validator) Validate(ctx context.Context, isoPath string) (report imagec
 	for _, deviceTree := range routed.Manifest.KernelBundle.DeviceTrees {
 		routingReport.DeviceTrees = append(routingReport.DeviceTrees, deviceTree.Device)
 	}
-	if routed.Manifest.SchemaVersion != imagecontract.ManifestSchemaVersion {
+	if !imagecontract.SupportedManifestSchema(routed.Manifest) {
 		return routingReport, fmt.Errorf("unsupported image manifest schema %d; expected %d",
 			routed.Manifest.SchemaVersion, imagecontract.ManifestSchemaVersion)
 	}

@@ -38,7 +38,7 @@ func TestUnqualifiedSourceBuildOnlyContract(t *testing.T) {
 		t.Fatalf("LoadBytes(source-only fixture) error = %v", err)
 	}
 	component, found := loaded.Get("native-sensors")
-	if !found || loaded.SchemaVersion != 2 || CurrentSchemaVersion != 2 {
+	if !found || loaded.SchemaVersion != 2 || CurrentSchemaVersion != 3 {
 		t.Fatalf("catalogue contract = found %t, schema %d/%d", found, loaded.SchemaVersion, CurrentSchemaVersion)
 	}
 	if component.Capability != CapabilitySensors || component.Level != LevelExperimental ||
@@ -48,6 +48,26 @@ func TestUnqualifiedSourceBuildOnlyContract(t *testing.T) {
 	if component.SupportActions != (SupportActions{Build: true}) ||
 		component.Release != nil || component.KernelCompatibility != nil {
 		t.Fatalf("source-only fixture exposed deployment authority: %#v", component)
+	}
+}
+
+// TestUnqualifiedSourceCurrentSchemaRetainsBuildOnlyBoundary preserves the
+// private source contract through the catalogue migration without a release.
+func TestUnqualifiedSourceCurrentSchemaRetainsBuildOnlyBoundary(t *testing.T) {
+	document := decodeUserspaceDocument(t, unqualifiedSourceCatalogJSON)
+	document["schema_version"] = CurrentSchemaVersion
+	data, err := json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadBytes(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	component, found := loaded.Get("native-sensors")
+	if !found || loaded.SchemaVersion != CurrentSchemaVersion || component.SupportActions != (SupportActions{Build: true}) ||
+		component.Release != nil || component.Compatibility != nil || component.LegacyProfile != "" || component.KernelCompatibility != nil {
+		t.Fatalf("migrated source-only contract = %+v", component)
 	}
 }
 
@@ -100,6 +120,22 @@ func TestUnqualifiedSourceRejectsEscalation(t *testing.T) {
 				}
 			},
 			wantField: "components[0].kernel_compatibility", wantText: "must be omitted",
+		},
+		{
+			name: "release compatibility",
+			mutate: func(document map[string]any) {
+				document["schema_version"] = CurrentSchemaVersion
+				firstComponent(document)["compatibility"] = map[string]any{"size": 10, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+			},
+			wantField: "components[0].compatibility", wantText: "must be omitted",
+		},
+		{
+			name: "legacy profile",
+			mutate: func(document map[string]any) {
+				document["schema_version"] = CurrentSchemaVersion
+				firstComponent(document)["legacy_profile"] = "invented-sensor-release"
+			},
+			wantField: "components[0].compatibility", wantText: "must be omitted",
 		},
 	}
 	for _, level := range []Level{LevelRequired, LevelSupported, LevelDiagnosticOnly, LevelObsolete} {

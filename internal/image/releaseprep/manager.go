@@ -368,7 +368,7 @@ func (manager *Manager) compressImage(ctx context.Context, operationPlan Plan, s
 
 // validateImageContract enforces the supported outer manifest identity.
 func validateImageContract(manifest imagecontract.Manifest) error {
-	if manifest.SchemaVersion != imagecontract.ManifestSchemaVersion || manifest.Layout != "hybrid-iso" || manifest.Adapter == "" {
+	if !imagecontract.SupportedManifestSchema(manifest) || manifest.Layout != "hybrid-iso" || manifest.Adapter == "" {
 		return errors.New("image manifest has an unsupported schema, layout, or adapter")
 	}
 	if manifest.CreatedAt.IsZero() || manifest.KernelBundle.ABI == "" || manifest.KernelBundle.Architecture != "arm64" {
@@ -377,7 +377,7 @@ func validateImageContract(manifest imagecontract.Manifest) error {
 	if manifest.MediaDiscovery.Strategy == "" || manifest.MediaDiscovery.Protocol == "" || len(manifest.BootArtifacts.DTBs) == 0 {
 		return errors.New("image manifest lacks media-discovery or device-tree evidence")
 	}
-	if err := companion.ValidateRecord(manifest.CompanionBundle); err != nil {
+	if err := companion.ValidateImageRecord(manifest); err != nil {
 		return fmt.Errorf("image manifest has an invalid companion bundle: %w", err)
 	}
 	seenDevices := make(map[string]struct{}, len(manifest.KernelBundle.DeviceTrees))

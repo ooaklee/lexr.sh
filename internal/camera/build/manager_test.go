@@ -279,11 +279,12 @@ func makeCameraRepository(t *testing.T) (string, []byte) {
 			t.Fatal(err)
 		}
 	}
+	sourceCompatibilityFixture(t, root)
 	commands := [][]string{
 		{"git", "init", "-q", root},
 		{"git", "-C", root, "config", "user.name", "Camera test"},
 		{"git", "-C", root, "config", "user.email", "camera-test@example.invalid"},
-		{"git", "-C", root, "add", "userspace/camera/libcamera"},
+		{"git", "-C", root, "add", "."},
 		{"git", "-C", root, "commit", "-q", "-m", "Add camera inputs"},
 	}
 	for _, command := range commands {
@@ -309,7 +310,7 @@ func TestPlanIsDeterministicAndTruthful(t *testing.T) {
 	root, tuning := makeCameraRepository(t)
 	runner := &fakeCameraRunner{tuning: tuning}
 	manager := New(runner)
-	request := Request{RepositoryRoot: root, DryRun: true, NoPull: true}
+	request := Request{PayloadTarget: cameraPayloadTarget(), AllowUnverifiedCompatibility: true, RepositoryRoot: root, DryRun: true, NoPull: true}
 	first, err := manager.Plan(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
@@ -350,7 +351,7 @@ func TestRunRejectsUnsupportedHostBeforeGit(t *testing.T) {
 	manager := New(runner)
 	manager.hostOS = "windows"
 	manager.hostArchitecture = "amd64"
-	receipt, err := manager.Run(context.Background(), Request{RepositoryRoot: root})
+	receipt, err := manager.Run(context.Background(), Request{PayloadTarget: cameraPayloadTarget(), AllowUnverifiedCompatibility: true, RepositoryRoot: root})
 	if err == nil || !strings.Contains(err.Error(), "native camera build requires operating system linux and architecture arm64") {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -367,7 +368,7 @@ func TestFakeRunnerEndToEndBuild(t *testing.T) {
 	root, tuning := makeCameraRepository(t)
 	runner := &fakeCameraRunner{tuning: tuning}
 	manager := newExecutableTestManager(runner)
-	receipt, err := manager.Run(context.Background(), Request{RepositoryRoot: root, Jobs: 4, MinimumFreeGiB: 1, NoPull: true})
+	receipt, err := manager.Run(context.Background(), Request{PayloadTarget: cameraPayloadTarget(), AllowUnverifiedCompatibility: true, RepositoryRoot: root, Jobs: 4, MinimumFreeGiB: 1, NoPull: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -388,8 +389,8 @@ func TestFakeRunnerEndToEndBuild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 8 {
-		t.Fatalf("published entries = %d, want 8", len(entries))
+	if len(entries) != 9 {
+		t.Fatalf("published entries = %d, want 9", len(entries))
 	}
 	validated, err := ValidateBundle(context.Background(), runner, ValidationRequest{RepositoryRoot: root, Directory: receipt.OutputDirectory})
 	if err != nil {
@@ -411,7 +412,7 @@ func TestValidateBundleAcceptsHistoricalRecipeAuthority(t *testing.T) {
 	root, tuning := makeCameraRepository(t)
 	runner := &fakeCameraRunner{tuning: tuning}
 	manager := newExecutableTestManager(runner)
-	receipt, err := manager.Run(context.Background(), Request{RepositoryRoot: root, Jobs: 4, MinimumFreeGiB: 1, NoPull: true})
+	receipt, err := manager.Run(context.Background(), Request{PayloadTarget: cameraPayloadTarget(), AllowUnverifiedCompatibility: true, RepositoryRoot: root, Jobs: 4, MinimumFreeGiB: 1, NoPull: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -448,7 +449,7 @@ func TestBuildRejectsPublishedAuthorityReplacement(t *testing.T) {
 	manager.beforeAuthorityCheck = func(directory string) error {
 		return os.WriteFile(filepath.Join(directory, ReceiptName), []byte("{}\n"), 0o644)
 	}
-	receipt, err := manager.Run(context.Background(), Request{RepositoryRoot: root, MinimumFreeGiB: 1})
+	receipt, err := manager.Run(context.Background(), Request{PayloadTarget: cameraPayloadTarget(), AllowUnverifiedCompatibility: true, RepositoryRoot: root, MinimumFreeGiB: 1})
 	if err == nil || !strings.Contains(err.Error(), "differs from its private pre-publication bytes") {
 		t.Fatalf("raced build authority error = %v", err)
 	}
@@ -462,7 +463,7 @@ func TestBuildRejectsPublishedAuthorityReplacement(t *testing.T) {
 func TestValidateBundleStaticNeverExecutesPayload(t *testing.T) {
 	root, tuning := makeCameraRepository(t)
 	runner := &fakeCameraRunner{tuning: tuning}
-	receipt, err := newExecutableTestManager(runner).Run(context.Background(), Request{RepositoryRoot: root, MinimumFreeGiB: 1})
+	receipt, err := newExecutableTestManager(runner).Run(context.Background(), Request{PayloadTarget: cameraPayloadTarget(), AllowUnverifiedCompatibility: true, RepositoryRoot: root, MinimumFreeGiB: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -493,7 +494,7 @@ func TestValidateBundleStaticNeverExecutesPayload(t *testing.T) {
 func TestValidateBundleStaticRejectsAuthorityAndTuningMismatch(t *testing.T) {
 	root, tuning := makeCameraRepository(t)
 	runner := &fakeCameraRunner{tuning: tuning}
-	receipt, err := newExecutableTestManager(runner).Run(context.Background(), Request{RepositoryRoot: root, MinimumFreeGiB: 1})
+	receipt, err := newExecutableTestManager(runner).Run(context.Background(), Request{PayloadTarget: cameraPayloadTarget(), AllowUnverifiedCompatibility: true, RepositoryRoot: root, MinimumFreeGiB: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -580,7 +581,7 @@ func TestBuildRejectsMutationLinksAndCollisions(t *testing.T) {
 	root, tuning := makeCameraRepository(t)
 	runner := &fakeCameraRunner{tuning: tuning}
 	manager := newExecutableTestManager(runner)
-	receipt, err := manager.Run(context.Background(), Request{RepositoryRoot: root, MinimumFreeGiB: 1})
+	receipt, err := manager.Run(context.Background(), Request{PayloadTarget: cameraPayloadTarget(), AllowUnverifiedCompatibility: true, RepositoryRoot: root, MinimumFreeGiB: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -604,7 +605,7 @@ func TestBuildRejectsMutationLinksAndCollisions(t *testing.T) {
 	if err := os.MkdirAll(collision, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := manager.Run(context.Background(), Request{RepositoryRoot: root, MinimumFreeGiB: 1}); err == nil || !strings.Contains(err.Error(), "already exists") {
+	if _, err := manager.Run(context.Background(), Request{PayloadTarget: cameraPayloadTarget(), AllowUnverifiedCompatibility: true, RepositoryRoot: root, MinimumFreeGiB: 1}); err == nil || !strings.Contains(err.Error(), "already exists") {
 		t.Fatalf("collision error = %v", err)
 	}
 }
@@ -614,7 +615,7 @@ func TestCancellationRemovesContainerAndWithholdsPublication(t *testing.T) {
 	root, tuning := makeCameraRepository(t)
 	runner := &fakeCameraRunner{tuning: tuning, cancelRun: true}
 	manager := newExecutableTestManager(runner)
-	receipt, err := manager.Run(context.Background(), Request{RepositoryRoot: root, MinimumFreeGiB: 1})
+	receipt, err := manager.Run(context.Background(), Request{PayloadTarget: cameraPayloadTarget(), AllowUnverifiedCompatibility: true, RepositoryRoot: root, MinimumFreeGiB: 1})
 	if err == nil || !receipt.Interrupted || receipt.Cleanup == nil || receipt.Published {
 		t.Fatalf("cancellation receipt = %+v, error = %v", receipt, err)
 	}

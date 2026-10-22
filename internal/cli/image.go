@@ -351,6 +351,7 @@ func (a *application) newImageCreateCommand() *cobra.Command {
 		return a.configuration.ResolveImageWorkspaceDir()
 	})
 	command.Flags().StringVar(&request.CompanionSourceDirectory, "companion-source-dir", "", "complete lexr source directory to archive and cross-build with the host Go toolchain")
+	command.Flags().BoolVar(&request.AllowUnverifiedCompatibility, "allow-unverified-compatibility", false, "permit component compatibility beyond recorded evidence for this image target")
 	command.Flags().StringSliceVar(&request.CompanionUserspace, "companion-userspace", nil, "redistribution-eligible userspace component to include for offline installation (repeatable)")
 	command.Flags().StringVarP(&request.Output, "output", "o", "lexr-sp11.iso", "output ISO path")
 	command.Flags().BoolVar(&request.KeepWorkspace, "keep-workspace", false, "keep temporary remaster files for debugging")

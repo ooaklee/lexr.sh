@@ -63,6 +63,7 @@ nav:
       - Overview: reference/index.md
       - Command reference: reference/command-reference.md
       - Configuration reference: reference/configuration.md
+      - Component compatibility: reference/component-compatibility.md
       - Requirements: reference/requirements.md
       - Project boundaries: reference/project-boundaries.md
   - Developer guide:

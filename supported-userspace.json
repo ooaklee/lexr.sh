@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "description": "Audited Surface Pro 11 userspace and firmware components. Support actions describe bounded lexr capabilities; they are data flags, not executable instructions.",
   "components": [
     {
@@ -36,7 +36,8 @@
         "The topology and UCM set is validated with the geocausa v12 kernel generation and must remain a coherent release.",
         "The topology contains protected vendor-derived bytes and remains behind an explicit redistribution boundary."
       ],
-      "remediation": "Install the complete hash-verified release with its paired kernel generation, and replace the complete set if any member differs."
+      "remediation": "Install the complete hash-verified release with its paired kernel generation, and replace the complete set if any member differs.",
+      "legacy_profile": "sp11-audio-v19c"
     },
     {
       "id": "bluetooth",
@@ -132,7 +133,8 @@
         "The five runtime packages, same-build IPA signature, provenance records, and checksum manifest form one exact set paired with the v14 camera kernel generation.",
         "Processed browser video passed, while automatic exposure, final calibration, privacy behaviour, and suspend resilience remain experimental gates."
       ],
-      "remediation": "Install every allowlisted runtime package from one verified release with its paired kernel, and reject mixed package generations."
+      "remediation": "Install every allowlisted runtime package from one verified release with its paired kernel, and reject mixed package generations.",
+      "legacy_profile": "sp11-imx681-libcamera-v1"
     },
     {
       "id": "iptsd-v1",
@@ -165,7 +167,8 @@
         "The trust-pinned v2 release adds the exact OE-owned Fedora RPM template while retaining the stable iptsd-v1 component and archive root.",
         "X1E Phase 84 pen validation passed with the v19 kernel generation; separate X1P and broader lifecycle qualification remain."
       ],
-      "remediation": "Rebuild the pinned payload with complete corresponding sources, validate its checksum manifest, disable conflicting pen processors, and reinstall the matched lifecycle set."
+      "remediation": "Rebuild the pinned payload with complete corresponding sources, validate its checksum manifest, disable conflicting pen processors, and reinstall the matched lifecycle set.",
+      "legacy_profile": "sp11-iptsd-v2"
     },
     {
       "id": "oot-touchscreen",
