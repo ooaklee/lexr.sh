@@ -150,6 +150,7 @@ case "$source_kind" in
     elif [ -d "$source_dir/.git" ] &&
          [ "$(cat "$source_dir/.git/lexr-source-kind" 2>/dev/null || true)" = local-git-commit ] &&
          [ "$(cat "$source_dir/.git/lexr-source-archive-sha256" 2>/dev/null || true)" = "$source_archive_sha256" ] &&
+         [ "$(cat "$source_dir/.git/shallow" 2>/dev/null || true)" = "$local_revision" ] &&
          [ "$(git -C "$source_dir" rev-parse --verify HEAD 2>/dev/null || true)" = "$local_revision" ] &&
          [ "$(git -C "$source_dir" rev-parse --verify 'HEAD^{tree}' 2>/dev/null || true)" = "$expected_tree" ]; then
       reuse_local=true
@@ -164,16 +165,22 @@ case "$source_kind" in
       rm -rf -- "$candidate"
       mkdir -m 0700 "$candidate"
       python3 - "$source_archive" "$candidate" "$source_file_count" <<'PY_LOCAL_SOURCE'
+import os
 import posixpath
 import sys
 import tarfile
+import tempfile
 
 archive_path, destination, expected_text = sys.argv[1:]
 expected_files = int(expected_text)
 seen = set()
-folded = {}
+namespace = {}
+links = {}
 members = []
 files = 0
+if os.path.islink(destination) or not os.path.isdir(destination) or os.listdir(destination):
+    raise ValueError("local source destination must be a fresh non-symlink directory")
+
 with tarfile.open(archive_path, "r:") as archive:
     for member in archive:
         name = member.name
@@ -182,31 +189,106 @@ with tarfile.open(archive_path, "r:") as archive:
         parts = name.split("/")
         if any(part in {"", ".", ".."} for part in parts) or len(name.encode("utf-8")) > 4096:
             raise ValueError("local source archive contains an unsafe path")
-        if name in seen or (name.casefold() in folded and folded[name.casefold()] != name):
-            raise ValueError("local source archive contains a duplicate or case-folded collision")
+        if any(ord(character) < 0x20 or ord(character) == 0x7f for character in name):
+            raise ValueError("local source archive contains a control character in a path")
+        if any(part.casefold() == ".git" for part in parts):
+            raise ValueError("local source archive contains a reserved Git metadata path")
+        if name in seen:
+            raise ValueError("local source archive contains a duplicate path")
         seen.add(name)
-        folded[name.casefold()] = name
+        if len(seen) > 2000000:
+            raise ValueError("local source archive exceeds the member-count limit")
         if member.isfile():
             if member.size < 0 or member.size > 17179869184:
                 raise ValueError("local source archive member is oversized")
+            kind = "file"
             files += 1
         elif member.issym():
             target = member.linkname
             if not target or target.startswith("/") or len(target.encode("utf-8")) > 4096:
                 raise ValueError("local source archive contains an unsafe symbolic link")
+            if any(ord(character) < 0x20 or ord(character) == 0x7f for character in target):
+                raise ValueError("local source archive contains an unsafe symbolic link")
             resolved = posixpath.normpath(posixpath.join(posixpath.dirname(name), target))
             if resolved == ".." or resolved.startswith("../") or resolved.startswith("/"):
                 raise ValueError("local source archive symbolic link escapes the source tree")
+            kind = "symlink"
+            links[name] = target
             files += 1
-        elif not member.isdir():
+        elif member.isdir():
+            kind = "directory"
+        else:
             raise ValueError("local source archive contains an unsupported member type")
+
+        for index in range(1, len(parts)):
+            ancestor = "/".join(parts[:index])
+            if ancestor in namespace and namespace[ancestor] != "directory":
+                raise ValueError("local source archive has a non-directory ancestor")
+            namespace[ancestor] = "directory"
+        if name in namespace and namespace[name] != kind:
+            raise ValueError("local source archive has a non-directory ancestor")
+        namespace[name] = kind
+        if len(namespace) > 2000000:
+            raise ValueError("local source archive exceeds the namespace-count limit")
         members.append(member)
     if files != expected_files:
         raise ValueError("local source archive file count differs from the reviewed tree")
-    archive.extractall(destination, members=members, filter="data")
+
+    # Probe the actual names and implicit directories on this filesystem, not
+    # an OS label or Unicode fold. Symlinks are only empty regular sentinels.
+    # No archive payload is extracted until the entire namespace can coexist.
+    try:
+        with tempfile.TemporaryDirectory(prefix=".lexr-path-probe-", dir=destination) as probe:
+            # Git will initialise this directory after extraction. Names which
+            # alias it on this filesystem must not become source payloads.
+            os.mkdir(os.path.join(probe, ".git"), mode=0o700)
+            children = {"": {".git"}}
+            for name in sorted(namespace, key=lambda item: (item.count("/"), item)):
+                candidate = os.path.join(probe, *name.split("/"))
+                if namespace[name] == "directory":
+                    os.mkdir(candidate, mode=0o700)
+                else:
+                    with open(candidate, "xb"):
+                        pass
+                parent, leaf = posixpath.split(name)
+                children.setdefault(parent, set()).add(leaf)
+                if namespace[name] == "directory":
+                    children.setdefault(name, set())
+            for parent, expected in children.items():
+                actual = set(os.listdir(os.path.join(probe, parent)))
+                if actual != expected:
+                    raise OSError("filesystem changed committed path spelling")
+    except OSError as error:
+        raise ValueError("local source destination cannot represent distinct source paths") from error
+
+    # data_filter may normalise link text on newer Python releases. Keep its
+    # path/type/ownership/permission checks but retain the exact Git link text.
+    # No member can have a symlink ancestor; complete final chains are checked
+    # below before Git reconstruction or compilation can consume this tree.
+    def exact_source_filter(member, extraction_path):
+        filtered = tarfile.data_filter(member, extraction_path)
+        if filtered is not None and member.issym():
+            return filtered.replace(linkname=links[member.name])
+        return filtered
+
+    archive.extractall(destination, members=members, filter=exact_source_filter)
+
+# Final chains must remain contained regardless of archive order. In-tree
+# dangling links remain representable; the raw target is still in Git's tree.
+destination_real = os.path.realpath(destination)
+for member in members:
+    if member.issym():
+        link_path = os.path.join(destination, member.name)
+        if os.readlink(link_path) != links[member.name]:
+            raise ValueError("local source archive symbolic link text changed during extraction")
+        resolved = os.path.realpath(link_path)
+        if os.path.commonpath([destination_real, resolved]) != destination_real:
+            raise ValueError("local source archive symbolic link escapes the source tree")
 PY_LOCAL_SOURCE
       git -C "$candidate" init
-      git -C "$candidate" add -A
+      # The authenticated archive may contain committed files matching ignore
+      # rules. A fresh index must retain them; exact tree comparison stays fatal.
+      git -C "$candidate" add --force --all
       tree="$(git -C "$candidate" write-tree)"
       if [ "$tree" != "$expected_tree" ]; then
         echo "Extracted local source tree differs from the reviewed Git tree." >&2
@@ -217,6 +299,9 @@ PY_LOCAL_SOURCE
         echo "Local source commit object differs from the reviewed revision." >&2
         exit 1
       fi
+      # Only the authenticated commit and its tree were captured, not its
+      # ancestors. Declare that boundary without rewriting the raw commit.
+      printf '%s\n' "$revision" > "$candidate/.git/shallow"
       git -C "$candidate" update-ref refs/heads/lexr-local "$revision"
       git -C "$candidate" symbolic-ref HEAD refs/heads/lexr-local
       git -C "$candidate" reset --hard "$revision"
@@ -324,8 +409,6 @@ image_postinst="$inspection_root/image-postinst"
 image_postrm="$inspection_root/image-postrm"
 image_triggers="$inspection_root/image-triggers"
 expected_image_triggers="$inspection_root/expected-image-triggers"
-triggered_postinst="$inspection_root/triggered-postinst"
-postinst_hook_command="$inspection_root/postinst-hook-command"
 inspection_image="$inspection_root/vmlinuz"
 section_candidate="$inspection_root/dtbauto-candidate"
 section_list="$inspection_root/sections"
@@ -334,7 +417,15 @@ embedded_sections="$inspection_root/embedded-sections.tsv"
 dtb_scan_output="$inspection_root/selected-dtbs.tsv"
 dtb_scan_root="$inspection_root/selected-dtbs"
 dtb_scanner="$inspection_root/scan-package-dtbs.py"
-selected_package=""
+boot_payload_package=""
+lifecycle_image_package=""
+lifecycle_modules_package=""
+image_package_name=""
+modules_package_name=""
+image_package_version=""
+modules_package_version=""
+image_package_count=0
+modules_package_count=0
 selected_member=""
 vmlinuz_count=0
 declare -a runtime_packages=()
@@ -344,24 +435,62 @@ for package in \
   "$artifact_dir"/linux-modules-*-qcom-x1e_*_arm64.deb; do
   [ -f "$package" ] || continue
   runtime_packages+=("$package")
+  if ! package_name="$(dpkg-deb --field "$package" Package)" ||
+     ! package_version="$(dpkg-deb --field "$package" Version)" ||
+     ! package_architecture="$(dpkg-deb --field "$package" Architecture)"; then
+    echo "Could not inspect generated runtime package identity." >&2
+    exit 1
+  fi
+  case "$package_name" in ''|*[!a-z0-9+.-]*) echo "Generated runtime Package field is unsafe." >&2; exit 1 ;; esac
+  case "$package_version" in ''|*[!A-Za-z0-9.+:~_-]*) echo "Generated runtime Version field is unsafe." >&2; exit 1 ;; esac
+  if [ "${#package_name}" -gt 255 ] || [ "${#package_version}" -gt 256 ] ||
+     [ "$package_architecture" != arm64 ] ||
+     [ "$(basename "$package")" != "${package_name}_${package_version}_arm64.deb" ]; then
+    echo "Generated runtime package filename does not match its bounded ARM64 control identity." >&2
+    exit 1
+  fi
+  case "$package_name" in
+    linux-image-*)
+      image_package_count=$((image_package_count + 1))
+      lifecycle_image_package="$package"
+      image_package_name="$package_name"
+      image_package_version="$package_version"
+      ;;
+    linux-modules-*)
+      modules_package_count=$((modules_package_count + 1))
+      lifecycle_modules_package="$package"
+      modules_package_name="$package_name"
+      modules_package_version="$package_version"
+      ;;
+    *) echo "Generated runtime package has an unsupported control role." >&2; exit 1 ;;
+  esac
   if ! dpkg-deb --fsys-tarfile "$package" | tar -tf - > "$member_list"; then
     echo "Could not inspect a generated runtime package." >&2
     exit 1
   fi
   while IFS= read -r member; do
-    selected_package="$package"
+    boot_payload_package="$package"
     selected_member="$member"
     vmlinuz_count=$((vmlinuz_count + 1))
   done < <(awk '/^\.\/boot\/vmlinuz-[^/]+$/ { print }' "$member_list")
 done
 
-if [ "$vmlinuz_count" -ne 1 ] || [ "${#runtime_packages[@]}" -ne 2 ]; then
+if [ "$vmlinuz_count" -ne 1 ] || [ "${#runtime_packages[@]}" -ne 2 ] ||
+   [ "$image_package_count" -ne 1 ] || [ "$modules_package_count" -ne 1 ]; then
   echo "Kernel delivery validation requires exactly one packaged /boot/vmlinuz ABI across the runtime packages." >&2
   exit 1
 fi
 abi=${selected_member#./boot/vmlinuz-}
 case "$abi" in ''|.*|*[!A-Za-z0-9._+~-]*|-*) echo "Generated kernel ABI is unsafe." >&2; exit 1 ;; esac
-if ! dpkg-deb --ctrl-tarfile "$selected_package" | tar -tf - > "$control_member_list"; then
+if [ "$image_package_name" != "linux-image-$abi" ] ||
+   [ "$modules_package_name" != "linux-modules-$abi" ] ||
+   [ "$image_package_version" != "$modules_package_version" ]; then
+  echo "Generated runtime package roles must match the exact boot ABI and package version." >&2
+  exit 1
+fi
+# Stubble may place vmlinuz in linux-modules. The image package still owns the
+# lifecycle and exact-ABI trigger; payload location must not select that role.
+if ! dpkg-deb --ctrl-tarfile "$lifecycle_image_package" | tar -tf - > "$control_member_list"; then
   echo "Could not inspect the generated linux-image control archive." >&2
   exit 1
 fi
@@ -374,9 +503,9 @@ if [ "$(printf '%s\n' "$postinst_member" | awk 'NF { count++ } END { print count
   echo "Generated linux-image package must contain exactly one postinst, postrm, and triggers control member." >&2
   exit 1
 fi
-if ! dpkg-deb --ctrl-tarfile "$selected_package" | tar -xOf - "$postinst_member" > "$image_postinst" ||
-   ! dpkg-deb --ctrl-tarfile "$selected_package" | tar -xOf - "$postrm_member" > "$image_postrm" ||
-   ! dpkg-deb --ctrl-tarfile "$selected_package" | tar -xOf - "$triggers_member" > "$image_triggers"; then
+if ! dpkg-deb --ctrl-tarfile "$lifecycle_image_package" | tar -xOf - "$postinst_member" > "$image_postinst" ||
+   ! dpkg-deb --ctrl-tarfile "$lifecycle_image_package" | tar -xOf - "$postrm_member" > "$image_postrm" ||
+   ! dpkg-deb --ctrl-tarfile "$lifecycle_image_package" | tar -xOf - "$triggers_member" > "$image_triggers"; then
   echo "Could not extract the generated linux-image maintainer contract." >&2
   exit 1
 fi
@@ -390,34 +519,90 @@ if ! cmp -s "$expected_image_triggers" "$image_triggers"; then
   echo "Generated linux-image package does not own the exact ABI update trigger." >&2
   exit 1
 fi
-awk '$0 == "if [ \"$1\" = triggered ]; then" { active=1 } active { print } active && $0 == "    exit 0" { exit }' \
-  "$image_postinst" > "$triggered_postinst"
-awk '$0 == "    cat - >/usr/lib/linux/triggers/$version <<EOF" { active=1 } active { print } active && $0 == "EOF" { exit }' \
-  "$image_postinst" > "$postinst_hook_command"
-if ! grep -Fqx "version=$abi" "$image_postinst" ||
-   ! grep -Fqx 'image_path=/boot/vmlinuz-$version' "$image_postinst" ||
-   ! grep -Fqx 'if [ "$1" = triggered ]; then' "$image_postinst" ||
-   ! grep -Fqx '    trigger=/usr/lib/linux/triggers/$version' "$triggered_postinst" ||
-   ! grep -Fqx $'\tsh "$trigger"' "$triggered_postinst" ||
-   ! grep -Fqx $'\trm -f "$trigger"' "$triggered_postinst" ||
-   ! grep -Fqx 'if [ -d /etc/kernel/postinst.d ]; then' "$image_postinst" ||
-   ! grep -Fqx '    cat - >/usr/lib/linux/triggers/$version <<EOF' "$postinst_hook_command" ||
-   ! grep -Fqx 'DEB_MAINT_PARAMS="$*" run-parts --report --exit-on-error --arg=$version \' "$postinst_hook_command" ||
-   ! grep -Fqx '      --arg=$image_path /etc/kernel/postinst.d' "$postinst_hook_command" ||
-   ! grep -Fqx 'EOF' "$postinst_hook_command" ||
-   ! grep -Fqx '    dpkg-trigger --no-await linux-update-$version' "$image_postinst"; then
-  echo "Generated linux-image postinst does not implement the exact ABI kernel-hook lifecycle." >&2
-  exit 1
-fi
-if ! grep -Fqx "version=$abi" "$image_postrm" ||
-   ! grep -Fqx 'image_path=/boot/vmlinuz-$version' "$image_postrm" ||
-   ! grep -Fqx 'if [ -d /etc/kernel/postrm.d ]; then' "$image_postrm" ||
-   ! grep -Fq 'DEB_MAINT_PARAMS="$*" run-parts --report --exit-on-error --arg=$version \' "$image_postrm" ||
-   ! grep -Fq -- '--arg=$image_path /etc/kernel/postrm.d' "$image_postrm"; then
-  echo "Generated linux-image postrm does not propagate its package lifecycle action to exact-ABI kernel hooks." >&2
-  exit 1
-fi
-if ! dpkg-deb --fsys-tarfile "$selected_package" | tar -xOf - "$selected_member" > "$inspection_image"; then
+python3 - "$abi" "$image_postinst" "$image_postrm" "$image_triggers" <<'PY_KERNEL_HOOK_CONTRACT'
+import hashlib
+import pathlib
+import re
+import sys
+
+# A closed check for two known Ubuntu image-script families, not a parser or
+# executor for arbitrary shell programs. Match the complete operational body:
+# command snippets alone do not prove reachability or failure/action handling.
+limit = 131072
+abi, postinst_path, postrm_path, triggers_path = sys.argv[1:]
+if not re.fullmatch(r"[A-Za-z0-9_+~][A-Za-z0-9._+~-]*", abi):
+    raise SystemExit("Generated kernel ABI is unsafe.")
+
+def read_bounded(name):
+    with pathlib.Path(name).open("rb") as stream:
+        data = stream.read(limit + 1)
+    if not data or len(data) > limit:
+        raise ValueError("empty or oversized maintainer contract")
+    if b"\x00" in data or b"\r" in data:
+        raise ValueError("unsupported control bytes in maintainer contract")
+    return data
+
+def operational_lines(data):
+    text = data.decode("utf-8", errors="strict")
+    lines = text.split("\n")
+    if lines[0] != "#!/bin/sh" or not text.endswith("\n"):
+        raise ValueError("unsupported maintainer shell header or termination")
+    result, in_payload, continued = [], False, False
+    for line in lines[1:]:
+        if in_payload:
+            # No normalization here: an indented EOF cannot close <<EOF,
+            # and the generated trigger must retain both exact payload lines.
+            result.append(line)
+            if line == "EOF":
+                in_payload = False
+            continue
+        code = line.lstrip(" \t")
+        if not code or code.startswith("#"):
+            if continued:
+                raise ValueError("blank or comment interrupts shell continuation")
+            continue
+        result.append(code)
+        continued = code.endswith("\\")
+        if code == "cat - >/usr/lib/linux/triggers/$version <<EOF":
+            in_payload = True
+            continued = False
+    if in_payload or continued:
+        raise ValueError("unterminated maintainer payload or continuation")
+    return result
+
+# Fingerprints of the complete normalized, reviewed source bodies; never trust
+# templates supplied by the package being inspected. Fixture origins, original
+# notices and independent hashes live in testdata/kernel_hooks/SOURCES.json.
+# Unknown operational changes require a new source review and negative tests.
+known_families = {
+    # Legacy /etc-only postinst and postrm.
+    ("4efba790a687c2e3b68b1dde0f778bb410e3202cae7d121933d2cc79bec54235",
+     "abf9c057875b18626f3a3ff85424bd4f9893e19357463c42bfb93c6673e18bf0"),
+    # Current /etc then /usr/share hooks, preserving directory priority.
+    ("5bf3edbda6f8c295219c079d79323adec00e924e29e632dc576bc11be7d99dc4",
+     "74f6e5a9776cea74017db3faa1a2348efe1de5657f3dba418d344f3d10730fb4"),
+}
+
+def contract_digest(data):
+    lines = operational_lines(data)
+    if len(lines) < 3 or lines[1] != "version=" + abi:
+        raise ValueError("maintainer script does not select the exact supplied ABI")
+    # Abstract only this checked assignment, not arbitrary ABI-looking text or
+    # later assignments. Every other operational byte remains in the policy.
+    lines[1] = "version=@ABI@"
+    return hashlib.sha256(("\n".join(lines) + "\n").encode("utf-8")).hexdigest()
+
+try:
+    if read_bounded(triggers_path) != ("interest linux-update-" + abi + "\n").encode("ascii"):
+        raise ValueError("package does not own the exact ABI update trigger")
+    pair = (contract_digest(read_bounded(postinst_path)),
+            contract_digest(read_bounded(postrm_path)))
+    if pair not in known_families:
+        raise ValueError("scripts do not implement a supported exact-ABI kernel-hook lifecycle")
+except (OSError, UnicodeError, ValueError) as error:
+    raise SystemExit("Generated linux-image maintainer contract rejected: " + str(error))
+PY_KERNEL_HOOK_CONTRACT
+if ! dpkg-deb --fsys-tarfile "$boot_payload_package" | tar -xOf - "$selected_member" > "$inspection_image"; then
   echo "Could not extract the generated boot image for structural validation." >&2
   exit 1
 fi
@@ -1054,6 +1239,9 @@ if delivery == "embedded":
     selection_evidence.sort(key=lambda record: record["device"])
     write_public_json(selection_output, selection_evidence)
 PY_SELECTION
+if [ "$effective_delivery" = embedded ]; then
+  cp -- "$inspection_image" "$provenance_dir/stubble-inspected-image.efi"
+fi
 printf '%s' "$effective_delivery" > "$provenance_dir/effective-dtb-delivery"
 printf '%s' "$dtbauto_sections" > "$provenance_dir/embedded-dtb-count"
 `

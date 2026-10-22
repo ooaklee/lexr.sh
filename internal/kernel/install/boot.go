@@ -848,7 +848,7 @@ func rejectAlternateRootTokens(tokens []GRUBPathToken, root string, unsafe *[]st
 // verifyGRUBDeviceTreeBindings proves one consistent boot-time DTB path across
 // every matching normal and recovery entry. An external binding must match a
 // required same-ABI firmware DTB. Entries without an external directive are
-// valid only when the kernel embeds exactly one recognised same-ABI DTB.
+// valid only when every embedded payload has one attributable same-ABI DTB.
 func verifyGRUBDeviceTreeBindings(ctx context.Context, root, abi string, entries []GRUBEntry, trees []DeviceTree) (DeviceTreeBootEvidence, error) {
 	var err error
 	entries, err = ownedABIEntries(root, entries, abi)
@@ -990,8 +990,8 @@ func verifyExternalDeviceTreeBinding(ctx context.Context, root, abi string, entr
 }
 
 // verifyEmbeddedDeviceTreeBinding accepts a missing external GRUB directive
-// only when the bounded AArch64 PE image carries exactly one .dtbauto payload
-// matching a required same-ABI firmware DTB.
+// only when every bounded .dtbauto payload in the AArch64 PE image matches one
+// unique same-ABI firmware DTB. A supplied bundle inventory remains closed.
 func verifyEmbeddedDeviceTreeBinding(ctx context.Context, root, abi string, trees []DeviceTree) (DeviceTreeBootEvidence, error) {
 	image, err := ReadRootFile(ctx, root, "boot/vmlinuz-"+abi, "kernel image", maximumBootImageInspectionBytes)
 	if err != nil {
@@ -1022,22 +1022,23 @@ func verifyEmbeddedDeviceTreeBinding(ctx context.Context, root, abi string, tree
 			continue
 		}
 		sections++
-		if section.VirtualSize == 0 || section.VirtualSize > section.Size {
+		if sections > maximumEmbeddedDTBSections || section.VirtualSize == 0 ||
+			section.VirtualSize > section.Size || section.VirtualSize > uint32(maximumInstalledDTBBytes) ||
+			uint64(section.Offset)+uint64(section.Size) > uint64(len(image)) {
 			return DeviceTreeBootEvidence{}, errors.New("embedded device-tree section has an invalid bounded payload size")
 		}
-		data, err := section.Data()
+		// Read only the virtual payload, never allocate the declared raw size.
+		// Raw alignment padding is not part of the DTB digest.
+		digest, size, err := digestReader(ctx, io.LimitReader(section.Open(), int64(section.VirtualSize)), nil, maximumInstalledDTBBytes)
 		if err != nil {
 			return DeviceTreeBootEvidence{}, fmt.Errorf("read embedded device-tree section: %w", err)
 		}
-		if uint64(len(data)) < uint64(section.VirtualSize) {
+		if size != int64(section.VirtualSize) {
 			return DeviceTreeBootEvidence{}, errors.New("embedded device-tree section is shorter than its declared virtual payload")
 		}
-		payload := data[:section.VirtualSize]
-		digestBytes := sha256.Sum256(payload)
-		digest := hex.EncodeToString(digestBytes[:])
 		sectionMatches := 0
 		for _, candidate := range installed {
-			if candidate.Size == int64(len(payload)) && candidate.SHA256 == digest {
+			if candidate.Size == size && candidate.SHA256 == digest {
 				sectionMatches++
 				matchCounts[digest]++
 			}
@@ -1077,9 +1078,13 @@ func verifyEmbeddedDeviceTreeBinding(ctx context.Context, root, abi string, tree
 	return DeviceTreeBootEvidence{Mode: DeviceTreeBootEmbedded, SHA256: matchedDigest, SHA256s: digests}, nil
 }
 
-// installedDeviceTreeCandidates returns only required, same-ABI DTBs selected
-// by the caller. An empty selection retains the installer's all-device policy.
+// installedDeviceTreeCandidates preserves a caller's closed inventory. Without
+// one, embedded inspection discovers bounded same-ABI DTBs; external inspection
+// retains its existing two-variant Surface attribution policy.
 func installedDeviceTreeCandidates(ctx context.Context, root, abi string, trees []DeviceTree, embeddedOnly bool) ([]FileEvidence, error) {
+	if len(trees) == 0 && embeddedOnly && supportsInstalledDTBDiscovery {
+		return discoverInstalledDeviceTrees(ctx, root, abi, defaultInstalledDTBLimits())
+	}
 	selected := trees
 	if len(selected) == 0 {
 		selected = make([]DeviceTree, 0, len(requiredDeviceTrees))

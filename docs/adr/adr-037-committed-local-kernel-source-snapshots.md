@@ -8,6 +8,12 @@ description: Architecture decision for building an exact local kernel commit wit
 
 Accepted on 2026-09-25.
 
+On 2026-10-22, [ADR047](adr-047-exact-path-local-kernel-snapshots.md), originally
+published as ADR041 in the alpha branch, recorded a proposed successor for
+legitimate case-distinct Linux paths. It would partially supersede the
+filename-collision policy after adoption; this original decision body is
+retained unchanged for historical context.
+
 ## Context
 
 The native kernel builder fetches a branch or tag from a credential-free HTTPS

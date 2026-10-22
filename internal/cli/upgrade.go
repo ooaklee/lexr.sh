@@ -20,31 +20,47 @@ const updateRepository = "ooaklee/lexr.sh"
 // with a concrete semantic version.
 var currentBuildVersion = version.Info
 
+// applyUpgrade retains the atomic updater while allowing tests to use a
+// temporary executable rather than replace the running test binary.
+var applyUpgrade = update.Apply
+
 // updateClient abstracts release discovery so tests can serve fixtures.
 type updateClient interface {
 	// Latest fetches the newest published release metadata.
 	Latest(ctx context.Context) (*update.Release, error)
+	// ByTag fetches one explicitly selected published release.
+	ByTag(ctx context.Context, version string) (*update.Release, error)
 	// Fetch downloads one release asset into memory.
 	Fetch(ctx context.Context, url string) ([]byte, error)
 }
 
-// newUpgradeCommand self-updates the installed executable from the latest
+// newUpgradeCommand self-updates from the latest or an explicitly selected
 // published GitHub release, verifying the release checksum before applying.
 func (a *application) newUpgradeCommand() *cobra.Command {
-	return &cobra.Command{
+	command := &cobra.Command{
 		Use:   "upgrade",
-		Short: "Update lexr to the latest release",
-		Long: "Update lexr to the latest release.\n\n" +
+		Short: "Update lexr to the latest or an exact published release",
+		Long: "Update lexr to the latest release, or select an exact version with --version.\n\n" +
 			"Checks GitHub for the newest published version, downloads the matching\n" +
 			"release for this platform, verifies its SHA-256 checksum, and atomically\n" +
-			"replaces the running executable. A network connection is required.",
+			"replaces the running executable. An explicit version can select a published\n" +
+			"prerelease or older release. A network connection is required.",
 		Args: cobra.NoArgs,
 		RunE: a.runUpgrade,
 	}
+	command.Flags().String("version", "", "Install an exact published version, including a prerelease or older release")
+	return command
 }
 
 // runUpgrade performs the check-download-verify-apply update flow.
 func (a *application) runUpgrade(command *cobra.Command, _ []string) error {
+	if command.Flags().Changed("version") {
+		selected, err := command.Flags().GetString("version")
+		if err != nil {
+			return err
+		}
+		return a.upgradeToWith(command.Context(), a.updater, selected)
+	}
 	return a.upgradeWith(command.Context(), a.updater)
 }
 
@@ -66,7 +82,43 @@ func (a *application) upgradeWith(ctx context.Context, client updateClient) erro
 	return a.applyRelease(ctx, client, release, buildVersion)
 }
 
-// applyRelease downloads, verifies, and installs one newer release.
+// upgradeToWith installs an intentional version pin without falling back to
+// Latest or allowing a mismatched release response to select another version.
+func (a *application) upgradeToWith(ctx context.Context, client updateClient, selected string) error {
+	tag, err := update.CanonicalReleaseTag(selected)
+	if err != nil {
+		return fmt.Errorf("invalid --version: %w", err)
+	}
+	release, err := client.ByTag(ctx, tag)
+	if err != nil {
+		if errors.Is(err, update.ErrOffline) {
+			return fmt.Errorf("unable to find release %s: no network connection", tag)
+		}
+		return fmt.Errorf("unable to find release %s: %w", tag, err)
+	}
+	if release == nil || release.Tag != tag {
+		return fmt.Errorf("release response does not match requested version %s; refusing to update", tag)
+	}
+	if release.Draft {
+		return fmt.Errorf("release %s is a draft; refusing to update", tag)
+	}
+	buildVersion, _, _ := currentBuildVersion()
+	if current, err := update.CanonicalReleaseTag(buildVersion); err == nil && current == tag {
+		_, err := fmt.Fprintf(a.out, "lexr %s is already the selected version; no update needed.\n", tag)
+		return err
+	}
+	if _, err := fmt.Fprintf(a.out, "Selected release %s (explicit --version).\n", tag); err != nil {
+		return err
+	}
+	if update.IsNewer(tag, buildVersion) {
+		if _, err := fmt.Fprintf(a.out, "Installing an explicitly selected older release: %s -> %s.\n", buildVersion, tag); err != nil {
+			return err
+		}
+	}
+	return a.applyRelease(ctx, client, release, buildVersion)
+}
+
+// applyRelease downloads, verifies, and installs one selected release.
 func (a *application) applyRelease(ctx context.Context, client updateClient, release *update.Release, buildVersion string) error {
 	binaryName := update.AssetName(release.Tag, runtime.GOOS, runtime.GOARCH)
 	binaryAsset := findAsset(release, binaryName)
@@ -91,7 +143,7 @@ func (a *application) applyRelease(ctx context.Context, client updateClient, rel
 		return fmt.Errorf("release %s publishes no checksum manifest; refusing to update", release.Tag)
 	}
 	fmt.Fprintln(a.out, "Updating binary")
-	if err := update.Apply("", binary); err != nil {
+	if err := applyUpgrade("", binary); err != nil {
 		return err
 	}
 	_, err = fmt.Fprintf(a.out, "Updated successfully: %s -> %s\n", buildVersion, release.Tag)

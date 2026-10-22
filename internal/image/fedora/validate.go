@@ -642,10 +642,10 @@ func validateFedoraManifest(manifest imagecontract.Manifest) error {
 		return errors.Join(errors.New("manifest source-image record is invalid"), err)
 	}
 	bundle := manifest.KernelBundle
-	if bundle.SchemaVersion != kernel.BundleSchemaVersion || bundle.Architecture != "arm64" ||
+	if err := bundle.ValidateSchemaVersion(); err != nil || bundle.Architecture != "arm64" ||
 		strings.TrimSpace(bundle.Release) == "" || strings.TrimSpace(bundle.Version) == "" ||
 		requireSupportedKernel(bundle.ABI) != nil {
-		return errors.New("manifest kernel bundle identity is incomplete or unsupported")
+		return errors.Join(errors.New("manifest kernel bundle identity is incomplete or unsupported"), err)
 	}
 	if err := validateExternalProfile(bundle); err != nil {
 		return err

@@ -14,6 +14,11 @@ earlier record remains intact for historical context.
 Native end-to-end source compilation is not yet accepted. This decision does
 not enable installation, catalogue entries or physical sensor qualification.
 
+On 2026-10-22, the native producer completed local software compilation and
+durable publication. The [dated evidence below](#2026-10-22-local-producer-evidence)
+updates that execution status without changing the historical decision or
+claiming installation or hardware qualification.
+
 ## Context
 
 An authenticated host snapshot and a daemon-reported mount path use different
@@ -104,3 +109,26 @@ diagnostic disposition remain required before CLI delivery.
   dependencies wherever they can be identified read-only.
 - Installation, deployment conflicts, rollback, physical sensor roles, axes,
   calibration, rotation and suspend/resume remain separate unfinished work.
+
+## 2026-10-22 local producer evidence
+
+The normal native CLI producer completed at source commit
+[`73aafd72beb05c89e18e0b1e1fccb9874ef1d9d9`](https://github.com/ooaklee/lexr.sh/commit/73aafd72beb05c89e18e0b1e1fccb9874ef1d9d9),
+tree `98d00b4ac85332e5e5eba80411c1405b7db69443`, using an experimental
+build-only sensor catalogue. Dependency preparation, volume initialisation and
+source compilation each reached a verified terminal exit of zero. Seven native
+software fixture targets passed. The producer validated and durably published
+the complete local set of 16 regular artefact files, three library aliases and
+its descriptive receipt. A separate replay of the retained archive passed the
+unchanged strict consumer; successful log lines alone did not establish this
+result.
+
+This evidence qualifies local software production and publication for that
+source tree. The sensor producer and source-preparation code remain unchanged
+in the alpha/main integration. No fresh native producer run was performed for
+the combined tree. The observation does not qualify Linux daemon-namespace
+mount topology beyond the run's actual controller/daemon environment, publish
+GitHub release assets, enable a shipped sensor catalogue entry, or establish
+installation, service activation, physical sensor roles, axes, calibration,
+rotation, suspend/resume, desktop behaviour or rollback. Those boundaries and
+the original decision above remain in force.

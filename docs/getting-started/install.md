@@ -163,9 +163,29 @@ prove the Lexr revision instead of borrowing one from a containing repository.
 
 ## Update or remove Lexr
 
-Run `lexr upgrade` to update an installed release in place. You can also repeat
-the quick-start installer command: it verifies the latest manifest and skips
-the binary download when the installed bytes already match. Pass `--force` to
+Run `lexr upgrade` to update an installed release in place from the stable
+channel. To opt into a published prerelease or deliberately select an older
+release, specify its complete version:
+
+```sh
+lexr upgrade --version 0.6.0-alpha
+```
+
+The optional `v` prefix is accepted. An explicit selection fetches only that
+release and fails if it is missing, still a draft or has mismatched metadata;
+it never falls back to the stable channel. Downloads must match the release
+SHA-256 manifest before the executable is replaced atomically. This command
+does not perform the install script's optional GitHub attestation check.
+
+Older clients without `upgrade --version` can use the version-pinned installer
+to make the first transition:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ooaklee/lexr.sh/refs/heads/main/install.sh | sh -s -- --version 0.6.0-alpha
+```
+
+You can also repeat the quick-start installer command: it verifies the latest
+manifest and skips the binary download when the installed bytes already match. Pass `--force` to
 that installer command only when you need to repair the current release by
 reinstalling it. Downloads use bounded timeouts and retry transient failures.
 Read release notes first, especially when you have outstanding recovery

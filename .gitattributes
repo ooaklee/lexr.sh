@@ -1,0 +1,2 @@
+# Preserve the byte-pinned upstream copyright notice, including its trailing space.
+/internal/kernel/build/testdata/kernel_hooks/KERNEL-DEBIAN-COPYRIGHT whitespace=-blank-at-eol

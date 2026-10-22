@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -171,11 +172,11 @@ func (inspector *Inspector) Inspect(ctx context.Context, options Options) (_ Rep
 	}
 	if report.Default.EntryIndex != nil && report.Entries[*report.Default.EntryIndex].Ownership == install.GRUBOwned {
 		entry := report.Entries[*report.Default.EntryIndex]
+		// This field identifies the selected hardware's DTB, not the aggregate
+		// digest of every board embedded in a multi-device kernel image.
+		report.Attribution.BootSHA256 = entry.BootDTBSHA256
 		if binding, found := bindingByABI[entry.ABI]; found {
 			report.Attribution.DeviceTreeBoot = &binding
-			report.Attribution.BootSHA256 = binding.SHA256
-		} else {
-			report.Attribution.BootSHA256 = entry.BootDTBSHA256
 		}
 		matching := make([]DTBCandidate, 0)
 		for _, candidate := range candidates {
@@ -247,10 +248,13 @@ func (report Report) abiDeviceTreeBinding(abi string) (install.DeviceTreeBootEvi
 		if combined.Mode == "" {
 			combined.Mode = current.Mode
 			combined.SHA256 = current.SHA256
-		} else if combined.Mode != current.Mode || combined.SHA256 != current.SHA256 {
+			combined.SHA256s = append([]string(nil), current.SHA256s...)
+		} else if combined.Mode != current.Mode || combined.SHA256 != current.SHA256 || !slices.Equal(combined.SHA256s, current.SHA256s) {
 			return install.DeviceTreeBootEvidence{}, false
 		}
 		combined.GRUBEntryCount++
+		combined.NormalGRUBEntryCount += current.NormalGRUBEntryCount
+		combined.RecoveryGRUBEntryCount += current.RecoveryGRUBEntryCount
 	}
 	return combined, combined.Mode != "" && combined.GRUBEntryCount > 0
 }
@@ -436,11 +440,13 @@ func inspectEntry(ctx context.Context, root string, parsed install.GRUBEntry, re
 	}
 	binding, bindingErr := install.InspectDeviceTreeBootBinding(ctx, root, entry.ABI, device, []install.GRUBEntry{parsed})
 	if bindingErr == nil {
-		entry.DeviceTreeBoot = &binding
-		entry.BootDTBState = install.GRUBPathPresent
-		entry.BootDTBSHA256 = binding.SHA256
-		matches := installedErr == nil && binding.SHA256 == installed.SHA256
+		matches := installedErr == nil && slicesContain(binding.SHA256s, installed.SHA256)
 		entry.DTBMatches = &matches
+		if matches {
+			entry.DeviceTreeBoot = &binding
+			entry.BootDTBState = install.GRUBPathPresent
+			entry.BootDTBSHA256 = installed.SHA256
+		}
 	}
 	return entry
 }
