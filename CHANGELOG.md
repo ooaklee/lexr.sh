@@ -73,6 +73,12 @@ that do not apply.
   uses schema 2; adding metadata does not convert an old bundle or establish
   new payload, OS, kernel or hardware qualification.
 
+### Fixed
+
+- Keep camera/IPTSD source acquisition independent of deployment compatibility,
+  while recognising only compiled default output paths in prepared checkouts.
+  Preserve exact commit, input and checkout-mutation checks.
+
 ## [0.6.0] - Unreleased
 
 ### Added

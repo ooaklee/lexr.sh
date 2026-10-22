@@ -13,6 +13,7 @@ import (
 
 	"github.com/ooaklee/lexr.sh/internal/platform"
 	userspaceiptsd "github.com/ooaklee/lexr.sh/internal/userspace/iptsd"
+	"github.com/ooaklee/lexr.sh/internal/userspace/producer"
 )
 
 // fixtureSourceURL is the admitted HTTPS identity rewritten only by test code.
@@ -363,6 +364,111 @@ func TestPrepareCameraSourceIgnoresDeploymentDeclarationAuthority(t *testing.T) 
 					t.Fatalf("source acquisition invoked %s", command.Name)
 				}
 			}
+			for _, relative := range []string{"build/lexr/camera/work/fixture-output.txt", "build/lexr/camera/packages/fixture-output.txt", "build/lexr/camera/releases/fixture-output.txt"} {
+				sourceWrite(t, receipt.RepositoryRoot, relative, "Generated fixture output, not a native build.\n")
+			}
+			if status := sourceGit(t, receipt.RepositoryRoot, "status", "--porcelain=v1", "--untracked-files=all"); status != "" {
+				t.Fatalf("compiled default output dirtied prepared source: %s", status)
+			}
+			_, _, authorityErr := producer.Authenticate(context.Background(), manager.runner, receipt.RepositoryRoot, "imx681-libcamera-v1")
+			if declaration && authorityErr != nil || !declaration && authorityErr == nil {
+				t.Fatalf("downstream HEAD declaration authority, present=%t: %v", declaration, authorityErr)
+			}
+		})
+	}
+}
+
+// TestPreparedOutputExclusionsDoNotHideSourceOrCustomPaths keeps owned default
+// output rules separate from arbitrary repository ignores and tracked drift.
+func TestPreparedOutputExclusionsDoNotHideSourceOrCustomPaths(t *testing.T) {
+	for _, name := range []string{"unrelated", "custom-output", "other-component-output", "source-input", "tracked-default-output", "declaration-commit"} {
+		t.Run(name, func(t *testing.T) {
+			fixture := newSourceFixture(t)
+			sourceWrite(t, fixture.seed, ".gitignore", "/scratch/\n/build/\n")
+			sourceWrite(t, fixture.seed, "build/lexr/camera/work/tracked.txt", "Original tracked fixture.\n")
+			sourceWrite(t, fixture.seed, "userspace/compatibility/imx681-libcamera-v1/lexr-component-compatibility.json", "{}\n")
+			sourceGit(t, fixture.seed, "add", "--all")
+			sourceGit(t, fixture.seed, "add", "--force", "build/lexr/camera/work/tracked.txt")
+			sourceGit(t, fixture.seed, "commit", "-m", "Add source-exclusion boundary fixtures")
+			sourceGit(t, fixture.seed, "push", "origin", "refs/heads/main")
+			fixture.commit = sourceGit(t, fixture.seed, "rev-parse", "HEAD")
+			fixture.tree = sourceGit(t, fixture.seed, "rev-parse", "HEAD^{tree}")
+			manager, _ := fixtureSourceManager(fixture)
+			validate := manager.validate
+			root := ""
+			manager.validate = func(ctx context.Context, component, repository string) error {
+				root = repository
+				return validate(ctx, component, repository)
+			}
+			manager.beforePublish = func() error {
+				if _, err := os.Lstat(filepath.Join(root, ".gitignore")); !os.IsNotExist(err) {
+					t.Fatalf("source repository ignore rules were materialised: %v", err)
+				}
+				switch name {
+				case "unrelated":
+					sourceWrite(t, root, "scratch/untracked.txt", "Must remain visible.\n")
+				case "custom-output":
+					sourceWrite(t, root, "build/lexr/camera/custom/output.txt", "Not a compiled default.\n")
+				case "other-component-output":
+					sourceWrite(t, root, "build/iptsd-sp11/stage/output.txt", "Not a camera output.\n")
+				case "source-input":
+					sourceWrite(t, root, "userspace/camera/libcamera/BASE.txt", fixtureCameraBase+"Changed fixture.\n")
+				case "tracked-default-output":
+					relative := "build/lexr/camera/work/tracked.txt"
+					sourceGit(t, root, "update-index", "--no-skip-worktree", relative)
+					sourceWrite(t, root, relative, "Changed tracked fixture.\n")
+				case "declaration-commit":
+					relative := "userspace/compatibility/imx681-libcamera-v1/lexr-component-compatibility.json"
+					sourceGit(t, root, "update-index", "--no-skip-worktree", relative)
+					sourceWrite(t, root, relative, "{\"changed\":true}\n")
+					sourceGit(t, root, "add", "--sparse", relative)
+					sourceGit(t, root, "commit", "-m", "Change pinned declaration commit")
+				}
+				return nil
+			}
+			request := fixtureSourceRequest(t, fixture)
+			receipt, err := manager.Prepare(context.Background(), request)
+			if err == nil {
+				t.Fatal("source or custom-path drift was hidden by output exclusions")
+			}
+			assertSourceUnpublished(t, receipt, request.OutputDirectory)
+		})
+	}
+}
+
+// TestPreparedOutputExclusionMetadataIsRevalidated rejects widened, replaced or
+// weakly permissioned metadata after the first source validation succeeds.
+func TestPreparedOutputExclusionMetadataIsRevalidated(t *testing.T) {
+	for _, name := range []string{"widened", "symlink", "permissions"} {
+		t.Run(name, func(t *testing.T) {
+			fixture := newSourceFixture(t)
+			manager, _ := fixtureSourceManager(fixture)
+			validate := manager.validate
+			root := ""
+			manager.validate = func(ctx context.Context, component, repository string) error {
+				root = repository
+				return validate(ctx, component, repository)
+			}
+			manager.beforePublish = func() error {
+				file := filepath.Join(root, ".git", "info", "exclude")
+				switch name {
+				case "widened":
+					return os.WriteFile(file, []byte(generatedOutputExclusions("camera")+"/scratch/\n"), 0o600)
+				case "symlink":
+					if err := os.Remove(file); err != nil {
+						return err
+					}
+					return os.Symlink("sparse-checkout", file)
+				default:
+					return os.Chmod(file, 0o644)
+				}
+			}
+			request := fixtureSourceRequest(t, fixture)
+			receipt, err := manager.Prepare(context.Background(), request)
+			if err == nil || !strings.Contains(err.Error(), "generated-output exclusions") {
+				t.Fatalf("altered output-exclusion metadata was accepted: %v", err)
+			}
+			assertSourceUnpublished(t, receipt, request.OutputDirectory)
 		})
 	}
 }
@@ -844,6 +950,14 @@ func TestOptionalPrepareAcceptsCurrentIPTSDIntegration(t *testing.T) {
 			}
 			if _, err := os.Lstat(filepath.Join(receipt.RepositoryRoot, filepath.FromSlash(relative))); !os.IsNotExist(err) {
 				t.Fatalf("source acquisition materialised a deployment declaration: %v", err)
+			}
+			sourceWrite(t, receipt.RepositoryRoot, "build/iptsd-sp11/stage/fixture-output.txt", "Generated fixture output, not a native build.\n")
+			if status := sourceGit(t, receipt.RepositoryRoot, "status", "--porcelain=v1", "--untracked-files=all"); status != "" {
+				t.Fatalf("compiled IPTSD output dirtied prepared source: %s", status)
+			}
+			_, _, authorityErr := producer.Authenticate(context.Background(), manager.runner, receipt.RepositoryRoot, "iptsd-v1")
+			if declaration && authorityErr != nil || !declaration && authorityErr == nil {
+				t.Fatalf("downstream IPTSD HEAD declaration authority, present=%t: %v", declaration, authorityErr)
 			}
 		})
 	}

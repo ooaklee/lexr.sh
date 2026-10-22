@@ -224,11 +224,19 @@ source cache; start another preparation with a fresh destination.
 If a final check fails after publication, the error identifies the published
 destination instead. Require a successful command exit before using it.
 
-Build using that selected checkout through the existing component workflow:
+Build using that selected checkout through the existing component workflow.
+Manifest-aware production requires the complete declared payload target and
+its compatibility decision; source acquisition does not supply them. This
+example uses the declaration's existing 7.2.0 scope, not qualification of a
+newer kernel:
 
 ```sh
 lexr userspace build camera \
-  --repository-root ./camera-source-test/repository --dry-run
+  --repository-root ./camera-source-test/repository --dry-run \
+  --target-architecture arm64 --target-device-profile x1e80100-microsoft-denali-oled \
+  --target-os ubuntu --target-os-version 26.04 \
+  --target-kernel 7.2.0-jg-0sp11v19-qcom-x1e \
+  --allow-unverified-compatibility
 ```
 
 After reviewing the source and plan, omit `--dry-run` for an actual camera build
@@ -247,6 +255,12 @@ including same-host redirects, are refused; use the canonical HTTPS repository
 URL. Repository install scripts are not executed. Commit pinning proves source
 identity, not trustworthiness: selected camera source changes still become build
 inputs to the existing container workflow.
+
+Prepared checkouts recognise only the compiled camera or IPTSD default output
+directories through private Git-local exclusions. Custom output paths and
+unrelated untracked files remain outside that allowance; tracked source changes
+still fail validation. Source preparation does not import repository ignore
+rules as authority for its publication checks.
 
 Test a specifically changed, reviewed component one at a time, preserving the
 known-working userspace combination and its component-specific recovery plan.
