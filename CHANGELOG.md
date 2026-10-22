@@ -54,6 +54,15 @@ that do not apply.
 
 ### Added
 
+- Opt in to a different userspace support repository or branch with
+  `userspace source prepare <camera|iptsd> --experimental`. Require a canonical
+  HTTPS repository, fully qualified branch/tag ref and expected full commit;
+  reject ref drift, authenticate the selected component inputs and publish only a
+  fresh detached checkout with a source-selection receipt. Source preparation
+  does not run repository installers, widen component validation or install
+  userspace. Its dry-run performs no network or filesystem mutation and does
+  not claim that remote source was verified.
+
 - Add experimental, source-only native sensor build foundations for the pinned
   QMI, SSC and desktop proxy composition: authenticated snapshots, supervised
   dependency preparation, offline ARM64 compilation and strict validation of
