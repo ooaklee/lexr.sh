@@ -39,6 +39,7 @@ const (
 	CapabilityPen         Capability = "pen"
 	CapabilityCamera      Capability = "camera"
 	CapabilityPower       Capability = "power"
+	CapabilitySensors     Capability = "sensors"
 	CapabilityTouchscreen Capability = "touchscreen"
 )
 
@@ -57,11 +58,14 @@ const (
 // CompatibilityEvidence describes how compatibility was established.
 type CompatibilityEvidence string
 
-// Supported compatibility evidence values distinguish an exact tested release
-// pair from a component inherited from a previously validated kernel source.
+// Supported compatibility evidence values distinguish tested pairings and
+// inherited validation from source builds that make no deployment claim.
 const (
 	EvidenceExactPair                       CompatibilityEvidence = "exact_pair"
 	EvidenceSourceIntegratedPriorValidation CompatibilityEvidence = "source_integrated_prior_validation"
+	// EvidenceUnqualifiedSource permits only an experimental source build; it
+	// does not establish hardware, kernel, OS, or installation compatibility.
+	EvidenceUnqualifiedSource CompatibilityEvidence = "unqualified_source"
 )
 
 // SupportActions declares the bounded operations lexr may expose for a

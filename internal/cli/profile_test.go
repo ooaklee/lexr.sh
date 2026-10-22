@@ -82,6 +82,7 @@ func TestBuildReleaseProfileIsolation(t *testing.T) {
 	for _, path := range [][]string{
 		{"kernel", "build"}, {"kernel", "release", "list"}, {"image", "release", "validate"},
 		{"userspace", "build"}, {"userspace", "audio", "release", "prepare"}, {"userspace", "camera", "release", "validate"},
+		{"userspace", "source", "prepare"},
 	} {
 		for _, explicit := range []bool{false, true} {
 			root := NewRootCommand(strings.NewReader(""), &bytes.Buffer{}, &bytes.Buffer{})

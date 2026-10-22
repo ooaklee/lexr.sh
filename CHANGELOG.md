@@ -50,6 +50,42 @@ that do not apply.
 
 ---
 
+## [0.6.0] - Unreleased
+
+### Added
+
+- Opt in to a different userspace support repository or branch with
+  `userspace source prepare <camera|iptsd> --experimental`. Require a canonical
+  HTTPS repository, fully qualified branch/tag ref and expected full commit;
+  reject ref drift, authenticate the selected component inputs and publish only a
+  fresh detached checkout with a source-selection receipt. Source preparation
+  does not run repository installers, widen component validation or install
+  userspace. Its dry-run performs no network or filesystem mutation and does
+  not claim that remote source was verified.
+
+- Add experimental, source-only native sensor build foundations for the pinned
+  QMI, SSC and desktop proxy composition: authenticated snapshots, supervised
+  dependency preparation, offline ARM64 compilation and strict validation of
+  licences, ELF providers and loader evidence before durable no-replace
+  publication. Failed and partial work is retained for diagnosis
+  ([#76](https://github.com/ooaklee/lexr.sh/pull/76)).
+- Record the source, execution, publication and local Docker transport boundaries
+  in ADR041–ADR045. The shipped catalogue and public build help remain unchanged:
+  the sensor path requires an experimental build-only catalogue, and does not
+  provide installation, service activation or physical sensor qualification.
+  A fresh native producer and publication run remains unqualified.
+
+### Fixed
+
+- Validate legitimate unversioned private QMI imports against exact providers
+  while preserving strict SSC version requirements and rejecting weak, hidden,
+  unresolved and duplicate definitions.
+- Establish the isolated sensor build account and loader trace environment, and
+  validate Docker volume modes, workspace hand-off and host/daemon mount
+  identities without relaxing source or publication checks.
+- Check British-English prose in JSON values without treating valid object keys
+  as prose or weakening malformed-document checks.
+
 ## [0.5.0] - Unreleased
 
 ### Added

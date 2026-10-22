@@ -52,6 +52,9 @@ func (a *application) newProfileCommand() *cobra.Command {
 // profileIndependentBuild identifies artefact production whose platform scope
 // comes from source and bundle contracts, never a workstation's saved profile.
 func profileIndependentBuild(command *cobra.Command) bool {
+	if command.CommandPath() == "lexr userspace source prepare" {
+		return true
+	}
 	for current := command; current.HasParent(); current = current.Parent() {
 		if current.Name() == "build" || current.Name() == "release" {
 			return true

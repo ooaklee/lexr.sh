@@ -11,6 +11,7 @@ import (
 
 	camerabuild "github.com/ooaklee/lexr.sh/internal/camera/build"
 	"github.com/ooaklee/lexr.sh/internal/platform"
+	sensorbuild "github.com/ooaklee/lexr.sh/internal/sensors/build"
 	userspaceiptsd "github.com/ooaklee/lexr.sh/internal/userspace/iptsd"
 )
 
@@ -26,6 +27,9 @@ const (
 	// ComponentCamera selects the native ARM64 workflow for the IMX681 camera
 	// package set.
 	ComponentCamera Component = "camera"
+	// ComponentSensors selects the authenticated experimental native sensor
+	// source workflow, not an installer or a shipped userspace catalogue entry.
+	ComponentSensors Component = "sensors"
 )
 
 // Request describes one bounded invocation of a maintained userspace build.
@@ -39,6 +43,9 @@ type Request struct {
 	RepositoryRoot string
 	// OutputDirectory overrides the selected component's publication directory.
 	OutputDirectory string
+	// SensorWorkParent is an explicit existing private work parent for the
+	// sensor source builder. It has no meaning for other components.
+	SensorWorkParent string
 	// Image optionally overrides the pinned builder container image.
 	Image string
 	// WorkVolume names the case-sensitive Docker volume used by the IPTSD build.
@@ -49,7 +56,8 @@ type Request struct {
 	MinimumFreeGiB int
 	// NoPull asks the camera helper to use its locally available image only.
 	NoPull bool
-	// DryRun returns the camera build plan without Docker or filesystem mutation.
+	// DryRun returns the camera or sensor build plan without Docker or filesystem
+	// mutation; it does not bypass component-specific request validation.
 	DryRun bool
 }
 
@@ -59,6 +67,8 @@ type Result struct {
 	Component Component `json:"component"`
 	// Camera contains the native camera plan and receipt when selected.
 	Camera *camerabuild.ExecutionReceipt `json:"camera,omitempty"`
+	// Sensors retains the native sensor plan, diagnostics and partial result.
+	Sensors *sensorbuild.Result `json:"sensors,omitempty"`
 }
 
 // cameraBuildManager is the native camera capability required by this orchestrator.
@@ -78,6 +88,8 @@ type Manager struct {
 	validateIPTSDPayload func(string, string) error
 	// cameraBuilder owns the authenticated native camera package workflow.
 	cameraBuilder cameraBuildManager
+	// sensorBuilder owns the authenticated native sensor source workflow.
+	sensorBuilder sensorBuildManager
 }
 
 // New returns a userspace build manager, using the host command runner when no
@@ -94,6 +106,9 @@ func New(runner platform.Runner) *Manager {
 			return err
 		},
 		cameraBuilder: camerabuild.New(runner),
+		// The native sensor manager must own its diagnostic runner instead of
+		// inheriting the CLI's structured-output stream through this adapter.
+		sensorBuilder: sensorbuild.New(nil),
 	}
 }
 
@@ -110,6 +125,13 @@ func (m *Manager) RunWithResult(ctx context.Context, request Request) (Result, e
 	}
 	if request.Jobs < 0 || request.Jobs > 64 {
 		return Result{}, errors.New("jobs must be between 1 and 64, or zero to use the workflow default")
+	}
+	if request.Component == ComponentSensors {
+		if err := validateSensorAdapterRequest(request); err != nil {
+			return Result{}, err
+		}
+	} else if request.SensorWorkParent != "" {
+		return Result{}, errors.New("sensor-work-parent applies only to the sensors builder")
 	}
 	root, err := resolveRepositoryRoot(request.RepositoryRoot, request.Component)
 	if err != nil {
@@ -148,6 +170,8 @@ func (m *Manager) RunWithResult(ctx context.Context, request Request) (Result, e
 			return result, err
 		}
 		return result, nil
+	case ComponentSensors:
+		return m.runSensors(ctx, root, request)
 	default:
 		return Result{}, fmt.Errorf("component %q does not have a supported source build", request.Component)
 	}
@@ -173,6 +197,10 @@ func resolveRepositoryRoot(configured string, component Component) (string, erro
 		candidate := filepath.Join(absolute, "userspace", "iptsd-sp11", "SOURCE.env")
 		if component == ComponentCamera {
 			candidate = filepath.Join(absolute, filepath.FromSlash(camerabuild.TrackedInputPaths()[0]))
+		} else if component == ComponentSensors {
+			// Discovery is not source authentication. The native sensor manager
+			// independently verifies its complete pinned inventory and sources.
+			candidate = filepath.Join(absolute, filepath.FromSlash(sensorSourceInventoryMarker))
 		}
 		if info, statErr := os.Lstat(candidate); statErr == nil && info.Mode().IsRegular() {
 			return absolute, nil
