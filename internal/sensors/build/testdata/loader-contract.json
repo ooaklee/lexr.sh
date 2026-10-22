@@ -1,0 +1,1342 @@
+{
+  "schema": "lexr-sensors-loader-contract-fixtures-v1",
+  "provenance": {
+    "source_commit": "40cc9cff4194007aab1e9f39fbf3885f88c77999",
+    "source_recipe_file_sha256": "11712bb2bec2ddfbf7ca5f7af0c3bd949dc04cc4801de6f94ffacb5799f1ce59",
+    "source_script_sha256": "42f9c9c038b4025d655c61982bb04341bf4f189417219f20cb17bad23f3dae9d",
+    "source_stdout_sha256": "ccef65b646f3c1e06f3e36838d8c788373cf7f4ebe51a59715e43d7406485a57",
+    "source_stdout_bytes": 323204,
+    "golden_offset": 321950,
+    "golden_bytes": 1254,
+    "golden_sha256": "90479fd1ebfdf59b93e35a1f7f155caa603b973e3a73b38389d407d130152c34",
+    "observed_artifact": "libqmi-glib.so.5.12.0",
+    "architecture": "aarch64",
+    "glibc_package": "libc6:arm64=2.43-2ubuntu2.4",
+    "scope": "Only the first libqmi listing is an observed native result. Named-only derivation and all other cases are synthetic software fixtures, not observations of the environment-controlled loader or hardware."
+  },
+  "cases": [
+    {
+      "id": "actual-address-only-rejected",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "actual",
+      "raw": "\t (0x0000ffff87050000)\n\tlinux-vdso.so.1 (0x0000ffff8753c000)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x0000ffff86ed0000)\n\tlibgio-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libgio-2.0.so.0 (0x0000ffff86cb0000)\n\tlibgobject-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libgobject-2.0.so.0 (0x0000ffff86c20000)\n\tlibqrtr-glib.so.0 => /usr/lib/aarch64-linux-gnu/libqrtr-glib.so.0 (0x0000ffff86bf0000)\n\tlibc.so.6 => /usr/lib/aarch64-linux-gnu/libc.so.6 (0x0000ffff86a20000)\n\t/lib/ld-linux-aarch64.so.1 (0x0000ffff87500000)\n\tlibatomic.so.1 => /usr/lib/aarch64-linux-gnu/libatomic.so.1 (0x0000ffff869f0000)\n\tlibm.so.6 => /usr/lib/aarch64-linux-gnu/libm.so.6 (0x0000ffff86920000)\n\tlibpcre2-8.so.0 => /usr/lib/aarch64-linux-gnu/libpcre2-8.so.0 (0x0000ffff86860000)\n\tlibgmodule-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so.0 (0x0000ffff86830000)\n\tlibz.so.1 => /usr/lib/aarch64-linux-gnu/libz.so.1 (0x0000ffff867f0000)\n\tlibmount.so.1 => /usr/lib/aarch64-linux-gnu/libmount.so.1 (0x0000ffff86770000)\n\tlibselinux.so.1 => /usr/lib/aarch64-linux-gnu/libselinux.so.1 (0x0000ffff86720000)\n\tlibffi.so.8 => /usr/lib/aarch64-linux-gnu/libffi.so.8 (0x0000ffff866e0000)\n\tlibblkid.so.1 => /usr/lib/aarch64-linux-gnu/libblkid.so.1 (0x0000ffff86680000)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "derived-named-only-not-runtime",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "derived",
+      "raw": "\tlinux-vdso.so.1 (0x0000ffff8753c000)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x0000ffff86ed0000)\n\tlibgio-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libgio-2.0.so.0 (0x0000ffff86cb0000)\n\tlibgobject-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libgobject-2.0.so.0 (0x0000ffff86c20000)\n\tlibqrtr-glib.so.0 => /usr/lib/aarch64-linux-gnu/libqrtr-glib.so.0 (0x0000ffff86bf0000)\n\tlibc.so.6 => /usr/lib/aarch64-linux-gnu/libc.so.6 (0x0000ffff86a20000)\n\t/lib/ld-linux-aarch64.so.1 (0x0000ffff87500000)\n\tlibatomic.so.1 => /usr/lib/aarch64-linux-gnu/libatomic.so.1 (0x0000ffff869f0000)\n\tlibm.so.6 => /usr/lib/aarch64-linux-gnu/libm.so.6 (0x0000ffff86920000)\n\tlibpcre2-8.so.0 => /usr/lib/aarch64-linux-gnu/libpcre2-8.so.0 (0x0000ffff86860000)\n\tlibgmodule-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libgmodule-2.0.so.0 (0x0000ffff86830000)\n\tlibz.so.1 => /usr/lib/aarch64-linux-gnu/libz.so.1 (0x0000ffff867f0000)\n\tlibmount.so.1 => /usr/lib/aarch64-linux-gnu/libmount.so.1 (0x0000ffff86770000)\n\tlibselinux.so.1 => /usr/lib/aarch64-linux-gnu/libselinux.so.1 (0x0000ffff86720000)\n\tlibffi.so.8 => /usr/lib/aarch64-linux-gnu/libffi.so.8 (0x0000ffff866e0000)\n\tlibblkid.so.1 => /usr/lib/aarch64-linux-gnu/libblkid.so.1 (0x0000ffff86680000)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-named",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-without-vdso",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-transitive-extra",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibtransitive.so.1 => /usr/lib/libtransitive.so.1 (0x6789)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-unnamed-first",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\t (0x1234)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-unnamed-late",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t (0x1234)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-unnamed-duplicate",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\t (0x1234)\n\t (0x4321)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-unnamed-malformed",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\t (0xnothex)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-unnamed-trailing",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\t (0x1234) extra\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-missing-loader",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-duplicate-loader",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-wrong-loader",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/usr/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-resolved-loader",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\nld-linux-aarch64.so.1 => /lib/ld-linux-aarch64.so.1 (0x2)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-missing-needed",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": false,
+      "archive_error": "direct ELF dependency is absent from loader evidence"
+    },
+    {
+      "id": "context-0-wrong-needed-key",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibother.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": false,
+      "archive_error": "direct ELF dependency is absent from loader evidence"
+    },
+    {
+      "id": "context-0-wrong-system-origin",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /tmp/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-duplicate-system",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-nul",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\u0000",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": "raw loader origins differ"
+    },
+    {
+      "id": "context-0-carriage-return",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\r\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-interior-blank",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-origin-dot",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/./aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-origin-dotdot",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/../usr/lib/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-origin-double-slash",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => //lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-unsafe-soname",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tbad$name.so => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-dot-soname",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t. => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-long-soname",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-0-unexpected-private-prefix",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibqmi-glib.so.9 => /usr/lib/libqmi-glib.so.9 (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-named",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-without-vdso",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-transitive-extra",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibtransitive.so.1 => /usr/lib/libtransitive.so.1 (0x6789)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-unnamed-first",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\t (0x1234)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-unnamed-late",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t (0x1234)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-unnamed-duplicate",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\t (0x1234)\n\t (0x4321)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-unnamed-malformed",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\t (0xnothex)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-unnamed-trailing",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\t (0x1234) extra\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-missing-loader",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-duplicate-loader",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-wrong-loader",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/usr/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-resolved-loader",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\nld-linux-aarch64.so.1 => /lib/ld-linux-aarch64.so.1 (0x2)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-missing-needed",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": false,
+      "archive_error": "direct ELF dependency is absent from loader evidence"
+    },
+    {
+      "id": "context-1-wrong-needed-key",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibother.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": false,
+      "archive_error": "direct ELF dependency is absent from loader evidence"
+    },
+    {
+      "id": "context-1-wrong-system-origin",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /tmp/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-duplicate-system",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-nul",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\u0000",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": "raw loader origins differ"
+    },
+    {
+      "id": "context-1-carriage-return",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\r\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-interior-blank",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-origin-dot",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/./aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-origin-dotdot",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/../usr/lib/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-origin-double-slash",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => //lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-unsafe-soname",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tbad$name.so => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-dot-soname",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t. => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-long-soname",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-unexpected-private-prefix",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibqmi-glib.so.9 => /usr/lib/libqmi-glib.so.9 (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-private-wrong-libqmi-glib.so.5",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /usr/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-1-private-duplicate-libqmi-glib.so.5",
+      "artifact": "libssc.so.2",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-named",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-without-vdso",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-transitive-extra",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibtransitive.so.1 => /usr/lib/libtransitive.so.1 (0x6789)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-unnamed-first",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\t (0x1234)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-unnamed-late",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t (0x1234)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-unnamed-duplicate",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\t (0x1234)\n\t (0x4321)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-unnamed-malformed",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\t (0xnothex)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-unnamed-trailing",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\t (0x1234) extra\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-missing-loader",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-duplicate-loader",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-wrong-loader",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/usr/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-resolved-loader",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\nld-linux-aarch64.so.1 => /lib/ld-linux-aarch64.so.1 (0x2)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-missing-needed",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": false,
+      "archive_error": "direct ELF dependency is absent from loader evidence"
+    },
+    {
+      "id": "context-2-wrong-needed-key",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibother.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": false,
+      "archive_error": "direct ELF dependency is absent from loader evidence"
+    },
+    {
+      "id": "context-2-wrong-system-origin",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /tmp/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-duplicate-system",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-nul",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\u0000",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": "raw loader origins differ"
+    },
+    {
+      "id": "context-2-carriage-return",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\r\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-interior-blank",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-origin-dot",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/./aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-origin-dotdot",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/../usr/lib/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-origin-double-slash",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => //lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-unsafe-soname",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tbad$name.so => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-dot-soname",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t. => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-long-soname",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-unexpected-private-prefix",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibqmi-glib.so.9 => /usr/lib/libqmi-glib.so.9 (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-private-wrong-libqmi-glib.so.5",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /usr/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-private-duplicate-libqmi-glib.so.5",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-private-wrong-libssc.so.2",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /usr/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-2-private-duplicate-libssc.so.2",
+      "artifact": "ssccli",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-named",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-without-vdso",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-transitive-extra",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibtransitive.so.1 => /usr/lib/libtransitive.so.1 (0x6789)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-unnamed-first",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\t (0x1234)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-unnamed-late",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t (0x1234)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-unnamed-duplicate",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\t (0x1234)\n\t (0x4321)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-unnamed-malformed",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\t (0xnothex)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-unnamed-trailing",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\t (0x1234) extra\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-missing-loader",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-duplicate-loader",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-wrong-loader",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/usr/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-resolved-loader",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\nld-linux-aarch64.so.1 => /lib/ld-linux-aarch64.so.1 (0x2)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-missing-needed",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": false,
+      "archive_error": "direct ELF dependency is absent from loader evidence"
+    },
+    {
+      "id": "context-3-wrong-needed-key",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibother.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": false,
+      "archive_error": "direct ELF dependency is absent from loader evidence"
+    },
+    {
+      "id": "context-3-wrong-system-origin",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /tmp/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-duplicate-system",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-nul",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\u0000",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": "raw loader origins differ"
+    },
+    {
+      "id": "context-3-carriage-return",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\r\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-interior-blank",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-origin-dot",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/./aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-origin-dotdot",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/../usr/lib/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-origin-double-slash",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => //lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-unsafe-soname",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tbad$name.so => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-dot-soname",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t. => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-long-soname",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-unexpected-private-prefix",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibqmi-glib.so.9 => /usr/lib/libqmi-glib.so.9 (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-private-wrong-libqmi-glib.so.5",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /usr/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-private-duplicate-libqmi-glib.so.5",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-private-wrong-libssc.so.2",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /usr/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-3-private-duplicate-libssc.so.2",
+      "artifact": "iio-sensor-proxy",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibqmi-glib.so.5 => /work/job/providers/lib/libqmi-glib.so.5 (0x2345)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2345)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibssc.so.2 => /work/job/providers/lib/libssc.so.2 (0x2)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-named",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-without-vdso",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-transitive-extra",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibtransitive.so.1 => /usr/lib/libtransitive.so.1 (0x6789)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-unnamed-first",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\t (0x1234)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-unnamed-late",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t (0x1234)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-unnamed-duplicate",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\t (0x1234)\n\t (0x4321)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-unnamed-malformed",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\t (0xnothex)\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-unnamed-trailing",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\t (0x1234) extra\n\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-missing-loader",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-duplicate-loader",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-wrong-loader",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/usr/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-resolved-loader",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\nld-linux-aarch64.so.1 => /lib/ld-linux-aarch64.so.1 (0x2)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-missing-needed",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": false,
+      "archive_error": "direct ELF dependency is absent from loader evidence"
+    },
+    {
+      "id": "context-4-wrong-needed-key",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibother.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": true,
+      "archive_accept": false,
+      "archive_error": "direct ELF dependency is absent from loader evidence"
+    },
+    {
+      "id": "context-4-wrong-system-origin",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /tmp/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-duplicate-system",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-nul",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\u0000",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": "raw loader origins differ"
+    },
+    {
+      "id": "context-4-carriage-return",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\r\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-interior-blank",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-origin-dot",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/./aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-origin-dotdot",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/../usr/lib/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-origin-double-slash",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => //lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-unsafe-soname",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tbad$name.so => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-dot-soname",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t. => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-long-soname",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa => /usr/lib/bad.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "context-4-unexpected-private-prefix",
+      "artifact": "monitor-sensor",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\tlibglib-2.0.so.0 => /usr/lib/aarch64-linux-gnu/libglib-2.0.so.0 (0x4567)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\tlibqmi-glib.so.9 => /usr/lib/libqmi-glib.so.9 (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "name-boundary-dotdot-soname",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t.. => /usr/lib/extra.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "name-boundary-nonascii-soname",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\té.so => /usr/lib/extra.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "name-boundary-empty-soname",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\t => /usr/lib/extra.so (0x1)\n",
+      "parse_accept": false,
+      "archive_accept": false,
+      "archive_error": ""
+    },
+    {
+      "id": "name-boundary-one-character-soname",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\ta => /usr/lib/extra.so (0x1)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    },
+    {
+      "id": "name-boundary-maximum-length-soname",
+      "artifact": "libqmi-glib.so.5.12.0",
+      "origin": "synthetic",
+      "raw": "\tlinux-vdso.so.1 (0x1234)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x4321)\n\t/lib/ld-linux-aarch64.so.1 (0x3456)\n\taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa => /usr/lib/extra.so (0x1)\n",
+      "parse_accept": true,
+      "archive_accept": true,
+      "archive_error": ""
+    }
+  ]
+}

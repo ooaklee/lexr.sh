@@ -103,12 +103,28 @@ the decision closest to the question you are asking:
 | Project and hardware scope | [ADR023: standalone naming boundary](../adr/adr-023-lexr-standalone-repository-and-compatibility.md), [ADR028: Snapdragon X project scope](../adr/adr-028-snapdragon-x-project-scope.md) |
 | Command and data foundations | [ADR001: feature-oriented CLI](../adr/adr-001-feature-oriented-cli.md), [ADR002: image catalogue](../adr/adr-002-validated-image-catalog.md), [ADR003: kernel bundles](../adr/adr-003-version-bound-kernel-bundles.md), [ADR029: kernel DTB delivery](../adr/adr-029-self-contained-kernel-dtb-delivery.md), [ADR036: static host capabilities](../adr/adr-036-operation-level-static-host-capability-guardrails.md) |
 | Image creation and installation | [ADR004: Ubuntu remaster](../adr/adr-004-ubuntu-hybrid-iso-remaster.md), [ADR007: installed-system hand-off](../adr/adr-007-installed-system-handoff.md), [ADR008: media discovery](../adr/adr-008-adapter-owned-media-discovery.md), [ADR009: offline companion](../adr/adr-009-single-manifest-companion-bundle.md), [ADR012: removable-media writing](../adr/adr-012-identity-bound-removable-media-writing.md), [ADR017: image release preparation](../adr/adr-017-native-image-release-preparation.md), [ADR027: Fedora EROFS remaster and installed hand-off](../adr/adr-027-fedora-erofs-remaster-and-installed-handoff.md), [ADR030: structural offline-root preparation](../adr/adr-030-structural-offline-root-boot-preparation.md) |
-| Userspace, privacy and recovery | [ADR041: component compatibility](../adr/adr-041-component-compatibility-manifests.md), [ADR005: clean-up](../adr/adr-005-reversible-legacy-cleanup.md), [ADR006: userspace companion](../adr/adr-006-userspace-companion.md), [ADR010: native workflows](../adr/adr-010-native-cli-workflow-migration.md), [ADR011: Windows hand-offs](../adr/adr-011-private-windows-handoff.md), [ADR013: application transactions](../adr/adr-013-private-handoff-application-transactions.md), [ADR014: IPTSD releases](../adr/adr-014-native-iptsd-release-transactions.md), [ADR015: camera packages](../adr/adr-015-native-imx681-package-and-release-contracts.md), [ADR018: camera validation](../adr/adr-018-native-imx681-runtime-validation.md), [ADR019: audio releases](../adr/adr-019-native-audio-release-preparation.md), [ADR020: camera authority](../adr/adr-020-independent-camera-authority-digests.md), [ADR021: original-INF authority](../adr/adr-021-windows-handoff-v2-original-inf-authority.md), [ADR022: privileged collection](../adr/adr-022-privileged-windows-collection-and-controller-authority.md) |
+| Userspace, privacy and recovery | [ADR049: component compatibility](../adr/adr-049-component-compatibility-manifests.md), [ADR005: clean-up](../adr/adr-005-reversible-legacy-cleanup.md), [ADR006: userspace companion](../adr/adr-006-userspace-companion.md), [ADR010: native workflows](../adr/adr-010-native-cli-workflow-migration.md), [ADR011: Windows hand-offs](../adr/adr-011-private-windows-handoff.md), [ADR013: application transactions](../adr/adr-013-private-handoff-application-transactions.md), [ADR014: IPTSD releases](../adr/adr-014-native-iptsd-release-transactions.md), [ADR015: camera packages](../adr/adr-015-native-imx681-package-and-release-contracts.md), [ADR018: camera validation](../adr/adr-018-native-imx681-runtime-validation.md), [ADR019: audio releases](../adr/adr-019-native-audio-release-preparation.md), [ADR020: camera authority](../adr/adr-020-independent-camera-authority-digests.md), [ADR021: original-INF authority](../adr/adr-021-windows-handoff-v2-original-inf-authority.md), [ADR022: privileged collection](../adr/adr-022-privileged-windows-collection-and-controller-authority.md) |
 | Releases and repository ownership | [ADR016: kernel release preparation](../adr/adr-016-native-kernel-release-preparation.md), [ADR024: automation ownership](../adr/adr-024-lexr-owned-automation.md), [ADR025: build provenance](../adr/adr-025-submodule-safe-build-provenance.md), [ADR026: project terms](../adr/adr-026-apache-2.0-project-terms-and-release-notices.md), [ADR038: self-update](../adr/adr-038-atomic-rename-over-self-update.md), [ADR039: standalone installer](../adr/adr-039-verified-atomic-standalone-installer.md) |
 
 Read an ADR as historical reasoning, then check current code and task guides for
 the implemented contract. [ADR040: installation-scoped GRUB ownership](../adr/adr-040-installation-scoped-grub-ownership.md)
 records the native multiboot validation boundary and partially supersedes ADR029.
+The proposed [ADR047: exact-path local kernel snapshots](../adr/adr-047-exact-path-local-kernel-snapshots.md)
+records destination namespace checks for legitimate case-distinct kernel paths
+and the unchanged source-identity boundaries inherited from ADR037.
+The proposed [ADR048: ordered Stubble inventory](../adr/adr-048-ordered-stubble-inventory.md)
+records schema-3 observations and the separation of optional payloads from
+supported-device claims. These records retain the alpha branch's historical
+decisions under unique current numbers; their status notes link to the
+published ADR041 and ADR042 originals.
+
+Sensor source builds are recorded separately in
+[ADR041](../adr/adr-041-unqualified-sensor-source-builds.md) through
+[ADR045](../adr/adr-045-local-sensor-build-transport-and-bind-namespaces.md),
+including the dated local producer evidence and its qualification limits.
+[ADR046](../adr/adr-046-opt-in-userspace-source-selection.md) records explicit,
+experimental camera/IPTSD source preparation.
+
 When an agreed change needs a new record, use the
 [ADR template](../adr/_adr-XXXX-template.md) and follow the coordination rule in
 [`CONTRIBUTING.md`](https://github.com/ooaklee/lexr.sh/blob/main/CONTRIBUTING.md#before-you-start).

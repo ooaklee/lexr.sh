@@ -3,12 +3,13 @@
 package catalog
 
 import (
-	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
 	"sort"
+
+	"github.com/ooaklee/lexr.sh/internal/userspace/compatibility"
 )
 
-// CurrentSchemaVersion is the only userspace catalogue schema understood by
-// this build writes; schema 2 remains a read-only migration input.
+// CurrentSchemaVersion is the userspace catalogue schema written by this
+// build; schema 2 remains a supported legacy input.
 const CurrentSchemaVersion = 3
 
 // Level describes the lifecycle and support maturity of a component.
@@ -42,6 +43,7 @@ const (
 	CapabilityPen         Capability = "pen"
 	CapabilityCamera      Capability = "camera"
 	CapabilityPower       Capability = "power"
+	CapabilitySensors     Capability = "sensors"
 	CapabilityTouchscreen Capability = "touchscreen"
 )
 
@@ -60,11 +62,14 @@ const (
 // CompatibilityEvidence describes how compatibility was established.
 type CompatibilityEvidence string
 
-// Supported compatibility evidence values distinguish an exact tested release
-// pair from a component inherited from a previously validated kernel source.
+// Supported compatibility evidence values distinguish tested pairings and
+// inherited validation from source builds that make no deployment claim.
 const (
 	EvidenceExactPair                       CompatibilityEvidence = "exact_pair"
 	EvidenceSourceIntegratedPriorValidation CompatibilityEvidence = "source_integrated_prior_validation"
+	// EvidenceUnqualifiedSource permits only an experimental source build; it
+	// does not establish hardware, kernel, OS, or installation compatibility.
+	EvidenceUnqualifiedSource CompatibilityEvidence = "unqualified_source"
 )
 
 // SupportActions declares the bounded operations lexr may expose for a

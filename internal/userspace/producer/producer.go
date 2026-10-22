@@ -25,9 +25,9 @@ type Policy struct {
 // compiledPolicies pins reviewed canonical copies of the declarations authored
 // in the support repository. Testdata are copies, never another authored source.
 var compiledPolicies = map[string]Policy{
-	"audio-fullio-v19c":   {ComponentID: "audio-fullio-v19c", Release: "sp11-audio-v19c-full", Capability: "audio", Manifest: compatibility.Reference{Size: 1023, SHA256: "d44f5dc8b8256d6225fe3c43c95e398e498d66f05dd30ff6ce62bdba21b61bd0"}},
-	"iptsd-v1":            {ComponentID: "iptsd-v1", Release: "sp11-iptsd-v3", Capability: "pen", Manifest: compatibility.Reference{Size: 1005, SHA256: "6b8931f161f2950fb49063b8d2a6d7dcd543be9de5341c35b5d69bfb0d0d3cd1"}},
-	"imx681-libcamera-v1": {ComponentID: "imx681-libcamera-v1", Release: "sp11-imx681-libcamera-v2", Capability: "camera", Manifest: compatibility.Reference{Size: 1030, SHA256: "56897a5cfa4297dd0f41855f0e8d8998c8c3adab665bb9faa2a644c0aa2966f0"}},
+	"audio-fullio-v19c":   {ComponentID: "audio-fullio-v19c", Release: "sp11-audio-v19c-full", Capability: "audio", Manifest: compatibility.Reference{Size: 1088, SHA256: "6111f5a42dd500005dab077f8f75ed500295f5b226e48f1b4a252c6ee8bebda2"}},
+	"iptsd-v1":            {ComponentID: "iptsd-v1", Release: "sp11-iptsd-v3", Capability: "pen", Manifest: compatibility.Reference{Size: 1056, SHA256: "8ad2a07d06511ff66714d69b8806b8b334844821c29f8af9e7f184b9e643dbc4"}},
+	"imx681-libcamera-v1": {ComponentID: "imx681-libcamera-v1", Release: "sp11-imx681-libcamera-v2", Capability: "camera", Manifest: compatibility.Reference{Size: 1081, SHA256: "6ac39f4f451487d253c483b0a2eefa068978c41c4b53d82b77044aea606924a4"}},
 }
 
 // PolicyFor returns an immutable value copy of one reviewed producer authority.

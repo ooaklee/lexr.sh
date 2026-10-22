@@ -10,20 +10,23 @@ const MaxBytes = 64 << 10
 
 // Manifest is schema v1, with alternatives kept as complete target tuples.
 type Manifest struct {
-	SchemaVersion int          `json:"schema_version"`
-	Kind          string       `json:"kind"`
-	ComponentID   string       `json:"component_id"`
-	Release       string       `json:"release"`
-	Capabilities  []string     `json:"capabilities"`
-	Lexr          VersionRange `json:"lexr"`
-	Targets       []TargetRule `json:"targets"`
+	SchemaVersion int      `json:"schema_version"`
+	Kind          string   `json:"kind"`
+	ComponentID   string   `json:"component_id"`
+	Release       string   `json:"release"`
+	Capabilities  []string `json:"capabilities"`
+	// Description is optional explanatory prose, never compatibility authority.
+	Description string       `json:"description,omitempty"`
+	Lexr        VersionRange `json:"lexr"`
+	Targets     []TargetRule `json:"targets"`
 }
 
 // VersionRange distinguishes a hard release interval from recorded evidence.
+// An omitted tested-through value records no qualification for any Lexr release.
 type VersionRange struct {
 	MinimumInclusive       string `json:"minimum_inclusive"`
 	MaximumExclusive       string `json:"maximum_exclusive,omitempty"`
-	TestedThroughInclusive string `json:"tested_through_inclusive"`
+	TestedThroughInclusive string `json:"tested_through_inclusive,omitempty"`
 }
 
 // TargetRule requires every dimension within one alternative to match.

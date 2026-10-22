@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "release": "sp11-qcom-x1e-7.2.9-jg-0sp11v2",
+  "release_url": "https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-qcom-x1e-7.2.9-jg-0sp11v2",
+  "download_base_url": "https://github.com/ooaklee/linux-surface-pro-11-oe/releases/download/sp11-qcom-x1e-7.2.9-jg-0sp11v2/",
+  "retrieved_date": "2026-10-22",
+  "files": {
+    "lexr-kernel-bundle.json": {
+      "github_asset_id": 664644600,
+      "bytes": 178937,
+      "sha256": "c9099602a5b0f8ae972d41aa5ba25c779b08cddf513605fd44feb8f5c9c46ba4"
+    },
+    "COPYING": {
+      "github_asset_id": 664644599,
+      "bytes": 496,
+      "sha256": "fb5a425bd3b3cd6071a3a9aff9909a859e7c1158d54d32e07658398cd67eb6a0"
+    },
+    "LICENSE-GPL-2.0": {
+      "github_asset_id": 664644605,
+      "bytes": 18600,
+      "sha256": "8780e78a1a737e127f25a65f6d95269bffd36158dc261114de7859b490bfc5aa"
+    }
+  },
+  "scope": "Unmodified public generated delivery metadata and the associated release licence notices only. No Debian packages, kernel source, executable image, firmware, Windows driver or private device capture is included.",
+  "qualification": "Offline reader compatibility, ordered inventory preservation and refusal checks only. Metadata does not prove package bytes, measured boot-image contents, installation, physical hardware support or qualification of optional devices."
+}

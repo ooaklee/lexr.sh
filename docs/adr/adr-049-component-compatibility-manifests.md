@@ -1,6 +1,6 @@
 ---
-id: adrs-adr041
-title: "ADR041: Authenticated userspace component compatibility"
+id: adrs-adr049
+title: "ADR049: Authenticated userspace component compatibility"
 description: Authority, canonical manifests, scoped evaluation and migration for portable userspace compatibility evidence.
 ---
 
@@ -8,6 +8,11 @@ description: Authority, canonical manifests, scoped evaluation and migration for
 
 Proposed for the implementation of
 [issue #44](https://github.com/ooaklee/lexr.sh/issues/44).
+
+On 2026-10-22, this proposal was renumbered from the pending compatibility
+branch's ADR041 to ADR049 when reconciling it with main.
+[ADR041](adr-041-unqualified-sensor-source-builds.md) retains its independent
+sensor source-build history.
 
 ## Context
 
@@ -51,11 +56,21 @@ and rejects ambiguous, unknown, mis-cased, duplicate, null, noncanonical or
 malformed input. Optional upper bounds are omitted, never null or empty.
 Unknown schemas fail closed.
 
+The optional `description` follows `capabilities` in canonical field order.
+When present it is nonblank UTF-8 text of at most 1024 bytes without control
+characters. It is human-readable context only and grants no capabilities,
+commands, installation paths or compatibility evidence. Omission retains the
+canonical form of declarations which do not contain it.
+
 A target rule is an AND across architecture, device, OS and kernel. Rules are
 alternatives; evidence from two rules is never combined. Lexr constraints use
 SemVer 2.0 precedence. Persisted versions omit `v` and build metadata. Runtime
 build metadata does not change precedence; development, dirty and noncanonical
 builds are unverified. A tested-through value is evidence, not a hard ceiling.
+Lexr tested-through evidence is optional: omission reports `unverified` when
+the hard bounds match. Initial declarations require stable Lexr `0.7.0` and
+omit that evidence until a reviewed test establishes it. A canonical prerelease
+such as `0.7.0-rc.1` is below this hard minimum and cannot override it.
 
 Kernel ABI generations are ordered only within the exact patch line, scope and
 platform flavour. The shared parser recognises registered scopes and current
@@ -119,15 +134,28 @@ Audio release authority advances to schema 2 (eight files). Native camera
 build and release authority advance to schema 2 (nine and twelve files).
 Camera validates the same explicit payload tuple at build and preparation;
 its declaration must also exist with identical bytes at the recorded support
-commit. Schema-1 native camera preparations must be rebuilt for this new path;
-exact pinned downloaded camera v1 remains supported through its legacy adapter.
+commit. New manifest-aware build and preparation commands produce schema 2.
+Existing native camera schema-1 inputs retain static validation and installation
+under their original exact eight-file build or eleven-file release contracts,
+independent authority digest, source ancestry, recipe, package and IPA proofs.
+Legacy schema 1 accepts no compatibility manifest or assessment record. It
+cannot be converted by adding sidecars or changing its schema label; preparing
+a new manifest-aware release requires a new schema-2 build. Exact pinned
+downloaded camera v1 also remains supported through its legacy adapter.
 IPTSD keeps its closed native payload contract and records the declaration and
 assessment beside that payload, with checksum coverage. These build sidecars
 do not grant new downloadable-release or installation authority.
 
-Initial declarations intentionally contain no tested OS versions. A dedicated
-unverified override is necessary until maintainers add qualification evidence
-through a reviewed source declaration and independent pin update.
+Initial declarations intentionally contain no tested OS versions and omit
+Lexr tested-through evidence. Their Ubuntu 26.04 interval and existing 7.2.0
+patch-line generation bounds remain unchanged; this does not qualify new 7.2.9
+payloads. A dedicated unverified override is necessary when hard bounds match
+until maintainers add qualification evidence through a reviewed source
+declaration and independent pin update.
+
+Source acquisition remains a separate operation. These declarations do not
+change `userspace source prepare`, enable sensor installation or turn a
+build-only source composition into an installable release.
 
 Existing schema-5 images remain readable only with their legacy companion
 records; compatibility assessments require schema 6. Unknown schemas still

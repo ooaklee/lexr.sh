@@ -25,6 +25,7 @@ import (
 	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
 	userspacemanager "github.com/ooaklee/lexr.sh/internal/userspace/manager"
 	userspacerelease "github.com/ooaklee/lexr.sh/internal/userspace/release"
+	userspacesource "github.com/ooaklee/lexr.sh/internal/userspace/source"
 	"github.com/ooaklee/lexr.sh/internal/version"
 )
 
@@ -51,6 +52,7 @@ type application struct {
 	kernelBootRunner     platform.Runner
 	host                 hostcap.Host
 	userspace            *userspacemanager.Manager
+	userspaceSources     userspaceSourcePreparer
 	mediaFactory         removableMediaFactory
 	imageValidator       imageValidationFunc
 	updater              updateClient
@@ -81,6 +83,7 @@ func NewRootCommand(input io.Reader, output, errorOutput io.Writer) *cobra.Comma
 		userspacecatalog.NewLoader(lexr.UserspaceCatalogFS(), "supported-userspace.json"),
 		userspacerelease.NewClient(nil), nil,
 	)
+	app.userspaceSources = userspacesource.New()
 	app.images = manager.NewImageManager(loader, errorOutput)
 	app.images.Userspace = app.userspace
 	app.updater = update.NewClient(updateRepository)

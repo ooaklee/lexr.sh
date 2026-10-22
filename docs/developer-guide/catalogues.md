@@ -98,5 +98,12 @@ unrecognised releases cannot use that exemption. Schema 2 remains readable
 through the migration path. An override cannot widen the embedded authority.
 
 See [component compatibility](../reference/component-compatibility.md) and
-[ADR041](../adr/adr-041-component-compatibility-manifests.md) before preparing a
+[ADR049](../adr/adr-049-component-compatibility-manifests.md) before preparing a
 new release or updating its catalogue reference.
+
+Migration tests must retain the exact published legacy bundles, accept native
+camera schema 1 only with its historical independent proofs, and reject mixed
+schema-1/schema-2 authority files or relabelled bundles. New producers emit only
+the manifest-aware schema-2 camera contract. Parser and evaluator tests must
+also cover omitted descriptions, omitted Lexr tested-through evidence, strict
+canonical field order and hard minimums which no override can relax.

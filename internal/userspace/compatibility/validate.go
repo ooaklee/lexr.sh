@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/ooaklee/lexr.sh/internal/kernel/identity"
 	"github.com/ooaklee/lexr.sh/internal/profile"
@@ -16,6 +19,9 @@ var componentPattern = regexp.MustCompile(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`)
 // releasePattern limits releases to flat portable tags.
 var releasePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
+// maximumDescriptionBytes bounds explanatory prose without granting authority.
+const maximumDescriptionBytes = 1024
+
 // Validate applies semantic and closed-registry policy to schema v1.
 func Validate(m *Manifest) error {
 	if m == nil || m.SchemaVersion != 1 || m.Kind != "lexr.userspace-component-compatibility" {
@@ -26,6 +32,16 @@ func Validate(m *Manifest) error {
 	}
 	if err := uniqueValues(m.Capabilities, []string{"audio", "pen", "camera", "firmware", "networking", "bluetooth", "power", "touchscreen"}); err != nil {
 		return fmt.Errorf("capabilities: %w", err)
+	}
+	if m.Description != "" {
+		if len(m.Description) > maximumDescriptionBytes || !utf8.ValidString(m.Description) || strings.TrimSpace(m.Description) == "" {
+			return errors.New("description must be bounded, nonblank UTF-8 prose")
+		}
+		for _, character := range m.Description {
+			if unicode.IsControl(character) {
+				return errors.New("description must not contain control characters")
+			}
+		}
 	}
 	if err := validateVersionRange(m.Lexr); err != nil {
 		return err
@@ -87,19 +103,22 @@ func Validate(m *Manifest) error {
 
 // validateVersionRange requires canonical persisted bounds and honest evidence.
 func validateVersionRange(r VersionRange) error {
-	for _, v := range []string{r.MinimumInclusive, r.TestedThroughInclusive} {
-		if _, err := semverParts(v); err != nil {
+	if _, err := semverParts(r.MinimumInclusive); err != nil {
+		return err
+	}
+	if r.TestedThroughInclusive != "" {
+		if _, err := semverParts(r.TestedThroughInclusive); err != nil {
 			return err
 		}
-	}
-	if compareVersion(r.MinimumInclusive, r.TestedThroughInclusive) > 0 {
-		return errors.New("Lexr evidence precedes minimum")
+		if compareVersion(r.MinimumInclusive, r.TestedThroughInclusive) > 0 {
+			return errors.New("Lexr evidence precedes minimum")
+		}
 	}
 	if r.MaximumExclusive != "" {
 		if _, err := semverParts(r.MaximumExclusive); err != nil {
 			return err
 		}
-		if compareVersion(r.MinimumInclusive, r.MaximumExclusive) >= 0 || compareVersion(r.TestedThroughInclusive, r.MaximumExclusive) >= 0 {
+		if compareVersion(r.MinimumInclusive, r.MaximumExclusive) >= 0 || r.TestedThroughInclusive != "" && compareVersion(r.TestedThroughInclusive, r.MaximumExclusive) >= 0 {
 			return errors.New("invalid Lexr upper bound")
 		}
 	}

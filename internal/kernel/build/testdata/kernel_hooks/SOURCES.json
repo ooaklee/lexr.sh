@@ -1,0 +1,115 @@
+{
+  "schema": "kernel-hook-source-fixtures-v1",
+  "scope": "Exact kernel maintainer-script source templates for host-side validation tests, not finished-package or installation evidence.",
+  "policy_normalization": "Require LF and exact shell header; remove outer blank/comment-only lines and leading ASCII indentation only; preserve raw here-document payload/delimiter, trailing bytes and physical continuations. After checking the supplied ABI, replace only its version= assignment with version=@ABI@. SHA256 covers newline-joined operational lines plus final LF. Only legacy/legacy and dual-directory/dual-directory pairs are supported.",
+  "source_repository": "https://github.com/ooaklee/linux_ms_dev_kit-sp11",
+  "attribution": "The maintainer-script fixtures are copied byte-for-byte from the pinned Linux kernel packaging sources below. Original packaging copyright and GPLv2 notices are preserved separately in KERNEL-DEBIAN-COPYRIGHT, with the kernel's GPL-2.0 licence text. No new authorship, licence clearance, relicensing or Apache licence claim is made for these imported testdata.",
+  "rendering": {
+    "install_control_path": "debian/rules.d/2-binary-arch.mk",
+    "install_control_sha256": "7e75f11045c5cdae62af58122e78b84bea300dce83f3339a6f0bce6310596708",
+    "substitutions": {
+      "@abiname@": "abi_release",
+      "@localversion@": "-qcom-x1e",
+      "@image-stem@": "vmlinuz"
+    },
+    "trigger_template": "interest linux-update-<abi_release>-qcom-x1e\n",
+    "install_file_source_path": "debian.qcom-x1e/rules.d/arm64.mk",
+    "install_file_source_value": "vmlinuz"
+  },
+  "fixtures": [
+    {
+      "name": "legacy",
+      "source_revision": "63de629462c5c392402977e184c4b2248b82560c",
+      "source_url": "https://github.com/ooaklee/linux_ms_dev_kit-sp11/tree/63de629462c5c392402977e184c4b2248b82560c",
+      "abi_release": "7.2.5-jg-0sp11v26",
+      "abi": "7.2.5-jg-0sp11v26-qcom-x1e",
+      "flavour": "qcom-x1e",
+      "instfile": "vmlinuz",
+      "purpose": "rendered source fixture for accepted-v26 ABI; not extracted package",
+      "install_control_file_blob": "135baab28fe141f20f4d42cd6adba76c52a90189",
+      "install_control_file_sha256": "0b94c1ec2b2d5ab9eff78d0e5b2226c2c45475ee6b176f9b19235d125ea9b23f",
+      "templates": [
+        {
+          "kind": "postinst",
+          "fixture_file": "legacy.image.postinst.in",
+          "source_path": "debian/templates/image.postinst.in",
+          "source_blob": "cdce5a6f8ac761631cda2c4a463dad2afbfa8b9a",
+          "source_url": "https://github.com/ooaklee/linux_ms_dev_kit-sp11/blob/63de629462c5c392402977e184c4b2248b82560c/debian/templates/image.postinst.in",
+          "template_sha256": "5287275b41be58d564258804f1333ff337adcb4e03af57da5a2f9a7a1b4dc134",
+          "operational_policy_sha256": "4efba790a687c2e3b68b1dde0f778bb410e3202cae7d121933d2cc79bec54235",
+          "rendered_sha256": "bf798b13a1a2d0b382045ac3562ef761d8a773758a2747e358ee95ca8368e95c"
+        },
+        {
+          "kind": "postrm",
+          "fixture_file": "legacy.image.postrm.in",
+          "source_path": "debian/templates/image.postrm.in",
+          "source_blob": "fb1b457b4bebf29eeb8824da39c675dac95463a2",
+          "source_url": "https://github.com/ooaklee/linux_ms_dev_kit-sp11/blob/63de629462c5c392402977e184c4b2248b82560c/debian/templates/image.postrm.in",
+          "template_sha256": "579590e13b265b53d6633881b62c860a6085f1e1412f71efc7ded6aeadd05f51",
+          "operational_policy_sha256": "abf9c057875b18626f3a3ff85424bd4f9893e19357463c42bfb93c6673e18bf0",
+          "rendered_sha256": "83038529c400f0434456009d037af1256759e0bf3a705f3fa2ec211655eebc6d"
+        }
+      ]
+    },
+    {
+      "name": "upstream729",
+      "source_revision": "d84d9b29dffe2199bf295824f82099ee58997ce7",
+      "source_url": "https://github.com/jglathe/linux_ms_dev_kit/tree/d84d9b29dffe2199bf295824f82099ee58997ce7",
+      "abi_release": "7.2.9-jg-0sp11v999",
+      "abi": "7.2.9-jg-0sp11v999-qcom-x1e",
+      "flavour": "qcom-x1e",
+      "instfile": "vmlinuz",
+      "purpose": "synthetic test-only ABI v999; not an allocated release or built package",
+      "install_control_file_blob": "aa3d25b8099152609b5487900c5e428104ff8539",
+      "install_control_file_sha256": "13ea6f1a9c4a52fba53fedd8c6e400f6bcba8fb24047375e06fb1b4637db5b4d",
+      "templates": [
+        {
+          "kind": "postinst",
+          "fixture_file": "upstream729.image.postinst.in",
+          "source_path": "debian/templates/image.postinst.in",
+          "source_blob": "88ba518436448793a6bb76cd1207f2c71fec26c0",
+          "source_url": "https://github.com/jglathe/linux_ms_dev_kit/blob/d84d9b29dffe2199bf295824f82099ee58997ce7/debian/templates/image.postinst.in",
+          "template_sha256": "90196281f262b7c04f4db5387194fec1a5e70311d8675e50b82e9eb68b90e4a0",
+          "operational_policy_sha256": "5bf3edbda6f8c295219c079d79323adec00e924e29e632dc576bc11be7d99dc4",
+          "rendered_sha256": "b2df61834e4e2bf1ede74043080cde97bd921e8e209753c53fdc6778372d0737"
+        },
+        {
+          "kind": "postrm",
+          "fixture_file": "upstream729.image.postrm.in",
+          "source_path": "debian/templates/image.postrm.in",
+          "source_blob": "f401c5d4b564459a85f33a4126c6b1ace178345e",
+          "source_url": "https://github.com/jglathe/linux_ms_dev_kit/blob/d84d9b29dffe2199bf295824f82099ee58997ce7/debian/templates/image.postrm.in",
+          "template_sha256": "f1ffe29724404cdd014b0342a0733683b6cc561b6591dfb3ca315803e0b9d9d7",
+          "operational_policy_sha256": "74f6e5a9776cea74017db3faa1a2348efe1de5657f3dba418d344f3d10730fb4",
+          "rendered_sha256": "93ff0636799fbbc9deb5f350760b398b0956f7c06d6f76c3d0ca696ff4e2ba68"
+        }
+      ]
+    }
+  ],
+  "imported_testdata_licensing": {
+    "scope": "Imported kernel source templates and their accompanying source notices only; kept separable from Lexr implementation code.",
+    "copyright_notice_fixture": "KERNEL-DEBIAN-COPYRIGHT",
+    "licence_text_fixture": "GPL-2.0",
+    "preserved_source_files": [
+      {
+        "source_path": "debian/copyright",
+        "source_blob": "d1d04a6d66974977c7daed1fea2c200ef7415504",
+        "sha256": "4ab34baa23c94237ffef144c80348b982d2d8e814c46b3a6a3538a706ef26114",
+        "bytes": 1292,
+        "fixture_file": "KERNEL-DEBIAN-COPYRIGHT",
+        "identical_at_both_source_revisions": true,
+        "source_url": "https://github.com/ooaklee/linux_ms_dev_kit-sp11/blob/d84d9b29dffe2199bf295824f82099ee58997ce7/debian/copyright"
+      },
+      {
+        "source_path": "LICENSES/preferred/GPL-2.0",
+        "source_blob": "ea8e93dc44bc462a2be34e484432cf2b9ec88527",
+        "sha256": "8780e78a1a737e127f25a65f6d95269bffd36158dc261114de7859b490bfc5aa",
+        "bytes": 18600,
+        "fixture_file": "GPL-2.0",
+        "identical_at_both_source_revisions": true,
+        "source_url": "https://github.com/ooaklee/linux_ms_dev_kit-sp11/blob/d84d9b29dffe2199bf295824f82099ee58997ce7/LICENSES/preferred/GPL-2.0"
+      }
+    ],
+    "notice": "The original debian/copyright states GNU General Public License version 2. These fixtures are not relabelled as Apache-2.0; recording and retaining the source notices does not claim independent licence clearance."
+  }
+}

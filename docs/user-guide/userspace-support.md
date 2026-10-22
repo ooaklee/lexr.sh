@@ -179,7 +179,81 @@ home (an explicit config-file path is then needed to load configuration).
 
 Source builds invoke only compiled, component-specific adapters with bounded arguments. Catalogue content is never interpreted as a shell command. The current camera package build requires a native ARM64 Linux host; users on other hosts can still pull and verify the published experimental package set.
 
-Both userspace source-build adapters use compiled Go policy and do not invoke repository scripts. They require the complete OE checkout because the native builders authenticate their tracked component inputs; pass `--repository-root <oe-checkout>` when it cannot be detected from the current directory. Pull, status, doctor, and installation from a downloaded immutable release do not have that checkout requirement. A successful native camera build prints an independent authority SHA-256 for its final receipt. Retain it separately from the directory. Installing a native camera build or prepared local camera release repeats static Git-backed provenance proof and therefore requires both the explicit repository root and the corresponding independently retained authority digest.
+Both userspace source-build adapters use compiled Go policy and do not invoke repository scripts. They require a checkout containing the authenticated component inputs; pass `--repository-root <oe-checkout>` when it cannot be detected from the current directory. Pull, status, doctor, and installation from a downloaded immutable release do not have that checkout requirement. A successful native camera build prints an independent authority SHA-256 for its final receipt. Retain it separately from the directory. Installing a native camera build or prepared local camera release repeats static Git-backed provenance proof and therefore requires both the explicit repository root and the corresponding independently retained authority digest.
+
+### Opt in to another source repository or branch
+
+Use `userspace source prepare` to acquire a reviewed public HTTPS support
+repository before building `camera` or `iptsd`. It is an explicit source
+acquisition step, not an installer and not an override for compiled component
+policy. Audio, Wi-Fi, sensor and compute source installation are not added by
+this command. Source preparation runs on Linux or macOS with Git available;
+it does not change the camera builder's native ARM64 Linux requirement.
+
+Supply `--experimental`, the repository URL, a fully qualified branch or tag
+ref, an expected full 40-character lowercase commit SHA and a new output
+directory. Obtain that commit independently from the source you intend to
+review. Replace `<expected-full-commit>` below before running the command;
+change `refs/heads/main` to the reviewed branch, or use `refs/tags/<tag>` for a
+tag. For an annotated tag, supply the peeled commit SHA, not the tag object's
+SHA. If the fetched ref resolves to a different commit, preparation is rejected.
+The output directory must be new, and its parent must already exist.
+
+```sh
+lexr userspace source prepare camera --experimental \
+  --repository https://github.com/ooaklee/linux-surface-pro-11-oe.git \
+  --ref refs/heads/main \
+  --commit "<expected-full-commit>" \
+  --output-dir ./camera-source-test
+```
+
+Append `--dry-run` to validate the request and preview its destination without
+network access or filesystem mutation. That preview cannot verify the remote
+ref, commit contents or component inputs; it is not a prepared checkout.
+`--json` reports the same plan or preparation result for automation.
+
+A successful preparation creates `camera-source-test/repository` at the exact
+detached commit, alongside `lexr-userspace-source.json`. The receipt records
+the repository, ref, expected and resolved commit, tree and component-validation
+result. The tree is the complete committed HEAD tree, even when only the fixed
+component inputs are materialised in the checkout. Existing output directories
+are never reused or reset. A failed acquisition retains its private staging
+directory for diagnosis rather than publishing an unvalidated checkout. That
+failed staging is not a resumable
+source cache; start another preparation with a fresh destination.
+If a final check fails after publication, the error identifies the published
+destination instead. Require a successful command exit before using it.
+
+Build using that selected checkout through the existing component workflow:
+
+```sh
+lexr userspace build camera \
+  --repository-root ./camera-source-test/repository --dry-run
+```
+
+After reviewing the source and plan, omit `--dry-run` for an actual camera build
+on a supported native ARM64 Linux host. Keep the selected checkout and the
+build's independently printed authority SHA-256 for later native-camera
+installation. Source selection does not replace that authority or bypass
+installation preflight. `--from` still means an authenticated artefact directory,
+not a Git URL or branch.
+
+The camera workflow retains its tracked-input checks and compiled build recipe.
+IPTSD retains its exact compiled integration-file identities and pinned upstream
+source, so selecting a branch with different IPTSD integration does not make
+those changes acceptable. Hooks, filters, interactive credentials and recursive
+submodule acquisition are disabled during source preparation. All redirects,
+including same-host redirects, are refused; use the canonical HTTPS repository
+URL. Repository install scripts are not executed. Commit pinning proves source
+identity, not trustworthiness: selected camera source changes still become build
+inputs to the existing container workflow.
+
+Test a specifically changed, reviewed component one at a time, preserving the
+known-working userspace combination and its component-specific recovery plan.
+A prepared source tree is not a native-build pass, an installable release or
+physical-sensor compatibility. See
+[ADR046](../adr/adr-046-opt-in-userspace-source-selection.md) for the authority
+boundary.
 
 ## 4. Review and install
 

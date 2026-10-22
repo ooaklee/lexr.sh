@@ -535,7 +535,7 @@ func writeExclusive(path string, data []byte, mode os.FileMode) error {
 	return errors.Join(writeErr, syncErr, closeErr)
 }
 
-// validatePreparedDirectory proves the exact twelve-file local release shape.
+// validatePreparedDirectory proves the exact schema-specific local release shape.
 func validatePreparedDirectory(directory string, manifest Manifest) error {
 	expected := map[string]struct{}{ChecksumName: {}, NotesName: {}, ManifestName: {}}
 	for _, file := range manifest.BuildArtifacts {
@@ -545,8 +545,17 @@ func validatePreparedDirectory(directory string, manifest Manifest) error {
 	if err != nil {
 		return err
 	}
-	if len(entries) != 12 || len(expected) != 12 {
-		return fmt.Errorf("camera release contains %d entries, want 12", len(entries))
+	count := 0
+	switch manifest.SchemaVersion {
+	case LegacySchemaVersion:
+		count = 11
+	case SchemaVersion:
+		count = 12
+	default:
+		return errors.New("unsupported camera release manifest schema")
+	}
+	if len(entries) != count || len(expected) != count {
+		return fmt.Errorf("camera release contains %d entries, want %d", len(entries), count)
 	}
 	for _, entry := range entries {
 		if _, ok := expected[entry.Name()]; !ok {

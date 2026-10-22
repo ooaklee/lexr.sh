@@ -1,0 +1,5772 @@
+{
+  "schema_version": 3,
+  "release": "sp11-qcom-x1e-7.2.9-jg-0sp11v2",
+  "repository": "https://github.com/ooaklee/linux_ms_dev_kit-sp11.git",
+  "abi": "7.2.9-jg-0sp11v2-qcom-x1e",
+  "version": "7.2.9-jg-0sp11v2",
+  "architecture": "arm64",
+  "requested_boot_image_mode": "stubble",
+  "effective_dtb_delivery": "embedded",
+  "embedded_dtb_count": 39,
+  "dtb_selection_provenance": {
+    "stubble_selection": {
+      "policy": "stubble-inventory-order-v1",
+      "image_sha256": "d04ec5091bc6373ec7d5415b90f43b50f4473274adcc92dd4e2d949e36e0b32b",
+      "hwid_table_sha256": "991ee55e39ac62986ec71c958ca9d36f2136dba9ca128bedcdec2d915170bf69",
+      "payload_order": [
+        "dtb-84d40c8dd036b093e24d9bb0",
+        "surface-pro-11-x1e-oled",
+        "dtb-e739dc933921a605a6569907",
+        "dtb-7b2386f215aa66d3c964c6c6",
+        "dtb-914b0bcd989d84125dfbb9bb",
+        "dtb-637cfcc2abc40b59c707377d",
+        "dtb-2caeee3c77fd70ef7d7963b3",
+        "dtb-bd29920037fd4ce7a9163278",
+        "dtb-6f66ee9b6a9f5188eca15a48",
+        "dtb-a9d4695fb9b0b21d3afd6443",
+        "dtb-db4a73b309d3cdd458e9b681",
+        "dtb-1d2f4b8eb622afc1f92b13d4",
+        "dtb-02d7916c1361612ae27fe90e",
+        "dtb-7c4e773887132954d68c1e9c",
+        "dtb-a2eb2154f2fb5d1390fba5b5",
+        "dtb-1b1e1b085739a51396149f51",
+        "dtb-88586e2848e155597e71d1c2",
+        "dtb-fb9677e0eb99eaa313245126",
+        "dtb-74012be403ee35a98b5cfc49",
+        "dtb-938ad1fabb79215a7719bbd0",
+        "dtb-fe32a3bf442d53c5759205c8",
+        "dtb-be27fe920f8269ad5ded0da3",
+        "dtb-5093098b57c36afb0d250028",
+        "dtb-945af392e1c3e3a6b94e0c40",
+        "dtb-96c71203d718bed29aa93f7a",
+        "dtb-831e9078e995a35349e5c52e",
+        "dtb-ee35f03e4697b33ac3fdb2b3",
+        "dtb-ca5eff4036d39e4ca34537c0",
+        "dtb-38ab75de5ea8c09264497344",
+        "dtb-552fc72e167065d60796fe36",
+        "dtb-37b23350938c913daca5e462",
+        "dtb-6d8270f03a123dd33d93be4a",
+        "dtb-b65e6300bfbd756a3cb35bdc",
+        "dtb-25a4613424165ffc9f5a976a",
+        "dtb-dfeaf46492ac459333503a39",
+        "dtb-28c2940a813da5110905ca52",
+        "dtb-0015fa7e818efa72381fce42",
+        "dtb-dbec74548fc599dcc26f42df",
+        "dtb-03a1c7fdd7cb7944d1e0f097"
+      ],
+      "hwid_records": [
+        {
+          "hwid": "031a5cd7-883e-5004-90c2-92d29025c777",
+          "compatible": "qcom,glymur-crd"
+        },
+        {
+          "hwid": "339fc6d2-e0f4-5226-9dd9-62c4dc41881d",
+          "compatible": "qcom,glymur-crd"
+        },
+        {
+          "hwid": "49bcdd2b-d769-5071-b3a4-4a02ff1d36f5",
+          "compatible": "qcom,glymur-crd"
+        },
+        {
+          "hwid": "4bb05d50-6c4f-525d-a9ec-8924afd6edea",
+          "compatible": "qcom,glymur-crd"
+        },
+        {
+          "hwid": "6fcbdad8-149e-5f72-b2e3-0fd78572ff93",
+          "compatible": "qcom,glymur-crd"
+        },
+        {
+          "hwid": "ce496e01-9bd8-522e-8937-8045126ed39a",
+          "compatible": "qcom,glymur-crd"
+        },
+        {
+          "hwid": "d9972e14-0a66-56a8-9cee-8c5647fbe470",
+          "compatible": "qcom,glymur-crd"
+        },
+        {
+          "hwid": "e53db94e-68fe-541f-b06e-4b5a253dadf9",
+          "compatible": "qcom,glymur-crd"
+        },
+        {
+          "hwid": "e88849e7-af59-5c58-9776-75cfb6bac078",
+          "compatible": "qcom,glymur-crd"
+        },
+        {
+          "hwid": "08b75d1f-6643-52a1-9bdd-071052860b33",
+          "compatible": "lenovo,miix-630"
+        },
+        {
+          "hwid": "14f581d2-d059-5cb2-9f8b-56d8be7932c9",
+          "compatible": "lenovo,miix-630"
+        },
+        {
+          "hwid": "16a55446-eba9-5f97-80e3-5e39d8209bc3",
+          "compatible": "lenovo,miix-630"
+        },
+        {
+          "hwid": "307ab358-ed84-57fe-bf05-e9195a28198d",
+          "compatible": "lenovo,miix-630"
+        },
+        {
+          "hwid": "34df58d6-b605-50aa-9313-9b34f5c4b6fc",
+          "compatible": "lenovo,miix-630"
+        },
+        {
+          "hwid": "7e613574-5445-5797-9567-2d0ed86e6ffa",
+          "compatible": "lenovo,miix-630"
+        },
+        {
+          "hwid": "a51054fb-5eef-594a-a5a0-cd87632d0aea",
+          "compatible": "lenovo,miix-630"
+        },
+        {
+          "hwid": "b0f4463c-f851-5ec3-b031-2ccb873a609a",
+          "compatible": "lenovo,miix-630"
+        },
+        {
+          "hwid": "c4c9a6be-5383-5de7-af35-c2de505edec8",
+          "compatible": "lenovo,miix-630"
+        },
+        {
+          "hwid": "e0a96696-f0a6-5466-a6db-207fbe8bae3c",
+          "compatible": "lenovo,miix-630"
+        },
+        {
+          "hwid": "175f000b-3d05-5c01-aedd-817b1a141f93",
+          "compatible": "acer,aspire1"
+        },
+        {
+          "hwid": "260192d4-06d4-5124-ab46-ba210f4c14d7",
+          "compatible": "acer,aspire1"
+        },
+        {
+          "hwid": "373bfde5-ffaa-504c-84f3-f8f5357dfc29",
+          "compatible": "acer,aspire1"
+        },
+        {
+          "hwid": "45d37dbe-40fb-57bd-a257-55f422d4dc0a",
+          "compatible": "acer,aspire1"
+        },
+        {
+          "hwid": "68b38fff-aadc-512c-937b-99d9c13eb484",
+          "compatible": "acer,aspire1"
+        },
+        {
+          "hwid": "7c107a7f-2d77-51aa-aef8-8d777e26ffbc",
+          "compatible": "acer,aspire1"
+        },
+        {
+          "hwid": "7e15f49e-04b4-5d56-a567-e7a15ba2aca1",
+          "compatible": "acer,aspire1"
+        },
+        {
+          "hwid": "82fe1869-361c-56b2-b853-631747e64aa7",
+          "compatible": "acer,aspire1"
+        },
+        {
+          "hwid": "965e3681-de3b-5e39-bb62-7d4917d7e36f",
+          "compatible": "acer,aspire1"
+        },
+        {
+          "hwid": "e12521bf-0ed8-5406-af87-adad812c57c5",
+          "compatible": "acer,aspire1"
+        },
+        {
+          "hwid": "faa12ed4-bd49-5471-8f74-75c2267c3b46",
+          "compatible": "acer,aspire1"
+        },
+        {
+          "hwid": "01439aea-e75c-5fbb-8842-18dcd1a7b8b3",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "5100eeed-c5e2-5b74-9c24-a22ca0644826",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "566b9ae8-a7fd-5c44-94d6-bac3e4cf38a7",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "65ab9f32-bbc8-52d3-87f9-b618fda7c07e",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "6f3bdfb7-f832-5c5f-9777-9e3db35e22a6",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "7e7007ac-603c-55ef-bb77-3548784b9578",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "a1a13249-2689-5c6d-a43f-98af040284c4",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "c4ea686c-c56c-5e8e-a91e-89056683d417",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "ddb3bcda-db7b-579d-9dd9-bcc4f5b052b8",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "ea646c11-3da1-5c8d-9346-8ff156746650",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "fb364c09-efc0-5d16-ac97-0a3e6235b16c",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "06675172-9a6e-5276-a505-d205688a87f0",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "12c0e5b0-8886-5444-b42b-93692fa736df",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "16551bd5-37b0-571d-a94c-da61a9cfccf5",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "23dcfb84-d132-5f60-878e-64fe0b9417d6",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "39fca706-c9a2-54d4-8c7c-d5e292d0a725",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "997c1c76-5595-5300-9f58-94d2c6ffc586",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "ad47f2e9-2f8c-5cd1-a44e-82f35a43e44e",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "b9bf941f-3a32-57da-b609-5fff7fb382cd",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "df3ecc56-b61b-5f8e-896f-801a42b536d6",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "ea658d2b-f644-555d-9b72-e1642401a795",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "fb5c3077-39d5-5a44-97ce-2d3be5f6bfec",
+          "compatible": "lenovo,flex-5g"
+        },
+        {
+          "hwid": "0c78ef16-4fe0-5e33-908e-b038949ee608",
+          "compatible": "huawei,gaokun3"
+        },
+        {
+          "hwid": "13311789-793f-5d95-942c-3b6414a8ad1a",
+          "compatible": "huawei,gaokun3"
+        },
+        {
+          "hwid": "1c2effc1-1038-584d-ae8b-7c912c8e9504",
+          "compatible": "huawei,gaokun3"
+        },
+        {
+          "hwid": "3eb6683b-0153-5365-81c6-cc599783e9c7",
+          "compatible": "huawei,gaokun3"
+        },
+        {
+          "hwid": "4f04f31f-17f0-583f-802f-82c3a0b34128",
+          "compatible": "huawei,gaokun3"
+        },
+        {
+          "hwid": "6eb75906-3a4e-5de4-94c5-374d8f9723e5",
+          "compatible": "huawei,gaokun3"
+        },
+        {
+          "hwid": "7ea8b73b-2cbb-562b-aecc-7f0f64c42630",
+          "compatible": "huawei,gaokun3"
+        },
+        {
+          "hwid": "80c86c24-c7a7-5714-abf2-4c48f348cecc",
+          "compatible": "huawei,gaokun3"
+        },
+        {
+          "hwid": "b866fc5c-261b-56d8-99e8-03ea0646af8f",
+          "compatible": "huawei,gaokun3"
+        },
+        {
+          "hwid": "d8846172-f0a0-55ba-bf41-55641f588ea7",
+          "compatible": "huawei,gaokun3"
+        },
+        {
+          "hwid": "e1b94e53-0f20-5d01-abfc-cfb348544a31",
+          "compatible": "huawei,gaokun3"
+        },
+        {
+          "hwid": "e5a0ed2b-7fed-5e2d-94ed-43dbaf0b9ccc",
+          "compatible": "huawei,gaokun3"
+        },
+        {
+          "hwid": "e98c95a8-b50e-5d8b-b2db-c679a39163df",
+          "compatible": "huawei,gaokun3"
+        },
+        {
+          "hwid": "04392ed0-22bc-56a4-ae4e-dcb325cb6899",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "0909a1c3-3a02-59a0-b1ea-04f1449c104f",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "1305c7fb-2943-53e5-aba5-5a948d96ed94",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "30c7a7fe-f4bf-5ce1-aad8-f5e6db904c53",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "3486eccc-d0ac-534a-9e2f-a1c18bc310c6",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "3ad863ab-0181-5a2f-9cc1-70eedc446da9",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "3f9d2d91-73b2-5316-8c72-a0ecb3f0dae5",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "4a971ccf-1223-5f4d-b939-dcb8efc0b350",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "4b189129-8eb2-585c-a1bb-a4cfc979433a",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "4df470e6-7878-5b0f-b2e0-733d5d9fa228",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "5188008f-3241-5f05-8d21-774b5c7a2887",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "56eafd87-9fbc-5388-a5fd-ec9a9178fb1c",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "6026ec60-e5e0-56bf-9d71-f3465d7314c8",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "64b71f12-4341-5e5c-b7cd-25b6503799e3",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "69acf6bf-ed33-5806-857f-c76971d7061e",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "69c47e1e-fde2-5062-b777-acbeab73784b",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "6d8e538a-e089-5901-97ed-5ef670416fca",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "810e34c6-cc69-5e36-8675-2f6e354272d3",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "873455fb-b2c5-5c0c-9c2c-90e80d44da57",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "93a4dd46-2007-56bf-b176-390519d6f5bd",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "9f47e28f-e1ee-5cb5-b4ce-8f0605752b3d",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "a1dfe209-99e5-5ff2-9922-aa4c11491b49",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "a84d13c1-3864-5d56-8c7c-15ad37074a3f",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "abdbb2cb-ab52-5674-9d0a-2e2cb69bcbb4",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "b265d777-007e-56e5-b0e2-bd666ab867be",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "b41f58ed-7631-561f-9b0c-449a9c293afa",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "b470d002-ad8e-5d5c-a7bf-bb1333f2ce4b",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "c869f39e-f205-5ca0-be7b-d90f90ef5556",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "db1387e0-f13d-5000-889d-ff7cca53846a",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "dc4ecdd0-c09b-5e84-ac5f-ccf0182e1ec6",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "ddf28a3f-43fc-54a4-a6a7-4cba5ad46b3e",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "ddfbdaa2-7c46-5103-be64-84a9f88c485f",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "e4e1e851-389a-5be8-bc77-d32bc3e96ba2",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "f22c935e-2dc8-5949-9486-09bbf10361b2",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "fbf92a11-bb6f-5adb-b5a7-8abf9acbd7d9",
+          "compatible": "lenovo,thinkpad-x13s"
+        },
+        {
+          "hwid": "046fefee-341b-5c40-b0a3-1c647d31b500",
+          "compatible": "microsoft,blackrock"
+        },
+        {
+          "hwid": "08f06457-aa19-51c5-be4c-0087ce4fa2ed",
+          "compatible": "microsoft,blackrock"
+        },
+        {
+          "hwid": "11b80238-dbee-57bc-8b26-83c9e5b4057d",
+          "compatible": "microsoft,blackrock"
+        },
+        {
+          "hwid": "53b87f48-fc47-54e9-ade5-f1a95e885681",
+          "compatible": "microsoft,blackrock"
+        },
+        {
+          "hwid": "5bd24fc5-5edb-51f6-82e6-31a9ef954c5b",
+          "compatible": "microsoft,blackrock"
+        },
+        {
+          "hwid": "69ba0503-ca94-5fa3-b78c-5fa21a66c620",
+          "compatible": "microsoft,blackrock"
+        },
+        {
+          "hwid": "813677fa-6d11-5756-a44d-dde0f552d3f6",
+          "compatible": "microsoft,blackrock"
+        },
+        {
+          "hwid": "ad2ee931-a048-5253-b350-98c482670765",
+          "compatible": "microsoft,blackrock"
+        },
+        {
+          "hwid": "ce83144b-b123-59e5-8a9a-0c1a13643fc4",
+          "compatible": "microsoft,blackrock"
+        },
+        {
+          "hwid": "d67e799e-2ba7-555a-a874-a0523a8b3b11",
+          "compatible": "microsoft,blackrock"
+        },
+        {
+          "hwid": "f59639f4-4970-5706-9a75-519dd059f69e",
+          "compatible": "microsoft,blackrock"
+        },
+        {
+          "hwid": "009d2337-4f76-514e-b2c1-b2816447b048",
+          "compatible": "microsoft,arcata"
+        },
+        {
+          "hwid": "3a486e6f-3b0a-5603-a483-503381d3d8c3",
+          "compatible": "microsoft,arcata"
+        },
+        {
+          "hwid": "5caa88bc-ea9b-5d73-a69a-89024bfff854",
+          "compatible": "microsoft,arcata"
+        },
+        {
+          "hwid": "6309fbb9-68f4-54f9-bbc9-b3ca9685b48c",
+          "compatible": "microsoft,arcata"
+        },
+        {
+          "hwid": "636b6071-7848-50d5-b0b5-6290c49e9306",
+          "compatible": "microsoft,arcata"
+        },
+        {
+          "hwid": "94fb24a7-ff7a-5d70-9ac8-518a9e44ea64",
+          "compatible": "microsoft,arcata"
+        },
+        {
+          "hwid": "9bac72c6-83f6-5e21-af8e-bc1f5c2b7cc8",
+          "compatible": "microsoft,arcata"
+        },
+        {
+          "hwid": "9d70dcfd-f56b-58bf-b1bd-a1b8f2b0ec7e",
+          "compatible": "microsoft,arcata"
+        },
+        {
+          "hwid": "a659ee2b-502d-50f7-9921-bdbd34734e0b",
+          "compatible": "microsoft,arcata"
+        },
+        {
+          "hwid": "c0cf7078-c325-5cf6-966b-3bbbc155275b",
+          "compatible": "microsoft,arcata"
+        },
+        {
+          "hwid": "e3d941fa-2bfa-5875-8efd-87ce997f8338",
+          "compatible": "microsoft,arcata"
+        },
+        {
+          "hwid": "30b031c0-9de7-5d31-a61c-dee772871b7d",
+          "compatible": "lenovo,yoga-c630"
+        },
+        {
+          "hwid": "382926c0-ce35-53af-8ff9-ca9cc06cfc7b",
+          "compatible": "lenovo,yoga-c630"
+        },
+        {
+          "hwid": "43b71948-9c47-5372-a5cb-18db47bb873f",
+          "compatible": "lenovo,yoga-c630"
+        },
+        {
+          "hwid": "5ca3cf2b-d6e9-5b54-93f7-1cebd7b3704f",
+          "compatible": "lenovo,yoga-c630"
+        },
+        {
+          "hwid": "67a23be6-42a6-5900-8325-847a318ce252",
+          "compatible": "lenovo,yoga-c630"
+        },
+        {
+          "hwid": "81f308c0-db65-50c2-a660-52e06fc0ff9f",
+          "compatible": "lenovo,yoga-c630"
+        },
+        {
+          "hwid": "8f56cf17-7bdd-5414-832d-97cd26837114",
+          "compatible": "lenovo,yoga-c630"
+        },
+        {
+          "hwid": "94f73d29-3981-59a8-8f25-214f84d1522a",
+          "compatible": "lenovo,yoga-c630"
+        },
+        {
+          "hwid": "b323d38a-88c6-5cf6-af0d-0db3f3c2560d",
+          "compatible": "lenovo,yoga-c630"
+        },
+        {
+          "hwid": "b8c71349-3669-56f3-99ee-ae473a2edd96",
+          "compatible": "lenovo,yoga-c630"
+        },
+        {
+          "hwid": "d17c132e-f06e-5e38-8084-9cd642dd9b34",
+          "compatible": "lenovo,yoga-c630"
+        },
+        {
+          "hwid": "4bb05d50-6c4f-525d-a9ec-8924afd6edea",
+          "compatible": "qcom,x1e001de-devkit"
+        },
+        {
+          "hwid": "830bd4a2-2498-55cf-b561-48f7dc5f4820",
+          "compatible": "qcom,x1e001de-devkit"
+        },
+        {
+          "hwid": "9cba20d0-17ad-559f-94cd-cfcbbf5f71f5",
+          "compatible": "qcom,x1e001de-devkit"
+        },
+        {
+          "hwid": "baa7a649-12d8-56c7-93c5-a4e10f4852be",
+          "compatible": "qcom,x1e001de-devkit"
+        },
+        {
+          "hwid": "c8e75ab8-555c-5952-a3e3-5b607bea031d",
+          "compatible": "qcom,x1e001de-devkit"
+        },
+        {
+          "hwid": "f37dc44b-0be4-5a70-86bd-81f3dacff2e9",
+          "compatible": "qcom,x1e001de-devkit"
+        },
+        {
+          "hwid": "39379ca2-ff12-5f56-b54f-05064dc42166",
+          "compatible": "acer,swift-sfa14-11"
+        },
+        {
+          "hwid": "3e7aed1f-e80e-59b9-a0e7-0011d93d05ba",
+          "compatible": "acer,swift-sfa14-11"
+        },
+        {
+          "hwid": "488a4452-62a8-5362-87ba-8265d0d0ef61",
+          "compatible": "acer,swift-sfa14-11"
+        },
+        {
+          "hwid": "730dea6f-efd9-5686-a975-656c9b8423f1",
+          "compatible": "acer,swift-sfa14-11"
+        },
+        {
+          "hwid": "74439855-9bdf-5cf1-9bf8-4057ee0fb250",
+          "compatible": "acer,swift-sfa14-11"
+        },
+        {
+          "hwid": "7e4796fa-aa40-55f4-ac92-7350759fe5b7",
+          "compatible": "acer,swift-sfa14-11"
+        },
+        {
+          "hwid": "97f3186d-0ad3-5f8a-98bb-72674271590d",
+          "compatible": "acer,swift-sfa14-11"
+        },
+        {
+          "hwid": "b4835065-fd33-5d49-99d2-4e8a16147c23",
+          "compatible": "acer,swift-sfa14-11"
+        },
+        {
+          "hwid": "c6d7090e-7535-5a11-aa9e-c61e2bf3e21c",
+          "compatible": "acer,swift-sfa14-11"
+        },
+        {
+          "hwid": "c97fd9d6-efec-54e0-a6e2-3ba4cadd9655",
+          "compatible": "acer,swift-sfa14-11"
+        },
+        {
+          "hwid": "dace3a5d-f5c6-5b0b-b15c-ff1ebfc2f5c2",
+          "compatible": "acer,swift-sfa14-11"
+        },
+        {
+          "hwid": "eb342e11-e7f8-5b4b-b193-d379f676ec8b",
+          "compatible": "acer,swift-sfa14-11"
+        },
+        {
+          "hwid": "1480f3ca-b01a-5d7c-bbc9-7a17d7b4b58d",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "1538c7fb-26b6-5144-b16f-2500b5a0a503",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "2b1b6e68-cee9-549b-b8ae-10c274b8c3a6",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "48a732b5-3989-5ac3-b661-516a46f00792",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "53b6927f-d6ca-5674-a0e8-a50a989d4ba0",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "83579fdf-8faf-57b4-b265-d2e817c7cf3f",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "a07b8e34-d6b6-58b2-9963-38216ec67159",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "a8852b56-45ea-5377-ba2d-1910a5c897bb",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "b0e14398-0a96-5736-840b-7349e5c0b85c",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "08ba7f5b-8136-5938-835a-fd99143d34a5",
+          "compatible": "lenovo,thinkpad-t14s-oled"
+        },
+        {
+          "hwid": "27378ce5-d999-5c3b-acde-0404805afd3b",
+          "compatible": "lenovo,thinkpad-t14s-oled"
+        },
+        {
+          "hwid": "77ffaabe-038a-550f-b6ea-485dc49d4b45",
+          "compatible": "lenovo,thinkpad-t14s-oled"
+        },
+        {
+          "hwid": "7c09107d-0ac3-5582-837f-c614d518cf62",
+          "compatible": "lenovo,thinkpad-t14s-oled"
+        },
+        {
+          "hwid": "c012b92d-a6a6-57fa-ba06-4f3062d891d4",
+          "compatible": "lenovo,thinkpad-t14s-oled"
+        },
+        {
+          "hwid": "e78c4e7a-68c3-5b29-b2a0-dbd2785e28cd",
+          "compatible": "lenovo,thinkpad-t14s-oled"
+        },
+        {
+          "hwid": "19b622ef-27fe-5c2e-bc53-13a79b862c65",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "1d9f3ebb-96de-5dd6-8c88-38308b0c1c44",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "34e7fadd-9c7d-5f91-ba7f-cedb04d59b9a",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "498d60ae-9b1d-5b67-8abd-af571babfa94",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "513976f8-3f51-5b42-9ae0-931ce23c5f38",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "5180bc01-5d18-5870-b955-969da38b2647",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "578dd7d5-5871-5bd5-92a9-be07f1067b92",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "5c20e964-d530-5dd7-9efd-4aed9e73c3cb",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "74593764-b6b9-58e9-bedc-93ebbb1eb057",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "76032e78-67a8-5dab-8512-157bfcfb8f75",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "791ecd9d-1547-58e6-b72a-5ce417b729dd",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "82fa4a02-8c3c-55f9-b0c9-e8feb669fd3a",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "86a0d770-3ca1-57fa-ac05-413481c00a24",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "8c602147-5363-5374-859e-8b7fe2d4d3ce",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "8cfd85bb-0d77-59df-8546-264239be475e",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "a20ae3ec-49a1-5cb5-acb8-5d31c77b105a",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "a5a4e3c1-5922-5ed6-b78e-9f0ea873a988",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "a9b59fea-e841-508a-a245-3a2d8d2802de",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "ac09e50f-9b3b-53c0-9752-377c3a0baaa0",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "acbac5af-aa6a-5690-88f3-e910f04a7ead",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "c81fee2f-cf41-5d5a-8c7b-afd6585b1d81",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "d93b21c0-5ed9-5955-911a-5b15f114d786",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "dd83478e-e01b-5631-ae74-92ae275a9b4e",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "e5d83424-0ecb-5632-b7b1-500f04e82725",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "ed647f93-3075-598b-9d89-d0f30ec11707",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "f6cd4a9f-9632-516e-b748-65952f7380c5",
+          "compatible": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "hwid": "0f49db05-25d9-5f1a-a633-40b358f6f6d2",
+          "compatible": "medion,sprchrgd14s1"
+        },
+        {
+          "hwid": "2904a882-918e-5f0b-9ac6-6a9737e685c9",
+          "compatible": "medion,sprchrgd14s1"
+        },
+        {
+          "hwid": "2fee1e80-b28f-51f2-8421-f0c39aa97516",
+          "compatible": "medion,sprchrgd14s1"
+        },
+        {
+          "hwid": "3713fa68-5f78-5538-b954-5e82e6c25646",
+          "compatible": "medion,sprchrgd14s1"
+        },
+        {
+          "hwid": "6b54ec94-c2bb-5008-abe3-975b26e8a371",
+          "compatible": "medion,sprchrgd14s1"
+        },
+        {
+          "hwid": "776dd828-0ea0-52b3-93d9-b4f97ac0e7e1",
+          "compatible": "medion,sprchrgd14s1"
+        },
+        {
+          "hwid": "7cbb6d59-d341-5ef2-ba12-dd3bc4a41df6",
+          "compatible": "medion,sprchrgd14s1"
+        },
+        {
+          "hwid": "9eb99973-f4f7-53b2-8682-faafa5f8ad1f",
+          "compatible": "medion,sprchrgd14s1"
+        },
+        {
+          "hwid": "ba6260c3-a098-59ba-b999-2783726d1e44",
+          "compatible": "medion,sprchrgd14s1"
+        },
+        {
+          "hwid": "e72ceeaf-45c6-50f5-9a8d-f3af93228f05",
+          "compatible": "medion,sprchrgd14s1"
+        },
+        {
+          "hwid": "ec048a86-f99a-5f29-a128-04d9254808ba",
+          "compatible": "medion,sprchrgd14s1"
+        },
+        {
+          "hwid": "f3ceb2c3-66db-5519-98bc-d62cba323666",
+          "compatible": "medion,sprchrgd14s1"
+        },
+        {
+          "hwid": "f6304115-77d2-52ef-b050-77b79c416b76",
+          "compatible": "medion,sprchrgd14s1"
+        },
+        {
+          "hwid": "137a5f94-8fcf-5581-8ac6-70d50fdba4a6",
+          "compatible": "asus,vivobook-s15"
+        },
+        {
+          "hwid": "1b6a0689-3f70-57e0-8bf3-39a8a74213e8",
+          "compatible": "asus,vivobook-s15"
+        },
+        {
+          "hwid": "3a3ef092-d5f1-5d4d-acea-70b38ef56e53",
+          "compatible": "asus,vivobook-s15"
+        },
+        {
+          "hwid": "4262e277-58d3-5ac4-9858-c0751ad06f5c",
+          "compatible": "asus,vivobook-s15"
+        },
+        {
+          "hwid": "6d634332-21fc-57c8-bc6b-e0f800f69f95",
+          "compatible": "asus,vivobook-s15"
+        },
+        {
+          "hwid": "80430e03-90f0-5355-84b2-28fb17367203",
+          "compatible": "asus,vivobook-s15"
+        },
+        {
+          "hwid": "807fe49f-cfd2-537d-b635-47bec9e36baf",
+          "compatible": "asus,vivobook-s15"
+        },
+        {
+          "hwid": "a6debedb-f954-5aa1-8260-4dc3b567c95f",
+          "compatible": "asus,vivobook-s15"
+        },
+        {
+          "hwid": "c71e903b-4255-56cb-b961-a8f87b452cbe",
+          "compatible": "asus,vivobook-s15"
+        },
+        {
+          "hwid": "d0fce8d6-a709-5bf0-8be0-6ac6ab44b8e0",
+          "compatible": "asus,vivobook-s15"
+        },
+        {
+          "hwid": "f3a6ca3e-4791-5bb0-915e-0b31856ec19c",
+          "compatible": "asus,vivobook-s15"
+        },
+        {
+          "hwid": "f54cd4e6-3666-5b56-abd3-a5f2df50c534",
+          "compatible": "asus,vivobook-s15"
+        },
+        {
+          "hwid": "fa342b0a-9e22-541f-8e95-93106778f97d",
+          "compatible": "asus,vivobook-s15"
+        },
+        {
+          "hwid": "91971b38-ae5d-5e14-9f44-7c0316710593",
+          "compatible": "asus,zenbook-a14-ux3407qa-oled"
+        },
+        {
+          "hwid": "f84ba711-7075-5c1b-a03c-57d2521a1ac2",
+          "compatible": "asus,zenbook-a14-ux3407qa-oled"
+        },
+        {
+          "hwid": "0bfddfaf-e393-5dfe-a805-39b8b1098c81",
+          "compatible": "asus,zenbook-a14-ux3407ra"
+        },
+        {
+          "hwid": "0c3f5e9c-eddb-5ba2-88ee-06ae0221a53d",
+          "compatible": "asus,zenbook-a14-ux3407ra"
+        },
+        {
+          "hwid": "1f2f1045-a811-5e42-b31e-b433e384fc79",
+          "compatible": "asus,zenbook-a14-ux3407ra"
+        },
+        {
+          "hwid": "20b8b77d-e450-550b-b1ff-55d3317f59a6",
+          "compatible": "asus,zenbook-a14-ux3407ra"
+        },
+        {
+          "hwid": "24652d54-00f4-59ae-96fb-f7adbfa4a939",
+          "compatible": "asus,zenbook-a14-ux3407ra"
+        },
+        {
+          "hwid": "2d610a5e-ef69-5e60-b15e-7786d0ebd79e",
+          "compatible": "asus,zenbook-a14-ux3407ra"
+        },
+        {
+          "hwid": "3884ad58-4d63-589a-be98-b8ab1ddf3b93",
+          "compatible": "asus,zenbook-a14-ux3407ra"
+        },
+        {
+          "hwid": "5c9fc73f-f915-52bf-a82d-9c7fe2274ecc",
+          "compatible": "asus,zenbook-a14-ux3407ra"
+        },
+        {
+          "hwid": "6f892377-a51e-5f99-a363-b79f28fc55f9",
+          "compatible": "asus,zenbook-a14-ux3407ra"
+        },
+        {
+          "hwid": "b307ab54-c79d-58ca-a3b2-d1b1e325bfc3",
+          "compatible": "asus,zenbook-a14-ux3407ra"
+        },
+        {
+          "hwid": "c41d2cda-fda7-522c-b1a7-4a835c15c43d",
+          "compatible": "asus,zenbook-a14-ux3407ra"
+        },
+        {
+          "hwid": "cedbcc19-3a5a-5bae-9973-f8e158188de7",
+          "compatible": "asus,zenbook-a14-ux3407ra"
+        },
+        {
+          "hwid": "f0bb1cd4-995a-5c90-946b-9bb958f35f42",
+          "compatible": "asus,zenbook-a14-ux3407ra"
+        },
+        {
+          "hwid": "2405af0b-d21d-5196-a228-4acffe7b3a10",
+          "compatible": "qcom,x1e80100-crd"
+        },
+        {
+          "hwid": "339fc6d2-e0f4-5226-9dd9-62c4dc41881d",
+          "compatible": "qcom,x1e80100-crd"
+        },
+        {
+          "hwid": "361b3d63-be90-52c2-8798-a05fbd68b773",
+          "compatible": "qcom,x1e80100-crd"
+        },
+        {
+          "hwid": "4bb05d50-6c4f-525d-a9ec-8924afd6edea",
+          "compatible": "qcom,x1e80100-crd"
+        },
+        {
+          "hwid": "7faef667-9eb2-53f4-9764-26fe0e92fbff",
+          "compatible": "qcom,x1e80100-crd"
+        },
+        {
+          "hwid": "8fa88c58-23eb-5aea-9ea7-c4a98ded7352",
+          "compatible": "qcom,x1e80100-crd"
+        },
+        {
+          "hwid": "b6d4eee8-30f3-564a-8246-e83935cf8dbb",
+          "compatible": "qcom,x1e80100-crd"
+        },
+        {
+          "hwid": "d52e3fb6-202c-5cfa-a27c-e3ffe15339fb",
+          "compatible": "qcom,x1e80100-crd"
+        },
+        {
+          "hwid": "e73870a5-90e8-528d-93fd-3da59f78df18",
+          "compatible": "qcom,x1e80100-crd"
+        },
+        {
+          "hwid": "07c6477a-7ef7-56c7-91d9-73d23295b0c0",
+          "compatible": "dell,inspiron-14-plus-7441"
+        },
+        {
+          "hwid": "07c6bbd9-caf8-5025-84d8-4efdb790f663",
+          "compatible": "dell,inspiron-14-plus-7441"
+        },
+        {
+          "hwid": "0d9ce3bc-620c-5209-9e82-7382cb6cffcd",
+          "compatible": "dell,inspiron-14-plus-7441"
+        },
+        {
+          "hwid": "4689ccaf-4f31-5146-887f-ca965da0f28a",
+          "compatible": "dell,inspiron-14-plus-7441"
+        },
+        {
+          "hwid": "8548ce7c-fdf3-55d0-95ba-606ca8db50da",
+          "compatible": "dell,inspiron-14-plus-7441"
+        },
+        {
+          "hwid": "90117b25-1646-515b-bfeb-286e74f2a1e8",
+          "compatible": "dell,inspiron-14-plus-7441"
+        },
+        {
+          "hwid": "a66b1244-0027-5451-a96a-dfcfc42ab892",
+          "compatible": "dell,inspiron-14-plus-7441"
+        },
+        {
+          "hwid": "bea2e67a-b660-5044-8acd-0d28e8c2e974",
+          "compatible": "dell,inspiron-14-plus-7441"
+        },
+        {
+          "hwid": "c1190be1-8ed5-50f1-9097-2a73ad9c4eb1",
+          "compatible": "dell,inspiron-14-plus-7441"
+        },
+        {
+          "hwid": "e4c9fe83-73ba-5160-bc18-57d4a98e960d",
+          "compatible": "dell,inspiron-14-plus-7441"
+        },
+        {
+          "hwid": "ef84110e-bd09-5f0f-a3dd-7995b4a3a706",
+          "compatible": "dell,inspiron-14-plus-7441"
+        },
+        {
+          "hwid": "efc06900-f603-5944-88e5-4de722816f91",
+          "compatible": "dell,inspiron-14-plus-7441"
+        },
+        {
+          "hwid": "ff394805-0b5f-52f6-9e1d-afb1d2bee411",
+          "compatible": "dell,inspiron-14-plus-7441"
+        },
+        {
+          "hwid": "2b9277cd-85b1-51ee-9a38-d477632532da",
+          "compatible": "dell,latitude-7455"
+        },
+        {
+          "hwid": "4f73f73b-e639-5353-bbf7-d851e48f18fc",
+          "compatible": "dell,latitude-7455"
+        },
+        {
+          "hwid": "59e5c810-9e60-5a89-8665-db36c56b34d6",
+          "compatible": "dell,latitude-7455"
+        },
+        {
+          "hwid": "683e4579-8440-5bc1-89ac-dfcd7c25b307",
+          "compatible": "dell,latitude-7455"
+        },
+        {
+          "hwid": "68822228-a3e0-5b12-942d-9408751405d1",
+          "compatible": "dell,latitude-7455"
+        },
+        {
+          "hwid": "6e01222b-b2aa-531e-b95f-0e4b2a063364",
+          "compatible": "dell,latitude-7455"
+        },
+        {
+          "hwid": "903e3a6f-e14b-5643-9d55-244f917aadb6",
+          "compatible": "dell,latitude-7455"
+        },
+        {
+          "hwid": "93055898-8c85-50e7-adde-8115f194579a",
+          "compatible": "dell,latitude-7455"
+        },
+        {
+          "hwid": "b3e5b59d-84ae-597d-9222-8a4d48480bc3",
+          "compatible": "dell,latitude-7455"
+        },
+        {
+          "hwid": "fb7493ec-9634-5c5a-9f26-69cbf9b92460",
+          "compatible": "dell,latitude-7455"
+        },
+        {
+          "hwid": "1d1baf60-e2f3-5821-9d98-19a131bf8d93",
+          "compatible": "dell,xps13-9345"
+        },
+        {
+          "hwid": "1eb87d70-2f37-5f18-85de-30e46c17d540",
+          "compatible": "dell,xps13-9345"
+        },
+        {
+          "hwid": "36e8dd88-512d-5a74-86a4-039333f9e15a",
+          "compatible": "dell,xps13-9345"
+        },
+        {
+          "hwid": "3b9a1d76-f2e8-52e8-84de-14c5942b3d41",
+          "compatible": "dell,xps13-9345"
+        },
+        {
+          "hwid": "3c2649a7-2275-5130-a0c4-cc5f9809a2c1",
+          "compatible": "dell,xps13-9345"
+        },
+        {
+          "hwid": "7c7c2920-cb59-56ad-bc8a-939e803b0192",
+          "compatible": "dell,xps13-9345"
+        },
+        {
+          "hwid": "81972cb8-6fc7-5e08-b140-b0063ed4fefa",
+          "compatible": "dell,xps13-9345"
+        },
+        {
+          "hwid": "940c6349-f0a5-54ba-8deb-10e709e0b76c",
+          "compatible": "dell,xps13-9345"
+        },
+        {
+          "hwid": "bc685cec-e979-5cb9-bf02-e15586c7cb4b",
+          "compatible": "dell,xps13-9345"
+        },
+        {
+          "hwid": "e656b5f2-69c3-55da-bf22-4dd58d5f6d4f",
+          "compatible": "dell,xps13-9345"
+        },
+        {
+          "hwid": "eedeb5d9-1a0e-56e6-9137-eb6a723e58d1",
+          "compatible": "dell,xps13-9345"
+        },
+        {
+          "hwid": "07be634a-0442-51fb-8a77-ecb370b5262b",
+          "compatible": "hp,elitebook-ultra-g1q"
+        },
+        {
+          "hwid": "25f49237-b3b4-58b2-9e58-6cc379781901",
+          "compatible": "hp,elitebook-ultra-g1q"
+        },
+        {
+          "hwid": "5275e89b-e839-589e-9e90-e1bd6854255b",
+          "compatible": "hp,elitebook-ultra-g1q"
+        },
+        {
+          "hwid": "5473ba61-2807-585b-b2ac-f0366d84bdc0",
+          "compatible": "hp,elitebook-ultra-g1q"
+        },
+        {
+          "hwid": "72a81f9e-c30b-5bf0-8449-948f8e593e92",
+          "compatible": "hp,elitebook-ultra-g1q"
+        },
+        {
+          "hwid": "7bfc4a0e-15c1-58b3-b27b-4e5f60d4397e",
+          "compatible": "hp,elitebook-ultra-g1q"
+        },
+        {
+          "hwid": "829d699c-f082-5835-967a-8e7022cb20b5",
+          "compatible": "hp,elitebook-ultra-g1q"
+        },
+        {
+          "hwid": "9145c311-f1b1-5f0f-902d-f6828baf8c46",
+          "compatible": "hp,elitebook-ultra-g1q"
+        },
+        {
+          "hwid": "a3c9ef57-67ab-5f75-a4cb-48cb7475b025",
+          "compatible": "hp,elitebook-ultra-g1q"
+        },
+        {
+          "hwid": "b7f376e9-f5f8-5718-b00e-6bd7c265aeab",
+          "compatible": "hp,elitebook-ultra-g1q"
+        },
+        {
+          "hwid": "ba2ddd3d-a06b-5b1f-9b2a-ce58f748486c",
+          "compatible": "hp,elitebook-ultra-g1q"
+        },
+        {
+          "hwid": "e4944bcc-a1c3-540e-b400-cd91953b7ba9",
+          "compatible": "hp,elitebook-ultra-g1q"
+        },
+        {
+          "hwid": "ec4cdb9c-e6ff-581c-ac22-d597b5e880a2",
+          "compatible": "hp,elitebook-ultra-g1q"
+        },
+        {
+          "hwid": "045dfd0f-068b-5e57-86bd-f41b4b906006",
+          "compatible": "hp,omnibook-x14"
+        },
+        {
+          "hwid": "1a192aee-2cfd-5ab5-95f9-8093218a48ef",
+          "compatible": "hp,omnibook-x14"
+        },
+        {
+          "hwid": "54500b82-f7ae-592d-ae68-8c8e362a1475",
+          "compatible": "hp,omnibook-x14"
+        },
+        {
+          "hwid": "68d24be5-01b6-5d88-83fb-df2bcfa879aa",
+          "compatible": "hp,omnibook-x14"
+        },
+        {
+          "hwid": "6a4511bc-0a3b-5b10-9c8b-dbcb834ecd83",
+          "compatible": "hp,omnibook-x14"
+        },
+        {
+          "hwid": "811126e6-4aee-5f9e-827d-d0f12f6a6f00",
+          "compatible": "hp,omnibook-x14"
+        },
+        {
+          "hwid": "848aeb1d-302b-5b6b-9109-0f4632535915",
+          "compatible": "hp,omnibook-x14"
+        },
+        {
+          "hwid": "abb2ffec-2acd-5750-8dfd-c3845fd4bf2a",
+          "compatible": "hp,omnibook-x14"
+        },
+        {
+          "hwid": "ca5dab4f-a301-53c6-b753-c2db56172e0a",
+          "compatible": "hp,omnibook-x14"
+        },
+        {
+          "hwid": "eaab52c6-ed22-5e1b-b788-fc5a0531291d",
+          "compatible": "hp,omnibook-x14"
+        },
+        {
+          "hwid": "0700776d-0de7-5ea7-b9bf-77e0454d35e1",
+          "compatible": "lenovo,yoga-slim7x"
+        },
+        {
+          "hwid": "3fb1e5ba-05cd-5153-ad64-1d8bc6dc7a1b",
+          "compatible": "lenovo,yoga-slim7x"
+        },
+        {
+          "hwid": "63429d43-c970-570d-aaa7-54300924e0c5",
+          "compatible": "lenovo,yoga-slim7x"
+        },
+        {
+          "hwid": "6d53c38f-6adb-578b-a418-2abda4d8485d",
+          "compatible": "lenovo,yoga-slim7x"
+        },
+        {
+          "hwid": "8073dbed-501f-5f5e-a619-4cdd9c00e865",
+          "compatible": "lenovo,yoga-slim7x"
+        },
+        {
+          "hwid": "8477f828-512b-56cf-af55-c711a6831551",
+          "compatible": "lenovo,yoga-slim7x"
+        },
+        {
+          "hwid": "d27cf20e-e185-578e-bd46-f4cc3a718bb2",
+          "compatible": "lenovo,yoga-slim7x"
+        },
+        {
+          "hwid": "d99f6cb2-4a96-5e4a-8e29-19d52dfc2870",
+          "compatible": "lenovo,yoga-slim7x"
+        },
+        {
+          "hwid": "ee39b629-4187-5ff7-84c0-e354555562cd",
+          "compatible": "lenovo,yoga-slim7x"
+        },
+        {
+          "hwid": "f7f92b85-ff01-5e93-a453-c7f91029aa55",
+          "compatible": "lenovo,yoga-slim7x"
+        },
+        {
+          "hwid": "fdb12a4f-1e8b-524e-97b5-feef23a8a8da",
+          "compatible": "lenovo,yoga-slim7x"
+        },
+        {
+          "hwid": "01bf1e61-d2e0-518b-bb46-eb4d1f2b1af1",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "06128fee-87dc-50f6-8a3f-97cd9a6d8bf6",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "14b96570-4bc4-541a-9aef-1b7e2b61d7cd",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "16a47337-1f8b-5bd3-b3bd-8e50b31cb1c9",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "2ea92a70-ac64-51f7-a395-dc86b06f4e0a",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "48b86a5e-1955-5799-9577-150f9e1a69e4",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "584a5084-15f2-5d20-917b-57f299e61f7e",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "5a384f15-464d-5da8-9311-a2c021759afc",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "64fbb7cb-3c5b-5fd7-a361-41d1d0ef2ff2",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "66f9d954-5c66-5577-b3e4-e3f14f87d2ff",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "7cef06f5-e7e6-56d7-b123-a6d640a5d302",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "84b2e1d1-e695-5f41-8c41-cf1f059c616a",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "95971fb3-d478-591f-9ea3-eb0af0d1dfb5",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "a362faea-8d41-5642-a48e-c0349d96ad60",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "aca467c0-5fc2-59ad-8ed5-1b7a0988d11c",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "c9c14db9-2b61-597a-a4ba-84397fe75f63",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "ca2ff828-b404-5253-9e0e-579c93bfb059",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "d752a22b-1fd8-53c3-89ef-8ca95618134a",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "fa26249f-6748-5ff3-8f78-b9cf9ab4ed2f",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "fdc060ef-c134-5735-8b51-bfb157640a5c",
+          "compatible": "microsoft,denali-oled"
+        },
+        {
+          "hwid": "11696377-327d-5ad1-b01d-02a7dbb9b99a",
+          "compatible": "microsoft,romulus13"
+        },
+        {
+          "hwid": "224ba2ff-14c1-5b33-ac10-079ccc217be2",
+          "compatible": "microsoft,romulus13"
+        },
+        {
+          "hwid": "3c329240-a447-5ec5-b79b-d1149420ac62",
+          "compatible": "microsoft,romulus13"
+        },
+        {
+          "hwid": "4ecd5e53-42ea-51a3-9602-aecdfee5c09d",
+          "compatible": "microsoft,romulus13"
+        },
+        {
+          "hwid": "53368ca9-12d5-5ee1-820b-ce979fa2cb0b",
+          "compatible": "microsoft,romulus13"
+        },
+        {
+          "hwid": "786c71b6-f60e-51c7-9ddc-f2999b75a3c5",
+          "compatible": "microsoft,romulus13"
+        },
+        {
+          "hwid": "892e90c9-31e3-5131-a217-a02632dba5e9",
+          "compatible": "microsoft,romulus13"
+        },
+        {
+          "hwid": "924900a0-9be2-53ca-90d7-b0e38827f5c5",
+          "compatible": "microsoft,romulus13"
+        },
+        {
+          "hwid": "95c06fde-19b0-55dc-9ca6-55403bae23f5",
+          "compatible": "microsoft,romulus13"
+        },
+        {
+          "hwid": "c735618b-d526-5f71-9651-8d149340d620",
+          "compatible": "microsoft,romulus13"
+        },
+        {
+          "hwid": "cb196e28-20bc-5e78-93f1-0ac41726bcf8",
+          "compatible": "microsoft,romulus13"
+        },
+        {
+          "hwid": "f0d12ad9-f530-5b56-96d8-897dd704059e",
+          "compatible": "microsoft,romulus13"
+        },
+        {
+          "hwid": "fdfca0f3-41b6-5872-a2ea-53539fd5160c",
+          "compatible": "microsoft,romulus13"
+        },
+        {
+          "hwid": "109cd8d8-6086-50b6-9c2d-d0aca0f418da",
+          "compatible": "microsoft,romulus15"
+        },
+        {
+          "hwid": "224ba2ff-14c1-5b33-ac10-079ccc217be2",
+          "compatible": "microsoft,romulus15"
+        },
+        {
+          "hwid": "27ec66e4-3f81-5c06-997e-e1ea0a98b8a1",
+          "compatible": "microsoft,romulus15"
+        },
+        {
+          "hwid": "3c329240-a447-5ec5-b79b-d1149420ac62",
+          "compatible": "microsoft,romulus15"
+        },
+        {
+          "hwid": "892e90c9-31e3-5131-a217-a02632dba5e9",
+          "compatible": "microsoft,romulus15"
+        },
+        {
+          "hwid": "90482ef5-831d-5069-8d40-92d339a75c77",
+          "compatible": "microsoft,romulus15"
+        },
+        {
+          "hwid": "924900a0-9be2-53ca-90d7-b0e38827f5c5",
+          "compatible": "microsoft,romulus15"
+        },
+        {
+          "hwid": "c735618b-d526-5f71-9651-8d149340d620",
+          "compatible": "microsoft,romulus15"
+        },
+        {
+          "hwid": "e1fbd53f-3738-5fa6-aa7b-5ae319663d6b",
+          "compatible": "microsoft,romulus15"
+        },
+        {
+          "hwid": "e4cef54f-d5b2-56b1-8aa0-07b48c3deedf",
+          "compatible": "microsoft,romulus15"
+        },
+        {
+          "hwid": "e56cd9fa-d992-5947-9f80-82345827e8e6",
+          "compatible": "microsoft,romulus15"
+        },
+        {
+          "hwid": "ebce3085-12c1-58f3-9456-ccdf741a1538",
+          "compatible": "microsoft,romulus15"
+        },
+        {
+          "hwid": "f91b1a95-926c-5fd7-9826-4a101e142f97",
+          "compatible": "microsoft,romulus15"
+        },
+        {
+          "hwid": "03f8cc3c-5d61-5ea0-aeb1-b3142528bce2",
+          "compatible": "acer,swift-go14-01"
+        },
+        {
+          "hwid": "2e71fd01-d5f5-5c67-9abc-c47c10f08626",
+          "compatible": "acer,swift-go14-01"
+        },
+        {
+          "hwid": "327e7f1e-4a10-5fe1-8b4f-3c235ea128d9",
+          "compatible": "acer,swift-go14-01"
+        },
+        {
+          "hwid": "3bd63b6b-dfa3-5314-9846-76363ae49445",
+          "compatible": "acer,swift-go14-01"
+        },
+        {
+          "hwid": "3f49141c-d8fb-5a6f-8b4a-074a2397874d",
+          "compatible": "acer,swift-go14-01"
+        },
+        {
+          "hwid": "627edbb7-fbdb-5de7-8382-f7abcbf9928a",
+          "compatible": "acer,swift-go14-01"
+        },
+        {
+          "hwid": "69670c5e-509d-5193-9f0a-882a00180b1a",
+          "compatible": "acer,swift-go14-01"
+        },
+        {
+          "hwid": "6abb9980-4909-5d87-95a4-871129047302",
+          "compatible": "acer,swift-go14-01"
+        },
+        {
+          "hwid": "795d7de3-0e1e-5976-b0d2-2216375df442",
+          "compatible": "acer,swift-go14-01"
+        },
+        {
+          "hwid": "79dd27da-6d6b-57da-8fba-b97b489be61d",
+          "compatible": "acer,swift-go14-01"
+        },
+        {
+          "hwid": "7c107a7f-2d77-51aa-aef8-8d777e26ffbc",
+          "compatible": "acer,swift-go14-01"
+        },
+        {
+          "hwid": "a07b1705-c904-5a73-b97a-f46bc2dd8400",
+          "compatible": "acer,swift-go14-01"
+        },
+        {
+          "hwid": "e66990c4-b390-59c3-a580-149c73cfe585",
+          "compatible": "acer,swift-go14-01"
+        },
+        {
+          "hwid": "0c926a29-b883-5482-aea7-ddda46084840",
+          "compatible": "asus,vivobook-s15-x1p4"
+        },
+        {
+          "hwid": "172515ff-feb1-5f61-bc14-116a23ea70da",
+          "compatible": "asus,vivobook-s15-x1p4"
+        },
+        {
+          "hwid": "24652d54-00f4-59ae-96fb-f7adbfa4a939",
+          "compatible": "asus,vivobook-s15-x1p4"
+        },
+        {
+          "hwid": "2ad07794-e07a-55da-b1a1-b9b56ed4cdcd",
+          "compatible": "asus,vivobook-s15-x1p4"
+        },
+        {
+          "hwid": "52499218-2ce9-5d3c-b276-e3cee52f2f7a",
+          "compatible": "asus,vivobook-s15-x1p4"
+        },
+        {
+          "hwid": "920bc3d2-69f0-5705-83d8-3e0019ab5223",
+          "compatible": "asus,vivobook-s15-x1p4"
+        },
+        {
+          "hwid": "ab36b5d3-4e77-58be-9d55-939c7e6734c6",
+          "compatible": "asus,vivobook-s15-x1p4"
+        },
+        {
+          "hwid": "ac5b6293-c2ac-5e82-98f2-0475efbc11fc",
+          "compatible": "asus,vivobook-s15-x1p4"
+        },
+        {
+          "hwid": "be521b64-7759-5835-a0b2-c10300a191fa",
+          "compatible": "asus,vivobook-s15-x1p4"
+        },
+        {
+          "hwid": "c4575028-e938-504d-850d-f36fbb6b300d",
+          "compatible": "asus,vivobook-s15-x1p4"
+        },
+        {
+          "hwid": "c5fed9eb-6a7b-5378-b093-484d9322150b",
+          "compatible": "asus,vivobook-s15-x1p4"
+        },
+        {
+          "hwid": "c9cd4052-8d61-5a5b-ad16-b9f12a993822",
+          "compatible": "asus,vivobook-s15-x1p4"
+        },
+        {
+          "hwid": "f6b44a44-c913-572c-8c9c-0ff0f9c010f0",
+          "compatible": "asus,vivobook-s15-x1p4"
+        },
+        {
+          "hwid": "00bc5418-646d-5bab-b772-4efb06f4e7f1",
+          "compatible": "asus,zenbook-a14-ux3407qa-lcd"
+        },
+        {
+          "hwid": "0b8b84da-462b-5620-bdb5-70272e0ddd94",
+          "compatible": "asus,zenbook-a14-ux3407qa-lcd"
+        },
+        {
+          "hwid": "14643426-35fa-5a20-bc31-3b6095d2b451",
+          "compatible": "asus,zenbook-a14-ux3407qa-lcd"
+        },
+        {
+          "hwid": "24652d54-00f4-59ae-96fb-f7adbfa4a939",
+          "compatible": "asus,zenbook-a14-ux3407qa-lcd"
+        },
+        {
+          "hwid": "3ca4e2d9-50df-51a5-a87f-4636d425e97d",
+          "compatible": "asus,zenbook-a14-ux3407qa-lcd"
+        },
+        {
+          "hwid": "59793319-4344-5755-9194-17f29f030d5d",
+          "compatible": "asus,zenbook-a14-ux3407qa-lcd"
+        },
+        {
+          "hwid": "7e6d3df4-bf5f-59ab-ad7b-e00677c0ae5a",
+          "compatible": "asus,zenbook-a14-ux3407qa-lcd"
+        },
+        {
+          "hwid": "85f50d27-f4cb-54df-9aae-f6f09700b132",
+          "compatible": "asus,zenbook-a14-ux3407qa-lcd"
+        },
+        {
+          "hwid": "8a72a2ea-3971-55e3-b982-cb6b82868f0e",
+          "compatible": "asus,zenbook-a14-ux3407qa-lcd"
+        },
+        {
+          "hwid": "a034eff6-2891-5de0-b0db-9c5ff350b968",
+          "compatible": "asus,zenbook-a14-ux3407qa-lcd"
+        },
+        {
+          "hwid": "a5b5becc-2a55-5017-b159-087f3846da26",
+          "compatible": "asus,zenbook-a14-ux3407qa-lcd"
+        },
+        {
+          "hwid": "a8425d85-573a-56f8-9d9d-98a196d712fa",
+          "compatible": "asus,zenbook-a14-ux3407qa-lcd"
+        },
+        {
+          "hwid": "c6d100b1-9de7-5636-a3cc-f28fa46fb926",
+          "compatible": "asus,zenbook-a14-ux3407qa-lcd"
+        },
+        {
+          "hwid": "180994cf-7159-5b2d-be28-5624845887b1",
+          "compatible": "hp,elitebook-6-g1q"
+        },
+        {
+          "hwid": "2c1d5a7e-43d1-5fef-89d6-a3b368779536",
+          "compatible": "hp,elitebook-6-g1q"
+        },
+        {
+          "hwid": "2dae3dcd-51ea-5422-9980-5220f02b883a",
+          "compatible": "hp,elitebook-6-g1q"
+        },
+        {
+          "hwid": "351005d4-e3e1-5387-a703-21cc93bd30ea",
+          "compatible": "hp,elitebook-6-g1q"
+        },
+        {
+          "hwid": "3bf4bc3c-a850-5a6a-a95c-8e3eaf14bc96",
+          "compatible": "hp,elitebook-6-g1q"
+        },
+        {
+          "hwid": "3c513e7a-56b8-5edf-8d1e-d90fa4a8974d",
+          "compatible": "hp,elitebook-6-g1q"
+        },
+        {
+          "hwid": "5ae54112-632c-57ee-b615-c2df8ba319cd",
+          "compatible": "hp,elitebook-6-g1q"
+        },
+        {
+          "hwid": "66ae13b5-9c0f-5f57-b2dd-dc699ccc409d",
+          "compatible": "hp,elitebook-6-g1q"
+        },
+        {
+          "hwid": "70b42fea-f55e-5d19-8110-d71be6bd5e32",
+          "compatible": "hp,elitebook-6-g1q"
+        },
+        {
+          "hwid": "aa2c3726-f5ea-53b6-8ed5-90f5a1abaaff",
+          "compatible": "hp,elitebook-6-g1q"
+        },
+        {
+          "hwid": "be685a81-758f-58d4-8c4e-65cf4877588c",
+          "compatible": "hp,elitebook-6-g1q"
+        },
+        {
+          "hwid": "c7e47171-659b-55ad-a977-3df485a15742",
+          "compatible": "hp,elitebook-6-g1q"
+        },
+        {
+          "hwid": "ea8400a5-7227-5163-9664-225070358fa0",
+          "compatible": "hp,elitebook-6-g1q"
+        },
+        {
+          "hwid": "1d8361a7-1b3a-5915-8a35-03a3c1cf9c2e",
+          "compatible": "hp,omnibook-x14-fe1"
+        },
+        {
+          "hwid": "271cca67-bd9e-5dd6-8e5f-b5f6b969da97",
+          "compatible": "hp,omnibook-x14-fe1"
+        },
+        {
+          "hwid": "29a43fda-41e4-5db5-b6d3-012d0674d84f",
+          "compatible": "hp,omnibook-x14-fe1"
+        },
+        {
+          "hwid": "38e7030f-993f-5bda-9ce8-ae13a13d7b5a",
+          "compatible": "hp,omnibook-x14-fe1"
+        },
+        {
+          "hwid": "3fdb269e-c359-5004-b4e3-8541ef3580c9",
+          "compatible": "hp,omnibook-x14-fe1"
+        },
+        {
+          "hwid": "5120f011-8f7e-5ca5-9143-de545e288712",
+          "compatible": "hp,omnibook-x14-fe1"
+        },
+        {
+          "hwid": "612e268b-1233-5af6-b478-5596d3573d35",
+          "compatible": "hp,omnibook-x14-fe1"
+        },
+        {
+          "hwid": "6fe7a469-b01a-5530-9a34-2dd089e0e006",
+          "compatible": "hp,omnibook-x14-fe1"
+        },
+        {
+          "hwid": "9c3e4a5b-8fa2-5045-9c4f-441307fa3b08",
+          "compatible": "hp,omnibook-x14-fe1"
+        },
+        {
+          "hwid": "d4db0558-de1b-562b-bc23-3e0caadd4c94",
+          "compatible": "hp,omnibook-x14-fe1"
+        },
+        {
+          "hwid": "24248bed-dbd2-5e4f-ba41-4e03a09b904a",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "32b7e294-a252-5a72-b3c6-6197f08c64f1",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "4ff87ce0-b6ce-5e37-899b-389129fc099e",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "63fd3926-001c-5392-9c34-fdd477025bd8",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "68320834-1316-5dad-babf-ae31cc3ff58c",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "6de5d951-d755-576b-bd09-c5cf66b27234",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "71d86d4d-02f8-5566-a7a1-529cef184b7e",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "72fe9329-cc32-5032-8714-d7ec08a9d441",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "920bf110-b027-51fc-97e5-bb9b46e78c75",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "9276913a-a9da-5237-b4e8-c8502197264a",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "99431f53-09a1-5869-be79-65e2fa3f341d",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "9b723570-d493-5541-ae58-49087512f816",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "a8a28ecb-200f-59c6-8fe3-62fa670fb80d",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "aa4cb99b-c4ff-56a4-8b63-ab59db887972",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "d15b437b-55bf-5bd8-8a88-eb4b9e54cb97",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "d622845f-0305-5b33-b081-b7519488ed65",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "db0cb253-2dc7-5164-8ce7-6ed312c1dd9b",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "eb458c6d-45b2-5299-95b7-87723235240e",
+          "compatible": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "hwid": "035da45a-624c-54a8-871d-a26f23330491",
+          "compatible": "lenovo,ideapad-slim5x-oled"
+        },
+        {
+          "hwid": "0ee69b2b-77f1-5424-a81a-f0f47ddf5dce",
+          "compatible": "lenovo,ideapad-slim5x-oled"
+        },
+        {
+          "hwid": "28fc3712-01ae-5662-af6c-1d5eaed5f3db",
+          "compatible": "lenovo,ideapad-slim5x-oled"
+        },
+        {
+          "hwid": "3dc089c0-edd4-5ab2-bd70-537fb1acd96a",
+          "compatible": "lenovo,ideapad-slim5x-oled"
+        },
+        {
+          "hwid": "5c96e271-228e-573f-8d54-81ddc8df357f",
+          "compatible": "lenovo,ideapad-slim5x-oled"
+        },
+        {
+          "hwid": "6dede08b-32e0-520f-b3b5-6a8da842a919",
+          "compatible": "lenovo,ideapad-slim5x-oled"
+        },
+        {
+          "hwid": "8996d12b-d951-5792-92b5-4a8ac7593ec9",
+          "compatible": "lenovo,ideapad-slim5x-oled"
+        },
+        {
+          "hwid": "9b4980e7-d4d9-5f2f-9462-11dce522e7d3",
+          "compatible": "lenovo,ideapad-slim5x-oled"
+        },
+        {
+          "hwid": "9c8eb132-0805-5a67-acae-5e24dcf34fa3",
+          "compatible": "lenovo,ideapad-slim5x-oled"
+        },
+        {
+          "hwid": "bf1bc4fc-ddc8-5c48-8e31-8f8ff2418596",
+          "compatible": "lenovo,ideapad-slim5x-oled"
+        },
+        {
+          "hwid": "c1734f8b-41a9-5397-ae31-522795aaec18",
+          "compatible": "lenovo,ideapad-slim5x-oled"
+        },
+        {
+          "hwid": "eaa30ed1-62b1-51e2-9d1f-8308a1202657",
+          "compatible": "lenovo,ideapad-slim5x-oled"
+        },
+        {
+          "hwid": "f4fb1cdf-5465-57ef-9328-e1dec46b22ee",
+          "compatible": "lenovo,ideapad-slim5x-oled"
+        },
+        {
+          "hwid": "11788bd3-612e-5b33-8d26-b8dd53d88ba0",
+          "compatible": "lenovo,thinkbook-16"
+        },
+        {
+          "hwid": "1f483d31-703d-5688-92a4-a72daaef38ec",
+          "compatible": "lenovo,thinkbook-16"
+        },
+        {
+          "hwid": "4279ea98-d0f8-588a-bb60-546a9bdefbbe",
+          "compatible": "lenovo,thinkbook-16"
+        },
+        {
+          "hwid": "43977c23-c88a-5355-95ee-78667c5c4f1d",
+          "compatible": "lenovo,thinkbook-16"
+        },
+        {
+          "hwid": "653dcb5a-527b-554c-921b-e4d93e112048",
+          "compatible": "lenovo,thinkbook-16"
+        },
+        {
+          "hwid": "8442079a-81e2-5006-9aa0-f9c88bac9288",
+          "compatible": "lenovo,thinkbook-16"
+        },
+        {
+          "hwid": "85f8bd67-fcad-50b8-8c67-0dbb786353b7",
+          "compatible": "lenovo,thinkbook-16"
+        },
+        {
+          "hwid": "894d8a8c-ab94-5193-ab7e-544927bdc40b",
+          "compatible": "lenovo,thinkbook-16"
+        },
+        {
+          "hwid": "af0d539c-b28f-5a4d-b7a1-3640e2c4535f",
+          "compatible": "lenovo,thinkbook-16"
+        },
+        {
+          "hwid": "e55d76ae-2ca4-543e-9144-86fdf0b0bf36",
+          "compatible": "lenovo,thinkbook-16"
+        },
+        {
+          "hwid": "e982f8e2-1687-5207-8674-44eea11e4b08",
+          "compatible": "lenovo,thinkbook-16"
+        },
+        {
+          "hwid": "ee9060fc-7565-54a3-ad4d-d6c637e9672d",
+          "compatible": "lenovo,thinkbook-16"
+        },
+        {
+          "hwid": "f81a6614-f23c-591a-b665-e19886a3d55e",
+          "compatible": "lenovo,thinkbook-16"
+        },
+        {
+          "hwid": "0a3f15dc-fcde-5159-baf8-1b55f5e1ae57",
+          "compatible": "microsoft,sp12"
+        },
+        {
+          "hwid": "10cb324b-df3c-5081-bc7d-b5cc6795eeef",
+          "compatible": "microsoft,sp12"
+        },
+        {
+          "hwid": "277a48e4-924d-5ab0-81b9-d29c2ff47ad5",
+          "compatible": "microsoft,sp12"
+        },
+        {
+          "hwid": "2cdac0d6-d408-54ab-bf1e-a124b6c5425b",
+          "compatible": "microsoft,sp12"
+        },
+        {
+          "hwid": "38f75a5d-c3fc-5306-bb2e-bbb516e1ea91",
+          "compatible": "microsoft,sp12"
+        },
+        {
+          "hwid": "57ba7c1d-8e88-59a9-82c9-044e765788e7",
+          "compatible": "microsoft,sp12"
+        },
+        {
+          "hwid": "587dab3d-0f40-5962-b043-6fc86e41cba2",
+          "compatible": "microsoft,sp12"
+        },
+        {
+          "hwid": "7c967d92-123c-5bfc-9fe8-430e6bba5ecb",
+          "compatible": "microsoft,sp12"
+        },
+        {
+          "hwid": "94996ddd-cdc3-5617-a625-3052726c4654",
+          "compatible": "microsoft,sp12"
+        },
+        {
+          "hwid": "abbf3314-7dde-5966-980c-a1be8cf163b8",
+          "compatible": "microsoft,sp12"
+        },
+        {
+          "hwid": "b3930262-2a19-5f3f-adf0-b34629632fbb",
+          "compatible": "microsoft,sp12"
+        },
+        {
+          "hwid": "d17ea34a-39dc-5a14-8046-f47f082b4065",
+          "compatible": "microsoft,sp12"
+        },
+        {
+          "hwid": "ef716fc4-b1b0-595c-b66e-1e3df6a0dc1d",
+          "compatible": "microsoft,sp12"
+        },
+        {
+          "hwid": "058c0739-1843-5a10-bab7-fae8aaf30add",
+          "compatible": "acer,swift-sf14-11"
+        },
+        {
+          "hwid": "100917f4-9c0a-5ac3-a297-794222da9bc9",
+          "compatible": "acer,swift-sf14-11"
+        },
+        {
+          "hwid": "20c2cf2f-231c-5d02-ae9b-c837ab5653ed",
+          "compatible": "acer,swift-sf14-11"
+        },
+        {
+          "hwid": "27d2dba8-e6f1-5c19-ba1c-c25a4744c161",
+          "compatible": "acer,swift-sf14-11"
+        },
+        {
+          "hwid": "331d7526-8b88-5923-bf98-450cf3ea82a4",
+          "compatible": "acer,swift-sf14-11"
+        },
+        {
+          "hwid": "3f49141c-d8fb-5a6f-8b4a-074a2397874d",
+          "compatible": "acer,swift-sf14-11"
+        },
+        {
+          "hwid": "676172cd-d185-53ed-aac6-245d0caa02c4",
+          "compatible": "acer,swift-sf14-11"
+        },
+        {
+          "hwid": "6a12c9bc-bcfa-5448-9f66-4159dbe8c326",
+          "compatible": "acer,swift-sf14-11"
+        },
+        {
+          "hwid": "7c107a7f-2d77-51aa-aef8-8d777e26ffbc",
+          "compatible": "acer,swift-sf14-11"
+        },
+        {
+          "hwid": "98ad068a-f812-5f13-920c-3ff3d34d263f",
+          "compatible": "acer,swift-sf14-11"
+        },
+        {
+          "hwid": "ee8fa049-e5f4-51e4-89d8-89a0140b8f38",
+          "compatible": "acer,swift-sf14-11"
+        },
+        {
+          "hwid": "f2ea7095-999d-5e5b-8f2a-4b636a1e399f",
+          "compatible": "acer,swift-sf14-11"
+        },
+        {
+          "hwid": "f55122fb-303f-58bc-b342-6ef653956d1d",
+          "compatible": "acer,swift-sf14-11"
+        },
+        {
+          "hwid": "2d75e18e-e107-5c79-8a69-5f163d28ee6f",
+          "compatible": "dell,latitude-5455"
+        },
+        {
+          "hwid": "2f11e817-91c9-5aa2-acb1-bd1d317c9ba6",
+          "compatible": "dell,latitude-5455"
+        },
+        {
+          "hwid": "4d1ff2c8-dd8d-556b-befa-0cab2bc86be3",
+          "compatible": "dell,latitude-5455"
+        },
+        {
+          "hwid": "53c465c5-6425-51cd-b0aa-3382f3ad3622",
+          "compatible": "dell,latitude-5455"
+        },
+        {
+          "hwid": "6329967e-8fcd-5544-8869-36881d8b997b",
+          "compatible": "dell,latitude-5455"
+        },
+        {
+          "hwid": "745f5023-2386-5aaa-944d-b825bea80756",
+          "compatible": "dell,latitude-5455"
+        },
+        {
+          "hwid": "75d1456b-5a14-5868-b877-7b9f58f4dd0d",
+          "compatible": "dell,latitude-5455"
+        },
+        {
+          "hwid": "838cf30a-6594-5200-8432-b94de34ce905",
+          "compatible": "dell,latitude-5455"
+        },
+        {
+          "hwid": "9195a554-2255-55ce-ab3f-59a2aba05c4e",
+          "compatible": "dell,latitude-5455"
+        },
+        {
+          "hwid": "9e9723ce-65b3-57d5-a98d-bf4e0b8f87ed",
+          "compatible": "dell,latitude-5455"
+        },
+        {
+          "hwid": "d33d10f9-d59d-5dc6-b13b-686ac24ea3c0",
+          "compatible": "dell,latitude-5455"
+        },
+        {
+          "hwid": "dfb300e4-c621-562c-a147-521e95ce6b7f",
+          "compatible": "dell,latitude-5455"
+        },
+        {
+          "hwid": "f069ee1a-448c-55df-b8a2-eebce2ccaf7f",
+          "compatible": "dell,latitude-5455"
+        }
+      ]
+    },
+    "tool": "stubble",
+    "version": "9-1",
+    "database_sha256": "0f8d85a5a1617f09ae559b1428d50141d46bcb6f08dae82221ee75e2c50d7d8c",
+    "stub_sha256": "15df218c1b01d76d1e07a181ddb35bf39bd6bdcec9eb7e156bce9f840f1f1fed",
+    "helper_sha256": "860ecf57ba565b61d245c1494529a56ebfed2791fb1207291c0af24b3c32fc4b",
+    "sbat_sha256": "3abacc98d451a41efcbc471906dd037114db05064f243504c7bef1f33bba7ba2",
+    "ukify_tool": "ukify",
+    "ukify_package": "systemd-ukify",
+    "ukify_version": "259.9-0ubuntu0.1",
+    "ukify_sha256": "28d312717338d89be5803f913a787caae8bf34d6b04973ac5ed3ffc5d6c6a38e",
+    "selections": [
+      {
+        "device": "dtb-0015fa7e818efa72381fce42",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "dell,latitude-5455",
+            "hwids": [
+              "2d75e18e-e107-5c79-8a69-5f163d28ee6f",
+              "2f11e817-91c9-5aa2-acb1-bd1d317c9ba6",
+              "4d1ff2c8-dd8d-556b-befa-0cab2bc86be3",
+              "53c465c5-6425-51cd-b0aa-3382f3ad3622",
+              "6329967e-8fcd-5544-8869-36881d8b997b",
+              "745f5023-2386-5aaa-944d-b825bea80756",
+              "75d1456b-5a14-5868-b877-7b9f58f4dd0d",
+              "838cf30a-6594-5200-8432-b94de34ce905",
+              "9195a554-2255-55ce-ab3f-59a2aba05c4e",
+              "9e9723ce-65b3-57d5-a98d-bf4e0b8f87ed",
+              "d33d10f9-d59d-5dc6-b13b-686ac24ea3c0",
+              "dfb300e4-c621-562c-a147-521e95ce6b7f",
+              "f069ee1a-448c-55df-b8a2-eebce2ccaf7f"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-02d7916c1361612ae27fe90e",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "asus,zenbook-a14-ux3407ra",
+            "hwids": [
+              "0bfddfaf-e393-5dfe-a805-39b8b1098c81",
+              "0c3f5e9c-eddb-5ba2-88ee-06ae0221a53d",
+              "1f2f1045-a811-5e42-b31e-b433e384fc79",
+              "20b8b77d-e450-550b-b1ff-55d3317f59a6",
+              "24652d54-00f4-59ae-96fb-f7adbfa4a939",
+              "2d610a5e-ef69-5e60-b15e-7786d0ebd79e",
+              "3884ad58-4d63-589a-be98-b8ab1ddf3b93",
+              "5c9fc73f-f915-52bf-a82d-9c7fe2274ecc",
+              "6f892377-a51e-5f99-a363-b79f28fc55f9",
+              "b307ab54-c79d-58ca-a3b2-d1b1e325bfc3",
+              "c41d2cda-fda7-522c-b1a7-4a835c15c43d",
+              "cedbcc19-3a5a-5bae-9973-f8e158188de7",
+              "f0bb1cd4-995a-5c90-946b-9bb958f35f42"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-03a1c7fdd7cb7944d1e0f097",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "lenovo,yoga-slim7x",
+            "hwids": [
+              "0700776d-0de7-5ea7-b9bf-77e0454d35e1",
+              "3fb1e5ba-05cd-5153-ad64-1d8bc6dc7a1b",
+              "63429d43-c970-570d-aaa7-54300924e0c5",
+              "6d53c38f-6adb-578b-a418-2abda4d8485d",
+              "8073dbed-501f-5f5e-a619-4cdd9c00e865",
+              "8477f828-512b-56cf-af55-c711a6831551",
+              "d27cf20e-e185-578e-bd46-f4cc3a718bb2",
+              "d99f6cb2-4a96-5e4a-8e29-19d52dfc2870",
+              "ee39b629-4187-5ff7-84c0-e354555562cd",
+              "f7f92b85-ff01-5e93-a453-c7f91029aa55",
+              "fdb12a4f-1e8b-524e-97b5-feef23a8a8da"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-1b1e1b085739a51396149f51",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "acer,swift-sf14-11",
+            "hwids": [
+              "058c0739-1843-5a10-bab7-fae8aaf30add",
+              "100917f4-9c0a-5ac3-a297-794222da9bc9",
+              "20c2cf2f-231c-5d02-ae9b-c837ab5653ed",
+              "27d2dba8-e6f1-5c19-ba1c-c25a4744c161",
+              "331d7526-8b88-5923-bf98-450cf3ea82a4",
+              "3f49141c-d8fb-5a6f-8b4a-074a2397874d",
+              "676172cd-d185-53ed-aac6-245d0caa02c4",
+              "6a12c9bc-bcfa-5448-9f66-4159dbe8c326",
+              "7c107a7f-2d77-51aa-aef8-8d777e26ffbc",
+              "98ad068a-f812-5f13-920c-3ff3d34d263f",
+              "ee8fa049-e5f4-51e4-89d8-89a0140b8f38",
+              "f2ea7095-999d-5e5b-8f2a-4b636a1e399f",
+              "f55122fb-303f-58bc-b342-6ef653956d1d"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-1d2f4b8eb622afc1f92b13d4",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "qcom,x1e001de-devkit",
+            "hwids": [
+              "4bb05d50-6c4f-525d-a9ec-8924afd6edea",
+              "830bd4a2-2498-55cf-b561-48f7dc5f4820",
+              "9cba20d0-17ad-559f-94cd-cfcbbf5f71f5",
+              "baa7a649-12d8-56c7-93c5-a4e10f4852be",
+              "c8e75ab8-555c-5952-a3e3-5b607bea031d",
+              "f37dc44b-0be4-5a70-86bd-81f3dacff2e9"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-25a4613424165ffc9f5a976a",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "lenovo,thinkbook-16",
+            "hwids": [
+              "11788bd3-612e-5b33-8d26-b8dd53d88ba0",
+              "1f483d31-703d-5688-92a4-a72daaef38ec",
+              "4279ea98-d0f8-588a-bb60-546a9bdefbbe",
+              "43977c23-c88a-5355-95ee-78667c5c4f1d",
+              "653dcb5a-527b-554c-921b-e4d93e112048",
+              "8442079a-81e2-5006-9aa0-f9c88bac9288",
+              "85f8bd67-fcad-50b8-8c67-0dbb786353b7",
+              "894d8a8c-ab94-5193-ab7e-544927bdc40b",
+              "af0d539c-b28f-5a4d-b7a1-3640e2c4535f",
+              "e55d76ae-2ca4-543e-9144-86fdf0b0bf36",
+              "e982f8e2-1687-5207-8674-44eea11e4b08",
+              "ee9060fc-7565-54a3-ad4d-d6c637e9672d",
+              "f81a6614-f23c-591a-b665-e19886a3d55e"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-28c2940a813da5110905ca52",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "microsoft,blackrock",
+            "hwids": [
+              "046fefee-341b-5c40-b0a3-1c647d31b500",
+              "08f06457-aa19-51c5-be4c-0087ce4fa2ed",
+              "11b80238-dbee-57bc-8b26-83c9e5b4057d",
+              "53b87f48-fc47-54e9-ade5-f1a95e885681",
+              "5bd24fc5-5edb-51f6-82e6-31a9ef954c5b",
+              "69ba0503-ca94-5fa3-b78c-5fa21a66c620",
+              "813677fa-6d11-5756-a44d-dde0f552d3f6",
+              "ad2ee931-a048-5253-b350-98c482670765",
+              "ce83144b-b123-59e5-8a9a-0c1a13643fc4",
+              "d67e799e-2ba7-555a-a874-a0523a8b3b11",
+              "f59639f4-4970-5706-9a75-519dd059f69e"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-2caeee3c77fd70ef7d7963b3",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "hp,elitebook-ultra-g1q",
+            "hwids": [
+              "07be634a-0442-51fb-8a77-ecb370b5262b",
+              "25f49237-b3b4-58b2-9e58-6cc379781901",
+              "5275e89b-e839-589e-9e90-e1bd6854255b",
+              "5473ba61-2807-585b-b2ac-f0366d84bdc0",
+              "72a81f9e-c30b-5bf0-8449-948f8e593e92",
+              "7bfc4a0e-15c1-58b3-b27b-4e5f60d4397e",
+              "829d699c-f082-5835-967a-8e7022cb20b5",
+              "9145c311-f1b1-5f0f-902d-f6828baf8c46",
+              "a3c9ef57-67ab-5f75-a4cb-48cb7475b025",
+              "b7f376e9-f5f8-5718-b00e-6bd7c265aeab",
+              "ba2ddd3d-a06b-5b1f-9b2a-ce58f748486c",
+              "e4944bcc-a1c3-540e-b400-cd91953b7ba9",
+              "ec4cdb9c-e6ff-581c-ac22-d597b5e880a2"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-37b23350938c913daca5e462",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "dell,inspiron-14-plus-7441",
+            "hwids": [
+              "07c6477a-7ef7-56c7-91d9-73d23295b0c0",
+              "07c6bbd9-caf8-5025-84d8-4efdb790f663",
+              "0d9ce3bc-620c-5209-9e82-7382cb6cffcd",
+              "4689ccaf-4f31-5146-887f-ca965da0f28a",
+              "8548ce7c-fdf3-55d0-95ba-606ca8db50da",
+              "90117b25-1646-515b-bfeb-286e74f2a1e8",
+              "a66b1244-0027-5451-a96a-dfcfc42ab892",
+              "bea2e67a-b660-5044-8acd-0d28e8c2e974",
+              "c1190be1-8ed5-50f1-9097-2a73ad9c4eb1",
+              "e4c9fe83-73ba-5160-bc18-57d4a98e960d",
+              "ef84110e-bd09-5f0f-a3dd-7995b4a3a706",
+              "efc06900-f603-5944-88e5-4de722816f91",
+              "ff394805-0b5f-52f6-9e1d-afb1d2bee411"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-38ab75de5ea8c09264497344",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "hp,elitebook-6-g1q",
+            "hwids": [
+              "180994cf-7159-5b2d-be28-5624845887b1",
+              "2c1d5a7e-43d1-5fef-89d6-a3b368779536",
+              "2dae3dcd-51ea-5422-9980-5220f02b883a",
+              "351005d4-e3e1-5387-a703-21cc93bd30ea",
+              "3bf4bc3c-a850-5a6a-a95c-8e3eaf14bc96",
+              "3c513e7a-56b8-5edf-8d1e-d90fa4a8974d",
+              "5ae54112-632c-57ee-b615-c2df8ba319cd",
+              "66ae13b5-9c0f-5f57-b2dd-dc699ccc409d",
+              "70b42fea-f55e-5d19-8110-d71be6bd5e32",
+              "aa2c3726-f5ea-53b6-8ed5-90f5a1abaaff",
+              "be685a81-758f-58d4-8c4e-65cf4877588c",
+              "c7e47171-659b-55ad-a977-3df485a15742",
+              "ea8400a5-7227-5163-9664-225070358fa0"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-5093098b57c36afb0d250028",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "lenovo,flex-5g",
+            "hwids": [
+              "01439aea-e75c-5fbb-8842-18dcd1a7b8b3",
+              "06675172-9a6e-5276-a505-d205688a87f0",
+              "12c0e5b0-8886-5444-b42b-93692fa736df",
+              "16551bd5-37b0-571d-a94c-da61a9cfccf5",
+              "23dcfb84-d132-5f60-878e-64fe0b9417d6",
+              "39fca706-c9a2-54d4-8c7c-d5e292d0a725",
+              "5100eeed-c5e2-5b74-9c24-a22ca0644826",
+              "566b9ae8-a7fd-5c44-94d6-bac3e4cf38a7",
+              "65ab9f32-bbc8-52d3-87f9-b618fda7c07e",
+              "6f3bdfb7-f832-5c5f-9777-9e3db35e22a6",
+              "7e7007ac-603c-55ef-bb77-3548784b9578",
+              "997c1c76-5595-5300-9f58-94d2c6ffc586",
+              "a1a13249-2689-5c6d-a43f-98af040284c4",
+              "ad47f2e9-2f8c-5cd1-a44e-82f35a43e44e",
+              "b9bf941f-3a32-57da-b609-5fff7fb382cd",
+              "c4ea686c-c56c-5e8e-a91e-89056683d417",
+              "ddb3bcda-db7b-579d-9dd9-bcc4f5b052b8",
+              "df3ecc56-b61b-5f8e-896f-801a42b536d6",
+              "ea646c11-3da1-5c8d-9346-8ff156746650",
+              "ea658d2b-f644-555d-9b72-e1642401a795",
+              "fb364c09-efc0-5d16-ac97-0a3e6235b16c",
+              "fb5c3077-39d5-5a44-97ce-2d3be5f6bfec"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-552fc72e167065d60796fe36",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "microsoft,romulus15",
+            "hwids": [
+              "109cd8d8-6086-50b6-9c2d-d0aca0f418da",
+              "224ba2ff-14c1-5b33-ac10-079ccc217be2",
+              "27ec66e4-3f81-5c06-997e-e1ea0a98b8a1",
+              "3c329240-a447-5ec5-b79b-d1149420ac62",
+              "892e90c9-31e3-5131-a217-a02632dba5e9",
+              "90482ef5-831d-5069-8d40-92d339a75c77",
+              "924900a0-9be2-53ca-90d7-b0e38827f5c5",
+              "c735618b-d526-5f71-9651-8d149340d620",
+              "e1fbd53f-3738-5fa6-aa7b-5ae319663d6b",
+              "e4cef54f-d5b2-56b1-8aa0-07b48c3deedf",
+              "e56cd9fa-d992-5947-9f80-82345827e8e6",
+              "ebce3085-12c1-58f3-9456-ccdf741a1538",
+              "f91b1a95-926c-5fd7-9826-4a101e142f97"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-637cfcc2abc40b59c707377d",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "acer,swift-go14-01",
+            "hwids": [
+              "03f8cc3c-5d61-5ea0-aeb1-b3142528bce2",
+              "2e71fd01-d5f5-5c67-9abc-c47c10f08626",
+              "327e7f1e-4a10-5fe1-8b4f-3c235ea128d9",
+              "3bd63b6b-dfa3-5314-9846-76363ae49445",
+              "3f49141c-d8fb-5a6f-8b4a-074a2397874d",
+              "627edbb7-fbdb-5de7-8382-f7abcbf9928a",
+              "69670c5e-509d-5193-9f0a-882a00180b1a",
+              "6abb9980-4909-5d87-95a4-871129047302",
+              "795d7de3-0e1e-5976-b0d2-2216375df442",
+              "79dd27da-6d6b-57da-8fba-b97b489be61d",
+              "7c107a7f-2d77-51aa-aef8-8d777e26ffbc",
+              "a07b1705-c904-5a73-b97a-f46bc2dd8400",
+              "e66990c4-b390-59c3-a580-149c73cfe585"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-6d8270f03a123dd33d93be4a",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "qcom,x1e001de-devkit",
+            "hwids": [
+              "4bb05d50-6c4f-525d-a9ec-8924afd6edea",
+              "830bd4a2-2498-55cf-b561-48f7dc5f4820",
+              "9cba20d0-17ad-559f-94cd-cfcbbf5f71f5",
+              "baa7a649-12d8-56c7-93c5-a4e10f4852be",
+              "c8e75ab8-555c-5952-a3e3-5b607bea031d",
+              "f37dc44b-0be4-5a70-86bd-81f3dacff2e9"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-6f66ee9b6a9f5188eca15a48",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "asus,zenbook-a14-ux3407qa-oled",
+            "hwids": [
+              "91971b38-ae5d-5e14-9f44-7c0316710593",
+              "f84ba711-7075-5c1b-a03c-57d2521a1ac2"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-74012be403ee35a98b5cfc49",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "lenovo,yoga-c630",
+            "hwids": [
+              "30b031c0-9de7-5d31-a61c-dee772871b7d",
+              "382926c0-ce35-53af-8ff9-ca9cc06cfc7b",
+              "43b71948-9c47-5372-a5cb-18db47bb873f",
+              "5ca3cf2b-d6e9-5b54-93f7-1cebd7b3704f",
+              "67a23be6-42a6-5900-8325-847a318ce252",
+              "81f308c0-db65-50c2-a660-52e06fc0ff9f",
+              "8f56cf17-7bdd-5414-832d-97cd26837114",
+              "94f73d29-3981-59a8-8f25-214f84d1522a",
+              "b323d38a-88c6-5cf6-af0d-0db3f3c2560d",
+              "b8c71349-3669-56f3-99ee-ae473a2edd96",
+              "d17c132e-f06e-5e38-8084-9cd642dd9b34"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-7b2386f215aa66d3c964c6c6",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "asus,vivobook-s15",
+            "hwids": [
+              "137a5f94-8fcf-5581-8ac6-70d50fdba4a6",
+              "1b6a0689-3f70-57e0-8bf3-39a8a74213e8",
+              "3a3ef092-d5f1-5d4d-acea-70b38ef56e53",
+              "4262e277-58d3-5ac4-9858-c0751ad06f5c",
+              "6d634332-21fc-57c8-bc6b-e0f800f69f95",
+              "80430e03-90f0-5355-84b2-28fb17367203",
+              "807fe49f-cfd2-537d-b635-47bec9e36baf",
+              "a6debedb-f954-5aa1-8260-4dc3b567c95f",
+              "c71e903b-4255-56cb-b961-a8f87b452cbe",
+              "d0fce8d6-a709-5bf0-8be0-6ac6ab44b8e0",
+              "f3a6ca3e-4791-5bb0-915e-0b31856ec19c",
+              "f54cd4e6-3666-5b56-abd3-a5f2df50c534",
+              "fa342b0a-9e22-541f-8e95-93106778f97d"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-7c4e773887132954d68c1e9c",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "hp,omnibook-x14",
+            "hwids": [
+              "045dfd0f-068b-5e57-86bd-f41b4b906006",
+              "1a192aee-2cfd-5ab5-95f9-8093218a48ef",
+              "54500b82-f7ae-592d-ae68-8c8e362a1475",
+              "68d24be5-01b6-5d88-83fb-df2bcfa879aa",
+              "6a4511bc-0a3b-5b10-9c8b-dbcb834ecd83",
+              "811126e6-4aee-5f9e-827d-d0f12f6a6f00",
+              "848aeb1d-302b-5b6b-9109-0f4632535915",
+              "abb2ffec-2acd-5750-8dfd-c3845fd4bf2a",
+              "ca5dab4f-a301-53c6-b753-c2db56172e0a",
+              "eaab52c6-ed22-5e1b-b788-fc5a0531291d"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-831e9078e995a35349e5c52e",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "huawei,gaokun3",
+            "hwids": [
+              "0c78ef16-4fe0-5e33-908e-b038949ee608",
+              "13311789-793f-5d95-942c-3b6414a8ad1a",
+              "1c2effc1-1038-584d-ae8b-7c912c8e9504",
+              "3eb6683b-0153-5365-81c6-cc599783e9c7",
+              "4f04f31f-17f0-583f-802f-82c3a0b34128",
+              "6eb75906-3a4e-5de4-94c5-374d8f9723e5",
+              "7ea8b73b-2cbb-562b-aecc-7f0f64c42630",
+              "80c86c24-c7a7-5714-abf2-4c48f348cecc",
+              "b866fc5c-261b-56d8-99e8-03ea0646af8f",
+              "d8846172-f0a0-55ba-bf41-55641f588ea7",
+              "e1b94e53-0f20-5d01-abfc-cfb348544a31",
+              "e5a0ed2b-7fed-5e2d-94ed-43dbaf0b9ccc",
+              "e98c95a8-b50e-5d8b-b2db-c679a39163df"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-84d40c8dd036b093e24d9bb0",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "microsoft,arcata",
+            "hwids": [
+              "009d2337-4f76-514e-b2c1-b2816447b048",
+              "3a486e6f-3b0a-5603-a483-503381d3d8c3",
+              "5caa88bc-ea9b-5d73-a69a-89024bfff854",
+              "6309fbb9-68f4-54f9-bbc9-b3ca9685b48c",
+              "636b6071-7848-50d5-b0b5-6290c49e9306",
+              "94fb24a7-ff7a-5d70-9ac8-518a9e44ea64",
+              "9bac72c6-83f6-5e21-af8e-bc1f5c2b7cc8",
+              "9d70dcfd-f56b-58bf-b1bd-a1b8f2b0ec7e",
+              "a659ee2b-502d-50f7-9921-bdbd34734e0b",
+              "c0cf7078-c325-5cf6-966b-3bbbc155275b",
+              "e3d941fa-2bfa-5875-8efd-87ce997f8338"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-88586e2848e155597e71d1c2",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "acer,aspire1",
+            "hwids": [
+              "175f000b-3d05-5c01-aedd-817b1a141f93",
+              "260192d4-06d4-5124-ab46-ba210f4c14d7",
+              "373bfde5-ffaa-504c-84f3-f8f5357dfc29",
+              "45d37dbe-40fb-57bd-a257-55f422d4dc0a",
+              "68b38fff-aadc-512c-937b-99d9c13eb484",
+              "7c107a7f-2d77-51aa-aef8-8d777e26ffbc",
+              "7e15f49e-04b4-5d56-a567-e7a15ba2aca1",
+              "82fe1869-361c-56b2-b853-631747e64aa7",
+              "965e3681-de3b-5e39-bb62-7d4917d7e36f",
+              "e12521bf-0ed8-5406-af87-adad812c57c5",
+              "faa12ed4-bd49-5471-8f74-75c2267c3b46"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-914b0bcd989d84125dfbb9bb",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "lenovo,ideapad-slim5x-oled",
+            "hwids": [
+              "035da45a-624c-54a8-871d-a26f23330491",
+              "0ee69b2b-77f1-5424-a81a-f0f47ddf5dce",
+              "28fc3712-01ae-5662-af6c-1d5eaed5f3db",
+              "3dc089c0-edd4-5ab2-bd70-537fb1acd96a",
+              "5c96e271-228e-573f-8d54-81ddc8df357f",
+              "6dede08b-32e0-520f-b3b5-6a8da842a919",
+              "8996d12b-d951-5792-92b5-4a8ac7593ec9",
+              "9b4980e7-d4d9-5f2f-9462-11dce522e7d3",
+              "9c8eb132-0805-5a67-acae-5e24dcf34fa3",
+              "bf1bc4fc-ddc8-5c48-8e31-8f8ff2418596",
+              "c1734f8b-41a9-5397-ae31-522795aaec18",
+              "eaa30ed1-62b1-51e2-9d1f-8308a1202657",
+              "f4fb1cdf-5465-57ef-9328-e1dec46b22ee"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-938ad1fabb79215a7719bbd0",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "lenovo,thinkpad-t14s-oled",
+            "hwids": [
+              "08ba7f5b-8136-5938-835a-fd99143d34a5",
+              "27378ce5-d999-5c3b-acde-0404805afd3b",
+              "77ffaabe-038a-550f-b6ea-485dc49d4b45",
+              "7c09107d-0ac3-5582-837f-c614d518cf62",
+              "c012b92d-a6a6-57fa-ba06-4f3062d891d4",
+              "e78c4e7a-68c3-5b29-b2a0-dbd2785e28cd"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-945af392e1c3e3a6b94e0c40",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "hp,omnibook-x14-fe1",
+            "hwids": [
+              "1d8361a7-1b3a-5915-8a35-03a3c1cf9c2e",
+              "271cca67-bd9e-5dd6-8e5f-b5f6b969da97",
+              "29a43fda-41e4-5db5-b6d3-012d0674d84f",
+              "38e7030f-993f-5bda-9ce8-ae13a13d7b5a",
+              "3fdb269e-c359-5004-b4e3-8541ef3580c9",
+              "5120f011-8f7e-5ca5-9143-de545e288712",
+              "612e268b-1233-5af6-b478-5596d3573d35",
+              "6fe7a469-b01a-5530-9a34-2dd089e0e006",
+              "9c3e4a5b-8fa2-5045-9c4f-441307fa3b08",
+              "d4db0558-de1b-562b-bc23-3e0caadd4c94"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-96c71203d718bed29aa93f7a",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "dell,latitude-5455",
+            "hwids": [
+              "2d75e18e-e107-5c79-8a69-5f163d28ee6f",
+              "2f11e817-91c9-5aa2-acb1-bd1d317c9ba6",
+              "4d1ff2c8-dd8d-556b-befa-0cab2bc86be3",
+              "53c465c5-6425-51cd-b0aa-3382f3ad3622",
+              "6329967e-8fcd-5544-8869-36881d8b997b",
+              "745f5023-2386-5aaa-944d-b825bea80756",
+              "75d1456b-5a14-5868-b877-7b9f58f4dd0d",
+              "838cf30a-6594-5200-8432-b94de34ce905",
+              "9195a554-2255-55ce-ab3f-59a2aba05c4e",
+              "9e9723ce-65b3-57d5-a98d-bf4e0b8f87ed",
+              "d33d10f9-d59d-5dc6-b13b-686ac24ea3c0",
+              "dfb300e4-c621-562c-a147-521e95ce6b7f",
+              "f069ee1a-448c-55df-b8a2-eebce2ccaf7f"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-a2eb2154f2fb5d1390fba5b5",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "qcom,x1e001de-devkit",
+            "hwids": [
+              "4bb05d50-6c4f-525d-a9ec-8924afd6edea",
+              "830bd4a2-2498-55cf-b561-48f7dc5f4820",
+              "9cba20d0-17ad-559f-94cd-cfcbbf5f71f5",
+              "baa7a649-12d8-56c7-93c5-a4e10f4852be",
+              "c8e75ab8-555c-5952-a3e3-5b607bea031d",
+              "f37dc44b-0be4-5a70-86bd-81f3dacff2e9"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-a9d4695fb9b0b21d3afd6443",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "dell,latitude-7455",
+            "hwids": [
+              "2b9277cd-85b1-51ee-9a38-d477632532da",
+              "4f73f73b-e639-5353-bbf7-d851e48f18fc",
+              "59e5c810-9e60-5a89-8665-db36c56b34d6",
+              "683e4579-8440-5bc1-89ac-dfcd7c25b307",
+              "68822228-a3e0-5b12-942d-9408751405d1",
+              "6e01222b-b2aa-531e-b95f-0e4b2a063364",
+              "903e3a6f-e14b-5643-9d55-244f917aadb6",
+              "93055898-8c85-50e7-adde-8115f194579a",
+              "b3e5b59d-84ae-597d-9222-8a4d48480bc3",
+              "fb7493ec-9634-5c5a-9f26-69cbf9b92460"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-b65e6300bfbd756a3cb35bdc",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "qcom,x1e80100-crd",
+            "hwids": [
+              "2405af0b-d21d-5196-a228-4acffe7b3a10",
+              "339fc6d2-e0f4-5226-9dd9-62c4dc41881d",
+              "361b3d63-be90-52c2-8798-a05fbd68b773",
+              "4bb05d50-6c4f-525d-a9ec-8924afd6edea",
+              "7faef667-9eb2-53f4-9764-26fe0e92fbff",
+              "8fa88c58-23eb-5aea-9ea7-c4a98ded7352",
+              "b6d4eee8-30f3-564a-8246-e83935cf8dbb",
+              "d52e3fb6-202c-5cfa-a27c-e3ffe15339fb",
+              "e73870a5-90e8-528d-93fd-3da59f78df18"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-bd29920037fd4ce7a9163278",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "lenovo,ideapad-5-2in1",
+            "hwids": [
+              "24248bed-dbd2-5e4f-ba41-4e03a09b904a",
+              "32b7e294-a252-5a72-b3c6-6197f08c64f1",
+              "4ff87ce0-b6ce-5e37-899b-389129fc099e",
+              "63fd3926-001c-5392-9c34-fdd477025bd8",
+              "68320834-1316-5dad-babf-ae31cc3ff58c",
+              "6de5d951-d755-576b-bd09-c5cf66b27234",
+              "71d86d4d-02f8-5566-a7a1-529cef184b7e",
+              "72fe9329-cc32-5032-8714-d7ec08a9d441",
+              "920bf110-b027-51fc-97e5-bb9b46e78c75",
+              "9276913a-a9da-5237-b4e8-c8502197264a",
+              "99431f53-09a1-5869-be79-65e2fa3f341d",
+              "9b723570-d493-5541-ae58-49087512f816",
+              "a8a28ecb-200f-59c6-8fe3-62fa670fb80d",
+              "aa4cb99b-c4ff-56a4-8b63-ab59db887972",
+              "d15b437b-55bf-5bd8-8a88-eb4b9e54cb97",
+              "d622845f-0305-5b33-b081-b7519488ed65",
+              "db0cb253-2dc7-5164-8ce7-6ed312c1dd9b",
+              "eb458c6d-45b2-5299-95b7-87723235240e"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-be27fe920f8269ad5ded0da3",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "lenovo,thinkpad-x13s",
+            "hwids": [
+              "04392ed0-22bc-56a4-ae4e-dcb325cb6899",
+              "0909a1c3-3a02-59a0-b1ea-04f1449c104f",
+              "1305c7fb-2943-53e5-aba5-5a948d96ed94",
+              "30c7a7fe-f4bf-5ce1-aad8-f5e6db904c53",
+              "3486eccc-d0ac-534a-9e2f-a1c18bc310c6",
+              "3ad863ab-0181-5a2f-9cc1-70eedc446da9",
+              "3f9d2d91-73b2-5316-8c72-a0ecb3f0dae5",
+              "4a971ccf-1223-5f4d-b939-dcb8efc0b350",
+              "4b189129-8eb2-585c-a1bb-a4cfc979433a",
+              "4df470e6-7878-5b0f-b2e0-733d5d9fa228",
+              "5188008f-3241-5f05-8d21-774b5c7a2887",
+              "56eafd87-9fbc-5388-a5fd-ec9a9178fb1c",
+              "6026ec60-e5e0-56bf-9d71-f3465d7314c8",
+              "64b71f12-4341-5e5c-b7cd-25b6503799e3",
+              "69acf6bf-ed33-5806-857f-c76971d7061e",
+              "69c47e1e-fde2-5062-b777-acbeab73784b",
+              "6d8e538a-e089-5901-97ed-5ef670416fca",
+              "810e34c6-cc69-5e36-8675-2f6e354272d3",
+              "873455fb-b2c5-5c0c-9c2c-90e80d44da57",
+              "93a4dd46-2007-56bf-b176-390519d6f5bd",
+              "9f47e28f-e1ee-5cb5-b4ce-8f0605752b3d",
+              "a1dfe209-99e5-5ff2-9922-aa4c11491b49",
+              "a84d13c1-3864-5d56-8c7c-15ad37074a3f",
+              "abdbb2cb-ab52-5674-9d0a-2e2cb69bcbb4",
+              "b265d777-007e-56e5-b0e2-bd666ab867be",
+              "b41f58ed-7631-561f-9b0c-449a9c293afa",
+              "b470d002-ad8e-5d5c-a7bf-bb1333f2ce4b",
+              "c869f39e-f205-5ca0-be7b-d90f90ef5556",
+              "db1387e0-f13d-5000-889d-ff7cca53846a",
+              "dc4ecdd0-c09b-5e84-ac5f-ccf0182e1ec6",
+              "ddf28a3f-43fc-54a4-a6a7-4cba5ad46b3e",
+              "ddfbdaa2-7c46-5103-be64-84a9f88c485f",
+              "e4e1e851-389a-5be8-bc77-d32bc3e96ba2",
+              "f22c935e-2dc8-5949-9486-09bbf10361b2",
+              "fbf92a11-bb6f-5adb-b5a7-8abf9acbd7d9"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-ca5eff4036d39e4ca34537c0",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "dell,xps13-9345",
+            "hwids": [
+              "1d1baf60-e2f3-5821-9d98-19a131bf8d93",
+              "1eb87d70-2f37-5f18-85de-30e46c17d540",
+              "36e8dd88-512d-5a74-86a4-039333f9e15a",
+              "3b9a1d76-f2e8-52e8-84de-14c5942b3d41",
+              "3c2649a7-2275-5130-a0c4-cc5f9809a2c1",
+              "7c7c2920-cb59-56ad-bc8a-939e803b0192",
+              "81972cb8-6fc7-5e08-b140-b0063ed4fefa",
+              "940c6349-f0a5-54ba-8deb-10e709e0b76c",
+              "bc685cec-e979-5cb9-bf02-e15586c7cb4b",
+              "e656b5f2-69c3-55da-bf22-4dd58d5f6d4f",
+              "eedeb5d9-1a0e-56e6-9137-eb6a723e58d1"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-db4a73b309d3cdd458e9b681",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "microsoft,romulus13",
+            "hwids": [
+              "11696377-327d-5ad1-b01d-02a7dbb9b99a",
+              "224ba2ff-14c1-5b33-ac10-079ccc217be2",
+              "3c329240-a447-5ec5-b79b-d1149420ac62",
+              "4ecd5e53-42ea-51a3-9602-aecdfee5c09d",
+              "53368ca9-12d5-5ee1-820b-ce979fa2cb0b",
+              "786c71b6-f60e-51c7-9ddc-f2999b75a3c5",
+              "892e90c9-31e3-5131-a217-a02632dba5e9",
+              "924900a0-9be2-53ca-90d7-b0e38827f5c5",
+              "95c06fde-19b0-55dc-9ca6-55403bae23f5",
+              "c735618b-d526-5f71-9651-8d149340d620",
+              "cb196e28-20bc-5e78-93f1-0ac41726bcf8",
+              "f0d12ad9-f530-5b56-96d8-897dd704059e",
+              "fdfca0f3-41b6-5872-a2ea-53539fd5160c"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-dbec74548fc599dcc26f42df",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "qcom,glymur-crd",
+            "hwids": [
+              "031a5cd7-883e-5004-90c2-92d29025c777",
+              "339fc6d2-e0f4-5226-9dd9-62c4dc41881d",
+              "49bcdd2b-d769-5071-b3a4-4a02ff1d36f5",
+              "4bb05d50-6c4f-525d-a9ec-8924afd6edea",
+              "6fcbdad8-149e-5f72-b2e3-0fd78572ff93",
+              "ce496e01-9bd8-522e-8937-8045126ed39a",
+              "d9972e14-0a66-56a8-9cee-8c5647fbe470",
+              "e53db94e-68fe-541f-b06e-4b5a253dadf9",
+              "e88849e7-af59-5c58-9776-75cfb6bac078"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-dfeaf46492ac459333503a39",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "asus,zenbook-a14-ux3407qa-lcd",
+            "hwids": [
+              "00bc5418-646d-5bab-b772-4efb06f4e7f1",
+              "0b8b84da-462b-5620-bdb5-70272e0ddd94",
+              "14643426-35fa-5a20-bc31-3b6095d2b451",
+              "24652d54-00f4-59ae-96fb-f7adbfa4a939",
+              "3ca4e2d9-50df-51a5-a87f-4636d425e97d",
+              "59793319-4344-5755-9194-17f29f030d5d",
+              "7e6d3df4-bf5f-59ab-ad7b-e00677c0ae5a",
+              "85f50d27-f4cb-54df-9aae-f6f09700b132",
+              "8a72a2ea-3971-55e3-b982-cb6b82868f0e",
+              "a034eff6-2891-5de0-b0db-9c5ff350b968",
+              "a5b5becc-2a55-5017-b159-087f3846da26",
+              "a8425d85-573a-56f8-9d9d-98a196d712fa",
+              "c6d100b1-9de7-5636-a3cc-f28fa46fb926"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-e739dc933921a605a6569907",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "asus,vivobook-s15-x1p4",
+            "hwids": [
+              "0c926a29-b883-5482-aea7-ddda46084840",
+              "172515ff-feb1-5f61-bc14-116a23ea70da",
+              "24652d54-00f4-59ae-96fb-f7adbfa4a939",
+              "2ad07794-e07a-55da-b1a1-b9b56ed4cdcd",
+              "52499218-2ce9-5d3c-b276-e3cee52f2f7a",
+              "920bc3d2-69f0-5705-83d8-3e0019ab5223",
+              "ab36b5d3-4e77-58be-9d55-939c7e6734c6",
+              "ac5b6293-c2ac-5e82-98f2-0475efbc11fc",
+              "be521b64-7759-5835-a0b2-c10300a191fa",
+              "c4575028-e938-504d-850d-f36fbb6b300d",
+              "c5fed9eb-6a7b-5378-b093-484d9322150b",
+              "c9cd4052-8d61-5a5b-ad16-b9f12a993822",
+              "f6b44a44-c913-572c-8c9c-0ff0f9c010f0"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-ee35f03e4697b33ac3fdb2b3",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "medion,sprchrgd14s1",
+            "hwids": [
+              "0f49db05-25d9-5f1a-a633-40b358f6f6d2",
+              "2904a882-918e-5f0b-9ac6-6a9737e685c9",
+              "2fee1e80-b28f-51f2-8421-f0c39aa97516",
+              "3713fa68-5f78-5538-b954-5e82e6c25646",
+              "6b54ec94-c2bb-5008-abe3-975b26e8a371",
+              "776dd828-0ea0-52b3-93d9-b4f97ac0e7e1",
+              "7cbb6d59-d341-5ef2-ba12-dd3bc4a41df6",
+              "9eb99973-f4f7-53b2-8682-faafa5f8ad1f",
+              "ba6260c3-a098-59ba-b999-2783726d1e44",
+              "e72ceeaf-45c6-50f5-9a8d-f3af93228f05",
+              "ec048a86-f99a-5f29-a128-04d9254808ba",
+              "f3ceb2c3-66db-5519-98bc-d62cba323666",
+              "f6304115-77d2-52ef-b050-77b79c416b76"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-fb9677e0eb99eaa313245126",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "lenovo,thinkpad-t14s-lcd",
+            "hwids": [
+              "1480f3ca-b01a-5d7c-bbc9-7a17d7b4b58d",
+              "1538c7fb-26b6-5144-b16f-2500b5a0a503",
+              "19b622ef-27fe-5c2e-bc53-13a79b862c65",
+              "1d9f3ebb-96de-5dd6-8c88-38308b0c1c44",
+              "2b1b6e68-cee9-549b-b8ae-10c274b8c3a6",
+              "34e7fadd-9c7d-5f91-ba7f-cedb04d59b9a",
+              "48a732b5-3989-5ac3-b661-516a46f00792",
+              "498d60ae-9b1d-5b67-8abd-af571babfa94",
+              "513976f8-3f51-5b42-9ae0-931ce23c5f38",
+              "5180bc01-5d18-5870-b955-969da38b2647",
+              "53b6927f-d6ca-5674-a0e8-a50a989d4ba0",
+              "578dd7d5-5871-5bd5-92a9-be07f1067b92",
+              "5c20e964-d530-5dd7-9efd-4aed9e73c3cb",
+              "74593764-b6b9-58e9-bedc-93ebbb1eb057",
+              "76032e78-67a8-5dab-8512-157bfcfb8f75",
+              "791ecd9d-1547-58e6-b72a-5ce417b729dd",
+              "82fa4a02-8c3c-55f9-b0c9-e8feb669fd3a",
+              "83579fdf-8faf-57b4-b265-d2e817c7cf3f",
+              "86a0d770-3ca1-57fa-ac05-413481c00a24",
+              "8c602147-5363-5374-859e-8b7fe2d4d3ce",
+              "8cfd85bb-0d77-59df-8546-264239be475e",
+              "a07b8e34-d6b6-58b2-9963-38216ec67159",
+              "a20ae3ec-49a1-5cb5-acb8-5d31c77b105a",
+              "a5a4e3c1-5922-5ed6-b78e-9f0ea873a988",
+              "a8852b56-45ea-5377-ba2d-1910a5c897bb",
+              "a9b59fea-e841-508a-a245-3a2d8d2802de",
+              "ac09e50f-9b3b-53c0-9752-377c3a0baaa0",
+              "acbac5af-aa6a-5690-88f3-e910f04a7ead",
+              "b0e14398-0a96-5736-840b-7349e5c0b85c",
+              "c81fee2f-cf41-5d5a-8c7b-afd6585b1d81",
+              "d93b21c0-5ed9-5955-911a-5b15f114d786",
+              "dd83478e-e01b-5631-ae74-92ae275a9b4e",
+              "e5d83424-0ecb-5632-b7b1-500f04e82725",
+              "ed647f93-3075-598b-9d89-d0f30ec11707",
+              "f6cd4a9f-9632-516e-b748-65952f7380c5"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "dtb-fe32a3bf442d53c5759205c8",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "lenovo,miix-630",
+            "hwids": [
+              "08b75d1f-6643-52a1-9bdd-071052860b33",
+              "14f581d2-d059-5cb2-9f8b-56d8be7932c9",
+              "16a55446-eba9-5f97-80e3-5e39d8209bc3",
+              "307ab358-ed84-57fe-bf05-e9195a28198d",
+              "34df58d6-b605-50aa-9313-9b34f5c4b6fc",
+              "7e613574-5445-5797-9567-2d0ed86e6ffa",
+              "a51054fb-5eef-594a-a5a0-cd87632d0aea",
+              "b0f4463c-f851-5ec3-b031-2ccb873a609a",
+              "c4c9a6be-5383-5de7-af35-c2de505edec8",
+              "e0a96696-f0a6-5466-a6db-207fbe8bae3c"
+            ]
+          }
+        ]
+      },
+      {
+        "device": "surface-pro-11-x1e-oled",
+        "records": [
+          {
+            "source": "hwids",
+            "compatible": "microsoft,denali-oled",
+            "hwids": [
+              "01bf1e61-d2e0-518b-bb46-eb4d1f2b1af1",
+              "06128fee-87dc-50f6-8a3f-97cd9a6d8bf6",
+              "14b96570-4bc4-541a-9aef-1b7e2b61d7cd",
+              "16a47337-1f8b-5bd3-b3bd-8e50b31cb1c9",
+              "2ea92a70-ac64-51f7-a395-dc86b06f4e0a",
+              "48b86a5e-1955-5799-9577-150f9e1a69e4",
+              "584a5084-15f2-5d20-917b-57f299e61f7e",
+              "5a384f15-464d-5da8-9311-a2c021759afc",
+              "64fbb7cb-3c5b-5fd7-a361-41d1d0ef2ff2",
+              "66f9d954-5c66-5577-b3e4-e3f14f87d2ff",
+              "7cef06f5-e7e6-56d7-b123-a6d640a5d302",
+              "84b2e1d1-e695-5f41-8c41-cf1f059c616a",
+              "95971fb3-d478-591f-9ea3-eb0af0d1dfb5",
+              "a362faea-8d41-5642-a48e-c0349d96ad60",
+              "aca467c0-5fc2-59ad-8ed5-1b7a0988d11c",
+              "c9c14db9-2b61-597a-a4ba-84397fe75f63",
+              "ca2ff828-b404-5253-9e0e-579c93bfb059",
+              "d752a22b-1fd8-53c3-89ef-8ca95618134a",
+              "fa26249f-6748-5ff3-8f78-b9cf9ab4ed2f",
+              "fdc060ef-c134-5735-8b51-bfb157640a5c"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "packages": [
+    {
+      "role": "headers",
+      "name": "linux-headers-7.2.9-jg-0sp11v2-qcom-x1e_7.2.9-jg-0sp11v2_arm64.deb",
+      "sha256": "6c473ba25bab868de6d57ffafca2485b45bd2638ca3635848409a0b86fc29e03",
+      "size_bytes": 1417420,
+      "verified": true
+    },
+    {
+      "role": "image",
+      "name": "linux-image-7.2.9-jg-0sp11v2-qcom-x1e_7.2.9-jg-0sp11v2_arm64.deb",
+      "sha256": "f585f567b662c74c48a31319d485f16d11d515de87373396e203f2d1ef6e6822",
+      "size_bytes": 164032,
+      "verified": true
+    },
+    {
+      "role": "modules",
+      "name": "linux-modules-7.2.9-jg-0sp11v2-qcom-x1e_7.2.9-jg-0sp11v2_arm64.deb",
+      "sha256": "d01e4d0ba402909cd33ead2a9ce8df0d951c55ed67a00bbb1cbd2363d17991cd",
+      "size_bytes": 294092992,
+      "verified": true
+    },
+    {
+      "role": "common-headers",
+      "name": "linux-qcom-x1e-headers-7.2.9-jg-0sp11v2_7.2.9-jg-0sp11v2_all.deb",
+      "sha256": "23f9e5435828bac0cfdb24a9cf5905c35869cc4f3e47c98a1e66d2fcd5884c79",
+      "size_bytes": 15178602,
+      "verified": true
+    }
+  ],
+  "device_trees": [
+    {
+      "device": "dtb-0015fa7e818efa72381fce42",
+      "basename": "x1p42100-dell-latitude-5455.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1p42100-dell-latitude-5455.dtb",
+      "compatible_strings": [
+        "dell,latitude-5455",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1p42100"
+      ],
+      "sha256": "806ef2fd8a9beca3ca5ef8a2b9ca06243d99930b22e96e3f01275ab86ba956fa",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "dell,latitude-5455"
+        },
+        {
+          "kind": "hwid",
+          "value": "2d75e18e-e107-5c79-8a69-5f163d28ee6f"
+        },
+        {
+          "kind": "hwid",
+          "value": "2f11e817-91c9-5aa2-acb1-bd1d317c9ba6"
+        },
+        {
+          "kind": "hwid",
+          "value": "4d1ff2c8-dd8d-556b-befa-0cab2bc86be3"
+        },
+        {
+          "kind": "hwid",
+          "value": "53c465c5-6425-51cd-b0aa-3382f3ad3622"
+        },
+        {
+          "kind": "hwid",
+          "value": "6329967e-8fcd-5544-8869-36881d8b997b"
+        },
+        {
+          "kind": "hwid",
+          "value": "745f5023-2386-5aaa-944d-b825bea80756"
+        },
+        {
+          "kind": "hwid",
+          "value": "75d1456b-5a14-5868-b877-7b9f58f4dd0d"
+        },
+        {
+          "kind": "hwid",
+          "value": "838cf30a-6594-5200-8432-b94de34ce905"
+        },
+        {
+          "kind": "hwid",
+          "value": "9195a554-2255-55ce-ab3f-59a2aba05c4e"
+        },
+        {
+          "kind": "hwid",
+          "value": "9e9723ce-65b3-57d5-a98d-bf4e0b8f87ed"
+        },
+        {
+          "kind": "hwid",
+          "value": "d33d10f9-d59d-5dc6-b13b-686ac24ea3c0"
+        },
+        {
+          "kind": "hwid",
+          "value": "dfb300e4-c621-562c-a147-521e95ce6b7f"
+        },
+        {
+          "kind": "hwid",
+          "value": "f069ee1a-448c-55df-b8a2-eebce2ccaf7f"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-02d7916c1361612ae27fe90e",
+      "basename": "x1e80100-asus-zenbook-a14.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e80100-asus-zenbook-a14.dtb",
+      "compatible_strings": [
+        "asus,zenbook-a14-ux3407ra",
+        "qcom,x1e80100"
+      ],
+      "sha256": "a6d85520f0378206cec1bae253b231ac6b12d5836c75f78b1442ef12cab9dcc7",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "asus,zenbook-a14-ux3407ra"
+        },
+        {
+          "kind": "hwid",
+          "value": "0bfddfaf-e393-5dfe-a805-39b8b1098c81"
+        },
+        {
+          "kind": "hwid",
+          "value": "0c3f5e9c-eddb-5ba2-88ee-06ae0221a53d"
+        },
+        {
+          "kind": "hwid",
+          "value": "1f2f1045-a811-5e42-b31e-b433e384fc79"
+        },
+        {
+          "kind": "hwid",
+          "value": "20b8b77d-e450-550b-b1ff-55d3317f59a6"
+        },
+        {
+          "kind": "hwid",
+          "value": "24652d54-00f4-59ae-96fb-f7adbfa4a939"
+        },
+        {
+          "kind": "hwid",
+          "value": "2d610a5e-ef69-5e60-b15e-7786d0ebd79e"
+        },
+        {
+          "kind": "hwid",
+          "value": "3884ad58-4d63-589a-be98-b8ab1ddf3b93"
+        },
+        {
+          "kind": "hwid",
+          "value": "5c9fc73f-f915-52bf-a82d-9c7fe2274ecc"
+        },
+        {
+          "kind": "hwid",
+          "value": "6f892377-a51e-5f99-a363-b79f28fc55f9"
+        },
+        {
+          "kind": "hwid",
+          "value": "b307ab54-c79d-58ca-a3b2-d1b1e325bfc3"
+        },
+        {
+          "kind": "hwid",
+          "value": "c41d2cda-fda7-522c-b1a7-4a835c15c43d"
+        },
+        {
+          "kind": "hwid",
+          "value": "cedbcc19-3a5a-5bae-9973-f8e158188de7"
+        },
+        {
+          "kind": "hwid",
+          "value": "f0bb1cd4-995a-5c90-946b-9bb958f35f42"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-03a1c7fdd7cb7944d1e0f097",
+      "basename": "x1e80100-lenovo-yoga-slim7x.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e80100-lenovo-yoga-slim7x.dtb",
+      "compatible_strings": [
+        "lenovo,yoga-slim7x",
+        "qcom,x1e80100"
+      ],
+      "sha256": "635fb73aa2beca015cd225735d4c6eff9352be6234fbce3bf8497682190765f6",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "lenovo,yoga-slim7x"
+        },
+        {
+          "kind": "hwid",
+          "value": "0700776d-0de7-5ea7-b9bf-77e0454d35e1"
+        },
+        {
+          "kind": "hwid",
+          "value": "3fb1e5ba-05cd-5153-ad64-1d8bc6dc7a1b"
+        },
+        {
+          "kind": "hwid",
+          "value": "63429d43-c970-570d-aaa7-54300924e0c5"
+        },
+        {
+          "kind": "hwid",
+          "value": "6d53c38f-6adb-578b-a418-2abda4d8485d"
+        },
+        {
+          "kind": "hwid",
+          "value": "8073dbed-501f-5f5e-a619-4cdd9c00e865"
+        },
+        {
+          "kind": "hwid",
+          "value": "8477f828-512b-56cf-af55-c711a6831551"
+        },
+        {
+          "kind": "hwid",
+          "value": "d27cf20e-e185-578e-bd46-f4cc3a718bb2"
+        },
+        {
+          "kind": "hwid",
+          "value": "d99f6cb2-4a96-5e4a-8e29-19d52dfc2870"
+        },
+        {
+          "kind": "hwid",
+          "value": "ee39b629-4187-5ff7-84c0-e354555562cd"
+        },
+        {
+          "kind": "hwid",
+          "value": "f7f92b85-ff01-5e93-a453-c7f91029aa55"
+        },
+        {
+          "kind": "hwid",
+          "value": "fdb12a4f-1e8b-524e-97b5-feef23a8a8da"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-1b1e1b085739a51396149f51",
+      "basename": "x1p64100-acer-swift-sf14-11.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1p64100-acer-swift-sf14-11.dtb",
+      "compatible_strings": [
+        "acer,swift-sf14-11",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1p64100",
+        "qcom,x1e80100"
+      ],
+      "sha256": "ee2501e1c7cd347844070dbb3fbb8d7930273d765abbc2ba30e620dc6ed9ae87",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "acer,swift-sf14-11"
+        },
+        {
+          "kind": "hwid",
+          "value": "058c0739-1843-5a10-bab7-fae8aaf30add"
+        },
+        {
+          "kind": "hwid",
+          "value": "100917f4-9c0a-5ac3-a297-794222da9bc9"
+        },
+        {
+          "kind": "hwid",
+          "value": "20c2cf2f-231c-5d02-ae9b-c837ab5653ed"
+        },
+        {
+          "kind": "hwid",
+          "value": "27d2dba8-e6f1-5c19-ba1c-c25a4744c161"
+        },
+        {
+          "kind": "hwid",
+          "value": "331d7526-8b88-5923-bf98-450cf3ea82a4"
+        },
+        {
+          "kind": "hwid",
+          "value": "3f49141c-d8fb-5a6f-8b4a-074a2397874d"
+        },
+        {
+          "kind": "hwid",
+          "value": "676172cd-d185-53ed-aac6-245d0caa02c4"
+        },
+        {
+          "kind": "hwid",
+          "value": "6a12c9bc-bcfa-5448-9f66-4159dbe8c326"
+        },
+        {
+          "kind": "hwid",
+          "value": "7c107a7f-2d77-51aa-aef8-8d777e26ffbc"
+        },
+        {
+          "kind": "hwid",
+          "value": "98ad068a-f812-5f13-920c-3ff3d34d263f"
+        },
+        {
+          "kind": "hwid",
+          "value": "ee8fa049-e5f4-51e4-89d8-89a0140b8f38"
+        },
+        {
+          "kind": "hwid",
+          "value": "f2ea7095-999d-5e5b-8f2a-4b636a1e399f"
+        },
+        {
+          "kind": "hwid",
+          "value": "f55122fb-303f-58bc-b342-6ef653956d1d"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-1d2f4b8eb622afc1f92b13d4",
+      "basename": "x1e001de-devkit_pcie3_hdmi.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e001de-devkit_pcie3_hdmi.dtb",
+      "compatible_strings": [
+        "qcom,x1e001de-devkit",
+        "qcom,x1e001de",
+        "qcom,x1e80100"
+      ],
+      "sha256": "921804512e5fd4724be434433887b6c514a6c7b7814c82115d518c18dc0db08c",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "qcom,x1e001de-devkit"
+        },
+        {
+          "kind": "hwid",
+          "value": "4bb05d50-6c4f-525d-a9ec-8924afd6edea"
+        },
+        {
+          "kind": "hwid",
+          "value": "830bd4a2-2498-55cf-b561-48f7dc5f4820"
+        },
+        {
+          "kind": "hwid",
+          "value": "9cba20d0-17ad-559f-94cd-cfcbbf5f71f5"
+        },
+        {
+          "kind": "hwid",
+          "value": "baa7a649-12d8-56c7-93c5-a4e10f4852be"
+        },
+        {
+          "kind": "hwid",
+          "value": "c8e75ab8-555c-5952-a3e3-5b607bea031d"
+        },
+        {
+          "kind": "hwid",
+          "value": "f37dc44b-0be4-5a70-86bd-81f3dacff2e9"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-25a4613424165ffc9f5a976a",
+      "basename": "x1p42100-lenovo-thinkbook-16.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1p42100-lenovo-thinkbook-16.dtb",
+      "compatible_strings": [
+        "lenovo,thinkbook-16",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1p42100"
+      ],
+      "sha256": "e657e41347cf294859f946ae85b6532979f3c92224399e597f8d5af34d5784b0",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "lenovo,thinkbook-16"
+        },
+        {
+          "kind": "hwid",
+          "value": "11788bd3-612e-5b33-8d26-b8dd53d88ba0"
+        },
+        {
+          "kind": "hwid",
+          "value": "1f483d31-703d-5688-92a4-a72daaef38ec"
+        },
+        {
+          "kind": "hwid",
+          "value": "4279ea98-d0f8-588a-bb60-546a9bdefbbe"
+        },
+        {
+          "kind": "hwid",
+          "value": "43977c23-c88a-5355-95ee-78667c5c4f1d"
+        },
+        {
+          "kind": "hwid",
+          "value": "653dcb5a-527b-554c-921b-e4d93e112048"
+        },
+        {
+          "kind": "hwid",
+          "value": "8442079a-81e2-5006-9aa0-f9c88bac9288"
+        },
+        {
+          "kind": "hwid",
+          "value": "85f8bd67-fcad-50b8-8c67-0dbb786353b7"
+        },
+        {
+          "kind": "hwid",
+          "value": "894d8a8c-ab94-5193-ab7e-544927bdc40b"
+        },
+        {
+          "kind": "hwid",
+          "value": "af0d539c-b28f-5a4d-b7a1-3640e2c4535f"
+        },
+        {
+          "kind": "hwid",
+          "value": "e55d76ae-2ca4-543e-9144-86fdf0b0bf36"
+        },
+        {
+          "kind": "hwid",
+          "value": "e982f8e2-1687-5207-8674-44eea11e4b08"
+        },
+        {
+          "kind": "hwid",
+          "value": "ee9060fc-7565-54a3-ad4d-d6c637e9672d"
+        },
+        {
+          "kind": "hwid",
+          "value": "f81a6614-f23c-591a-b665-e19886a3d55e"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-28c2940a813da5110905ca52",
+      "basename": "sc8280xp-microsoft-blackrock.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/sc8280xp-microsoft-blackrock.dtb",
+      "compatible_strings": [
+        "microsoft,blackrock",
+        "qcom,sc8280xp"
+      ],
+      "sha256": "4bc0639cf77697b81ff61ef675307b0983bbc9197d338b22ba5e3255931be7c4",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "microsoft,blackrock"
+        },
+        {
+          "kind": "hwid",
+          "value": "046fefee-341b-5c40-b0a3-1c647d31b500"
+        },
+        {
+          "kind": "hwid",
+          "value": "08f06457-aa19-51c5-be4c-0087ce4fa2ed"
+        },
+        {
+          "kind": "hwid",
+          "value": "11b80238-dbee-57bc-8b26-83c9e5b4057d"
+        },
+        {
+          "kind": "hwid",
+          "value": "53b87f48-fc47-54e9-ade5-f1a95e885681"
+        },
+        {
+          "kind": "hwid",
+          "value": "5bd24fc5-5edb-51f6-82e6-31a9ef954c5b"
+        },
+        {
+          "kind": "hwid",
+          "value": "69ba0503-ca94-5fa3-b78c-5fa21a66c620"
+        },
+        {
+          "kind": "hwid",
+          "value": "813677fa-6d11-5756-a44d-dde0f552d3f6"
+        },
+        {
+          "kind": "hwid",
+          "value": "ad2ee931-a048-5253-b350-98c482670765"
+        },
+        {
+          "kind": "hwid",
+          "value": "ce83144b-b123-59e5-8a9a-0c1a13643fc4"
+        },
+        {
+          "kind": "hwid",
+          "value": "d67e799e-2ba7-555a-a874-a0523a8b3b11"
+        },
+        {
+          "kind": "hwid",
+          "value": "f59639f4-4970-5706-9a75-519dd059f69e"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-2caeee3c77fd70ef7d7963b3",
+      "basename": "x1e80100-hp-elitebook-ultra-g1q.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e80100-hp-elitebook-ultra-g1q.dtb",
+      "compatible_strings": [
+        "hp,elitebook-ultra-g1q",
+        "qcom,x1e80100"
+      ],
+      "sha256": "c4e0b569c4503cb091dd800916901b5633a5b704d25a658eb495175b7fd66801",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "hp,elitebook-ultra-g1q"
+        },
+        {
+          "kind": "hwid",
+          "value": "07be634a-0442-51fb-8a77-ecb370b5262b"
+        },
+        {
+          "kind": "hwid",
+          "value": "25f49237-b3b4-58b2-9e58-6cc379781901"
+        },
+        {
+          "kind": "hwid",
+          "value": "5275e89b-e839-589e-9e90-e1bd6854255b"
+        },
+        {
+          "kind": "hwid",
+          "value": "5473ba61-2807-585b-b2ac-f0366d84bdc0"
+        },
+        {
+          "kind": "hwid",
+          "value": "72a81f9e-c30b-5bf0-8449-948f8e593e92"
+        },
+        {
+          "kind": "hwid",
+          "value": "7bfc4a0e-15c1-58b3-b27b-4e5f60d4397e"
+        },
+        {
+          "kind": "hwid",
+          "value": "829d699c-f082-5835-967a-8e7022cb20b5"
+        },
+        {
+          "kind": "hwid",
+          "value": "9145c311-f1b1-5f0f-902d-f6828baf8c46"
+        },
+        {
+          "kind": "hwid",
+          "value": "a3c9ef57-67ab-5f75-a4cb-48cb7475b025"
+        },
+        {
+          "kind": "hwid",
+          "value": "b7f376e9-f5f8-5718-b00e-6bd7c265aeab"
+        },
+        {
+          "kind": "hwid",
+          "value": "ba2ddd3d-a06b-5b1f-9b2a-ce58f748486c"
+        },
+        {
+          "kind": "hwid",
+          "value": "e4944bcc-a1c3-540e-b400-cd91953b7ba9"
+        },
+        {
+          "kind": "hwid",
+          "value": "ec4cdb9c-e6ff-581c-ac22-d597b5e880a2"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-37b23350938c913daca5e462",
+      "basename": "x1e80100-dell-inspiron-14-plus-7441.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e80100-dell-inspiron-14-plus-7441.dtb",
+      "compatible_strings": [
+        "dell,inspiron-14-plus-7441",
+        "qcom,x1e80100"
+      ],
+      "sha256": "ae8412420da0a1e4502aee10acdb474f63399e756fc7fc14139551d9ea3f0269",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "dell,inspiron-14-plus-7441"
+        },
+        {
+          "kind": "hwid",
+          "value": "07c6477a-7ef7-56c7-91d9-73d23295b0c0"
+        },
+        {
+          "kind": "hwid",
+          "value": "07c6bbd9-caf8-5025-84d8-4efdb790f663"
+        },
+        {
+          "kind": "hwid",
+          "value": "0d9ce3bc-620c-5209-9e82-7382cb6cffcd"
+        },
+        {
+          "kind": "hwid",
+          "value": "4689ccaf-4f31-5146-887f-ca965da0f28a"
+        },
+        {
+          "kind": "hwid",
+          "value": "8548ce7c-fdf3-55d0-95ba-606ca8db50da"
+        },
+        {
+          "kind": "hwid",
+          "value": "90117b25-1646-515b-bfeb-286e74f2a1e8"
+        },
+        {
+          "kind": "hwid",
+          "value": "a66b1244-0027-5451-a96a-dfcfc42ab892"
+        },
+        {
+          "kind": "hwid",
+          "value": "bea2e67a-b660-5044-8acd-0d28e8c2e974"
+        },
+        {
+          "kind": "hwid",
+          "value": "c1190be1-8ed5-50f1-9097-2a73ad9c4eb1"
+        },
+        {
+          "kind": "hwid",
+          "value": "e4c9fe83-73ba-5160-bc18-57d4a98e960d"
+        },
+        {
+          "kind": "hwid",
+          "value": "ef84110e-bd09-5f0f-a3dd-7995b4a3a706"
+        },
+        {
+          "kind": "hwid",
+          "value": "efc06900-f603-5944-88e5-4de722816f91"
+        },
+        {
+          "kind": "hwid",
+          "value": "ff394805-0b5f-52f6-9e1d-afb1d2bee411"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-38ab75de5ea8c09264497344",
+      "basename": "x1p42100-hp-elitebook-6-g1q.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1p42100-hp-elitebook-6-g1q.dtb",
+      "compatible_strings": [
+        "hp,elitebook-6-g1q",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1p42100"
+      ],
+      "sha256": "48b7e5db16ef8c609415aaff2240ee996e0e911cda253660bf61deedc80a96cb",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "hp,elitebook-6-g1q"
+        },
+        {
+          "kind": "hwid",
+          "value": "180994cf-7159-5b2d-be28-5624845887b1"
+        },
+        {
+          "kind": "hwid",
+          "value": "2c1d5a7e-43d1-5fef-89d6-a3b368779536"
+        },
+        {
+          "kind": "hwid",
+          "value": "2dae3dcd-51ea-5422-9980-5220f02b883a"
+        },
+        {
+          "kind": "hwid",
+          "value": "351005d4-e3e1-5387-a703-21cc93bd30ea"
+        },
+        {
+          "kind": "hwid",
+          "value": "3bf4bc3c-a850-5a6a-a95c-8e3eaf14bc96"
+        },
+        {
+          "kind": "hwid",
+          "value": "3c513e7a-56b8-5edf-8d1e-d90fa4a8974d"
+        },
+        {
+          "kind": "hwid",
+          "value": "5ae54112-632c-57ee-b615-c2df8ba319cd"
+        },
+        {
+          "kind": "hwid",
+          "value": "66ae13b5-9c0f-5f57-b2dd-dc699ccc409d"
+        },
+        {
+          "kind": "hwid",
+          "value": "70b42fea-f55e-5d19-8110-d71be6bd5e32"
+        },
+        {
+          "kind": "hwid",
+          "value": "aa2c3726-f5ea-53b6-8ed5-90f5a1abaaff"
+        },
+        {
+          "kind": "hwid",
+          "value": "be685a81-758f-58d4-8c4e-65cf4877588c"
+        },
+        {
+          "kind": "hwid",
+          "value": "c7e47171-659b-55ad-a977-3df485a15742"
+        },
+        {
+          "kind": "hwid",
+          "value": "ea8400a5-7227-5163-9664-225070358fa0"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-5093098b57c36afb0d250028",
+      "basename": "sc8180x-lenovo-flex-5g.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/sc8180x-lenovo-flex-5g.dtb",
+      "compatible_strings": [
+        "lenovo,flex-5g",
+        "qcom,sc8180x"
+      ],
+      "sha256": "66645c1cc51f0762515595d134b9a5ea02a2a9daac8e8364ceff1d03d212d857",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "lenovo,flex-5g"
+        },
+        {
+          "kind": "hwid",
+          "value": "01439aea-e75c-5fbb-8842-18dcd1a7b8b3"
+        },
+        {
+          "kind": "hwid",
+          "value": "06675172-9a6e-5276-a505-d205688a87f0"
+        },
+        {
+          "kind": "hwid",
+          "value": "12c0e5b0-8886-5444-b42b-93692fa736df"
+        },
+        {
+          "kind": "hwid",
+          "value": "16551bd5-37b0-571d-a94c-da61a9cfccf5"
+        },
+        {
+          "kind": "hwid",
+          "value": "23dcfb84-d132-5f60-878e-64fe0b9417d6"
+        },
+        {
+          "kind": "hwid",
+          "value": "39fca706-c9a2-54d4-8c7c-d5e292d0a725"
+        },
+        {
+          "kind": "hwid",
+          "value": "5100eeed-c5e2-5b74-9c24-a22ca0644826"
+        },
+        {
+          "kind": "hwid",
+          "value": "566b9ae8-a7fd-5c44-94d6-bac3e4cf38a7"
+        },
+        {
+          "kind": "hwid",
+          "value": "65ab9f32-bbc8-52d3-87f9-b618fda7c07e"
+        },
+        {
+          "kind": "hwid",
+          "value": "6f3bdfb7-f832-5c5f-9777-9e3db35e22a6"
+        },
+        {
+          "kind": "hwid",
+          "value": "7e7007ac-603c-55ef-bb77-3548784b9578"
+        },
+        {
+          "kind": "hwid",
+          "value": "997c1c76-5595-5300-9f58-94d2c6ffc586"
+        },
+        {
+          "kind": "hwid",
+          "value": "a1a13249-2689-5c6d-a43f-98af040284c4"
+        },
+        {
+          "kind": "hwid",
+          "value": "ad47f2e9-2f8c-5cd1-a44e-82f35a43e44e"
+        },
+        {
+          "kind": "hwid",
+          "value": "b9bf941f-3a32-57da-b609-5fff7fb382cd"
+        },
+        {
+          "kind": "hwid",
+          "value": "c4ea686c-c56c-5e8e-a91e-89056683d417"
+        },
+        {
+          "kind": "hwid",
+          "value": "ddb3bcda-db7b-579d-9dd9-bcc4f5b052b8"
+        },
+        {
+          "kind": "hwid",
+          "value": "df3ecc56-b61b-5f8e-896f-801a42b536d6"
+        },
+        {
+          "kind": "hwid",
+          "value": "ea646c11-3da1-5c8d-9346-8ff156746650"
+        },
+        {
+          "kind": "hwid",
+          "value": "ea658d2b-f644-555d-9b72-e1642401a795"
+        },
+        {
+          "kind": "hwid",
+          "value": "fb364c09-efc0-5d16-ac97-0a3e6235b16c"
+        },
+        {
+          "kind": "hwid",
+          "value": "fb5c3077-39d5-5a44-97ce-2d3be5f6bfec"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-552fc72e167065d60796fe36",
+      "basename": "x1e80100-microsoft-romulus15.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e80100-microsoft-romulus15.dtb",
+      "compatible_strings": [
+        "microsoft,romulus15",
+        "qcom,x1e80100"
+      ],
+      "sha256": "f2f9f64acf539642bbbf8230d46b9db018e4cb8b2b849e71544d5aa60d899515",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "microsoft,romulus15"
+        },
+        {
+          "kind": "hwid",
+          "value": "109cd8d8-6086-50b6-9c2d-d0aca0f418da"
+        },
+        {
+          "kind": "hwid",
+          "value": "224ba2ff-14c1-5b33-ac10-079ccc217be2"
+        },
+        {
+          "kind": "hwid",
+          "value": "27ec66e4-3f81-5c06-997e-e1ea0a98b8a1"
+        },
+        {
+          "kind": "hwid",
+          "value": "3c329240-a447-5ec5-b79b-d1149420ac62"
+        },
+        {
+          "kind": "hwid",
+          "value": "892e90c9-31e3-5131-a217-a02632dba5e9"
+        },
+        {
+          "kind": "hwid",
+          "value": "90482ef5-831d-5069-8d40-92d339a75c77"
+        },
+        {
+          "kind": "hwid",
+          "value": "924900a0-9be2-53ca-90d7-b0e38827f5c5"
+        },
+        {
+          "kind": "hwid",
+          "value": "c735618b-d526-5f71-9651-8d149340d620"
+        },
+        {
+          "kind": "hwid",
+          "value": "e1fbd53f-3738-5fa6-aa7b-5ae319663d6b"
+        },
+        {
+          "kind": "hwid",
+          "value": "e4cef54f-d5b2-56b1-8aa0-07b48c3deedf"
+        },
+        {
+          "kind": "hwid",
+          "value": "e56cd9fa-d992-5947-9f80-82345827e8e6"
+        },
+        {
+          "kind": "hwid",
+          "value": "ebce3085-12c1-58f3-9456-ccdf741a1538"
+        },
+        {
+          "kind": "hwid",
+          "value": "f91b1a95-926c-5fd7-9826-4a101e142f97"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-637cfcc2abc40b59c707377d",
+      "basename": "x1p42100-acer-swift-go14-01.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1p42100-acer-swift-go14-01.dtb",
+      "compatible_strings": [
+        "acer,swift-go14-01",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1p42100",
+        "qcom,x1e80100"
+      ],
+      "sha256": "16cfe3a41a6f48f8d0d1d7e0510450e1ccff8dee17064685a36cacac8de95db6",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "acer,swift-go14-01"
+        },
+        {
+          "kind": "hwid",
+          "value": "03f8cc3c-5d61-5ea0-aeb1-b3142528bce2"
+        },
+        {
+          "kind": "hwid",
+          "value": "2e71fd01-d5f5-5c67-9abc-c47c10f08626"
+        },
+        {
+          "kind": "hwid",
+          "value": "327e7f1e-4a10-5fe1-8b4f-3c235ea128d9"
+        },
+        {
+          "kind": "hwid",
+          "value": "3bd63b6b-dfa3-5314-9846-76363ae49445"
+        },
+        {
+          "kind": "hwid",
+          "value": "3f49141c-d8fb-5a6f-8b4a-074a2397874d"
+        },
+        {
+          "kind": "hwid",
+          "value": "627edbb7-fbdb-5de7-8382-f7abcbf9928a"
+        },
+        {
+          "kind": "hwid",
+          "value": "69670c5e-509d-5193-9f0a-882a00180b1a"
+        },
+        {
+          "kind": "hwid",
+          "value": "6abb9980-4909-5d87-95a4-871129047302"
+        },
+        {
+          "kind": "hwid",
+          "value": "795d7de3-0e1e-5976-b0d2-2216375df442"
+        },
+        {
+          "kind": "hwid",
+          "value": "79dd27da-6d6b-57da-8fba-b97b489be61d"
+        },
+        {
+          "kind": "hwid",
+          "value": "7c107a7f-2d77-51aa-aef8-8d777e26ffbc"
+        },
+        {
+          "kind": "hwid",
+          "value": "a07b1705-c904-5a73-b97a-f46bc2dd8400"
+        },
+        {
+          "kind": "hwid",
+          "value": "e66990c4-b390-59c3-a580-149c73cfe585"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-6d8270f03a123dd33d93be4a",
+      "basename": "x1e001de-devkit.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e001de-devkit.dtb",
+      "compatible_strings": [
+        "qcom,x1e001de-devkit",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1e001de",
+        "qcom,x1e80100"
+      ],
+      "sha256": "54777de67da375bde56ec1d5813964317575266cd3c5020f6a258f8a1288670c",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "qcom,x1e001de-devkit"
+        },
+        {
+          "kind": "hwid",
+          "value": "4bb05d50-6c4f-525d-a9ec-8924afd6edea"
+        },
+        {
+          "kind": "hwid",
+          "value": "830bd4a2-2498-55cf-b561-48f7dc5f4820"
+        },
+        {
+          "kind": "hwid",
+          "value": "9cba20d0-17ad-559f-94cd-cfcbbf5f71f5"
+        },
+        {
+          "kind": "hwid",
+          "value": "baa7a649-12d8-56c7-93c5-a4e10f4852be"
+        },
+        {
+          "kind": "hwid",
+          "value": "c8e75ab8-555c-5952-a3e3-5b607bea031d"
+        },
+        {
+          "kind": "hwid",
+          "value": "f37dc44b-0be4-5a70-86bd-81f3dacff2e9"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-6f66ee9b6a9f5188eca15a48",
+      "basename": "x1p42100-asus-zenbook-a14.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1p42100-asus-zenbook-a14.dtb",
+      "compatible_strings": [
+        "asus,zenbook-a14-ux3407qa-oled",
+        "asus,zenbook-a14-ux3407qa",
+        "qcom,x1p42100"
+      ],
+      "sha256": "42f1446444ad1af01c6dc874f34ee753913d424f56f44391770d7d2453da7be8",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "asus,zenbook-a14-ux3407qa-oled"
+        },
+        {
+          "kind": "hwid",
+          "value": "91971b38-ae5d-5e14-9f44-7c0316710593"
+        },
+        {
+          "kind": "hwid",
+          "value": "f84ba711-7075-5c1b-a03c-57d2521a1ac2"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-74012be403ee35a98b5cfc49",
+      "basename": "sdm850-lenovo-yoga-c630.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/sdm850-lenovo-yoga-c630.dtb",
+      "compatible_strings": [
+        "lenovo,yoga-c630",
+        "qcom,sdm845"
+      ],
+      "sha256": "46981296405da31fdbb66041f0f4416c0c8348f06cce077f27947da627331104",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "lenovo,yoga-c630"
+        },
+        {
+          "kind": "hwid",
+          "value": "30b031c0-9de7-5d31-a61c-dee772871b7d"
+        },
+        {
+          "kind": "hwid",
+          "value": "382926c0-ce35-53af-8ff9-ca9cc06cfc7b"
+        },
+        {
+          "kind": "hwid",
+          "value": "43b71948-9c47-5372-a5cb-18db47bb873f"
+        },
+        {
+          "kind": "hwid",
+          "value": "5ca3cf2b-d6e9-5b54-93f7-1cebd7b3704f"
+        },
+        {
+          "kind": "hwid",
+          "value": "67a23be6-42a6-5900-8325-847a318ce252"
+        },
+        {
+          "kind": "hwid",
+          "value": "81f308c0-db65-50c2-a660-52e06fc0ff9f"
+        },
+        {
+          "kind": "hwid",
+          "value": "8f56cf17-7bdd-5414-832d-97cd26837114"
+        },
+        {
+          "kind": "hwid",
+          "value": "94f73d29-3981-59a8-8f25-214f84d1522a"
+        },
+        {
+          "kind": "hwid",
+          "value": "b323d38a-88c6-5cf6-af0d-0db3f3c2560d"
+        },
+        {
+          "kind": "hwid",
+          "value": "b8c71349-3669-56f3-99ee-ae473a2edd96"
+        },
+        {
+          "kind": "hwid",
+          "value": "d17c132e-f06e-5e38-8084-9cd642dd9b34"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-7b2386f215aa66d3c964c6c6",
+      "basename": "x1e80100-asus-vivobook-s15.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e80100-asus-vivobook-s15.dtb",
+      "compatible_strings": [
+        "asus,vivobook-s15",
+        "qcom,x1e80100"
+      ],
+      "sha256": "16085496ce186098181ad02af2721372cf102c9389b1cccd44bc51224ecf9ced",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "asus,vivobook-s15"
+        },
+        {
+          "kind": "hwid",
+          "value": "137a5f94-8fcf-5581-8ac6-70d50fdba4a6"
+        },
+        {
+          "kind": "hwid",
+          "value": "1b6a0689-3f70-57e0-8bf3-39a8a74213e8"
+        },
+        {
+          "kind": "hwid",
+          "value": "3a3ef092-d5f1-5d4d-acea-70b38ef56e53"
+        },
+        {
+          "kind": "hwid",
+          "value": "4262e277-58d3-5ac4-9858-c0751ad06f5c"
+        },
+        {
+          "kind": "hwid",
+          "value": "6d634332-21fc-57c8-bc6b-e0f800f69f95"
+        },
+        {
+          "kind": "hwid",
+          "value": "80430e03-90f0-5355-84b2-28fb17367203"
+        },
+        {
+          "kind": "hwid",
+          "value": "807fe49f-cfd2-537d-b635-47bec9e36baf"
+        },
+        {
+          "kind": "hwid",
+          "value": "a6debedb-f954-5aa1-8260-4dc3b567c95f"
+        },
+        {
+          "kind": "hwid",
+          "value": "c71e903b-4255-56cb-b961-a8f87b452cbe"
+        },
+        {
+          "kind": "hwid",
+          "value": "d0fce8d6-a709-5bf0-8be0-6ac6ab44b8e0"
+        },
+        {
+          "kind": "hwid",
+          "value": "f3a6ca3e-4791-5bb0-915e-0b31856ec19c"
+        },
+        {
+          "kind": "hwid",
+          "value": "f54cd4e6-3666-5b56-abd3-a5f2df50c534"
+        },
+        {
+          "kind": "hwid",
+          "value": "fa342b0a-9e22-541f-8e95-93106778f97d"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-7c4e773887132954d68c1e9c",
+      "basename": "x1e80100-hp-omnibook-x14.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e80100-hp-omnibook-x14.dtb",
+      "compatible_strings": [
+        "hp,omnibook-x14",
+        "qcom,x1e80100"
+      ],
+      "sha256": "3fe2486e743863491133de3da7f6236469e2b353bc39328f3d59736a8ab776de",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "hp,omnibook-x14"
+        },
+        {
+          "kind": "hwid",
+          "value": "045dfd0f-068b-5e57-86bd-f41b4b906006"
+        },
+        {
+          "kind": "hwid",
+          "value": "1a192aee-2cfd-5ab5-95f9-8093218a48ef"
+        },
+        {
+          "kind": "hwid",
+          "value": "54500b82-f7ae-592d-ae68-8c8e362a1475"
+        },
+        {
+          "kind": "hwid",
+          "value": "68d24be5-01b6-5d88-83fb-df2bcfa879aa"
+        },
+        {
+          "kind": "hwid",
+          "value": "6a4511bc-0a3b-5b10-9c8b-dbcb834ecd83"
+        },
+        {
+          "kind": "hwid",
+          "value": "811126e6-4aee-5f9e-827d-d0f12f6a6f00"
+        },
+        {
+          "kind": "hwid",
+          "value": "848aeb1d-302b-5b6b-9109-0f4632535915"
+        },
+        {
+          "kind": "hwid",
+          "value": "abb2ffec-2acd-5750-8dfd-c3845fd4bf2a"
+        },
+        {
+          "kind": "hwid",
+          "value": "ca5dab4f-a301-53c6-b753-c2db56172e0a"
+        },
+        {
+          "kind": "hwid",
+          "value": "eaab52c6-ed22-5e1b-b788-fc5a0531291d"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-831e9078e995a35349e5c52e",
+      "basename": "sc8280xp-huawei-gaokun3.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/sc8280xp-huawei-gaokun3.dtb",
+      "compatible_strings": [
+        "huawei,gaokun3",
+        "qcom,sc8280xp"
+      ],
+      "sha256": "dc9822b0cc438e079039ae73baeb0619a4855e23ac2a430222678e74a69d2a15",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "huawei,gaokun3"
+        },
+        {
+          "kind": "hwid",
+          "value": "0c78ef16-4fe0-5e33-908e-b038949ee608"
+        },
+        {
+          "kind": "hwid",
+          "value": "13311789-793f-5d95-942c-3b6414a8ad1a"
+        },
+        {
+          "kind": "hwid",
+          "value": "1c2effc1-1038-584d-ae8b-7c912c8e9504"
+        },
+        {
+          "kind": "hwid",
+          "value": "3eb6683b-0153-5365-81c6-cc599783e9c7"
+        },
+        {
+          "kind": "hwid",
+          "value": "4f04f31f-17f0-583f-802f-82c3a0b34128"
+        },
+        {
+          "kind": "hwid",
+          "value": "6eb75906-3a4e-5de4-94c5-374d8f9723e5"
+        },
+        {
+          "kind": "hwid",
+          "value": "7ea8b73b-2cbb-562b-aecc-7f0f64c42630"
+        },
+        {
+          "kind": "hwid",
+          "value": "80c86c24-c7a7-5714-abf2-4c48f348cecc"
+        },
+        {
+          "kind": "hwid",
+          "value": "b866fc5c-261b-56d8-99e8-03ea0646af8f"
+        },
+        {
+          "kind": "hwid",
+          "value": "d8846172-f0a0-55ba-bf41-55641f588ea7"
+        },
+        {
+          "kind": "hwid",
+          "value": "e1b94e53-0f20-5d01-abfc-cfb348544a31"
+        },
+        {
+          "kind": "hwid",
+          "value": "e5a0ed2b-7fed-5e2d-94ed-43dbaf0b9ccc"
+        },
+        {
+          "kind": "hwid",
+          "value": "e98c95a8-b50e-5d8b-b2db-c679a39163df"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-84d40c8dd036b093e24d9bb0",
+      "basename": "sc8280xp-microsoft-arcata.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/sc8280xp-microsoft-arcata.dtb",
+      "compatible_strings": [
+        "microsoft,arcata",
+        "qcom,sc8280xp"
+      ],
+      "sha256": "730a1ea47a1d0b5668259551eb95e0bc1333a48975d1c11e0d1ac81adf6dc179",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "microsoft,arcata"
+        },
+        {
+          "kind": "hwid",
+          "value": "009d2337-4f76-514e-b2c1-b2816447b048"
+        },
+        {
+          "kind": "hwid",
+          "value": "3a486e6f-3b0a-5603-a483-503381d3d8c3"
+        },
+        {
+          "kind": "hwid",
+          "value": "5caa88bc-ea9b-5d73-a69a-89024bfff854"
+        },
+        {
+          "kind": "hwid",
+          "value": "6309fbb9-68f4-54f9-bbc9-b3ca9685b48c"
+        },
+        {
+          "kind": "hwid",
+          "value": "636b6071-7848-50d5-b0b5-6290c49e9306"
+        },
+        {
+          "kind": "hwid",
+          "value": "94fb24a7-ff7a-5d70-9ac8-518a9e44ea64"
+        },
+        {
+          "kind": "hwid",
+          "value": "9bac72c6-83f6-5e21-af8e-bc1f5c2b7cc8"
+        },
+        {
+          "kind": "hwid",
+          "value": "9d70dcfd-f56b-58bf-b1bd-a1b8f2b0ec7e"
+        },
+        {
+          "kind": "hwid",
+          "value": "a659ee2b-502d-50f7-9921-bdbd34734e0b"
+        },
+        {
+          "kind": "hwid",
+          "value": "c0cf7078-c325-5cf6-966b-3bbbc155275b"
+        },
+        {
+          "kind": "hwid",
+          "value": "e3d941fa-2bfa-5875-8efd-87ce997f8338"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-88586e2848e155597e71d1c2",
+      "basename": "sc7180-acer-aspire1.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/sc7180-acer-aspire1.dtb",
+      "compatible_strings": [
+        "acer,aspire1",
+        "qcom,sc7180"
+      ],
+      "sha256": "2bd7f8790fcab5d93d690e2d1ed8c1f6a2621c5151977ddaa8dd4c3dc7a9110d",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "acer,aspire1"
+        },
+        {
+          "kind": "hwid",
+          "value": "175f000b-3d05-5c01-aedd-817b1a141f93"
+        },
+        {
+          "kind": "hwid",
+          "value": "260192d4-06d4-5124-ab46-ba210f4c14d7"
+        },
+        {
+          "kind": "hwid",
+          "value": "373bfde5-ffaa-504c-84f3-f8f5357dfc29"
+        },
+        {
+          "kind": "hwid",
+          "value": "45d37dbe-40fb-57bd-a257-55f422d4dc0a"
+        },
+        {
+          "kind": "hwid",
+          "value": "68b38fff-aadc-512c-937b-99d9c13eb484"
+        },
+        {
+          "kind": "hwid",
+          "value": "7c107a7f-2d77-51aa-aef8-8d777e26ffbc"
+        },
+        {
+          "kind": "hwid",
+          "value": "7e15f49e-04b4-5d56-a567-e7a15ba2aca1"
+        },
+        {
+          "kind": "hwid",
+          "value": "82fe1869-361c-56b2-b853-631747e64aa7"
+        },
+        {
+          "kind": "hwid",
+          "value": "965e3681-de3b-5e39-bb62-7d4917d7e36f"
+        },
+        {
+          "kind": "hwid",
+          "value": "e12521bf-0ed8-5406-af87-adad812c57c5"
+        },
+        {
+          "kind": "hwid",
+          "value": "faa12ed4-bd49-5471-8f74-75c2267c3b46"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-914b0bcd989d84125dfbb9bb",
+      "basename": "x1p42100-lenovo-ideapad-slim5x-oled.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1p42100-lenovo-ideapad-slim5x-oled.dtb",
+      "compatible_strings": [
+        "lenovo,ideapad-slim5x-oled",
+        "lenovo,ideapad-5",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1p42100"
+      ],
+      "sha256": "d3564f16766ce1bbf528f73cf7842140a19e26b2764ded46c908b61e5d3f8a9b",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "lenovo,ideapad-slim5x-oled"
+        },
+        {
+          "kind": "hwid",
+          "value": "035da45a-624c-54a8-871d-a26f23330491"
+        },
+        {
+          "kind": "hwid",
+          "value": "0ee69b2b-77f1-5424-a81a-f0f47ddf5dce"
+        },
+        {
+          "kind": "hwid",
+          "value": "28fc3712-01ae-5662-af6c-1d5eaed5f3db"
+        },
+        {
+          "kind": "hwid",
+          "value": "3dc089c0-edd4-5ab2-bd70-537fb1acd96a"
+        },
+        {
+          "kind": "hwid",
+          "value": "5c96e271-228e-573f-8d54-81ddc8df357f"
+        },
+        {
+          "kind": "hwid",
+          "value": "6dede08b-32e0-520f-b3b5-6a8da842a919"
+        },
+        {
+          "kind": "hwid",
+          "value": "8996d12b-d951-5792-92b5-4a8ac7593ec9"
+        },
+        {
+          "kind": "hwid",
+          "value": "9b4980e7-d4d9-5f2f-9462-11dce522e7d3"
+        },
+        {
+          "kind": "hwid",
+          "value": "9c8eb132-0805-5a67-acae-5e24dcf34fa3"
+        },
+        {
+          "kind": "hwid",
+          "value": "bf1bc4fc-ddc8-5c48-8e31-8f8ff2418596"
+        },
+        {
+          "kind": "hwid",
+          "value": "c1734f8b-41a9-5397-ae31-522795aaec18"
+        },
+        {
+          "kind": "hwid",
+          "value": "eaa30ed1-62b1-51e2-9d1f-8308a1202657"
+        },
+        {
+          "kind": "hwid",
+          "value": "f4fb1cdf-5465-57ef-9328-e1dec46b22ee"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-938ad1fabb79215a7719bbd0",
+      "basename": "x1e78100-lenovo-thinkpad-t14s-oled.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e78100-lenovo-thinkpad-t14s-oled.dtb",
+      "compatible_strings": [
+        "lenovo,thinkpad-t14s-oled",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1e78100",
+        "qcom,x1e80100"
+      ],
+      "sha256": "31da2b82859f9eecba8044bb4c630a460c4cd0233d18b5b34dac6b6683878391",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "lenovo,thinkpad-t14s-oled"
+        },
+        {
+          "kind": "hwid",
+          "value": "08ba7f5b-8136-5938-835a-fd99143d34a5"
+        },
+        {
+          "kind": "hwid",
+          "value": "27378ce5-d999-5c3b-acde-0404805afd3b"
+        },
+        {
+          "kind": "hwid",
+          "value": "77ffaabe-038a-550f-b6ea-485dc49d4b45"
+        },
+        {
+          "kind": "hwid",
+          "value": "7c09107d-0ac3-5582-837f-c614d518cf62"
+        },
+        {
+          "kind": "hwid",
+          "value": "c012b92d-a6a6-57fa-ba06-4f3062d891d4"
+        },
+        {
+          "kind": "hwid",
+          "value": "e78c4e7a-68c3-5b29-b2a0-dbd2785e28cd"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-945af392e1c3e3a6b94e0c40",
+      "basename": "x1p42100-hp-omnibook-x14.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1p42100-hp-omnibook-x14.dtb",
+      "compatible_strings": [
+        "hp,omnibook-x14-fe1",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1p42100"
+      ],
+      "sha256": "850d555a76013ee5ff8f8e71f0466a84417e0a4d036584748c5ad937d815b4a1",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "hp,omnibook-x14-fe1"
+        },
+        {
+          "kind": "hwid",
+          "value": "1d8361a7-1b3a-5915-8a35-03a3c1cf9c2e"
+        },
+        {
+          "kind": "hwid",
+          "value": "271cca67-bd9e-5dd6-8e5f-b5f6b969da97"
+        },
+        {
+          "kind": "hwid",
+          "value": "29a43fda-41e4-5db5-b6d3-012d0674d84f"
+        },
+        {
+          "kind": "hwid",
+          "value": "38e7030f-993f-5bda-9ce8-ae13a13d7b5a"
+        },
+        {
+          "kind": "hwid",
+          "value": "3fdb269e-c359-5004-b4e3-8541ef3580c9"
+        },
+        {
+          "kind": "hwid",
+          "value": "5120f011-8f7e-5ca5-9143-de545e288712"
+        },
+        {
+          "kind": "hwid",
+          "value": "612e268b-1233-5af6-b478-5596d3573d35"
+        },
+        {
+          "kind": "hwid",
+          "value": "6fe7a469-b01a-5530-9a34-2dd089e0e006"
+        },
+        {
+          "kind": "hwid",
+          "value": "9c3e4a5b-8fa2-5045-9c4f-441307fa3b08"
+        },
+        {
+          "kind": "hwid",
+          "value": "d4db0558-de1b-562b-bc23-3e0caadd4c94"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-96c71203d718bed29aa93f7a",
+      "basename": "x1p64100-dell-latitude-5455.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1p64100-dell-latitude-5455.dtb",
+      "compatible_strings": [
+        "dell,latitude-5455",
+        "qcom,x1e80100"
+      ],
+      "sha256": "a2a982ab803a59e90aacdfc453758f95bf1d5577da84483bd99eab69ee4192c9",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "dell,latitude-5455"
+        },
+        {
+          "kind": "hwid",
+          "value": "2d75e18e-e107-5c79-8a69-5f163d28ee6f"
+        },
+        {
+          "kind": "hwid",
+          "value": "2f11e817-91c9-5aa2-acb1-bd1d317c9ba6"
+        },
+        {
+          "kind": "hwid",
+          "value": "4d1ff2c8-dd8d-556b-befa-0cab2bc86be3"
+        },
+        {
+          "kind": "hwid",
+          "value": "53c465c5-6425-51cd-b0aa-3382f3ad3622"
+        },
+        {
+          "kind": "hwid",
+          "value": "6329967e-8fcd-5544-8869-36881d8b997b"
+        },
+        {
+          "kind": "hwid",
+          "value": "745f5023-2386-5aaa-944d-b825bea80756"
+        },
+        {
+          "kind": "hwid",
+          "value": "75d1456b-5a14-5868-b877-7b9f58f4dd0d"
+        },
+        {
+          "kind": "hwid",
+          "value": "838cf30a-6594-5200-8432-b94de34ce905"
+        },
+        {
+          "kind": "hwid",
+          "value": "9195a554-2255-55ce-ab3f-59a2aba05c4e"
+        },
+        {
+          "kind": "hwid",
+          "value": "9e9723ce-65b3-57d5-a98d-bf4e0b8f87ed"
+        },
+        {
+          "kind": "hwid",
+          "value": "d33d10f9-d59d-5dc6-b13b-686ac24ea3c0"
+        },
+        {
+          "kind": "hwid",
+          "value": "dfb300e4-c621-562c-a147-521e95ce6b7f"
+        },
+        {
+          "kind": "hwid",
+          "value": "f069ee1a-448c-55df-b8a2-eebce2ccaf7f"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-a2eb2154f2fb5d1390fba5b5",
+      "basename": "x1e001de-devkit-jg.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e001de-devkit-jg.dtb",
+      "compatible_strings": [
+        "qcom,x1e001de-devkit",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1e001de",
+        "qcom,x1e80100"
+      ],
+      "sha256": "836b31ad18f167a57e8f26d4183e4b60c4ded013984d791236438a2aa7ec2932",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "qcom,x1e001de-devkit"
+        },
+        {
+          "kind": "hwid",
+          "value": "4bb05d50-6c4f-525d-a9ec-8924afd6edea"
+        },
+        {
+          "kind": "hwid",
+          "value": "830bd4a2-2498-55cf-b561-48f7dc5f4820"
+        },
+        {
+          "kind": "hwid",
+          "value": "9cba20d0-17ad-559f-94cd-cfcbbf5f71f5"
+        },
+        {
+          "kind": "hwid",
+          "value": "baa7a649-12d8-56c7-93c5-a4e10f4852be"
+        },
+        {
+          "kind": "hwid",
+          "value": "c8e75ab8-555c-5952-a3e3-5b607bea031d"
+        },
+        {
+          "kind": "hwid",
+          "value": "f37dc44b-0be4-5a70-86bd-81f3dacff2e9"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-a9d4695fb9b0b21d3afd6443",
+      "basename": "x1e80100-dell-latitude-7455.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e80100-dell-latitude-7455.dtb",
+      "compatible_strings": [
+        "dell,latitude-7455",
+        "qcom,x1e80100"
+      ],
+      "sha256": "3145022f7b7c99fbbbe2237cb704e3142329aced959e8e08beb2e101689c2db9",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "dell,latitude-7455"
+        },
+        {
+          "kind": "hwid",
+          "value": "2b9277cd-85b1-51ee-9a38-d477632532da"
+        },
+        {
+          "kind": "hwid",
+          "value": "4f73f73b-e639-5353-bbf7-d851e48f18fc"
+        },
+        {
+          "kind": "hwid",
+          "value": "59e5c810-9e60-5a89-8665-db36c56b34d6"
+        },
+        {
+          "kind": "hwid",
+          "value": "683e4579-8440-5bc1-89ac-dfcd7c25b307"
+        },
+        {
+          "kind": "hwid",
+          "value": "68822228-a3e0-5b12-942d-9408751405d1"
+        },
+        {
+          "kind": "hwid",
+          "value": "6e01222b-b2aa-531e-b95f-0e4b2a063364"
+        },
+        {
+          "kind": "hwid",
+          "value": "903e3a6f-e14b-5643-9d55-244f917aadb6"
+        },
+        {
+          "kind": "hwid",
+          "value": "93055898-8c85-50e7-adde-8115f194579a"
+        },
+        {
+          "kind": "hwid",
+          "value": "b3e5b59d-84ae-597d-9222-8a4d48480bc3"
+        },
+        {
+          "kind": "hwid",
+          "value": "fb7493ec-9634-5c5a-9f26-69cbf9b92460"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-b65e6300bfbd756a3cb35bdc",
+      "basename": "x1e80100-crd.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e80100-crd.dtb",
+      "compatible_strings": [
+        "qcom,x1e80100-crd",
+        "qcom,x1e80100"
+      ],
+      "sha256": "13504ccf754c69a5063d5fc14aa62087510cf08ae038518629028ec434e44ba4",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "qcom,x1e80100-crd"
+        },
+        {
+          "kind": "hwid",
+          "value": "2405af0b-d21d-5196-a228-4acffe7b3a10"
+        },
+        {
+          "kind": "hwid",
+          "value": "339fc6d2-e0f4-5226-9dd9-62c4dc41881d"
+        },
+        {
+          "kind": "hwid",
+          "value": "361b3d63-be90-52c2-8798-a05fbd68b773"
+        },
+        {
+          "kind": "hwid",
+          "value": "4bb05d50-6c4f-525d-a9ec-8924afd6edea"
+        },
+        {
+          "kind": "hwid",
+          "value": "7faef667-9eb2-53f4-9764-26fe0e92fbff"
+        },
+        {
+          "kind": "hwid",
+          "value": "8fa88c58-23eb-5aea-9ea7-c4a98ded7352"
+        },
+        {
+          "kind": "hwid",
+          "value": "b6d4eee8-30f3-564a-8246-e83935cf8dbb"
+        },
+        {
+          "kind": "hwid",
+          "value": "d52e3fb6-202c-5cfa-a27c-e3ffe15339fb"
+        },
+        {
+          "kind": "hwid",
+          "value": "e73870a5-90e8-528d-93fd-3da59f78df18"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-bd29920037fd4ce7a9163278",
+      "basename": "x1p42100-lenovo-ideapad-5-2in1.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1p42100-lenovo-ideapad-5-2in1.dtb",
+      "compatible_strings": [
+        "lenovo,ideapad-5-2in1",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1p42100"
+      ],
+      "sha256": "0a4386a9f55cbdb9502d87501268edab8a8d64f24b3fbcf7fa9324a400e8a337",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "lenovo,ideapad-5-2in1"
+        },
+        {
+          "kind": "hwid",
+          "value": "24248bed-dbd2-5e4f-ba41-4e03a09b904a"
+        },
+        {
+          "kind": "hwid",
+          "value": "32b7e294-a252-5a72-b3c6-6197f08c64f1"
+        },
+        {
+          "kind": "hwid",
+          "value": "4ff87ce0-b6ce-5e37-899b-389129fc099e"
+        },
+        {
+          "kind": "hwid",
+          "value": "63fd3926-001c-5392-9c34-fdd477025bd8"
+        },
+        {
+          "kind": "hwid",
+          "value": "68320834-1316-5dad-babf-ae31cc3ff58c"
+        },
+        {
+          "kind": "hwid",
+          "value": "6de5d951-d755-576b-bd09-c5cf66b27234"
+        },
+        {
+          "kind": "hwid",
+          "value": "71d86d4d-02f8-5566-a7a1-529cef184b7e"
+        },
+        {
+          "kind": "hwid",
+          "value": "72fe9329-cc32-5032-8714-d7ec08a9d441"
+        },
+        {
+          "kind": "hwid",
+          "value": "920bf110-b027-51fc-97e5-bb9b46e78c75"
+        },
+        {
+          "kind": "hwid",
+          "value": "9276913a-a9da-5237-b4e8-c8502197264a"
+        },
+        {
+          "kind": "hwid",
+          "value": "99431f53-09a1-5869-be79-65e2fa3f341d"
+        },
+        {
+          "kind": "hwid",
+          "value": "9b723570-d493-5541-ae58-49087512f816"
+        },
+        {
+          "kind": "hwid",
+          "value": "a8a28ecb-200f-59c6-8fe3-62fa670fb80d"
+        },
+        {
+          "kind": "hwid",
+          "value": "aa4cb99b-c4ff-56a4-8b63-ab59db887972"
+        },
+        {
+          "kind": "hwid",
+          "value": "d15b437b-55bf-5bd8-8a88-eb4b9e54cb97"
+        },
+        {
+          "kind": "hwid",
+          "value": "d622845f-0305-5b33-b081-b7519488ed65"
+        },
+        {
+          "kind": "hwid",
+          "value": "db0cb253-2dc7-5164-8ce7-6ed312c1dd9b"
+        },
+        {
+          "kind": "hwid",
+          "value": "eb458c6d-45b2-5299-95b7-87723235240e"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-be27fe920f8269ad5ded0da3",
+      "basename": "sc8280xp-lenovo-thinkpad-x13s.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/sc8280xp-lenovo-thinkpad-x13s.dtb",
+      "compatible_strings": [
+        "lenovo,thinkpad-x13s",
+        "qcom,sc8280xp"
+      ],
+      "sha256": "8dadbf161609e69e54832aaab1162eac409b5d13d70c64d368fa19d0e3699618",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "lenovo,thinkpad-x13s"
+        },
+        {
+          "kind": "hwid",
+          "value": "04392ed0-22bc-56a4-ae4e-dcb325cb6899"
+        },
+        {
+          "kind": "hwid",
+          "value": "0909a1c3-3a02-59a0-b1ea-04f1449c104f"
+        },
+        {
+          "kind": "hwid",
+          "value": "1305c7fb-2943-53e5-aba5-5a948d96ed94"
+        },
+        {
+          "kind": "hwid",
+          "value": "30c7a7fe-f4bf-5ce1-aad8-f5e6db904c53"
+        },
+        {
+          "kind": "hwid",
+          "value": "3486eccc-d0ac-534a-9e2f-a1c18bc310c6"
+        },
+        {
+          "kind": "hwid",
+          "value": "3ad863ab-0181-5a2f-9cc1-70eedc446da9"
+        },
+        {
+          "kind": "hwid",
+          "value": "3f9d2d91-73b2-5316-8c72-a0ecb3f0dae5"
+        },
+        {
+          "kind": "hwid",
+          "value": "4a971ccf-1223-5f4d-b939-dcb8efc0b350"
+        },
+        {
+          "kind": "hwid",
+          "value": "4b189129-8eb2-585c-a1bb-a4cfc979433a"
+        },
+        {
+          "kind": "hwid",
+          "value": "4df470e6-7878-5b0f-b2e0-733d5d9fa228"
+        },
+        {
+          "kind": "hwid",
+          "value": "5188008f-3241-5f05-8d21-774b5c7a2887"
+        },
+        {
+          "kind": "hwid",
+          "value": "56eafd87-9fbc-5388-a5fd-ec9a9178fb1c"
+        },
+        {
+          "kind": "hwid",
+          "value": "6026ec60-e5e0-56bf-9d71-f3465d7314c8"
+        },
+        {
+          "kind": "hwid",
+          "value": "64b71f12-4341-5e5c-b7cd-25b6503799e3"
+        },
+        {
+          "kind": "hwid",
+          "value": "69acf6bf-ed33-5806-857f-c76971d7061e"
+        },
+        {
+          "kind": "hwid",
+          "value": "69c47e1e-fde2-5062-b777-acbeab73784b"
+        },
+        {
+          "kind": "hwid",
+          "value": "6d8e538a-e089-5901-97ed-5ef670416fca"
+        },
+        {
+          "kind": "hwid",
+          "value": "810e34c6-cc69-5e36-8675-2f6e354272d3"
+        },
+        {
+          "kind": "hwid",
+          "value": "873455fb-b2c5-5c0c-9c2c-90e80d44da57"
+        },
+        {
+          "kind": "hwid",
+          "value": "93a4dd46-2007-56bf-b176-390519d6f5bd"
+        },
+        {
+          "kind": "hwid",
+          "value": "9f47e28f-e1ee-5cb5-b4ce-8f0605752b3d"
+        },
+        {
+          "kind": "hwid",
+          "value": "a1dfe209-99e5-5ff2-9922-aa4c11491b49"
+        },
+        {
+          "kind": "hwid",
+          "value": "a84d13c1-3864-5d56-8c7c-15ad37074a3f"
+        },
+        {
+          "kind": "hwid",
+          "value": "abdbb2cb-ab52-5674-9d0a-2e2cb69bcbb4"
+        },
+        {
+          "kind": "hwid",
+          "value": "b265d777-007e-56e5-b0e2-bd666ab867be"
+        },
+        {
+          "kind": "hwid",
+          "value": "b41f58ed-7631-561f-9b0c-449a9c293afa"
+        },
+        {
+          "kind": "hwid",
+          "value": "b470d002-ad8e-5d5c-a7bf-bb1333f2ce4b"
+        },
+        {
+          "kind": "hwid",
+          "value": "c869f39e-f205-5ca0-be7b-d90f90ef5556"
+        },
+        {
+          "kind": "hwid",
+          "value": "db1387e0-f13d-5000-889d-ff7cca53846a"
+        },
+        {
+          "kind": "hwid",
+          "value": "dc4ecdd0-c09b-5e84-ac5f-ccf0182e1ec6"
+        },
+        {
+          "kind": "hwid",
+          "value": "ddf28a3f-43fc-54a4-a6a7-4cba5ad46b3e"
+        },
+        {
+          "kind": "hwid",
+          "value": "ddfbdaa2-7c46-5103-be64-84a9f88c485f"
+        },
+        {
+          "kind": "hwid",
+          "value": "e4e1e851-389a-5be8-bc77-d32bc3e96ba2"
+        },
+        {
+          "kind": "hwid",
+          "value": "f22c935e-2dc8-5949-9486-09bbf10361b2"
+        },
+        {
+          "kind": "hwid",
+          "value": "fbf92a11-bb6f-5adb-b5a7-8abf9acbd7d9"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-ca5eff4036d39e4ca34537c0",
+      "basename": "x1e80100-dell-xps13-9345.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e80100-dell-xps13-9345.dtb",
+      "compatible_strings": [
+        "dell,xps13-9345",
+        "qcom,x1e80100"
+      ],
+      "sha256": "84ae8ed7866aee7dadd9c7f8a84d18456fe13f54f4c8a687702ebcd4357b4f8e",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "dell,xps13-9345"
+        },
+        {
+          "kind": "hwid",
+          "value": "1d1baf60-e2f3-5821-9d98-19a131bf8d93"
+        },
+        {
+          "kind": "hwid",
+          "value": "1eb87d70-2f37-5f18-85de-30e46c17d540"
+        },
+        {
+          "kind": "hwid",
+          "value": "36e8dd88-512d-5a74-86a4-039333f9e15a"
+        },
+        {
+          "kind": "hwid",
+          "value": "3b9a1d76-f2e8-52e8-84de-14c5942b3d41"
+        },
+        {
+          "kind": "hwid",
+          "value": "3c2649a7-2275-5130-a0c4-cc5f9809a2c1"
+        },
+        {
+          "kind": "hwid",
+          "value": "7c7c2920-cb59-56ad-bc8a-939e803b0192"
+        },
+        {
+          "kind": "hwid",
+          "value": "81972cb8-6fc7-5e08-b140-b0063ed4fefa"
+        },
+        {
+          "kind": "hwid",
+          "value": "940c6349-f0a5-54ba-8deb-10e709e0b76c"
+        },
+        {
+          "kind": "hwid",
+          "value": "bc685cec-e979-5cb9-bf02-e15586c7cb4b"
+        },
+        {
+          "kind": "hwid",
+          "value": "e656b5f2-69c3-55da-bf22-4dd58d5f6d4f"
+        },
+        {
+          "kind": "hwid",
+          "value": "eedeb5d9-1a0e-56e6-9137-eb6a723e58d1"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-db4a73b309d3cdd458e9b681",
+      "basename": "x1e80100-microsoft-romulus13.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e80100-microsoft-romulus13.dtb",
+      "compatible_strings": [
+        "microsoft,romulus13",
+        "qcom,x1e80100"
+      ],
+      "sha256": "3569097d735311c4dd3e79b3d5033ba2f24132957f4d40341858f82c608b8133",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "microsoft,romulus13"
+        },
+        {
+          "kind": "hwid",
+          "value": "11696377-327d-5ad1-b01d-02a7dbb9b99a"
+        },
+        {
+          "kind": "hwid",
+          "value": "224ba2ff-14c1-5b33-ac10-079ccc217be2"
+        },
+        {
+          "kind": "hwid",
+          "value": "3c329240-a447-5ec5-b79b-d1149420ac62"
+        },
+        {
+          "kind": "hwid",
+          "value": "4ecd5e53-42ea-51a3-9602-aecdfee5c09d"
+        },
+        {
+          "kind": "hwid",
+          "value": "53368ca9-12d5-5ee1-820b-ce979fa2cb0b"
+        },
+        {
+          "kind": "hwid",
+          "value": "786c71b6-f60e-51c7-9ddc-f2999b75a3c5"
+        },
+        {
+          "kind": "hwid",
+          "value": "892e90c9-31e3-5131-a217-a02632dba5e9"
+        },
+        {
+          "kind": "hwid",
+          "value": "924900a0-9be2-53ca-90d7-b0e38827f5c5"
+        },
+        {
+          "kind": "hwid",
+          "value": "95c06fde-19b0-55dc-9ca6-55403bae23f5"
+        },
+        {
+          "kind": "hwid",
+          "value": "c735618b-d526-5f71-9651-8d149340d620"
+        },
+        {
+          "kind": "hwid",
+          "value": "cb196e28-20bc-5e78-93f1-0ac41726bcf8"
+        },
+        {
+          "kind": "hwid",
+          "value": "f0d12ad9-f530-5b56-96d8-897dd704059e"
+        },
+        {
+          "kind": "hwid",
+          "value": "fdfca0f3-41b6-5872-a2ea-53539fd5160c"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-dbec74548fc599dcc26f42df",
+      "basename": "glymur-crd.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/glymur-crd.dtb",
+      "compatible_strings": [
+        "qcom,glymur-crd",
+        "qcom,glymur"
+      ],
+      "sha256": "5c84a443e2b1e3d1a4c785e6562df725ee12868275621c091cbc21355647c3f5",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "qcom,glymur-crd"
+        },
+        {
+          "kind": "hwid",
+          "value": "031a5cd7-883e-5004-90c2-92d29025c777"
+        },
+        {
+          "kind": "hwid",
+          "value": "339fc6d2-e0f4-5226-9dd9-62c4dc41881d"
+        },
+        {
+          "kind": "hwid",
+          "value": "49bcdd2b-d769-5071-b3a4-4a02ff1d36f5"
+        },
+        {
+          "kind": "hwid",
+          "value": "4bb05d50-6c4f-525d-a9ec-8924afd6edea"
+        },
+        {
+          "kind": "hwid",
+          "value": "6fcbdad8-149e-5f72-b2e3-0fd78572ff93"
+        },
+        {
+          "kind": "hwid",
+          "value": "ce496e01-9bd8-522e-8937-8045126ed39a"
+        },
+        {
+          "kind": "hwid",
+          "value": "d9972e14-0a66-56a8-9cee-8c5647fbe470"
+        },
+        {
+          "kind": "hwid",
+          "value": "e53db94e-68fe-541f-b06e-4b5a253dadf9"
+        },
+        {
+          "kind": "hwid",
+          "value": "e88849e7-af59-5c58-9776-75cfb6bac078"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-dfeaf46492ac459333503a39",
+      "basename": "x1p42100-asus-zenbook-a14-lcd.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1p42100-asus-zenbook-a14-lcd.dtb",
+      "compatible_strings": [
+        "asus,zenbook-a14-ux3407qa-lcd",
+        "asus,zenbook-a14-ux3407qa",
+        "qcom,x1p42100"
+      ],
+      "sha256": "6db9b2718e239bacd1f9cb734944802145c2a4e4d7b987f8061bfa9e44b32cb3",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "asus,zenbook-a14-ux3407qa-lcd"
+        },
+        {
+          "kind": "hwid",
+          "value": "00bc5418-646d-5bab-b772-4efb06f4e7f1"
+        },
+        {
+          "kind": "hwid",
+          "value": "0b8b84da-462b-5620-bdb5-70272e0ddd94"
+        },
+        {
+          "kind": "hwid",
+          "value": "14643426-35fa-5a20-bc31-3b6095d2b451"
+        },
+        {
+          "kind": "hwid",
+          "value": "24652d54-00f4-59ae-96fb-f7adbfa4a939"
+        },
+        {
+          "kind": "hwid",
+          "value": "3ca4e2d9-50df-51a5-a87f-4636d425e97d"
+        },
+        {
+          "kind": "hwid",
+          "value": "59793319-4344-5755-9194-17f29f030d5d"
+        },
+        {
+          "kind": "hwid",
+          "value": "7e6d3df4-bf5f-59ab-ad7b-e00677c0ae5a"
+        },
+        {
+          "kind": "hwid",
+          "value": "85f50d27-f4cb-54df-9aae-f6f09700b132"
+        },
+        {
+          "kind": "hwid",
+          "value": "8a72a2ea-3971-55e3-b982-cb6b82868f0e"
+        },
+        {
+          "kind": "hwid",
+          "value": "a034eff6-2891-5de0-b0db-9c5ff350b968"
+        },
+        {
+          "kind": "hwid",
+          "value": "a5b5becc-2a55-5017-b159-087f3846da26"
+        },
+        {
+          "kind": "hwid",
+          "value": "a8425d85-573a-56f8-9d9d-98a196d712fa"
+        },
+        {
+          "kind": "hwid",
+          "value": "c6d100b1-9de7-5636-a3cc-f28fa46fb926"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-e739dc933921a605a6569907",
+      "basename": "x1p42100-asus-vivobook-s15.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1p42100-asus-vivobook-s15.dtb",
+      "compatible_strings": [
+        "asus,vivobook-s15-x1p4",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1p42100"
+      ],
+      "sha256": "e5e176dff489cad8ad6e6dccf299564ce32efe3bcd5fb0d34bd320e4c1e09030",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "asus,vivobook-s15-x1p4"
+        },
+        {
+          "kind": "hwid",
+          "value": "0c926a29-b883-5482-aea7-ddda46084840"
+        },
+        {
+          "kind": "hwid",
+          "value": "172515ff-feb1-5f61-bc14-116a23ea70da"
+        },
+        {
+          "kind": "hwid",
+          "value": "24652d54-00f4-59ae-96fb-f7adbfa4a939"
+        },
+        {
+          "kind": "hwid",
+          "value": "2ad07794-e07a-55da-b1a1-b9b56ed4cdcd"
+        },
+        {
+          "kind": "hwid",
+          "value": "52499218-2ce9-5d3c-b276-e3cee52f2f7a"
+        },
+        {
+          "kind": "hwid",
+          "value": "920bc3d2-69f0-5705-83d8-3e0019ab5223"
+        },
+        {
+          "kind": "hwid",
+          "value": "ab36b5d3-4e77-58be-9d55-939c7e6734c6"
+        },
+        {
+          "kind": "hwid",
+          "value": "ac5b6293-c2ac-5e82-98f2-0475efbc11fc"
+        },
+        {
+          "kind": "hwid",
+          "value": "be521b64-7759-5835-a0b2-c10300a191fa"
+        },
+        {
+          "kind": "hwid",
+          "value": "c4575028-e938-504d-850d-f36fbb6b300d"
+        },
+        {
+          "kind": "hwid",
+          "value": "c5fed9eb-6a7b-5378-b093-484d9322150b"
+        },
+        {
+          "kind": "hwid",
+          "value": "c9cd4052-8d61-5a5b-ad16-b9f12a993822"
+        },
+        {
+          "kind": "hwid",
+          "value": "f6b44a44-c913-572c-8c9c-0ff0f9c010f0"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-ee35f03e4697b33ac3fdb2b3",
+      "basename": "x1e80100-medion-sprchrgd-14-s1.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e80100-medion-sprchrgd-14-s1.dtb",
+      "compatible_strings": [
+        "medion,sprchrgd14s1",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1e78100",
+        "qcom,x1e80100"
+      ],
+      "sha256": "0bcef03ec0dfa980a158998d986c2c69ae934579ce4ab56d2e4c9aeeb411cfcc",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "medion,sprchrgd14s1"
+        },
+        {
+          "kind": "hwid",
+          "value": "0f49db05-25d9-5f1a-a633-40b358f6f6d2"
+        },
+        {
+          "kind": "hwid",
+          "value": "2904a882-918e-5f0b-9ac6-6a9737e685c9"
+        },
+        {
+          "kind": "hwid",
+          "value": "2fee1e80-b28f-51f2-8421-f0c39aa97516"
+        },
+        {
+          "kind": "hwid",
+          "value": "3713fa68-5f78-5538-b954-5e82e6c25646"
+        },
+        {
+          "kind": "hwid",
+          "value": "6b54ec94-c2bb-5008-abe3-975b26e8a371"
+        },
+        {
+          "kind": "hwid",
+          "value": "776dd828-0ea0-52b3-93d9-b4f97ac0e7e1"
+        },
+        {
+          "kind": "hwid",
+          "value": "7cbb6d59-d341-5ef2-ba12-dd3bc4a41df6"
+        },
+        {
+          "kind": "hwid",
+          "value": "9eb99973-f4f7-53b2-8682-faafa5f8ad1f"
+        },
+        {
+          "kind": "hwid",
+          "value": "ba6260c3-a098-59ba-b999-2783726d1e44"
+        },
+        {
+          "kind": "hwid",
+          "value": "e72ceeaf-45c6-50f5-9a8d-f3af93228f05"
+        },
+        {
+          "kind": "hwid",
+          "value": "ec048a86-f99a-5f29-a128-04d9254808ba"
+        },
+        {
+          "kind": "hwid",
+          "value": "f3ceb2c3-66db-5519-98bc-d62cba323666"
+        },
+        {
+          "kind": "hwid",
+          "value": "f6304115-77d2-52ef-b050-77b79c416b76"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-fb9677e0eb99eaa313245126",
+      "basename": "x1e78100-lenovo-thinkpad-t14s.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e78100-lenovo-thinkpad-t14s.dtb",
+      "compatible_strings": [
+        "lenovo,thinkpad-t14s-lcd",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1e78100",
+        "qcom,x1e80100"
+      ],
+      "sha256": "17c4d4066ee55dab2e5566ac990132989c10642585210fc2ccb7b2ee5f6f0679",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "lenovo,thinkpad-t14s-lcd"
+        },
+        {
+          "kind": "hwid",
+          "value": "1480f3ca-b01a-5d7c-bbc9-7a17d7b4b58d"
+        },
+        {
+          "kind": "hwid",
+          "value": "1538c7fb-26b6-5144-b16f-2500b5a0a503"
+        },
+        {
+          "kind": "hwid",
+          "value": "19b622ef-27fe-5c2e-bc53-13a79b862c65"
+        },
+        {
+          "kind": "hwid",
+          "value": "1d9f3ebb-96de-5dd6-8c88-38308b0c1c44"
+        },
+        {
+          "kind": "hwid",
+          "value": "2b1b6e68-cee9-549b-b8ae-10c274b8c3a6"
+        },
+        {
+          "kind": "hwid",
+          "value": "34e7fadd-9c7d-5f91-ba7f-cedb04d59b9a"
+        },
+        {
+          "kind": "hwid",
+          "value": "48a732b5-3989-5ac3-b661-516a46f00792"
+        },
+        {
+          "kind": "hwid",
+          "value": "498d60ae-9b1d-5b67-8abd-af571babfa94"
+        },
+        {
+          "kind": "hwid",
+          "value": "513976f8-3f51-5b42-9ae0-931ce23c5f38"
+        },
+        {
+          "kind": "hwid",
+          "value": "5180bc01-5d18-5870-b955-969da38b2647"
+        },
+        {
+          "kind": "hwid",
+          "value": "53b6927f-d6ca-5674-a0e8-a50a989d4ba0"
+        },
+        {
+          "kind": "hwid",
+          "value": "578dd7d5-5871-5bd5-92a9-be07f1067b92"
+        },
+        {
+          "kind": "hwid",
+          "value": "5c20e964-d530-5dd7-9efd-4aed9e73c3cb"
+        },
+        {
+          "kind": "hwid",
+          "value": "74593764-b6b9-58e9-bedc-93ebbb1eb057"
+        },
+        {
+          "kind": "hwid",
+          "value": "76032e78-67a8-5dab-8512-157bfcfb8f75"
+        },
+        {
+          "kind": "hwid",
+          "value": "791ecd9d-1547-58e6-b72a-5ce417b729dd"
+        },
+        {
+          "kind": "hwid",
+          "value": "82fa4a02-8c3c-55f9-b0c9-e8feb669fd3a"
+        },
+        {
+          "kind": "hwid",
+          "value": "83579fdf-8faf-57b4-b265-d2e817c7cf3f"
+        },
+        {
+          "kind": "hwid",
+          "value": "86a0d770-3ca1-57fa-ac05-413481c00a24"
+        },
+        {
+          "kind": "hwid",
+          "value": "8c602147-5363-5374-859e-8b7fe2d4d3ce"
+        },
+        {
+          "kind": "hwid",
+          "value": "8cfd85bb-0d77-59df-8546-264239be475e"
+        },
+        {
+          "kind": "hwid",
+          "value": "a07b8e34-d6b6-58b2-9963-38216ec67159"
+        },
+        {
+          "kind": "hwid",
+          "value": "a20ae3ec-49a1-5cb5-acb8-5d31c77b105a"
+        },
+        {
+          "kind": "hwid",
+          "value": "a5a4e3c1-5922-5ed6-b78e-9f0ea873a988"
+        },
+        {
+          "kind": "hwid",
+          "value": "a8852b56-45ea-5377-ba2d-1910a5c897bb"
+        },
+        {
+          "kind": "hwid",
+          "value": "a9b59fea-e841-508a-a245-3a2d8d2802de"
+        },
+        {
+          "kind": "hwid",
+          "value": "ac09e50f-9b3b-53c0-9752-377c3a0baaa0"
+        },
+        {
+          "kind": "hwid",
+          "value": "acbac5af-aa6a-5690-88f3-e910f04a7ead"
+        },
+        {
+          "kind": "hwid",
+          "value": "b0e14398-0a96-5736-840b-7349e5c0b85c"
+        },
+        {
+          "kind": "hwid",
+          "value": "c81fee2f-cf41-5d5a-8c7b-afd6585b1d81"
+        },
+        {
+          "kind": "hwid",
+          "value": "d93b21c0-5ed9-5955-911a-5b15f114d786"
+        },
+        {
+          "kind": "hwid",
+          "value": "dd83478e-e01b-5631-ae74-92ae275a9b4e"
+        },
+        {
+          "kind": "hwid",
+          "value": "e5d83424-0ecb-5632-b7b1-500f04e82725"
+        },
+        {
+          "kind": "hwid",
+          "value": "ed647f93-3075-598b-9d89-d0f30ec11707"
+        },
+        {
+          "kind": "hwid",
+          "value": "f6cd4a9f-9632-516e-b748-65952f7380c5"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "dtb-fe32a3bf442d53c5759205c8",
+      "basename": "msm8998-lenovo-miix-630.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/msm8998-lenovo-miix-630.dtb",
+      "compatible_strings": [
+        "lenovo,miix-630",
+        "qcom,msm8998"
+      ],
+      "sha256": "fc1cb99d90265c8118bb33a0d83a8833a8b30539c35ed5d8743139e123131da0",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "lenovo,miix-630"
+        },
+        {
+          "kind": "hwid",
+          "value": "08b75d1f-6643-52a1-9bdd-071052860b33"
+        },
+        {
+          "kind": "hwid",
+          "value": "14f581d2-d059-5cb2-9f8b-56d8be7932c9"
+        },
+        {
+          "kind": "hwid",
+          "value": "16a55446-eba9-5f97-80e3-5e39d8209bc3"
+        },
+        {
+          "kind": "hwid",
+          "value": "307ab358-ed84-57fe-bf05-e9195a28198d"
+        },
+        {
+          "kind": "hwid",
+          "value": "34df58d6-b605-50aa-9313-9b34f5c4b6fc"
+        },
+        {
+          "kind": "hwid",
+          "value": "7e613574-5445-5797-9567-2d0ed86e6ffa"
+        },
+        {
+          "kind": "hwid",
+          "value": "a51054fb-5eef-594a-a5a0-cd87632d0aea"
+        },
+        {
+          "kind": "hwid",
+          "value": "b0f4463c-f851-5ec3-b031-2ccb873a609a"
+        },
+        {
+          "kind": "hwid",
+          "value": "c4c9a6be-5383-5de7-af35-c2de505edec8"
+        },
+        {
+          "kind": "hwid",
+          "value": "e0a96696-f0a6-5466-a6db-207fbe8bae3c"
+        }
+      ],
+      "required": false
+    },
+    {
+      "device": "surface-pro-11-x1e-oled",
+      "basename": "x1e80100-microsoft-denali-oled.dtb",
+      "path": "usr/lib/firmware/7.2.9-jg-0sp11v2-qcom-x1e/device-tree/qcom/x1e80100-microsoft-denali-oled.dtb",
+      "compatible_strings": [
+        "microsoft,denali-oled",
+        "microsoft,denali",
+        "lenovo,thinkpad-t14s",
+        "qcom,x1e80100"
+      ],
+      "sha256": "8860eee902dafa77dcceeecf3a2d76d1387a498ea36abb77db687c0b7b4e0189",
+      "embedded_matches": 1,
+      "selectors": [
+        {
+          "kind": "compatible",
+          "value": "microsoft,denali-oled"
+        },
+        {
+          "kind": "hwid",
+          "value": "01bf1e61-d2e0-518b-bb46-eb4d1f2b1af1"
+        },
+        {
+          "kind": "hwid",
+          "value": "06128fee-87dc-50f6-8a3f-97cd9a6d8bf6"
+        },
+        {
+          "kind": "hwid",
+          "value": "14b96570-4bc4-541a-9aef-1b7e2b61d7cd"
+        },
+        {
+          "kind": "hwid",
+          "value": "16a47337-1f8b-5bd3-b3bd-8e50b31cb1c9"
+        },
+        {
+          "kind": "hwid",
+          "value": "2ea92a70-ac64-51f7-a395-dc86b06f4e0a"
+        },
+        {
+          "kind": "hwid",
+          "value": "48b86a5e-1955-5799-9577-150f9e1a69e4"
+        },
+        {
+          "kind": "hwid",
+          "value": "584a5084-15f2-5d20-917b-57f299e61f7e"
+        },
+        {
+          "kind": "hwid",
+          "value": "5a384f15-464d-5da8-9311-a2c021759afc"
+        },
+        {
+          "kind": "hwid",
+          "value": "64fbb7cb-3c5b-5fd7-a361-41d1d0ef2ff2"
+        },
+        {
+          "kind": "hwid",
+          "value": "66f9d954-5c66-5577-b3e4-e3f14f87d2ff"
+        },
+        {
+          "kind": "hwid",
+          "value": "7cef06f5-e7e6-56d7-b123-a6d640a5d302"
+        },
+        {
+          "kind": "hwid",
+          "value": "84b2e1d1-e695-5f41-8c41-cf1f059c616a"
+        },
+        {
+          "kind": "hwid",
+          "value": "95971fb3-d478-591f-9ea3-eb0af0d1dfb5"
+        },
+        {
+          "kind": "hwid",
+          "value": "a362faea-8d41-5642-a48e-c0349d96ad60"
+        },
+        {
+          "kind": "hwid",
+          "value": "aca467c0-5fc2-59ad-8ed5-1b7a0988d11c"
+        },
+        {
+          "kind": "hwid",
+          "value": "c9c14db9-2b61-597a-a4ba-84397fe75f63"
+        },
+        {
+          "kind": "hwid",
+          "value": "ca2ff828-b404-5253-9e0e-579c93bfb059"
+        },
+        {
+          "kind": "hwid",
+          "value": "d752a22b-1fd8-53c3-89ef-8ca95618134a"
+        },
+        {
+          "kind": "hwid",
+          "value": "fa26249f-6748-5ff3-8f78-b9cf9ab4ed2f"
+        },
+        {
+          "kind": "hwid",
+          "value": "fdc060ef-c134-5735-8b51-bfb157640a5c"
+        }
+      ],
+      "required": true
+    }
+  ]
+}

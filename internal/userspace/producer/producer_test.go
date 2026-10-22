@@ -84,6 +84,9 @@ func TestReviewedDeclarationsRequireIndependentPins(t *testing.T) {
 		if ref != compatibility.ReferenceFor(data) {
 			t.Fatal("wrong reference")
 		}
+		if m.Description == "" || m.Lexr.MinimumInclusive != "0.7.0" || m.Lexr.TestedThroughInclusive != "" {
+			t.Fatal("new declaration omits prose, retains an old consumer floor, or invents Lexr qualification")
+		}
 		m.Targets[0].OperatingSystems[0].TestedVersions = []string{"26.04"}
 		widened, err := compatibility.Marshal(m)
 		if err != nil {
@@ -92,6 +95,34 @@ func TestReviewedDeclarationsRequireIndependentPins(t *testing.T) {
 		if _, _, err := VerifyDeclaration(widened, policy); err == nil {
 			t.Fatal("source metadata widened independent evidence authority")
 		}
+	}
+}
+
+// TestDescriptionRemainsIndependentlyPinned ensures explanatory metadata is
+// authenticated despite being unable to change the compatibility decision.
+func TestDescriptionRemainsIndependentlyPinned(t *testing.T) {
+	component := "iptsd-v1"
+	policy, err := PolicyFor(component)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, _, err := VerifyDeclaration(declarationBytes(t, component), policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := payloadTarget()
+	target.LexrVersion = "0.7.0"
+	before := compatibility.Evaluate(manifest, target)
+	manifest.Description = "Explanatory prose cannot qualify this component or authorise installation."
+	if got := compatibility.Evaluate(manifest, target); !reflect.DeepEqual(before, got) {
+		t.Fatal("description changed authority")
+	}
+	changed, err := compatibility.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := VerifyDeclaration(changed, policy); err == nil {
+		t.Fatal("changed prose bypassed independent declaration identity")
 	}
 }
 
@@ -107,11 +138,11 @@ func TestPrepareCanonicalHardwareProfiles(t *testing.T) {
 				target := payloadTarget()
 				target.DeviceProfile = device
 				request := Request{Component: component, RepositoryRoot: "/oe", PayloadTarget: target}
-				if _, _, err := prepareVersion(context.Background(), runner, request, "0.5.0"); err == nil {
+				if _, _, err := prepareVersion(context.Background(), runner, request, "0.7.0"); err == nil {
 					t.Fatal("unqualified profile accepted without dedicated override")
 				}
 				request.AllowUnverifiedCompatibility = true
-				record, canonical, err := prepareVersion(context.Background(), runner, request, "0.5.0")
+				record, canonical, err := prepareVersion(context.Background(), runner, request, "0.7.0")
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -122,12 +153,12 @@ func TestPrepareCanonicalHardwareProfiles(t *testing.T) {
 					t.Fatal(err)
 				}
 				request.PayloadTarget.OSVersion = "24.04"
-				if _, _, err := prepareVersion(context.Background(), runner, request, "0.5.0"); err == nil {
+				if _, _, err := prepareVersion(context.Background(), runner, request, "0.7.0"); err == nil {
 					t.Fatal("device inclusion bypassed hard OS bounds")
 				}
 				request.PayloadTarget = target
 				request.PayloadTarget.KernelABI = "7.2.2-jg-0sp11v19-qcom-x1e"
-				if _, _, err := prepareVersion(context.Background(), runner, request, "0.5.0"); err == nil {
+				if _, _, err := prepareVersion(context.Background(), runner, request, "0.7.0"); err == nil {
 					t.Fatal("device inclusion bypassed scoped kernel bounds")
 				}
 			})
@@ -142,7 +173,7 @@ func TestPrepareAndRevalidate(t *testing.T) {
 	data := declarationBytes(t, component)
 	runner := authenticator(t, component, data)
 	request := Request{Component: component, RepositoryRoot: "/oe", PayloadTarget: payloadTarget(), AllowUnverifiedCompatibility: true}
-	record, canonical, err := prepareVersion(context.Background(), runner, request, "0.5.0")
+	record, canonical, err := prepareVersion(context.Background(), runner, request, "0.7.0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,13 +187,13 @@ func TestPrepareAndRevalidate(t *testing.T) {
 		t.Fatal(err)
 	}
 	request.AllowUnverifiedCompatibility = false
-	if _, _, err := prepareVersion(context.Background(), runner, request, "0.5.0"); err == nil {
+	if _, _, err := prepareVersion(context.Background(), runner, request, "0.7.0"); err == nil {
 		t.Fatal("unverified packaging accepted without override")
 	}
 	request.AllowUnverifiedCompatibility = true
-	for _, version := range []string{"dev", "0.5.0+dirty", "0.5.0-rc.1", "0.4.0"} {
+	for _, version := range []string{"dev", "0.7.0+dirty", "0.7.0-rc.1", "0.6.0"} {
 		got, _, err := prepareVersion(context.Background(), runner, request, version)
-		if version == "0.4.0" || version == "0.5.0-rc.1" {
+		if version == "0.6.0" || version == "0.7.0-rc.1" {
 			if err == nil {
 				t.Fatal("hard Lexr bound bypassed")
 			}
@@ -171,7 +202,7 @@ func TestPrepareAndRevalidate(t *testing.T) {
 		}
 	}
 	request.PayloadTarget.KernelABI = "7.2.2-jg-0sp11v19-qcom-x1e"
-	if _, _, err := prepareVersion(context.Background(), runner, request, "0.5.0"); err == nil {
+	if _, _, err := prepareVersion(context.Background(), runner, request, "0.7.0"); err == nil {
 		t.Fatal("cross-patch target accepted")
 	}
 	for _, change := range []func(*Record){

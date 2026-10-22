@@ -13,6 +13,15 @@ import (
 func intersectCatalogue(selected, compiled *catalog.Catalog) error {
 	for _, component := range selected.List() {
 		ceiling, found := compiled.Get(component.ID)
+		if component.ID == SensorsComponent {
+			// The native sensor controller is compiled but deliberately absent
+			// from the shipped catalogue. A private entry may select that exact
+			// source-only boundary; it cannot authorise any deployment action.
+			ceiling = catalog.Component{ID: SensorsComponent, Level: catalog.LevelExperimental,
+				Capability: catalog.CapabilitySensors, Redistribution: catalog.RedistributionSourceRequired,
+				SupportActions: catalog.SupportActions{Build: true}, CompatibilityEvidence: catalog.EvidenceUnqualifiedSource}
+			found = true
+		}
 		if !found {
 			return fmt.Errorf("userspace component %q has no compiled policy", component.ID)
 		}
@@ -21,8 +30,12 @@ func intersectCatalogue(selected, compiled *catalog.Catalog) error {
 			component.Capability != ceiling.Capability || component.Redistribution != ceiling.Redistribution || component.Level != ceiling.Level {
 			return fmt.Errorf("userspace component %q widens compiled capability, action, lifecycle, or redistribution policy", component.ID)
 		}
-		if !reflect.DeepEqual(component.Release, ceiling.Release) || !reflect.DeepEqual(component.Compatibility, ceiling.Compatibility) {
+		if component.CompatibilityEvidence != ceiling.CompatibilityEvidence || legacyProfileIdentity(component) != legacyProfileIdentity(ceiling) ||
+			!reflect.DeepEqual(component.Release, ceiling.Release) || !reflect.DeepEqual(component.Compatibility, ceiling.Compatibility) {
 			return fmt.Errorf("userspace component %q replaces compiled release or compatibility authority", component.ID)
+		}
+		if component.ID == SensorsComponent && component.KernelCompatibility != nil {
+			return fmt.Errorf("userspace component %q cannot claim kernel compatibility for its source-only workflow", component.ID)
 		}
 		if ceiling.KernelCompatibility != nil {
 			if component.KernelCompatibility == nil || component.KernelCompatibility.MinimumSP11Generation < ceiling.KernelCompatibility.MinimumSP11Generation ||
@@ -32,4 +45,17 @@ func intersectCatalogue(selected, compiled *catalog.Catalog) error {
 		}
 	}
 	return nil
+}
+
+// legacyProfileIdentity permits the missing explicit profile in a schema-2
+// catalogue to match the same release in schema 3. Exact release metadata and
+// compatibility pins are still checked independently by intersectCatalogue.
+func legacyProfileIdentity(component catalog.Component) string {
+	if component.LegacyProfile != "" {
+		return component.LegacyProfile
+	}
+	if component.Release != nil && component.Compatibility == nil {
+		return component.Release.Tag
+	}
+	return ""
 }

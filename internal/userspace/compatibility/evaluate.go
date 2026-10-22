@@ -94,6 +94,8 @@ func Evaluate(m *Manifest, target Target) Decision {
 		reasons := []string{}
 		if !knownVersion {
 			reasons = append(reasons, "Lexr build identity is unverified")
+		} else if m.Lexr.TestedThroughInclusive == "" {
+			reasons = append(reasons, "Lexr version has no recorded tested-through evidence")
 		} else if compareVersion(version, m.Lexr.TestedThroughInclusive) > 0 {
 			reasons = append(reasons, "Lexr version is beyond recorded evidence")
 		}

@@ -50,7 +50,7 @@ that do not apply.
 
 ---
 
-## [0.5.0] - Unreleased
+## [0.7.0] - Unreleased
 
 ### Added
 
@@ -61,6 +61,118 @@ that do not apply.
   Preserve exact historical bundles through explicit legacy
   profiles; new release preparation requires portable compatibility evidence
   ([#44](https://github.com/ooaklee/lexr.sh/issues/44)).
+- Allow an optional bounded, human-readable component description without
+  granting executable policy. New declarations require Lexr `0.7.0` and omit
+  unknown Lexr tested-through evidence; their empty OS test records remain
+  unverified rather than claiming future qualification.
+
+### Changed
+
+- Retain exact published legacy component bundles and authenticated native
+  camera schema-1 build/release inputs. New manifest-aware camera production
+  uses schema 2; adding metadata does not convert an old bundle or establish
+  new payload, OS, kernel or hardware qualification.
+
+## [0.6.0] - Unreleased
+
+### Added
+
+- Opt in to a different userspace support repository or branch with
+  `userspace source prepare <camera|iptsd> --experimental`. Require a canonical
+  HTTPS repository, fully qualified branch/tag ref and expected full commit;
+  reject ref drift, authenticate the selected component inputs and publish only a
+  fresh detached checkout with a source-selection receipt. Source preparation
+  does not run repository installers, widen component validation or install
+  userspace. Its dry-run performs no network or filesystem mutation and does
+  not claim that remote source was verified.
+
+- Add experimental, source-only native sensor build foundations for the pinned
+  QMI, SSC and desktop proxy composition: authenticated snapshots, supervised
+  dependency preparation, offline ARM64 compilation and strict validation of
+  licences, ELF providers and loader evidence before durable no-replace
+  publication. Failed and partial work is retained for diagnosis
+  ([#76](https://github.com/ooaklee/lexr.sh/pull/76)).
+- Record the source, execution, publication and local Docker transport boundaries
+  in ADR041–ADR045. The shipped catalogue and public build help remain unchanged:
+  the sensor path requires an experimental build-only catalogue, and does not
+  provide installation, service activation or physical sensor qualification.
+  On 2026-10-22, the normal native CLI producer at `73aafd72` completed all
+  three containers with exit zero, passed seven native software fixture
+  targets and durably published the local 16-file artefact set with three
+  library aliases and its receipt. The unchanged strict decoder also accepted
+  an independent replay of the retained archive. The sensor code is unchanged
+  in the alpha/main integration; no fresh combined native run was performed.
+  This is local software producer/publication evidence, not a GitHub asset
+  upload or qualification of installation, service activation, physical
+  sensors, rollback or desktop behaviour.
+
+### Changed
+
+- Reconcile the published alpha's kernel source, packaging, ordered DTB and
+  `upgrade --version` fixes with main's sensor and source-preparation work.
+  An offline published schema-3 fixture checks compatibility across manifest
+  readers. Retain the alpha ADR041/042 history as current ADR047/048, with
+  unique identifiers and links to the published originals.
+
+### Fixed
+
+- Validate legitimate unversioned private QMI imports against exact providers
+  while preserving strict SSC version requirements and rejecting weak, hidden,
+  unresolved and duplicate definitions.
+- Establish the isolated sensor build account and loader trace environment, and
+  validate Docker volume modes, workspace hand-off and host/daemon mount
+  identities without relaxing source or publication checks.
+- Check British-English prose in JSON values without treating valid object keys
+  as prose or weakening malformed-document checks.
+
+## [0.6.0-alpha] - 2026-10-22
+
+This opt-in alpha covers explicit CLI release selection, kernel source capture,
+Ubuntu packaging and embedded device-tree validation. The separate experimental
+native-sensor builder is not included. Embedded inventory is not a claim of hardware qualification for every
+device it contains.
+
+### Added
+
+- Select an exact published release with `lexr upgrade --version <version>`,
+  including an opt-in prerelease or intentional downgrade. Plain `lexr upgrade`
+  keeps the stable channel. Reject malformed pins, mismatched or draft release
+  metadata and missing or invalid checksums before replacing the executable.
+- Introduce schema-3 Stubble inventory observations with exact embedded payload
+  order and HWID-table bytes. Retain optional shared-route payloads without
+  advertising them as supported devices; required-device routes remain unique.
+- Recheck the installed image against its ordered observation before reporting
+  installation success. Keep existing schema-2 bundles and their strict
+  unique-route interpretation compatible.
+
+### Fixed
+
+- Preserve legitimate case-distinct paths in local kernel snapshots. Validate
+  their complete namespace on the extraction filesystem before writing payloads,
+  reject aliases, duplicate paths, non-directory ancestors and escaping link
+  chains, and retain exact reconstructed tree and commit checks. The source
+  checkout must still be clean; no dirty-source or identity bypass is added.
+- Retain committed source files matched by ignore rules and declare a captured
+  commit's shallow history boundary without changing its original commit or
+  tree. Reject incomplete or changed reconstructed source and incompatible
+  cached snapshots.
+- Recognise both legacy `/etc/kernel` hooks and newer Ubuntu image packages
+  that also use `/usr/share/kernel` hooks during `kernel build` inspection.
+  Validate the complete known lifecycle bodies, exact ABI and trigger ownership;
+  reject changed actions, arguments, control flow and malformed deferred hooks
+  instead of accepting matching command snippets.
+- Resolve the kernel payload and image lifecycle from their separate Debian
+  package roles. Validate the coherent image/modules pair without assuming
+  that the image package itself contains `vmlinuz`.
+- Inspect the complete same-ABI packaged DTB inventory for embedded fallback
+  and boot diagnostics, while retaining selected-device attribution and strict
+  external-DTB checks. Do not assume every embedded payload is a Denali variant.
+- Align local and release manifest readers on one bounded 1 MiB ceiling so
+  complete multi-device DTB inventories retain all selection provenance.
+
+## [0.5.0] - Unreleased
+
+### Added
 
 - Include Fedora getting-started instructions in the live user's Desktop folder
   and retain the guide, requested offline companion and matching image manifest

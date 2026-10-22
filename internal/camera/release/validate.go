@@ -58,8 +58,10 @@ func (manager *Manager) ValidateStatic(ctx context.Context, request ValidationRe
 	if err := validateManifestContract(directory, manifest); err != nil {
 		return receipt, err
 	}
-	if err := producer.Revalidate(ctx, manager.Runner, root, *manifest.Compatibility); err != nil {
-		return receipt, err
+	if manifest.SchemaVersion == SchemaVersion {
+		if err := producer.Revalidate(ctx, manager.Runner, root, *manifest.Compatibility); err != nil {
+			return receipt, err
+		}
 	}
 	buildAuthority, err := manifestBuildAuthority(manifest)
 	if err != nil {
@@ -135,12 +137,38 @@ func decodeManifest(data []byte) (Manifest, error) {
 	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
 		return Manifest{}, errors.New("camera release manifest contains trailing JSON data")
 	}
+	if manifest.SchemaVersion == LegacySchemaVersion {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(data, &fields); err != nil {
+			return Manifest{}, err
+		}
+		for name, value := range fields {
+			if strings.EqualFold(name, "compatibility") {
+				return Manifest{}, errors.New("legacy camera release cannot contain compatibility metadata")
+			}
+			if strings.EqualFold(name, "build") {
+				var buildFields map[string]json.RawMessage
+				if err := json.Unmarshal(value, &buildFields); err != nil {
+					return Manifest{}, err
+				}
+				for buildName := range buildFields {
+					if strings.EqualFold(buildName, "compatibility") {
+						return Manifest{}, errors.New("legacy camera build cannot contain compatibility metadata")
+					}
+				}
+			}
+		}
+	}
 	return manifest, nil
 }
 
-// validateManifestContract verifies the exact twelve files and all local digests.
+// validateManifestContract verifies the schema-specific closed file contract
+// and all local digests without upgrading legacy authority in place.
 func validateManifestContract(directory string, manifest Manifest) error {
-	if manifest.SchemaVersion != SchemaVersion || manifest.Status != "verified-local-preparation" || manifest.RemoteMutation || manifest.Tag != filepath.Base(directory) {
+	if err := validateReleaseSchema(manifest); err != nil {
+		return err
+	}
+	if manifest.Status != "verified-local-preparation" || manifest.RemoteMutation || manifest.Tag != filepath.Base(directory) {
 		return errors.New("camera release manifest header is inconsistent")
 	}
 	if !releaseNameExpression.MatchString(manifest.Tag) || !releaseNameExpression.MatchString(manifest.KernelTag) || !kernelABIExpression.MatchString(manifest.KernelABI) || unsafeText(manifest.Tag) || unsafeText(manifest.KernelTag) || unsafeText(manifest.KernelABI) || manifest.PreparedAt.IsZero() {
@@ -150,13 +178,17 @@ func validateManifestContract(directory string, manifest Manifest) error {
 	if !strings.Contains(manifest.KernelTag, kernelVersion) {
 		return errors.New("camera release manifest kernel tag and ABI do not match")
 	}
-	if err := validateCompatibility(directory, manifest.Compatibility, manifest.Build.Compatibility, manifest.KernelABI); err != nil {
-		return err
+	buildFiles := 8
+	if manifest.SchemaVersion == SchemaVersion {
+		if err := validateCompatibility(directory, manifest.Compatibility, manifest.Build.Compatibility, manifest.KernelABI); err != nil {
+			return err
+		}
+		if manifest.Compatibility.Release != manifest.Tag {
+			return errors.New("camera release tag differs from compatibility identity")
+		}
+		buildFiles = 9
 	}
-	if manifest.Compatibility.Release != manifest.Tag {
-		return errors.New("camera release tag differs from compatibility identity")
-	}
-	if manifest.BuildReceiptName != camerabuild.ReceiptName || len(manifest.BuildArtifacts) != 9 || len(manifest.GeneratedFiles) != 2 {
+	if manifest.BuildReceiptName != camerabuild.ReceiptName || len(manifest.BuildArtifacts) != buildFiles || len(manifest.GeneratedFiles) != 2 {
 		return errors.New("camera release manifest has an incomplete file set")
 	}
 	if manifest.SourceAndLicenceProvenance.UbuntuSourceURL != manifest.Build.Source.SourceURL || manifest.SourceAndLicenceProvenance.DebianCopyrightSHA256 != manifest.Build.Source.CopyrightFileSHA256 || !reflect.DeepEqual(manifest.SourceAndLicenceProvenance.Evidence, manifest.Build.Source.LicenceEvidence) {
