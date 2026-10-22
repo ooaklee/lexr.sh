@@ -25,6 +25,9 @@ const (
 	maximumProvenanceBytes int64 = 4096
 	// maximumDeviceTreeInventoryBytes bounds structured build evidence.
 	maximumDeviceTreeInventoryBytes int64 = 1 << 20
+	// maximumStubbleInspectionImageBytes bounds the exact public image retained
+	// by the recipe for ordered, shared-route Stubble evidence.
+	maximumStubbleInspectionImageBytes int64 = 512 << 20
 	// maximumPackageBytes bounds each generated Debian package at four GiB.
 	maximumPackageBytes int64 = 4 << 30
 	// maximumGeneratedPackages bounds runtime, header, and optional boot-support packages.
@@ -198,6 +201,17 @@ func readProvenance(transaction string, plan Plan) (Provenance, error) {
 		(revision != plan.LocalSourceRevision || tree != plan.SourceTree || !committed.Equal(plan.SourceCommitTime)) {
 		return Provenance{}, errors.New("container built a different local commit or tree than the reviewed plan")
 	}
+	if selectionProvenance != nil && kernel.HasSharedSelectionRoutes(deviceTrees) {
+		image, err := readStubbleInspectionImage(transaction)
+		if err != nil {
+			return Provenance{}, fmt.Errorf("read shared-route Stubble inspection image: %w", err)
+		}
+		observed, err := kernel.ObserveStubbleSelection(image, deviceTrees)
+		if err != nil {
+			return Provenance{}, fmt.Errorf("observe shared-route Stubble selection: %w", err)
+		}
+		selectionProvenance.StubbleSelection = observed
+	}
 	return Provenance{
 		SourceKind: SourceKind(sourceKind), GitURL: gitURL, GitRef: gitRef,
 		LocalSourceRevision: localRevision, SourceArchiveName: archiveName,
@@ -209,6 +223,66 @@ func readProvenance(transaction string, plan Plan) (Provenance, error) {
 		CommitTime:             committed.UTC(), RecipeSHA256: recipe,
 		ContainerImage: plan.ContainerImage, WorkVolume: plan.WorkVolume, ToolchainSHA256: toolchain,
 	}, nil
+}
+
+// readStubbleInspectionImage reads only the recipe's durable public payload.
+// Root-relative opens confine lookup to the fresh transaction, and both the
+// directory and file identities must remain stable throughout the bounded read.
+func readStubbleInspectionImage(transaction string) ([]byte, error) {
+	root, err := os.OpenRoot(transaction)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	directory, err := root.Lstat("provenance")
+	if err != nil {
+		return nil, err
+	}
+	if directory.Mode()&os.ModeSymlink != 0 || !directory.IsDir() {
+		return nil, errors.New("inspection provenance is not a non-symlink directory")
+	}
+	provenance, err := root.OpenRoot("provenance")
+	if err != nil {
+		return nil, err
+	}
+	defer provenance.Close()
+	const name = "stubble-inspected-image.efi"
+	before, err := provenance.Lstat(name)
+	if err != nil {
+		return nil, err
+	}
+	if before.Mode()&os.ModeSymlink != 0 || !before.Mode().IsRegular() || before.Size() <= 0 || before.Size() > maximumStubbleInspectionImageBytes {
+		return nil, errors.New("inspection image is not a bounded non-empty regular file")
+	}
+	file, err := provenance.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	opened, statErr := file.Stat()
+	if statErr != nil || !sameInspectionFile(before, opened) {
+		_ = file.Close()
+		return nil, errors.New("inspection image changed before it was read")
+	}
+	data, readErr := io.ReadAll(io.LimitReader(file, maximumStubbleInspectionImageBytes+1))
+	finished, finishErr := file.Stat()
+	closeErr := file.Close()
+	after, afterErr := provenance.Lstat(name)
+	currentDirectory, directoryErr := root.Lstat("provenance")
+	if err := errors.Join(readErr, finishErr, closeErr, afterErr, directoryErr); err != nil {
+		return nil, err
+	}
+	if int64(len(data)) != before.Size() || !sameInspectionFile(before, finished) || !sameInspectionFile(before, after) ||
+		currentDirectory.Mode()&os.ModeSymlink != 0 || !os.SameFile(directory, currentDirectory) {
+		return nil, errors.New("inspection image or directory changed while it was read")
+	}
+	return data, nil
+}
+
+// sameInspectionFile compares the identity and metadata of the public image
+// before opening, after reading and through its final root-relative path.
+func sameInspectionFile(left, right os.FileInfo) bool {
+	return left != nil && right != nil && right.Mode()&os.ModeSymlink == 0 && right.Mode().IsRegular() &&
+		os.SameFile(left, right) && left.Size() == right.Size() && left.Mode() == right.Mode() && left.ModTime().Equal(right.ModTime())
 }
 
 // readDeviceTreeInventory strictly decodes one unchanged, bounded inventory.

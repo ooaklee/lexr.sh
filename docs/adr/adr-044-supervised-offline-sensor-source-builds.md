@@ -12,6 +12,11 @@ rewriting either record. The internal source-build controller remains subject
 to native end-to-end validation before CLI or catalogue delivery. Installation
 and physical sensor qualification are separate, unfinished work.
 
+On 2026-10-22, the normal native CLI producer completed the local end-to-end
+build and durable publication. See the
+[dated evidence and qualification limits](adr-045-local-sensor-build-transport-and-bind-namespaces.md#2026-10-22-local-producer-evidence).
+The original decision below is retained unchanged.
+
 The transport-selection and source-bind path assumptions are superseded by
 [ADR045](adr-045-local-sensor-build-transport-and-bind-namespaces.md). The other
 decisions below are retained unchanged.

@@ -11,6 +11,11 @@ Proposed on 2026-10-20. This records the next producer stage after
 rewrite that record. A sensor build command, persistent image cache, installation
 adapter and physical sensor qualification are not delivered by this stage.
 
+On 2026-10-22, the complete normal native CLI producer passed dependency,
+initialisation and source-container checks through local publication. See the
+[dated evidence and qualification limits](adr-045-local-sensor-build-transport-and-bind-namespaces.md#2026-10-22-local-producer-evidence).
+The original decision below is retained unchanged.
+
 ## Context
 
 The native QMI, SSC and desktop sensor sources need a complete Linux toolchain.

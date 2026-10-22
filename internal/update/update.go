@@ -9,6 +9,7 @@
 package update
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -17,8 +18,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -32,6 +35,15 @@ const DefaultAPIBase = "https://api.github.com"
 // CheckTimeout bounds release discovery so version notices never hang.
 const CheckTimeout = 3 * time.Second
 
+// maximumReleaseTagBytes bounds an explicitly selected release tag.
+const maximumReleaseTagBytes = 255
+
+// maximumReleaseMetadataBytes bounds complete explicit release responses.
+const maximumReleaseMetadataBytes = 1 << 20
+
+// fullReleaseVersionPattern requires every core component before SemVer checks.
+var fullReleaseVersionPattern = regexp.MustCompile(`^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$`)
+
 // ErrOffline reports that the release check could not reach GitHub, either
 // because no network is available or the request timed out.
 var ErrOffline = errors.New("no network connection")
@@ -40,6 +52,8 @@ var ErrOffline = errors.New("no network connection")
 type Release struct {
 	// Tag is the release tag, for example "v0.5.0".
 	Tag string `json:"tag_name"`
+	// Draft distinguishes unpublished drafts from explicitly selectable releases.
+	Draft bool `json:"draft"`
 	// Assets lists the downloadable files attached to the release.
 	Assets []Asset `json:"assets"`
 }
@@ -105,6 +119,131 @@ func (c *Client) Latest(ctx context.Context) (*Release, error) {
 	}
 	if release.Tag == "" {
 		return nil, fmt.Errorf("release response omitted a tag name")
+	}
+	return &release, nil
+}
+
+// CanonicalReleaseTag accepts one complete SemVer pin with an optional v prefix.
+// It preserves build metadata and rejects shorthand, whitespace and path input.
+func CanonicalReleaseTag(value string) (string, error) {
+	if len(value) == 0 || len(value) > maximumReleaseTagBytes || !fullReleaseVersionPattern.MatchString(value) {
+		return "", errors.New("release version must be a complete MAJOR.MINOR.PATCH SemVer with an optional v prefix")
+	}
+	tag := value
+	if !strings.HasPrefix(tag, "v") {
+		tag = "v" + tag
+	}
+	if len(tag) > maximumReleaseTagBytes || !semver.IsValid(tag) {
+		return "", errors.New("release version is not a bounded valid SemVer tag")
+	}
+	return tag, nil
+}
+
+// ByTag fetches only the exact explicitly selected published release. It never
+// substitutes Latest, including when the pin names an older or pre-release tag.
+func (c *Client) ByTag(ctx context.Context, version string) (*Release, error) {
+	tag, err := CanonicalReleaseTag(version)
+	if err != nil {
+		return nil, err
+	}
+	base := c.APIBase
+	if base == "" {
+		base = DefaultAPIBase
+	}
+	httpClient := c.HTTP
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: CheckTimeout}
+	}
+	ctx, cancel := context.WithTimeout(ctx, CheckTimeout)
+	defer cancel()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimSuffix(base, "/")+"/repos/"+c.Repo+"/releases/tags/"+url.PathEscape(tag), nil)
+	if err != nil {
+		return nil, fmt.Errorf("build pinned release request: %w", err)
+	}
+	request.Header.Set("Accept", "application/vnd.github+json")
+	request.Header.Set("User-Agent", "lexr-cli")
+	response, err := httpClient.Do(request)
+	if err != nil {
+		return nil, ErrOffline
+	}
+	defer func() { _ = response.Body.Close() }()
+	switch response.StatusCode {
+	case http.StatusTooManyRequests:
+		return nil, ErrOffline
+	case http.StatusNotFound:
+		return nil, fmt.Errorf("no published release found for %s at %s", c.Repo, tag)
+	case http.StatusOK:
+	default:
+		return nil, fmt.Errorf("pinned release check returned HTTP %d", response.StatusCode)
+	}
+	metadata, err := io.ReadAll(io.LimitReader(response.Body, maximumReleaseMetadataBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read pinned release response: %w", err)
+	}
+	if len(metadata) > maximumReleaseMetadataBytes {
+		return nil, errors.New("pinned release response exceeds the metadata limit")
+	}
+	return decodePinnedRelease(metadata, tag)
+}
+
+// decodePinnedRelease checks one complete object, its exact tag and publication
+// state while permitting the additional metadata returned by GitHub.
+func decodePinnedRelease(metadata []byte, tag string) (*Release, error) {
+	decoder := json.NewDecoder(bytes.NewReader(metadata))
+	opening, err := decoder.Token()
+	if err != nil || opening != json.Delim('{') {
+		return nil, errors.New("pinned release response is not a JSON object")
+	}
+	seen := make(map[string]bool)
+	var release Release
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return nil, fmt.Errorf("decode pinned release member: %w", err)
+		}
+		name, ok := key.(string)
+		if !ok || seen[name] {
+			return nil, errors.New("pinned release response contains an invalid or duplicate member")
+		}
+		seen[name] = true
+		var value json.RawMessage
+		if err := decoder.Decode(&value); err != nil {
+			return nil, fmt.Errorf("decode pinned release value: %w", err)
+		}
+		switch name {
+		case "tag_name":
+			if err := json.Unmarshal(value, &release.Tag); err != nil {
+				return nil, fmt.Errorf("decode pinned release tag: %w", err)
+			}
+		case "draft":
+			var draft *bool
+			if err := json.Unmarshal(value, &draft); err != nil || draft == nil {
+				return nil, errors.New("pinned release publication state must be a boolean")
+			}
+			release.Draft = *draft
+		case "assets":
+			if err := json.Unmarshal(value, &release.Assets); err != nil {
+				return nil, fmt.Errorf("decode pinned release assets: %w", err)
+			}
+		}
+	}
+	if closing, err := decoder.Token(); err != nil || closing != json.Delim('}') {
+		return nil, errors.New("pinned release response has an incomplete JSON object")
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		return nil, errors.New("pinned release response has trailing data")
+	}
+	if !seen["tag_name"] || release.Tag == "" {
+		return nil, errors.New("pinned release response omitted a tag name")
+	}
+	if release.Tag != tag {
+		return nil, errors.New("pinned release response tag differs from the requested version")
+	}
+	if !seen["draft"] {
+		return nil, errors.New("pinned release response omitted its publication state")
+	}
+	if release.Draft {
+		return nil, errors.New("requested release is still a draft")
 	}
 	return &release, nil
 }

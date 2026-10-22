@@ -23,8 +23,8 @@ var packageRoleOrder = map[kernel.PackageRole]int{
 // inspectBundle validates all package bytes and Debian control metadata without
 // granting package-manager privileges.
 func (manager *Manager) inspectBundle(ctx context.Context, bundle kernel.Bundle) ([]Package, error) {
-	if bundle.SchemaVersion != kernel.BundleSchemaVersion {
-		return nil, fmt.Errorf("kernel bundle schema is %d, expected %d", bundle.SchemaVersion, kernel.BundleSchemaVersion)
+	if err := bundle.ValidateSchemaVersion(); err != nil {
+		return nil, err
 	}
 	if err := validateABI("target", bundle.ABI); err != nil {
 		return nil, err

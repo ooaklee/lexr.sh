@@ -40,7 +40,7 @@ lexr --catalog ./supported-isos.json catalog list
 lexr profile list [--json]
 lexr init <profile> [--force]
 lexr version
-lexr upgrade
+lexr upgrade [--version <version>]
 lexr completion <bash|fish|powershell|zsh>
 ```
 
@@ -51,10 +51,14 @@ if absent; replacing a different non-empty profile requires `--force`.
 
 `version` prints the build metadata; when a newer release is published and
 the release check succeeds within its short budget, it also prints an
-upgrade notice. `upgrade` checks GitHub for the newest release, verifies
-the release SHA-256 checksum, and atomically replaces the running
-executable; it requires a network connection and reports a clear error
-when offline.
+upgrade notice. Plain `upgrade` checks GitHub's stable release channel.
+`upgrade --version 0.6.0-alpha` selects that exact published release instead;
+the optional `v` prefix is accepted, and explicit pins may select a prerelease
+or deliberately install an older release. A missing, draft or mismatched
+release fails without falling back to another version. Both paths verify the
+release SHA-256 checksum and atomically replace the running executable;
+they require a network connection and report a clear error when offline.
+The updater does not perform the install script's optional attestation check.
 
 ## Configuration
 

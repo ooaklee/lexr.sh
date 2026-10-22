@@ -158,8 +158,8 @@ func inspectNativeBuild(ctx context.Context, directory, releaseName string) (ker
 	if err := validateBuildProvenance(provenance); err != nil {
 		return kernel.Bundle{}, build.Provenance{}, nil, err
 	}
-	if recorded.SchemaVersion != kernel.BundleSchemaVersion || recorded.Architecture != "arm64" {
-		return kernel.Bundle{}, build.Provenance{}, nil, errors.New("native kernel bundle has an unsupported schema or architecture")
+	if err := recorded.ValidateSchemaVersion(); err != nil || recorded.Architecture != "arm64" {
+		return kernel.Bundle{}, build.Provenance{}, nil, errors.Join(errors.New("native kernel bundle has an unsupported schema or architecture"), err)
 	}
 	if len(recorded.Packages) < 2 || len(recorded.Packages) > 5 {
 		return kernel.Bundle{}, build.Provenance{}, nil, fmt.Errorf("native kernel bundle contains %d packages; expected a valid embedded or external delivery set", len(recorded.Packages))

@@ -103,9 +103,12 @@ func expectedPackageNames(abi string) map[kernel.PackageRole]string {
 	}
 }
 
-// validateDeviceTrees revalidates the complete schema-v2 evidence before any
+// validateDeviceTrees revalidates legacy or ordered evidence before any
 // package metadata or target filesystem inspection is trusted.
 func validateDeviceTrees(bundle kernel.Bundle) error {
+	if err := bundle.ValidateSchemaVersion(); err != nil {
+		return err
+	}
 	_, err := kernel.NewBundle(kernel.BundleOptions{
 		Release: bundle.Release, Repository: bundle.Repository,
 		RequestedBootImageMode: bundle.RequestedBootImageMode,

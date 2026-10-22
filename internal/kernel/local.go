@@ -22,8 +22,10 @@ const (
 	localChecksumManifest = "SHA256SUMS"
 	// localBundleManifest records the package set intentionally emitted by Lexr.
 	localBundleManifest = "lexr-kernel-bundle.json"
-	// maximumLocalBundleManifestBytes bounds local package-set authority.
-	maximumLocalBundleManifestBytes int64 = 64 << 10
+	// maximumLocalBundleManifestBytes bounds local package-set authority using
+	// the same 1 MiB ceiling as downloaded release manifests. Complete Stubble
+	// inventories and their selection provenance can legitimately exceed 64 KiB.
+	maximumLocalBundleManifestBytes = MaximumBundleManifestBytes
 	// localReleasePrefix distinguishes locally discovered bundles from release
 	// tags in serialised output.
 	localReleasePrefix = "local:"
@@ -374,8 +376,8 @@ func loadLocalBundleManifest(directory string) (Bundle, bool, error) {
 // validateLocalBundleManifest proves that a decoded declaration is a canonical
 // embedded or external-required package and device-tree contract.
 func validateLocalBundleManifest(manifest Bundle, image, modules localCandidate, checksums map[string]string, checksumManifestPresent bool) (LocalPackageSet, error) {
-	if manifest.SchemaVersion != BundleSchemaVersion {
-		return "", fmt.Errorf("%s schema is %d, expected %d", localBundleManifest, manifest.SchemaVersion, BundleSchemaVersion)
+	if err := manifest.ValidateSchemaVersion(); err != nil {
+		return "", fmt.Errorf("%s: %w", localBundleManifest, err)
 	}
 	normalized, err := NewBundle(BundleOptions{
 		Release: manifest.Release, Repository: manifest.Repository,

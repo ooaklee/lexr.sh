@@ -11,6 +11,11 @@ first implementation stage. Dependency-image production, supervised native
 build execution, output validation and CLI delivery must be verified before
 the sensor workflow is advertised. This record does not announce a release.
 
+On 2026-10-22, a normal native CLI producer completed local software
+compilation and durable publication. See the
+[dated evidence and qualification limits](adr-045-local-sensor-build-transport-and-bind-namespaces.md#2026-10-22-local-producer-evidence).
+The original decision below is retained unchanged.
+
 This extends the component-specific boundary in
 [ADR006](adr-006-userspace-companion.md) and the static-host decision in
 [ADR036](adr-036-operation-level-static-host-capability-guardrails.md).

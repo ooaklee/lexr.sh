@@ -5,13 +5,18 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // newReleaseServer serves GitHub-style release metadata and asset downloads
@@ -101,6 +106,236 @@ func TestLatestRateLimitIsNoInfo(t *testing.T) {
 	if _, err := client.Latest(context.Background()); err != ErrOffline {
 		t.Fatalf("Latest() on 429 error = %v; want ErrOffline", err)
 	}
+}
+
+// TestCanonicalReleaseTagRequiresCompleteSemVer checks exact version pins and
+// rejects shorthand, aliases, path input and invalid identifier spellings.
+func TestCanonicalReleaseTagRequiresCompleteSemVer(t *testing.T) {
+	for _, value := range []string{"0.6.0-alpha", "v0.6.0-alpha", "1.2.3", "v0.1.0-rc.12", "1.2.3+build.01", "v1.2.3-alpha.1+Build-A.01", "v1.2.3+" + strings.Repeat("x", maximumReleaseTagBytes-len("v1.2.3+"))} {
+		t.Run("valid/"+value, func(t *testing.T) {
+			got, err := CanonicalReleaseTag(value)
+			if err != nil || got != "v"+strings.TrimPrefix(value, "v") {
+				t.Fatalf("CanonicalReleaseTag(%q) = %q, %v", value, got, err)
+			}
+		})
+	}
+	for _, value := range invalidReleasePins() {
+		t.Run("invalid/"+value, func(t *testing.T) {
+			if got, err := CanonicalReleaseTag(value); err == nil || got != "" {
+				t.Fatalf("CanonicalReleaseTag(%q) = %q, %v; want rejection", value, got, err)
+			}
+		})
+	}
+}
+
+// invalidReleasePins supplies malformed input shared by pure and no-HTTP checks.
+func invalidReleasePins() []string {
+	return []string{"", "latest", "dev", "1", "1.2", "v1.2", "01.2.3", "1.02.3", "1.2.03", "1.2.3-01", "1.2.3-alpha..1", "1.2.3-", "1.2.3+", "1.2.3+build..1", "vv1.2.3", "V1.2.3", " 1.2.3", "1.2.3 ", "1.2.3\n", "1.2.3\r", "1.2.3\t", "1.2.3\x00", "../1.2.3", "refs/tags/v1.2.3", "1.2.3/alpha", "1.2.3\\alpha", "https://example.org/v1.2.3", "1.2.3?draft=false", "1.2.3#fragment", "1.2.3%2falpha", "1.2.3+" + strings.Repeat("x", maximumReleaseTagBytes)}
+}
+
+// TestByTagRejectsInvalidPinsBeforeHTTP proves malformed explicit selections do
+// not issue any request, including a fallback request for Latest.
+func TestByTagRejectsInvalidPinsBeforeHTTP(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		writer.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(server.Close)
+	client := &Client{APIBase: server.URL, Repo: "ooaklee/lexr.sh"}
+	for _, value := range invalidReleasePins() {
+		if _, err := client.ByTag(context.Background(), value); err == nil {
+			t.Errorf("ByTag(%q) accepted an invalid pin", value)
+		}
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("invalid pins made %d HTTP requests", got)
+	}
+}
+
+// TestByTagRetainsExactVersionAndMetadata checks explicit older and pre-release
+// selections, escaped tag paths, optional v spelling and opaque build metadata.
+func TestByTagRetainsExactVersionAndMetadata(t *testing.T) {
+	for _, version := range []string{"0.6.0-alpha", "v0.6.0-alpha", "0.1.0", "v1.2.3-rc.1+Build-A.01"} {
+		t.Run(version, func(t *testing.T) {
+			tag := "v" + strings.TrimPrefix(version, "v")
+			var calls atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				calls.Add(1)
+				if request.URL.EscapedPath() != "/repos/ooaklee/lexr.sh/releases/tags/"+url.PathEscape(tag) {
+					t.Errorf("unexpected request path %q", request.URL.EscapedPath())
+				}
+				if request.Header.Get("Accept") != "application/vnd.github+json" || request.Header.Get("User-Agent") != "lexr-cli" {
+					t.Error("pinned request omitted GitHub headers")
+				}
+				if err := json.NewEncoder(writer).Encode(Release{Tag: tag, Assets: []Asset{{Name: AssetName(tag, "linux", "arm64"), URL: "/download/pinned"}}}); err != nil {
+					t.Errorf("encode pinned release: %v", err)
+				}
+			}))
+			t.Cleanup(server.Close)
+			client := &Client{APIBase: server.URL, Repo: "ooaklee/lexr.sh"}
+			got, err := client.ByTag(context.Background(), version)
+			if err != nil || got == nil || got.Tag != tag || got.Draft || len(got.Assets) != 1 {
+				t.Fatalf("ByTag(%q) = %+v, %v", version, got, err)
+			}
+			if calls.Load() != 1 {
+				t.Fatalf("ByTag made %d requests, want exactly the pinned request", calls.Load())
+			}
+		})
+	}
+}
+
+// TestByTagHTTPFailuresNeverFallback checks exact-pin failures are definitive
+// and rate limits retain the existing offline classification.
+func TestByTagHTTPFailuresNeverFallback(t *testing.T) {
+	for _, status := range []int{http.StatusNotFound, http.StatusTooManyRequests, http.StatusInternalServerError} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			var calls atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				calls.Add(1)
+				if request.URL.Path != "/repos/ooaklee/lexr.sh/releases/tags/v0.6.0-alpha" {
+					t.Errorf("unexpected fallback path %q", request.URL.Path)
+				}
+				writer.WriteHeader(status)
+			}))
+			t.Cleanup(server.Close)
+			client := &Client{APIBase: server.URL, Repo: "ooaklee/lexr.sh"}
+			got, err := client.ByTag(context.Background(), "0.6.0-alpha")
+			if got != nil || err == nil || calls.Load() != 1 {
+				t.Fatalf("ByTag() = %+v, %v, calls %d", got, err, calls.Load())
+			}
+			if (status == http.StatusTooManyRequests) != errors.Is(err, ErrOffline) {
+				t.Fatalf("ByTag() offline classification = %v for HTTP %d", err, status)
+			}
+		})
+	}
+}
+
+// TestByTagOfflineAndDeadline checks closed connections and bounded context
+// cancellation without accessing a remote network service.
+func TestByTagOfflineAndDeadline(t *testing.T) {
+	t.Run("default bound", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+			_, _ = io.WriteString(writer, `{"tag_name":"v0.6.0-alpha","draft":false}`)
+		}))
+		t.Cleanup(server.Close)
+		transport := server.Client().Transport
+		client := &Client{APIBase: server.URL, Repo: "ooaklee/lexr.sh", HTTP: &http.Client{Transport: releaseRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+			deadline, ok := request.Context().Deadline()
+			if !ok || time.Until(deadline) <= 0 || time.Until(deadline) > CheckTimeout {
+				t.Errorf("pinned request omitted its bounded deadline: %v, %v", deadline, ok)
+			}
+			return transport.RoundTrip(request)
+		})}}
+		if _, err := client.ByTag(context.Background(), "0.6.0-alpha"); err != nil {
+			t.Fatalf("ByTag() error = %v", err)
+		}
+	})
+	t.Run("offline", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+		server.Close()
+		client := &Client{APIBase: server.URL, Repo: "ooaklee/lexr.sh"}
+		if _, err := client.ByTag(context.Background(), "0.6.0-alpha"); !errors.Is(err, ErrOffline) {
+			t.Fatalf("ByTag() error = %v, want ErrOffline", err)
+		}
+	})
+	t.Run("deadline", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
+			<-request.Context().Done()
+		}))
+		t.Cleanup(server.Close)
+		client := &Client{APIBase: server.URL, Repo: "ooaklee/lexr.sh"}
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+		defer cancel()
+		started := time.Now()
+		if _, err := client.ByTag(ctx, "0.6.0-alpha"); !errors.Is(err, ErrOffline) {
+			t.Fatalf("ByTag() error = %v, want ErrOffline", err)
+		}
+		if time.Since(started) > time.Second {
+			t.Fatal("ByTag ignored the shorter caller deadline")
+		}
+	})
+	t.Run("body deadline", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			writer.WriteHeader(http.StatusOK)
+			_, _ = io.WriteString(writer, `{"tag_name":`)
+			writer.(http.Flusher).Flush()
+			<-request.Context().Done()
+		}))
+		t.Cleanup(server.Close)
+		client := &Client{APIBase: server.URL, Repo: "ooaklee/lexr.sh"}
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+		defer cancel()
+		started := time.Now()
+		if got, err := client.ByTag(ctx, "0.6.0-alpha"); err == nil || got != nil {
+			t.Fatalf("ByTag() accepted interrupted metadata: %+v, %v", got, err)
+		}
+		if time.Since(started) > time.Second {
+			t.Fatal("ByTag ignored the response-body deadline")
+		}
+	})
+}
+
+// releaseRoundTripFunc permits observing the context on a local test request.
+type releaseRoundTripFunc func(*http.Request) (*http.Response, error)
+
+// RoundTrip adapts a test function to the standard HTTP transport contract.
+func (roundTrip releaseRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return roundTrip(request)
+}
+
+// TestByTagRejectsAmbiguousMetadata checks exact identity, publication state,
+// complete JSON consumption and the inclusive metadata-size limit.
+func TestByTagRejectsAmbiguousMetadata(t *testing.T) {
+	valid := `{"tag_name":"v0.6.0-alpha","draft":false}`
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"wrong tag", `{"tag_name":"v0.6.0-beta","draft":false}`},
+		{"unprefixed response tag", `{"tag_name":"0.6.0-alpha","draft":false}`},
+		{"draft", `{"tag_name":"v0.6.0-alpha","draft":true}`},
+		{"missing tag", `{"draft":false}`},
+		{"null tag", `{"tag_name":null,"draft":false}`},
+		{"numeric tag", `{"tag_name":123,"draft":false}`},
+		{"missing publication", `{"tag_name":"v0.6.0-alpha"}`},
+		{"null publication", `{"tag_name":"v0.6.0-alpha","draft":null}`},
+		{"string publication", `{"tag_name":"v0.6.0-alpha","draft":"false"}`},
+		{"malformed", `{"tag_name":`},
+		{"array", `[]`},
+		{"scalar", `null`},
+		{"second object", valid + `{}`},
+		{"trailing text", valid + ` trailing`},
+		{"duplicate tag", `{"tag_name":"v0.6.0-alpha","tag_name":"v0.6.0-alpha","draft":false}`},
+		{"duplicate publication", `{"tag_name":"v0.6.0-alpha","draft":true,"draft":false}`},
+		{"duplicate unknown", `{"tag_name":"v0.6.0-alpha","draft":false,"body":0,"body":1}`},
+		{"bad assets", `{"tag_name":"v0.6.0-alpha","draft":false,"assets":{}}`},
+		{"over bound", valid + strings.Repeat(" ", maximumReleaseMetadataBytes-len(valid)+1)},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(writer, test.body)
+			}))
+			t.Cleanup(server.Close)
+			client := &Client{APIBase: server.URL, Repo: "ooaklee/lexr.sh"}
+			if got, err := client.ByTag(context.Background(), "0.6.0-alpha"); err == nil || got != nil {
+				t.Fatalf("ByTag() accepted %s: %+v, %v", test.name, got, err)
+			}
+		})
+	}
+	t.Run("exact bound and extra GitHub metadata", func(t *testing.T) {
+		body := `{"tag_name":"v0.6.0-alpha","draft":false,"prerelease":true,"body":"release notes"}`
+		body += strings.Repeat(" ", maximumReleaseMetadataBytes-len(body))
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+			_, _ = io.WriteString(writer, body)
+		}))
+		t.Cleanup(server.Close)
+		client := &Client{APIBase: server.URL, Repo: "ooaklee/lexr.sh"}
+		if got, err := client.ByTag(context.Background(), "0.6.0-alpha"); err != nil || got == nil || got.Tag != "v0.6.0-alpha" {
+			t.Fatalf("ByTag() rejected bounded published metadata: %+v, %v", got, err)
+		}
+	})
 }
 
 // TestAssetName verifies GoReleaser naming including the Windows suffix.

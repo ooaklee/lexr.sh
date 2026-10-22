@@ -12,6 +12,11 @@ rewriting or superseding either record. The snapshot, recipe, decoder and
 publication components do not deliver the source-build controller, a CLI,
 installation support or physical sensor qualification.
 
+On 2026-10-22, the complete normal native CLI producer compiled the source and
+durably published its validated local artefact set. See the
+[dated evidence and qualification limits](adr-045-local-sensor-build-transport-and-bind-namespaces.md#2026-10-22-local-producer-evidence).
+The original decision below is retained unchanged.
+
 ## Context
 
 A mutable repository cannot remain the execution authority after an initial

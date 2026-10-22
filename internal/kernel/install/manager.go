@@ -152,8 +152,11 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (result Pl
 	if err != nil {
 		return Plan{}, err
 	}
+	orderedSelection, orderedTrees := plannedStubbleSelection(request.Bundle)
 	return Plan{
 		ownership:              identity,
+		orderedTrees:           orderedTrees,
+		OrderedSelection:       orderedSelection,
 		Profile:                selected.ID,
 		BootHookCleanup:        hookCleanup,
 		FallbackBinding:        binding,
@@ -352,6 +355,10 @@ func (manager *Manager) Install(ctx context.Context, request Request) (receipt R
 	if err != nil {
 		return manager.failAndRollback(ctx, plan, backup, receipt, err)
 	}
+	if err := verifyInstalledStubbleSelection(ctx, plan.Root, plan.TargetABI, plan.OrderedSelection, plan.orderedTrees); err != nil {
+		return manager.failAndRollback(ctx, plan, backup, receipt, err)
+	}
+	installed.DeviceTreeBoot.OrderedInventoryVerified = plan.OrderedSelection != nil
 	if _, err := inspectBootWriteScope(ctx, plan.Root, plan.TargetABI, nil); err != nil {
 		return manager.failAndRollback(ctx, plan, backup, receipt, err)
 	}

@@ -103,7 +103,7 @@ func inspectLocalSource(ctx context.Context, directory string) (localSourceIdent
 // initial committed-tree snapshot contract.
 func validateLocalTree(ctx context.Context, directory string, listing []byte) (int, error) {
 	records := bytes.Split(listing, []byte{0})
-	seenFolded := make(map[string]string, len(records))
+	seenNames := make(map[string]struct{}, len(records))
 	var attributePaths bytes.Buffer
 	count := 0
 	for _, record := range records {
@@ -128,11 +128,15 @@ func validateLocalTree(ctx context.Context, directory string, listing []byte) (i
 				return 0, fmt.Errorf("kernel local source contains a control character in Git path %q", name)
 			}
 		}
-		folded := strings.ToLower(name)
-		if previous, exists := seenFolded[folded]; exists && previous != name {
-			return 0, fmt.Errorf("kernel local source contains a case-folded path collision between %q and %q", previous, name)
+		for _, component := range strings.Split(name, "/") {
+			if strings.EqualFold(component, ".git") {
+				return 0, fmt.Errorf("kernel local source contains a reserved Git metadata path %q", name)
+			}
 		}
-		seenFolded[folded] = name
+		if _, exists := seenNames[name]; exists {
+			return 0, fmt.Errorf("kernel local source contains a duplicate path %q", name)
+		}
+		seenNames[name] = struct{}{}
 		_, _ = attributePaths.Write(nameBytes)
 		_ = attributePaths.WriteByte(0)
 		mode, objectType, objectID := string(fields[0]), string(fields[1]), string(fields[2])
