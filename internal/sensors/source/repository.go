@@ -64,6 +64,13 @@ func StageRepository(repositoryRoot, destination string) (*RepositorySnapshot, e
 	return stageRepository(repositoryRoot, destination, approvedAuthority())
 }
 
+// StageRepository048 creates the same fresh, retained read-only repository
+// snapshot, but authenticates only the compiled metadata successor composition.
+// It does not infer a profile from source bytes or change the default policy.
+func StageRepository048(repositoryRoot, destination string) (*RepositorySnapshot, error) {
+	return stageRepository(repositoryRoot, destination, approved048Authority())
+}
+
 // stageRepository stages the exact approved tree and retains its directory handles.
 func stageRepository(repositoryRoot, destination string, policy authority) (result *RepositorySnapshot, resultErr error) {
 	if err := regularReadSupported(); err != nil {

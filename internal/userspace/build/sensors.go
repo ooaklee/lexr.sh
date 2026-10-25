@@ -14,6 +14,12 @@ import (
 // source authority here; sensorbuild.Manager.Run owns authentication/staging.
 const sensorSourceInventoryMarker = "userspace/sensors/libssc/SOURCE.json"
 
+// Sensor source selectors choose separately compiled owners, not manifest data.
+const (
+	SensorSourceLegacy047   = "legacy-047"
+	SensorSourceMetadata048 = "metadata-048"
+)
+
 // The private seam permits typed adapter tests without exposing arbitrary
 // images, recipes, dependency handles or a public execution interface.
 type sensorBuildManager interface {
@@ -23,6 +29,9 @@ type sensorBuildManager interface {
 
 // validateSensorAdapterRequest refuses unrelated options and implicit parent paths.
 func validateSensorAdapterRequest(request Request) error {
+	if request.SensorSourceProfile != "" && request.SensorSourceProfile != SensorSourceLegacy047 && request.SensorSourceProfile != SensorSourceMetadata048 {
+		return errors.New("sensor-source-profile must be legacy-047 or metadata-048")
+	}
 	if request.Image != "" || request.WorkVolume != "" || request.MinimumFreeGiB != 0 || request.NoPull {
 		return errors.New("sensors builds do not accept image, work-volume, minimum-free-gib or no-pull; the native manager owns immutable policy and fresh dependency readiness")
 	}
@@ -54,10 +63,14 @@ func (m *Manager) runSensors(ctx context.Context, root string, request Request) 
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}
-	if m.sensorBuilder == nil {
+	builder := m.sensorBuilder
+	if request.SensorSourceProfile == SensorSourceMetadata048 {
+		builder = m.sensorBuilder048
+	}
+	if builder == nil {
 		return Result{}, errors.New("native sensor source build manager is unavailable")
 	}
-	buildResult, err := m.sensorBuilder.Run(ctx, sensorbuild.Request{
+	buildResult, err := builder.Run(ctx, sensorbuild.Request{
 		RepositoryRoot: root,
 		WorkParent:     request.SensorWorkParent,
 		OutputParent:   request.OutputDirectory,

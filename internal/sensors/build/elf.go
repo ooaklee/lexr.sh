@@ -31,6 +31,29 @@ type nativeQMIExport struct {
 // coreELFNames fixes the complete binary roster requiring native ELF validation.
 var coreELFNames = []string{"libqmi-glib.so.5.12.0", "libssc.so.2", "ssccli", "iio-sensor-proxy", "monitor-sensor"}
 
+// nativeSSCProfile selects one of two closed compiled ABIs, never a version
+// supplied by source metadata, a build report or an editable caller policy.
+type nativeSSCProfile uint8
+
+// The original ABI remains the default; the successor requires fixed wrappers.
+const (
+	nativeSSC047 nativeSSCProfile = iota + 1
+	nativeSSC048
+)
+
+// nativeSSCABI returns fresh exact public-function and version-node policies.
+func nativeSSCABI(profile nativeSSCProfile) (map[string]string, []string, error) {
+	nodes := []string{"LIBSSC_0.4.0", "LIBSSC_0.4.5", "LIBSSC_0.4.6", "LIBSSC_0.4.7"}
+	switch profile {
+	case nativeSSC047:
+		return sscPublicVersions(), nodes, nil
+	case nativeSSC048:
+		return sscPublicVersions048(), append(nodes, "LIBSSC_0.4.8"), nil
+	default:
+		return nil, nil, errors.New("unknown compiled native SSC profile")
+	}
+}
+
 // preflightELF bounds the untrusted ELF tables before debug/elf can allocate
 // section or symbol data. Compressed/extended tables are not source outputs in
 // this compiled contract; accepting them would introduce decompression limits.
@@ -91,7 +114,25 @@ func preflightELF(data []byte) error {
 
 // inspectNativeELF validates one native output and retains its provider metadata.
 func inspectNativeELF(name string, data []byte) (nativeELF, error) {
+	return inspectNativeELFWithProfile(name, data, nativeSSC047)
+}
+
+// inspectNativeELF048 applies the separately selected closed metadata ABI.
+func inspectNativeELF048(name string, data []byte) (nativeELF, error) {
+	return inspectNativeELFWithProfile(name, data, nativeSSC048)
+}
+
+// inspectNativeELFWithProfile shares structural checks without uniting ABIs.
+func inspectNativeELFWithProfile(name string, data []byte, profile nativeSSCProfile) (nativeELF, error) {
 	result := nativeELF{needed: map[string]bool{}, exports: map[string]map[string]bool{}, unversionedQMI: name == "libqmi-glib.so.5.12.0", qmiExports: map[string][]nativeQMIExport{}}
+	publicSSC, nodes, err := nativeSSCABI(profile)
+	if err != nil {
+		return result, err
+	}
+	versionNodes := make(map[string]bool, len(nodes))
+	for _, node := range nodes {
+		versionNodes[node] = true
+	}
 	if err := preflightELF(data); err != nil {
 		return result, fmt.Errorf("%s: %w", name, err)
 	}
@@ -214,7 +255,6 @@ func inspectNativeELF(name string, data []byte) (nativeELF, error) {
 	if err != nil || len(symbols) == 0 {
 		return result, fmt.Errorf("%s: missing dynamic symbols", name)
 	}
-	publicSSC := sscPublicVersions()
 	for _, s := range symbols {
 		if s.Name == "" {
 			continue
@@ -239,10 +279,10 @@ func inspectNativeELF(name string, data []byte) (nativeELF, error) {
 			if name == "libssc.so.2" {
 				_, isFunction := publicSSC[s.Name]
 				if isFunction {
-					if elf.ST_TYPE(s.Info) != elf.STT_FUNC || int(s.Section) >= len(f.Sections) || f.Sections[s.Section].Flags&elf.SHF_EXECINSTR == 0 || !s.HasVersion || s.VersionIndex.IsHidden() {
+					if profile == nativeSSC048 && binding != elf.STB_GLOBAL || elf.ST_TYPE(s.Info) != elf.STT_FUNC || int(s.Section) >= len(f.Sections) || f.Sections[s.Section].Flags&elf.SHF_EXECINSTR == 0 || !s.HasVersion || s.VersionIndex.IsHidden() {
 						return result, fmt.Errorf("%s: SSC public symbol is not a default defined function", name)
 					}
-				} else if !sscVersionNode(s.Name) || binding != elf.STB_GLOBAL || elf.ST_TYPE(s.Info) != elf.STT_OBJECT || s.Section != elf.SHN_ABS || s.Size != 0 || s.Value != 0 || s.Library != "" || s.Version != "" && s.Version != s.Name || s.VersionIndex.IsHidden() {
+				} else if !versionNodes[s.Name] || binding != elf.STB_GLOBAL || elf.ST_TYPE(s.Info) != elf.STT_OBJECT || s.Section != elf.SHN_ABS || s.Size != 0 || s.Value != 0 || s.Library != "" || s.Version != "" && s.Version != s.Name || s.VersionIndex.IsHidden() {
 					return result, fmt.Errorf("%s: undeclared/private SSC export %s", name, s.Name)
 				}
 			}
@@ -431,27 +471,45 @@ func unversionedQMIImport(consumer, provider nativeELF, symbol elf.Symbol) bool 
 
 // validateNativeELFs enforces native binary closure and exact QMI/SSC imports.
 func validateNativeELFs(files map[string][]byte) error {
+	return validateNativeELFsWithProfile(files, nativeSSC047)
+}
+
+// validateNativeELFs048 requires exactly the closed metadata successor ABI.
+func validateNativeELFs048(files map[string][]byte) error {
+	return validateNativeELFsWithProfile(files, nativeSSC048)
+}
+
+// validateNativeELFsWithProfile retains complete ELF/provider checks for one
+// fixed ABI; successful validation never combines or auto-selects profiles.
+func validateNativeELFsWithProfile(files map[string][]byte, profile nativeSSCProfile) error {
+	expected, nodes, err := nativeSSCABI(profile)
+	if err != nil {
+		return err
+	}
 	objects := map[string]nativeELF{}
 	for _, name := range coreELFNames {
-		object, err := inspectNativeELF(name, files[name])
+		object, err := inspectNativeELFWithProfile(name, files[name], profile)
 		if err != nil {
 			return err
 		}
 		objects[name] = object
 	}
 	ssc := objects["libssc.so.2"]
-	expected := sscPublicVersions()
 	for name, version := range expected {
 		if !ssc.exports[name][version] || len(ssc.exports[name]) != 1 {
 			return fmt.Errorf("SSC public export/version missing or changed: %s", name)
 		}
 	}
 	for name := range ssc.exports {
-		if _, ok := expected[name]; !ok && !sscVersionNode(name) {
+		isNode := false
+		for _, node := range nodes {
+			isNode = isNode || name == node
+		}
+		if _, ok := expected[name]; !ok && !isNode {
 			return fmt.Errorf("SSC exported an undeclared/private symbol: %s", name)
 		}
 	}
-	for _, version := range []string{"LIBSSC_0.4.0", "LIBSSC_0.4.5", "LIBSSC_0.4.6", "LIBSSC_0.4.7"} {
+	for _, version := range nodes {
 		if len(ssc.exports[version]) != 1 {
 			return fmt.Errorf("SSC version node missing: %s", version)
 		}
@@ -513,6 +571,16 @@ ssc_sensor_new ssc_sensor_new_finish ssc_sensor_open ssc_sensor_open_finish ssc_
 		for _, name := range strings.Fields(names) {
 			result[name] = version
 		}
+	}
+	return result
+}
+
+// sscPublicVersions048 preserves every original assignment and adds exactly the
+// ten functions in the authenticated metadata successor's libssc.map.
+func sscPublicVersions048() map[string]string {
+	result := sscPublicVersions()
+	for _, name := range strings.Fields(`ssc_sensor_metadata_snapshot_get_type ssc_sensor_metadata_snapshot_copy ssc_sensor_metadata_snapshot_free ssc_sensor_metadata_snapshot_get_uid_high ssc_sensor_metadata_snapshot_get_uid_low ssc_sensor_metadata_snapshot_get_attribute ssc_sensor_metadata_snapshot_get_matrix_state ssc_sensor_metadata_snapshot_get_matrix_report ssc_sensor_metadata_snapshot_get_effective_matrix ssc_sensor_dup_metadata_snapshot`) {
+		result[name] = "LIBSSC_0.4.8"
 	}
 	return result
 }

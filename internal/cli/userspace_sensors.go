@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	sensorbuild "github.com/ooaklee/lexr.sh/internal/sensors/build"
+	userspacebuild "github.com/ooaklee/lexr.sh/internal/userspace/build"
 	userspacecatalog "github.com/ooaklee/lexr.sh/internal/userspace/catalog"
 	userspacemanager "github.com/ooaklee/lexr.sh/internal/userspace/manager"
 )
@@ -25,11 +26,80 @@ func validateSensorBuildCatalogComponent(component userspacecatalog.Component) e
 
 // sensorSourceBuildComplete requires publication and clean observed build phases.
 func sensorSourceBuildComplete(result *sensorbuild.Result) bool {
+	return sensorSourceBuildCompleteForProfile(result, userspacebuild.SensorSourceLegacy047)
+}
+
+// sensorSourceBuildMatchesRequest never takes its expected profile from a result.
+func sensorSourceBuildMatchesRequest(result *sensorbuild.Result, request userspacebuild.Request) bool {
+	if request.SensorSourceProfile != "" && request.SensorSourceProfile != userspacebuild.SensorSourceLegacy047 && request.SensorSourceProfile != userspacebuild.SensorSourceMetadata048 {
+		return false
+	}
+	if result == nil || result.Plan.DryRun != request.DryRun || result.Plan.Metadata048 != (request.SensorSourceProfile == userspacebuild.SensorSourceMetadata048) {
+		return false
+	}
+	if !request.DryRun {
+		return sensorSourceBuildCompleteForProfile(result, request.SensorSourceProfile)
+	}
+	commit := sensorbuild.SourceCommit
+	if request.SensorSourceProfile == userspacebuild.SensorSourceMetadata048 {
+		commit = sensorbuild.SourceCommit048
+	}
+	return !result.Plan.SourceAuthenticated || result.Plan.Source.SourceCommit == commit
+}
+
+// sensorSourceBuildCompleteForProfile binds the request-selected contract to
+// plan, artefact names and in-band report before accepting terminal publication.
+func sensorSourceBuildCompleteForProfile(result *sensorbuild.Result, selected string) bool {
+	commit, version, recipe, names := sensorbuild.SourceCommit, "0.4.7", sensorbuild.SourceRecipeSHA256(), sensorbuild.ArtifactFiles()
+	metadata048 := selected == userspacebuild.SensorSourceMetadata048
+	if metadata048 {
+		commit, version, recipe, names = sensorbuild.SourceCommit048, "0.4.8", sensorbuild.SourceRecipeSHA256048(), sensorbuild.ArtifactFiles048()
+	} else if selected != "" && selected != userspacebuild.SensorSourceLegacy047 {
+		return false
+	}
 	if result == nil || !result.Publication.Published || !result.Publication.Durable ||
 		!result.Publication.LocationVerified || result.BuildReport == nil ||
-		len(result.Artifacts) != len(sensorbuild.ArtifactFiles()) ||
+		len(result.Artifacts) != len(names) || result.Plan.Metadata048 != metadata048 ||
 		!result.Plan.SourceAuthenticated || !result.Plan.Executable || result.Plan.DryRun ||
-		result.Plan.Source.SourceCommit != sensorbuild.SourceCommit {
+		result.Plan.Jobs < 1 || result.Plan.Jobs > 8 ||
+		result.Plan.Source.SourceCommit != commit || result.Plan.InitRecipeSHA256 != sensorbuild.InitRecipeSHA256() || result.Plan.SourceRecipeSHA256 != recipe ||
+		result.BuildReport.Schema != "lexr-sensors-source-build-v1" || result.BuildReport.SourceCommit != commit || result.BuildReport.Jobs != result.Plan.Jobs {
+		return false
+	}
+	wanted := make(map[string]bool, len(names))
+	for _, name := range names {
+		wanted[name] = true
+	}
+	artifacts := make(map[string]sensorbuild.Artifact, len(names))
+	for _, artifact := range result.Artifacts {
+		if !wanted[artifact.Name] {
+			return false
+		}
+		if _, duplicate := artifacts[artifact.Name]; duplicate {
+			return false
+		}
+		artifacts[artifact.Name] = artifact
+	}
+	if len(result.BuildReport.Products) != len(names)-1 {
+		return false
+	}
+	products := make(map[string]bool, len(names)-1)
+	for _, product := range result.BuildReport.Products {
+		if !wanted[product.Name] || product.Name == sensorbuild.ReportName || products[product.Name] || artifacts[product.Name] != product {
+			return false
+		}
+		products[product.Name] = true
+	}
+	sscProviders := 0
+	for _, provider := range result.BuildReport.Providers {
+		if provider.Name == "libssc" {
+			sscProviders++
+			if provider.Version != version {
+				return false
+			}
+		}
+	}
+	if sscProviders != 1 {
 		return false
 	}
 	dependency, terminal := result.Dependencies, result.Dependencies.Terminal
@@ -51,6 +121,12 @@ func sensorSourceBuildComplete(result *sensorbuild.Result) bool {
 // completed development build. Historical terminal observations do not resolve
 // a later TerminalUnknown. None of these states qualifies physical sensors.
 func (a *application) writeSensorSourceBuildResult(result *sensorbuild.Result, buildErr error) error {
+	return a.writeSensorSourceBuildResultForProfile(result, buildErr, userspacebuild.SensorSourceLegacy047)
+}
+
+// writeSensorSourceBuildResultForProfile receives its expected profile from the
+// request routing; source or returned report fields cannot opt into a contract.
+func (a *application) writeSensorSourceBuildResultForProfile(result *sensorbuild.Result, buildErr error, selected string) error {
 	if result == nil {
 		if buildErr != nil {
 			return nil // Preserve the producer error, not a secondary render error.
@@ -79,7 +155,7 @@ func (a *application) writeSensorSourceBuildResult(result *sensorbuild.Result, b
 		return err
 	}
 
-	complete := buildErr == nil && sensorSourceBuildComplete(result)
+	complete := buildErr == nil && sensorSourceBuildCompleteForProfile(result, selected)
 	if complete {
 		if _, err := fmt.Fprintf(a.out, "sensor development source build completed\noutput: %s\nverified artifacts: %d\nreceipt SHA-256: %s\n",
 			result.Publication.Directory, len(result.Artifacts), result.Publication.ReceiptSHA256); err != nil {

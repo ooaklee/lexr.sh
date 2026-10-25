@@ -80,12 +80,13 @@ func Evaluate(m *Manifest, target Target) Decision {
 		if !osMatches {
 			continue
 		}
-		kernelMatches, kernelTested := false, false
+		kernelMatches, kernelTested, kernelEvidence := false, false, false
 		for _, bound := range rule.Kernels {
 			r := bound.ABIGeneration
 			if kernel.PatchLine == bound.PatchLine && kernel.PlatformFlavour == bound.PlatformFlavour && kernel.Scope == bound.Scope && kernel.ABIGeneration >= r.MinimumInclusive && (r.MaximumExclusive == 0 || kernel.ABIGeneration < r.MaximumExclusive) {
 				kernelMatches = true
-				kernelTested = kernel.ABIGeneration <= r.TestedThroughInclusive
+				kernelEvidence = r.TestedThroughInclusive != 0
+				kernelTested = kernelEvidence && kernel.ABIGeneration <= r.TestedThroughInclusive
 			}
 		}
 		if !kernelMatches {
@@ -102,7 +103,9 @@ func Evaluate(m *Manifest, target Target) Decision {
 		if !osTested {
 			reasons = append(reasons, "operating system version is within hard bounds but untested")
 		}
-		if !kernelTested {
+		if !kernelEvidence {
+			reasons = append(reasons, "kernel generation has no recorded tested-through evidence")
+		} else if !kernelTested {
 			reasons = append(reasons, "kernel generation is beyond recorded evidence")
 		}
 		if len(reasons) == 0 {

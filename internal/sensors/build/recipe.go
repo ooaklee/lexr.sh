@@ -3,6 +3,7 @@ package build
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"strings"
 )
 
 // InitScript initialises only an exclusively new named-volume job. The
@@ -510,5 +511,81 @@ func InitRecipeSHA256() string {
 // SourceRecipeSHA256 identifies the exact offline build command bytes.
 func SourceRecipeSHA256() string {
 	digest := sha256.Sum256([]byte(SourceScript))
+	return hex.EncodeToString(digest[:])
+}
+
+// metadataExport048 copies only the explicit setup-suffixed Meson logs and
+// checks complete helper/parser semantics before adding their fixed aliases.
+const metadataExport048 = `METADATA_CASES = json.loads(r'''
+{"test-metadata-diagnostics":["/metadata/owned-slots","/metadata/duplicates-invalid","/metadata/attribute-bound","/metadata/matrix-provenance","/metadata/boxed-copy-lifetime","/metadata/matrix-representation-copies"],"test-metadata-diagnostics-integration":["/metadata-native/opaque-commit","/metadata-native/diagnostics-preserve-legacy","/metadata-native/matrix-legacy-provenance","/metadata-native/matrix-all-rows","/metadata-native/getter-admission"]}
+''')
+for extension in ('json', 'txt'):
+    # Explicit --setup=metadata appends -metadata to the requested log basename.
+    # No directory search or fallback to another test run is permitted.
+    source = JOB / 'ssc-build/meson-logs' / ('ssc-metadata-testlog-metadata.' + extension)
+    name = 'ssc-metadata-testlog.' + extension
+    data = regular_bytes(source, RULES[name]['maximum'])
+    assert b'\x00' not in data and data.endswith(b'\n')
+    data.decode('utf-8', errors='strict')
+    write_product(name, data)
+metadata_text = (EXPORT / 'ssc-metadata-testlog.txt').read_text()
+metadata_rows = [json.loads(line) for line in (EXPORT / 'ssc-metadata-testlog.json').read_text().splitlines()]
+assert len(metadata_rows) == 2
+metadata_seen = set()
+for row in metadata_rows:
+    name = row['name'].removeprefix('metadata-local - libssc:')
+    assert name in METADATA_CASES and name not in metadata_seen
+    assert row['name'] == 'metadata-local - libssc:' + name
+    command = '/work/job/ssc-build/tests/metadata/' + name
+    assert row['command'] == [command]
+    assert row['result'] == 'OK' and type(row['returncode']) is int and row['returncode'] == 0
+    assert row.get('stderr') in (None, '')
+    output = row['stdout']
+    assert isinstance(output, str) and 0 < len(output.encode('utf-8')) <= 1048576
+    assert '\r' not in output and not re.search(r'\b(skip|todo)\b|bail out', output, re.I)
+    cases = METADATA_CASES[name]
+    plan = '1..' + str(len(cases))
+    lines = output.splitlines()
+    assert lines.count('TAP version 14') == lines.count(plan) == 1
+    assert all(line in ('', 'TAP version 14', plan) or line.startswith(('#', 'ok ')) for line in lines)
+    assert [line for line in lines if line.startswith('ok ')] == [
+        'ok ' + str(index + 1) + ' ' + case for index, case in enumerate(cases)]
+    assert row['name'] in metadata_text and command in metadata_text and output in metadata_text
+    metadata_seen.add(name)
+assert metadata_seen == set(METADATA_CASES)
+`
+
+// replaceRecipe048 requires a unique fixed anchor, failing closed on recipe drift.
+func replaceRecipe048(script, old, replacement string) string {
+	if strings.Count(script, old) != 1 {
+		panic("compiled 0.4.8 recipe anchor changed")
+	}
+	return strings.Replace(script, old, replacement, 1)
+}
+
+// SourceScript048 derives a separate fixed successor recipe without changing
+// SourceScript. It builds fresh QMI/SSC/proxy outputs and the 18-member archive;
+// it does not claim that a controller or dependency-image recipe was executed.
+func SourceScript048() string {
+	script := SourceScript
+	for _, change := range [][2]string{
+		{"-Dintrospection=disabled -Dvapi=disabled -Dbuild-tests=false \\\n", "-Dintrospection=disabled -Dvapi=disabled -Dbuild-tests=false -Dbuild-metadata-tests=true \\\n"},
+		{"meson compile -C /work/job/ssc-build -j \"$JOBS\" -v\n", "meson compile -C /work/job/ssc-build -j \"$JOBS\" -v\nmeson test -C /work/job/ssc-build --no-rebuild --num-processes=1 \\\n  --setup=metadata --suite=metadata-local --print-errorlogs --logbase ssc-metadata-testlog \\\n  test-metadata-diagnostics test-metadata-diagnostics-integration\n"},
+		{"test \"$(pkg-config --modversion libssc)\" = 0.4.7", "test \"$(pkg-config --modversion libssc)\" = 0.4.8"},
+		{"test \"$cli_version\" = 'libssc version 0.4.7'", "test \"$cli_version\" = 'libssc version 0.4.8'"},
+		{"  \"testlog.json\": {\"maximum\":8388608,\"mode\":420,\"license\":\"\"},", "  \"ssc-metadata-testlog.json\": {\"maximum\":8388608,\"mode\":420,\"license\":\"\"},\n  \"ssc-metadata-testlog.txt\": {\"maximum\":8388608,\"mode\":420,\"license\":\"\"},\n  \"testlog.json\": {\"maximum\":8388608,\"mode\":420,\"license\":\"\"},"},
+		{"('libssc', '0.4.7', PREFIX / 'lib/libssc.so.2', 'libssc.so.2')", "('libssc', '0.4.8', PREFIX / 'lib/libssc.so.2', 'libssc.so.2')"},
+		{"{'qmi-glib': '1.39.1', 'libssc': '0.4.7'}", "{'qmi-glib': '1.39.1', 'libssc': '0.4.8'}"},
+		{"write_product('loader-evidence.txt',", metadataExport048 + "write_product('loader-evidence.txt',"},
+		{"'source_commit': '" + SourceCommit + "'", "'source_commit': '" + SourceCommit048 + "'"},
+	} {
+		script = replaceRecipe048(script, change[0], change[1])
+	}
+	return script
+}
+
+// SourceRecipeSHA256048 hashes the complete fixed successor source recipe.
+func SourceRecipeSHA256048() string {
+	digest := sha256.Sum256([]byte(SourceScript048()))
 	return hex.EncodeToString(digest[:])
 }
