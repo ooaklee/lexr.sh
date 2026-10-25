@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -160,6 +161,56 @@ func TestGRUBOwnershipBtrfs(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// An implicit default is attributable only with fresh native default-ID-5
+// evidence; a mounted FSRoot of "/" alone must remain unresolved.
+func TestGRUBOwnershipBtrfsTopLevelDefault(t *testing.T) {
+	for _, separateBoot := range []bool{false, true} {
+		for _, tc := range []struct {
+			name, flags string
+			attested    bool
+			want        GRUBOwnership
+		}{
+			{"unattested bare root", "", false, GRUBUnresolved},
+			{"attested bare root", "", true, GRUBOwned},
+			{"explicit ID5 unchanged", "rootflags=subvolid=5", false, GRUBOwned},
+			{"explicit top-level path unchanged", "rootflags=subvol=/", false, GRUBOwned},
+			{"other numeric ID not overridden", "rootflags=subvolid=256", true, GRUBUnresolved},
+			{"conflicting selectors not overridden", "rootflags=subvol=/,subvolid=5", true, GRUBUnresolved},
+			{"foreign subvolume unchanged", "rootflags=subvol=@foreign", true, GRUBForeign},
+		} {
+			t.Run(fmt.Sprintf("%s/separate=%t", tc.name, separateBoot), func(t *testing.T) {
+				root, _ := fixtureEnvironment(t)
+				bootUUID := "fixture-root"
+				if separateBoot {
+					bootUUID = "fixture-boot"
+				}
+				ctx := bootidentity.WithResolver(context.Background(), func(context.Context, string) (bootidentity.Identity, error) {
+					fs := bootidentity.Filesystem{UUID: "fixture-root", FSType: "btrfs", FSRoot: "/", Mountpoint: root, BtrfsDefaultRoot: tc.attested}
+					boot := fs
+					if separateBoot {
+						boot = bootidentity.Filesystem{UUID: bootUUID, FSType: "btrfs", FSRoot: "/", Mountpoint: filepath.Join(root, "boot")}
+					}
+					return bootidentity.Identity{Root: fs, Boot: boot}, nil
+				})
+				text := ownershipMenu("Ubuntu", bootUUID, "root=UUID=fixture-root "+tc.flags, fixtureFallbackABI, "initrd.img-"+fixtureFallbackABI)
+				if separateBoot {
+					text = strings.ReplaceAll(text, "/boot/", "/")
+				}
+				writeRawOwnershipGRUB(t, root, text)
+				entries, err := InspectGRUB(ctx, root)
+				if err != nil || len(entries) != 1 || entries[0].Ownership != tc.want {
+					t.Fatalf("ownership: %+v %v", entries, err)
+				}
+				if tc.want == GRUBOwned {
+					if err := VerifyGRUBEntryABIArtifacts(ctx, root, entries[0], fixtureFallbackABI); err != nil {
+						t.Fatal(err)
+					}
+				}
+			})
+		}
 	}
 }
 

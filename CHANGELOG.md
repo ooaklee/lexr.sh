@@ -75,6 +75,12 @@ that do not apply.
 
 ### Fixed
 
+- Reconcile Btrfs inode-device and mountinfo-device differences only when
+  `statx` proves the exact selected mount and live directory identity. Attribute
+  a bare top-level Btrfs root only after a bounded read-only default-ID-5
+  attestation; missing or ambiguous evidence remains unresolved. Preserve
+  explicit subvolume, separate-boot and transaction identity checks
+  ([#79](https://github.com/ooaklee/lexr.sh/issues/79)).
 - Keep camera/IPTSD source acquisition independent of deployment compatibility,
   while recognising only compiled default output paths in prepared checkouts.
   Preserve exact commit, input and checkout-mutation checks.

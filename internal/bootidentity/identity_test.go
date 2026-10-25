@@ -49,6 +49,8 @@ func TestIdentityValidationRejectsUnsupportedViews(t *testing.T) {
 		{"wrong root", Filesystem{UUID: "x", FSRoot: "/", Mountpoint: "/other"}, Filesystem{UUID: "x", FSRoot: "/", Mountpoint: "/"}},
 		{"ESP view", Filesystem{UUID: "x", FSRoot: "/", Mountpoint: "/"}, Filesystem{UUID: "y", FSRoot: "/", Mountpoint: "/boot/efi"}},
 		{"unclean subvolume", Filesystem{UUID: "x", FSRoot: "/a/../b", Mountpoint: "/"}, Filesystem{UUID: "y", FSRoot: "/", Mountpoint: "/boot"}},
+		{"default proof on ext4", Filesystem{UUID: "x", FSType: "ext4", FSRoot: "/", Mountpoint: "/", BtrfsDefaultRoot: true}, Filesystem{UUID: "y", FSRoot: "/", Mountpoint: "/boot"}},
+		{"default proof on other subvolume", Filesystem{UUID: "x", FSType: "btrfs", FSRoot: "/@root", Mountpoint: "/", BtrfsDefaultRoot: true}, Filesystem{UUID: "y", FSRoot: "/", Mountpoint: "/boot"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := WithResolver(context.Background(), func(context.Context, string) (Identity, error) { return Identity{Root: tc.root, Boot: tc.boot}, nil })
@@ -56,5 +58,20 @@ func TestIdentityValidationRejectsUnsupportedViews(t *testing.T) {
 				t.Fatal("unsupported view accepted")
 			}
 		})
+	}
+}
+
+// TestResolvePinsBtrfsDefaultEvidence rejects changing default-root attestation.
+func TestResolvePinsBtrfsDefaultEvidence(t *testing.T) {
+	fs := Filesystem{UUID: "fixture-root", FSType: "btrfs", FSRoot: "/", Mountpoint: "/", BtrfsDefaultRoot: true}
+	current := Identity{Root: fs, Boot: fs}
+	ctx := WithResolver(context.Background(), func(context.Context, string) (Identity, error) { return current, nil })
+	pinned := WithExpected(ctx, current)
+	if _, err := Resolve(pinned, "/"); err != nil {
+		t.Fatal(err)
+	}
+	current.Root.BtrfsDefaultRoot = false
+	if _, err := Resolve(pinned, "/"); err == nil {
+		t.Fatal("changed default attestation accepted")
 	}
 }

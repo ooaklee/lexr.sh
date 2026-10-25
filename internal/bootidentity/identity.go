@@ -24,6 +24,10 @@ type Filesystem struct {
 	FSRoot string
 	// Mountpoint is the absolute directory exposing this view to the inspector.
 	Mountpoint string
+	// BtrfsDefaultRoot records a fresh positive attestation that the mounted
+	// top-level tree (ID 5) is also the filesystem's default. False means no
+	// such proof, not that an implicit default is safe to infer from FSRoot.
+	BtrfsDefaultRoot bool
 }
 
 // Identity records the selected Linux root and the filesystem serving /boot.
@@ -95,6 +99,9 @@ func (identity Identity) validate(root string) error {
 		return errors.New("boot ownership requires the selected root and its own mounted boot directory")
 	}
 	for _, fs := range []Filesystem{identity.Root, identity.Boot} {
+		if fs.BtrfsDefaultRoot && (fs.FSType != "btrfs" || fs.FSRoot != "/") {
+			return errors.New("boot ownership has inconsistent btrfs default evidence")
+		}
 		if fs.FSRoot == "" || !strings.HasPrefix(fs.FSRoot, "/") || filepath.Clean(fs.FSRoot) != fs.FSRoot {
 			return errors.New("boot ownership has an unsupported filesystem root")
 		}
