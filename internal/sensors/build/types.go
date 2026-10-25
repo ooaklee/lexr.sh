@@ -118,6 +118,7 @@ func NewMetadata048(runner platform.Runner) *Manager {
 	return newManager(runner, producer048)
 }
 
+// newManager retains one compiled profile and its sequential build dependencies.
 func newManager(runner platform.Runner, profile producerProfile) *Manager {
 	if runner == nil {
 		runner = platform.NewDiagnosticRunner(nil)

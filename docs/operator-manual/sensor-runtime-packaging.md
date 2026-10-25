@@ -59,7 +59,7 @@ The hidden sensor source builder has an opt-in
 Each selection uses its own compiled source, snapshot, recipe, ownership,
 decoder and publication contract. A result cannot select its own policy.
 
-This produces development artifacts only. Software and mocked-controller
+This produces development artefacts only. Software and mocked-controller
 tests alone are not a fresh native producer run, and the saved direct-recipe
 0.4.8 package must not be relabelled as a normal CLI build. Keep actual producer
 and downstream qualification receipts separate. No installer or service

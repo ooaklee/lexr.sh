@@ -25,6 +25,7 @@ func metadata048Controller(t *testing.T) (*Manager, *controllerTestRunner) {
 	return configureControllerTestManager(NewMetadata048(r), r), r
 }
 
+// metadata048Request requires an explicit authenticated successor source fixture.
 func metadata048Request(t *testing.T) Request {
 	t.Helper()
 	root := os.Getenv("LEXR_TEST_SENSOR_METADATA048_OE_ROOT")
@@ -43,6 +44,7 @@ func metadata048Request(t *testing.T) Request {
 	return r
 }
 
+// metadata048Archive assembles a non-executed archive with authenticated notices.
 func metadata048Archive(t *testing.T, repository string) []byte {
 	t.Helper()
 	if _, err := source.Verify048(repository); err != nil {
@@ -64,6 +66,7 @@ func metadata048Archive(t *testing.T, repository string) []byte {
 	return data
 }
 
+// TestProducerConstructorsSelectOnlyTheirCompiledContract rejects unknown profiles.
 func TestProducerConstructorsSelectOnlyTheirCompiledContract(t *testing.T) {
 	for _, metadata := range []bool{false, true} {
 		t.Run(map[bool]string{false: "legacy", true: "metadata048"}[metadata], func(t *testing.T) {
@@ -97,6 +100,7 @@ func TestProducerConstructorsSelectOnlyTheirCompiledContract(t *testing.T) {
 	}
 }
 
+// TestProducerProfilesBindSpecVolumeAndRecoveryOwnership refuses crossed policies.
 func TestProducerProfilesBindSpecVolumeAndRecoveryOwnership(t *testing.T) {
 	for _, profile := range []producerProfile{producer047, producer048} {
 		for _, phase := range []sourcePhase{sourceInit, sourceBuild} {
@@ -162,6 +166,7 @@ func TestProducerProfilesBindSpecVolumeAndRecoveryOwnership(t *testing.T) {
 	}
 }
 
+// metadata048PublicationArtifacts creates sealed, non-executed publication fixtures.
 func metadata048PublicationArtifacts() *VerifiedArtifacts {
 	v := &VerifiedArtifacts{valid: true, profile: artifact048, files: map[string][]byte{}, links: ArtifactLinks()}
 	for _, name := range ArtifactFiles048() {
@@ -172,6 +177,7 @@ func metadata048PublicationArtifacts() *VerifiedArtifacts {
 	return v
 }
 
+// TestProducer048PublicationRequiresExplicitProfileAndOpaqueSeal checks publication refusals.
 func TestProducer048PublicationRequiresExplicitProfileAndOpaqueSeal(t *testing.T) {
 	for _, test := range []struct {
 		name      string
@@ -254,6 +260,7 @@ func TestProducer048PublicationRequiresExplicitProfileAndOpaqueSeal(t *testing.T
 	}
 }
 
+// TestControllerMetadata048AuthenticatedPublicationOptIn exercises fixture orchestration.
 func TestControllerMetadata048AuthenticatedPublicationOptIn(t *testing.T) {
 	request := metadata048Request(t)
 	m, r := metadata048Controller(t)
@@ -320,6 +327,7 @@ func TestControllerMetadata048AuthenticatedPublicationOptIn(t *testing.T) {
 	controllerTestAssertNoDeletion(t, r)
 }
 
+// TestControllerMetadata048RefusesMixedSourcesWithoutEffects rejects crossed sources.
 func TestControllerMetadata048RefusesMixedSourcesWithoutEffects(t *testing.T) {
 	request := metadata048Request(t)
 	r := newControllerTestRunner(t)
@@ -342,6 +350,7 @@ func TestControllerMetadata048RefusesMixedSourcesWithoutEffects(t *testing.T) {
 	controllerTestNoEffects(t, r, request)
 }
 
+// TestControllerMetadata048WithholdsAcrossDriftAndUncertainty retains unresolved outcomes.
 func TestControllerMetadata048WithholdsAcrossDriftAndUncertainty(t *testing.T) {
 	_ = metadata048Request(t)
 	for _, kind := range []string{"volume-recipe", "init-recipe", "build-recipe", "build-command", "nonzero", "running-recovered", "lost-recovery-ownership", "legacy-copy", "truncated-copy", "late-volume-recipe"} {

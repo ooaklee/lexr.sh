@@ -75,6 +75,7 @@ func controllerTestManager(r *controllerTestRunner) *Manager {
 	return configureControllerTestManager(New(r), r)
 }
 
+// configureControllerTestManager installs bounded fixture transport and timing.
 func configureControllerTestManager(m *Manager, r *controllerTestRunner) *Manager {
 	// Existing controller tests deliberately simulate execution/transport. The
 	// dedicated transport tests exercise endpoint attestation and frozen argv.

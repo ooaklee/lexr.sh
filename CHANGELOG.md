@@ -89,7 +89,7 @@ that do not apply.
   qualification for the 0.4.8 sensor package. Preserve positive 0.4.7 defaults,
   exact runtime identity checks and separate real-service activation gates.
 - Add a hidden, opt-in 0.4.8 sensor source-producer profile with matched source
-  snapshots, recipes, ownership checks, artifact decoding and publication.
+  snapshots, recipes, ownership checks, artefact decoding and publication.
   Keep default builds on 0.4.7 and the component build-only; software tests do
   not qualify fresh native production, installation or physical sensors.
   On 2026-10-23, the reviewed local implementation based on `e76d19f`

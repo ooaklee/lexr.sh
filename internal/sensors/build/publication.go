@@ -55,7 +55,7 @@ func publishArtifactsWithHooks(parent, buildID string, artifacts *VerifiedArtifa
 }
 
 // The compiled producer selects the expected profile; neither receipt bytes nor
-// the artifact's own claims can switch the caller's publication contract.
+// the artefact's own claims can switch the caller's publication contract.
 func publishArtifactsWithHooksForProfile(parent, buildID string, artifacts *VerifiedArtifacts, receipt []byte, profile producerProfile, hooks publicationHooks) (result Publication, resultErr error) {
 	if err := publicationSupported(); err != nil {
 		return result, err
@@ -193,6 +193,7 @@ func publicationInputs(verified *VerifiedArtifacts, receipt []byte) ([]publicati
 	return publicationInputsForProfile(verified, receipt, producer047)
 }
 
+// publicationInputsForProfile rechecks the selected seal and closed member roster.
 func publicationInputsForProfile(verified *VerifiedArtifacts, receipt []byte, profile producerProfile) ([]publicationMember, []Link, error) {
 	trimmed := bytes.TrimSpace(receipt)
 	if len(receipt) > 1<<20 || len(trimmed) == 0 || trimmed[0] != '{' || !json.Valid(receipt) {

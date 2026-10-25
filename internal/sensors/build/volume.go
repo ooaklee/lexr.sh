@@ -41,6 +41,7 @@ func volumeCreateArgs(name, token string) []string {
 	return volumeCreateArgsForProfile(name, token, producer047)
 }
 
+// volumeCreateArgsForProfile binds creation labels to the selected compiled recipe.
 func volumeCreateArgsForProfile(name, token string, profile producerProfile) []string {
 	if !profile.valid() || !validSourceVolumeIdentity(name, token) {
 		return nil
@@ -57,6 +58,7 @@ func validateOwnedVolume(v volumeInspection, name, token string) error {
 	return validateOwnedVolumeForProfile(v, name, token, producer047)
 }
 
+// validateOwnedVolumeForProfile checks exact ownership under the selected recipe.
 func validateOwnedVolumeForProfile(v volumeInspection, name, token string, profile producerProfile) error {
 	if !profile.valid() || !validSourceVolumeIdentity(name, token) || v.Name != name {
 		return errors.New("source work volume identity differs")

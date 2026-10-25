@@ -48,7 +48,7 @@ func sensorSourceBuildMatchesRequest(result *sensorbuild.Result, request userspa
 }
 
 // sensorSourceBuildCompleteForProfile binds the request-selected contract to
-// plan, artifact names and in-band report before accepting terminal publication.
+// plan, artefact names and in-band report before accepting terminal publication.
 func sensorSourceBuildCompleteForProfile(result *sensorbuild.Result, selected string) bool {
 	commit, version, recipe, names := sensorbuild.SourceCommit, "0.4.7", sensorbuild.SourceRecipeSHA256(), sensorbuild.ArtifactFiles()
 	metadata048 := selected == userspacebuild.SensorSourceMetadata048

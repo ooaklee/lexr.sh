@@ -32,12 +32,12 @@ label or a compatibility manifest must not choose executable build policy.
   the complete, independently authenticated successor composition. Preserve
   retained-descriptor snapshot verification and read-only copy permissions.
 - Bind the selected source, script, recipe digest, volume and container
-  ownership checks, decoder, opaque artifact profile and publication roster
+  ownership checks, decoder, opaque artefact profile and publication roster
   together. Reject cross-profile substitutions rather than infer a profile
-  from returned JSON or artifact contents.
+  from returned JSON or artefact contents.
 - Expose a hidden, sensor-only `--sensor-source-profile` option with exactly
   `legacy-047` and `metadata-048` values. The omitted option retains the old
-  behavior. Reject unsupported values and use with unrelated components.
+  behaviour. Reject unsupported values and use with unrelated components.
 - Match CLI completion reporting to the profile selected by the request,
   not a profile claimed by the result. Preserve actual terminal, ownership,
   durability and source-change checks. Retain resources and uncertainty on
@@ -50,7 +50,7 @@ label or a compatibility manifest must not choose executable build policy.
 
 Use actual frozen source trees for both authentication and snapshot tests.
 Exercise each orchestration path with recorded/mock transport observations,
-including mixed source, recipes, ownership labels, artifact profiles,
+including mixed source, recipes, ownership labels, artefact profiles,
 interrupted phases and publication failures. Keep default-path regressions.
 
 Software and mocked-controller tests alone do not establish native execution.
