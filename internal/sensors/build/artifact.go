@@ -28,6 +28,21 @@ type VerifiedArtifacts struct {
 	links     []Link
 	report    BuildReport
 	valid     bool
+	profile   artifactProfile
+}
+
+// artifactProfile selects one closed contract before any untrusted data is read.
+type artifactProfile uint8
+
+// The default profile remains 0.4.7; only explicit successor entry points select 0.4.8.
+const (
+	artifact047 artifactProfile = iota
+	artifact048
+)
+
+// IsMetadata048 identifies only a valid handle from an explicit 0.4.8 decoder.
+func (v *VerifiedArtifacts) IsMetadata048() bool {
+	return v != nil && v.valid && v.profile == artifact048
 }
 
 // Files returns a copy of the verified regular-member roster, or nil if invalid.
@@ -141,9 +156,19 @@ func DecodeDockerCopy(data []byte, expectedJobs int) (*VerifiedArtifacts, error)
 	return decodeDockerCopy(data, expectedJobs, expectedFiles())
 }
 
+// DecodeDockerCopy048 validates the fixed successor transport and 0.4.8 contract.
+func DecodeDockerCopy048(data []byte, expectedJobs int) (*VerifiedArtifacts, error) {
+	return decodeDockerCopyProfile(data, expectedJobs, expectedFiles048(), artifact048)
+}
+
 // decodeDockerCopy requires exactly one fixed inner archive and complete endings.
 // Only package fixtures substitute the regular-member licence rules.
 func decodeDockerCopy(data []byte, expectedJobs int, rules map[string]fileRule) (*VerifiedArtifacts, error) {
+	return decodeDockerCopyProfile(data, expectedJobs, rules, artifact047)
+}
+
+// decodeDockerCopyProfile retains the selected contract through both tar layers.
+func decodeDockerCopyProfile(data []byte, expectedJobs int, rules map[string]fileRule, profile artifactProfile) (*VerifiedArtifacts, error) {
 	if len(data) == 0 || len(data) > MaximumArchiveBytes+(64<<10) || len(data)%512 != 0 {
 		return nil, errors.New("Docker copy archive size/alignment differs")
 	}
@@ -164,7 +189,7 @@ func decodeDockerCopy(data []byte, expectedJobs int, rules map[string]fileRule) 
 	if err := endOfArchive(reader, before); err != nil {
 		return nil, err
 	}
-	return decodeArtifactArchive(inner, expectedJobs, rules)
+	return decodeArtifactArchiveProfile(inner, expectedJobs, rules, profile)
 }
 
 // DecodeArtifactArchive requires the compiled roster, not merely the roster in
@@ -174,9 +199,22 @@ func DecodeArtifactArchive(data []byte, expectedJobs int) (*VerifiedArtifacts, e
 	return decodeArtifactArchive(data, expectedJobs, expectedFiles())
 }
 
+// DecodeArtifactArchive048 requires the complete fixed 0.4.8 artefact contract.
+func DecodeArtifactArchive048(data []byte, expectedJobs int) (*VerifiedArtifacts, error) {
+	return decodeArtifactArchiveProfile(data, expectedJobs, expectedFiles048(), artifact048)
+}
+
 // Only package tests substitute licence bytes. Exported production entry points
 // always use expectedFiles' compiled licence authorities and the real ELF check.
 func decodeArtifactArchive(data []byte, expectedJobs int, rules map[string]fileRule) (*VerifiedArtifacts, error) {
+	return decodeArtifactArchiveProfile(data, expectedJobs, rules, artifact047)
+}
+
+// decodeArtifactArchiveProfile never discovers its profile from archive contents.
+func decodeArtifactArchiveProfile(data []byte, expectedJobs int, rules map[string]fileRule, profile artifactProfile) (*VerifiedArtifacts, error) {
+	if profile != artifact047 && profile != artifact048 {
+		return nil, errors.New("unknown compiled artefact profile")
+	}
 	if expectedJobs < 1 || expectedJobs > 8 {
 		return nil, errors.New("expected jobs must be between one and eight")
 	}
@@ -238,10 +276,16 @@ func decodeArtifactArchive(data []byte, expectedJobs int, rules map[string]fileR
 	if len(files) != len(rules) || len(seen) != len(rules)+len(wantedLinks) {
 		return nil, errors.New("artifact archive is incomplete")
 	}
-	if err := validateNativeELFs(files); err != nil {
-		return nil, err
+	var elfErr error
+	if profile == artifact048 {
+		elfErr = validateNativeELFs048(files)
+	} else {
+		elfErr = validateNativeELFs(files)
 	}
-	report, err := validateEvidence(files, expectedJobs)
+	if elfErr != nil {
+		return nil, elfErr
+	}
+	report, err := validateEvidenceProfile(files, expectedJobs, profile)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +294,7 @@ func decodeArtifactArchive(data []byte, expectedJobs int, rules map[string]fileR
 		artifacts = append(artifacts, Artifact{name, int64(len(data)), bytesDigest(data), rules[name].mode})
 	}
 	sort.Slice(artifacts, func(i, j int) bool { return artifacts[i].Name < artifacts[j].Name })
-	return &VerifiedArtifacts{files: files, artifacts: artifacts, links: links, report: report, valid: true}, nil
+	return &VerifiedArtifacts{files: files, artifacts: artifacts, links: links, report: report, valid: true, profile: profile}, nil
 }
 
 // decodeJSON requires UTF-8 evidence without NULs or duplicate member names and
@@ -275,8 +319,21 @@ func decodeJSON(data []byte, into any, strict bool) error {
 // validateEvidence cross-checks reported identities, resources and observations
 // against compiled authority and the actual received output bytes.
 func validateEvidence(files map[string][]byte, jobs int) (BuildReport, error) {
+	return validateEvidenceProfile(files, jobs, artifact047)
+}
+
+// validateEvidenceProfile applies exactly one source, dependency and test policy.
+func validateEvidenceProfile(files map[string][]byte, jobs int, profile artifactProfile) (BuildReport, error) {
 	var report BuildReport
-	for _, name := range []string{ReportName, "testlog.json", "testlog.txt", "qmi-dependencies.json", "ssc-dependencies.json", "proxy-dependencies.json", "loader-evidence.txt"} {
+	commit, version, rules := SourceCommit, "0.4.7", expectedFiles()
+	textFiles := []string{ReportName, "testlog.json", "testlog.txt", "qmi-dependencies.json", "ssc-dependencies.json", "proxy-dependencies.json", "loader-evidence.txt"}
+	if profile == artifact048 {
+		commit, version, rules = SourceCommit048, "0.4.8", expectedFiles048()
+		textFiles = append(textFiles, "ssc-metadata-testlog.json", "ssc-metadata-testlog.txt")
+	} else if profile != artifact047 {
+		return report, errors.New("unknown compiled evidence profile")
+	}
+	for _, name := range textFiles {
 		data := files[name]
 		if !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 || !bytes.HasSuffix(data, []byte("\n")) {
 			return report, fmt.Errorf("evidence text differs: %s", name)
@@ -285,7 +342,7 @@ func validateEvidence(files map[string][]byte, jobs int) (BuildReport, error) {
 	if err := decodeJSON(files[ReportName], &report, true); err != nil {
 		return report, fmt.Errorf("build report: %w", err)
 	}
-	if report.Schema != "lexr-sensors-source-build-v1" || report.SourceCommit != SourceCommit || report.Jobs != jobs || !reflect.DeepEqual(report.Fixtures, FixtureTargets()) || !reflect.DeepEqual(report.ProxyInstallTargets, ProxyInstallTargets()) {
+	if report.Schema != "lexr-sensors-source-build-v1" || report.SourceCommit != commit || report.Jobs != jobs || !reflect.DeepEqual(report.Fixtures, FixtureTargets()) || !reflect.DeepEqual(report.ProxyInstallTargets, ProxyInstallTargets()) {
 		return report, errors.New("build report contract differs")
 	}
 	if report.VolumeFreeBeforeBytes < 6<<30 || report.JobApparentBeforeArchiveBytes <= 0 || report.MemoryPeakBytes != nil && *report.MemoryPeakBytes <= 0 {
@@ -295,7 +352,7 @@ func validateEvidence(files map[string][]byte, jobs int) (BuildReport, error) {
 	var selectedBytes int64
 	for _, a := range report.Products {
 		data, ok := files[a.Name]
-		if !ok || a.Name == ReportName || seen[a.Name] || a.Bytes != int64(len(data)) || a.SHA256 != bytesDigest(data) || a.Mode != expectedFiles()[a.Name].mode {
+		if !ok || a.Name == ReportName || seen[a.Name] || a.Bytes != int64(len(data)) || a.SHA256 != bytesDigest(data) || a.Mode != rules[a.Name].mode {
 			return report, errors.New("reported product identity differs")
 		}
 		seen[a.Name] = true
@@ -309,7 +366,7 @@ func validateEvidence(files map[string][]byte, jobs int) (BuildReport, error) {
 	}
 	expectedProviders := map[string]Provider{
 		"qmi-glib": {"qmi-glib", "1.39.1", ProviderDirectory + "/lib/pkgconfig", ProviderDirectory + "/lib/libqmi-glib.so.5.12.0", bytesDigest(files["libqmi-glib.so.5.12.0"])},
-		"libssc":   {"libssc", "0.4.7", ProviderDirectory + "/lib/pkgconfig", ProviderDirectory + "/lib/libssc.so.2", bytesDigest(files["libssc.so.2"])},
+		"libssc":   {"libssc", version, ProviderDirectory + "/lib/pkgconfig", ProviderDirectory + "/lib/libssc.so.2", bytesDigest(files["libssc.so.2"])},
 	}
 	seen = map[string]bool{}
 	for _, provider := range report.Providers {
@@ -325,10 +382,15 @@ func validateEvidence(files map[string][]byte, jobs int) (BuildReport, error) {
 	if err := validateTestLog(files["testlog.json"], files["testlog.txt"]); err != nil {
 		return report, err
 	}
-	if err := validateDependencies(files); err != nil {
+	if err := validateDependenciesProfile(files, profile); err != nil {
 		return report, err
 	}
-	if err := validateLoaders(files, report.Loaders); err != nil {
+	if profile == artifact048 {
+		if err := validateMetadataTestLog048(files["ssc-metadata-testlog.json"], files["ssc-metadata-testlog.txt"]); err != nil {
+			return report, err
+		}
+	}
+	if err := validateLoadersProfile(files, report.Loaders, profile); err != nil {
 		return report, err
 	}
 	return report, nil
@@ -367,6 +429,95 @@ func validateTestLog(data, text []byte) error {
 	return nil
 }
 
+// metadataTestCases048 fixes every required helper and real-parser TAP case.
+func metadataTestCases048() map[string][]string {
+	return map[string][]string{
+		"test-metadata-diagnostics": {
+			"/metadata/owned-slots", "/metadata/duplicates-invalid", "/metadata/attribute-bound",
+			"/metadata/matrix-provenance", "/metadata/boxed-copy-lifetime", "/metadata/matrix-representation-copies",
+		},
+		"test-metadata-diagnostics-integration": {
+			"/metadata-native/opaque-commit", "/metadata-native/diagnostics-preserve-legacy",
+			"/metadata-native/matrix-legacy-provenance", "/metadata-native/matrix-all-rows", "/metadata-native/getter-admission",
+		},
+	}
+}
+
+// metadataTAPDirective refuses skipped, deferred or aborted case evidence.
+var metadataTAPDirective = regexp.MustCompile(`(?i)\b(skip|todo)\b|bail out`)
+
+// validateMetadataTAP048 requires one exact plan and all ordered non-skipped cases.
+func validateMetadataTAP048(output string, cases []string) error {
+	if output == "" || len(output) > 1<<20 || strings.ContainsRune(output, '\r') || metadataTAPDirective.MatchString(output) {
+		return errors.New("metadata TAP output has invalid bounds or directives")
+	}
+	header, plan := 0, 0
+	var passed []string
+	for _, line := range strings.Split(output, "\n") {
+		switch {
+		case line == "TAP version 14":
+			header++
+		case line == fmt.Sprintf("1..%d", len(cases)):
+			plan++
+		case line == "" || strings.HasPrefix(line, "#"):
+		case strings.HasPrefix(line, "ok "):
+			passed = append(passed, line)
+		default:
+			return errors.New("metadata TAP has an unexpected result or plan")
+		}
+	}
+	if header != 1 || plan != 1 || len(passed) != len(cases) {
+		return errors.New("metadata TAP header, plan or case count differs")
+	}
+	for n, name := range cases {
+		if passed[n] != fmt.Sprintf("ok %d %s", n+1, name) {
+			return errors.New("metadata TAP case identity or order differs")
+		}
+	}
+	return nil
+}
+
+// validateMetadataTestLog048 binds two exact executables to complete 6+5 TAP runs.
+func validateMetadataTestLog048(data, text []byte) error {
+	wanted, seen := metadataTestCases048(), map[string]bool{}
+	if len(data) > 8<<20 || len(text) > 8<<20 || !utf8.Valid(text) || bytes.IndexByte(text, 0) >= 0 || !bytes.HasSuffix(text, []byte("\n")) || !bytes.HasSuffix(data, []byte("\n")) {
+		return errors.New("metadata text log differs")
+	}
+	for _, line := range bytes.Split(bytes.TrimSpace(data), []byte("\n")) {
+		var entry struct {
+			Name       string   `json:"name"`
+			Result     string   `json:"result"`
+			ReturnCode *int     `json:"returncode"`
+			Command    []string `json:"command"`
+			Stdout     string   `json:"stdout"`
+			Stderr     *string  `json:"stderr"`
+		}
+		if !json.Valid(line) {
+			return errors.New("metadata Meson record is not one JSON value")
+		}
+		if err := decodeJSON(line, &entry, false); err != nil {
+			return fmt.Errorf("metadata Meson test record: %w", err)
+		}
+		name := strings.TrimPrefix(entry.Name, "metadata-local - libssc:")
+		cases, found := wanted[name]
+		command := "/work/job/ssc-build/tests/metadata/" + name
+		if !found || seen[name] || entry.Name != "metadata-local - libssc:"+name || entry.Result != "OK" || entry.ReturnCode == nil || *entry.ReturnCode != 0 || !reflect.DeepEqual(entry.Command, []string{command}) || entry.Stderr != nil && *entry.Stderr != "" {
+			return errors.New("metadata Meson executable, status or selection differs")
+		}
+		if err := validateMetadataTAP048(entry.Stdout, cases); err != nil {
+			return err
+		}
+		if !bytes.Contains(text, []byte(entry.Name)) || !bytes.Contains(text, []byte(command)) || !bytes.Contains(text, []byte(entry.Stdout)) {
+			return errors.New("metadata text log does not contain its exact JSON run")
+		}
+		seen[name] = true
+	}
+	if len(seen) != len(wanted) {
+		return errors.New("metadata Meson evidence is incomplete")
+	}
+	return nil
+}
+
 // dependencyEvidence retains Meson's selected provider identity and build flags.
 type dependencyEvidence struct {
 	Name        string   `json:"name"`
@@ -378,6 +529,17 @@ type dependencyEvidence struct {
 // validateDependencies requires the fixed private QMI/SSC providers at each
 // dependent build stage rather than trusting version strings alone.
 func validateDependencies(files map[string][]byte) error {
+	return validateDependenciesProfile(files, artifact047)
+}
+
+// validateDependenciesProfile selects one compiled private dependency version.
+func validateDependenciesProfile(files map[string][]byte, profile artifactProfile) error {
+	sscVersion := "0.4.7"
+	if profile == artifact048 {
+		sscVersion = "0.4.8"
+	} else if profile != artifact047 {
+		return errors.New("unknown compiled dependency profile")
+	}
 	for _, component := range []string{"qmi", "ssc", "proxy"} {
 		var entries []dependencyEvidence
 		if err := decodeJSON(files[component+"-dependencies.json"], &entries, false); err != nil || len(entries) == 0 || len(entries) > 512 {
@@ -397,7 +559,7 @@ func validateDependencies(files map[string][]byte) error {
 			seen[entry.Name] = true
 			expectedVersion := "1.39.1"
 			if entry.Name == "libssc" {
-				expectedVersion = "0.4.7"
+				expectedVersion = sscVersion
 			}
 			if entry.Version != expectedVersion {
 				return errors.New("private dependency version differs")
@@ -556,6 +718,14 @@ func parseLoaderObservations(text string) (*loaderObservations, error) {
 // validateLoaders binds reported private origins and direct ELF needs to the
 // independently parsed loader listings for the complete binary roster.
 func validateLoaders(files map[string][]byte, reported []Loader) error {
+	return validateLoadersProfile(files, reported, artifact047)
+}
+
+// validateLoadersProfile uses the previously selected ABI for direct-need checks.
+func validateLoadersProfile(files map[string][]byte, reported []Loader, profile artifactProfile) error {
+	if profile != artifact047 && profile != artifact048 {
+		return errors.New("unknown compiled loader profile")
+	}
 	var raw map[string]string
 	if err := decodeJSON(files["loader-evidence.txt"], &raw, false); err != nil {
 		return fmt.Errorf("loader evidence JSON: %w", err)
@@ -579,7 +749,12 @@ func validateLoaders(files map[string][]byte, reported []Loader) error {
 		if err != nil || !reflect.DeepEqual(observed.providers, wanted) {
 			return errors.New("raw loader origins differ")
 		}
-		object, err := inspectNativeELF(record.Artifact, files[record.Artifact])
+		var object nativeELF
+		if profile == artifact048 {
+			object, err = inspectNativeELF048(record.Artifact, files[record.Artifact])
+		} else {
+			object, err = inspectNativeELF(record.Artifact, files[record.Artifact])
+		}
 		if err != nil {
 			return err
 		}

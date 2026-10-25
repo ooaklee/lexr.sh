@@ -65,6 +65,41 @@ that do not apply.
   granting executable policy. New declarations require Lexr `0.7.0` and omit
   unknown Lexr tested-through evidence; their empty OS test records remain
   unverified rather than claiming future qualification.
+- Add a pure sensor runtime package-layout plan for strictly verified
+  development outputs, with fixed private destinations and explicit remaining
+  qualification gates. The plan writes no payloads and enables neither
+  installation nor activation; the historical sensor workflow stays build-only.
+- Register the declarative `sensors` capability and permit omitted kernel
+  tested-through evidence without inventing a tested generation. Hard bounds,
+  canonical decoding and compiled action restrictions remain enforced.
+- Add an internal, qualification-only sensor package with authenticated
+  corresponding source, exact private payloads and honest saved-archive replay
+  provenance. Add fresh-root-only passive install/rollback and relocated-loader
+  software checks; these do not enable a public sensor installer, service
+  activation or hardware support.
+- Add a separate inactive sensor integration renderer and a fixture-only
+  service handover/compensation engine. Model vendor exclusion, verified
+  ownership and bounded recovery without adding a live systemd adapter,
+  changing the accepted package or enabling a sensor installation command.
+- Add a separately pinned downstream 0.4.8 sensor qualification path, retaining
+  the exact 0.4.7 defaults. Bind source, ABI, metadata-test logs, recipes and
+  package lineages without treating static verification as observed execution
+  or enabling a public sensor installer.
+- Add explicit version-matched inactive service rendering and fixture lifecycle
+  qualification for the 0.4.8 sensor package. Preserve positive 0.4.7 defaults,
+  exact runtime identity checks and separate real-service activation gates.
+- Add a hidden, opt-in 0.4.8 sensor source-producer profile with matched source
+  snapshots, recipes, ownership checks, artifact decoding and publication.
+  Keep default builds on 0.4.7 and the component build-only; software tests do
+  not qualify fresh native production, installation or physical sensors.
+  On 2026-10-23, the reviewed local implementation based on `e76d19f`
+  completed the normal native 0.4.8 CLI producer and durable local publication:
+  three build-phase containers exited zero, 304 proxy cases and eleven metadata
+  cases ran, with one explicit proxy locale skip. Strict host package/offline
+  checks and inactive rendering/simulated lifecycle checks also passed.
+  Fresh ARM64 relocation/native Linux replay, real-manager handover, physical
+  sensors and public installer/release acceptance remain separate open gates;
+  earlier direct-recipe loader evidence was not relabelled as a new run.
 
 ### Changed
 

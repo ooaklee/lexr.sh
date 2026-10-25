@@ -27,6 +27,8 @@ type Request struct {
 // Plan is a local read-only observation. Executable does not claim that Docker
 // or a prepared image is currently available; Run independently checks them.
 type Plan struct {
+	// Metadata048 reports constructor selection only, never execution authority.
+	Metadata048         bool               `json:"metadata_048,omitempty"`
 	RepositoryRoot      string             `json:"repository_root"`
 	WorkParent          string             `json:"work_parent"`
 	OutputParent        string             `json:"output_parent"`
@@ -91,6 +93,7 @@ type Result struct {
 // Use one sequential owner. No caller-supplied image or reconstructed receipt
 // can populate its private prepared handle. No resource is deleted implicitly.
 type Manager struct {
+	profile         producerProfile
 	runner          platform.Runner
 	dependencies    *builderimage.Manager
 	prepared        *builderimage.Prepared
@@ -106,10 +109,20 @@ type Manager struct {
 
 // New creates a sequential build owner with fixed phase and recovery deadlines.
 func New(runner platform.Runner) *Manager {
+	return newManager(runner, producer047)
+}
+
+// NewMetadata048 selects only the exact compiled metadata-0.4.8 successor.
+// It grants no installation, service activation or physical qualification.
+func NewMetadata048(runner platform.Runner) *Manager {
+	return newManager(runner, producer048)
+}
+
+func newManager(runner platform.Runner, profile producerProfile) *Manager {
 	if runner == nil {
 		runner = platform.NewDiagnosticRunner(nil)
 	}
-	return &Manager{runner: runner, dependencies: builderimage.New(runner), bindTransport: bindSourceDockerTransport, host: hostcap.Current(), token: func() (string, error) {
+	return &Manager{profile: profile, runner: runner, dependencies: builderimage.New(runner), bindTransport: bindSourceDockerTransport, host: hostcap.Current(), token: func() (string, error) {
 		var b [12]byte
 		_, err := rand.Read(b[:])
 		return hex.EncodeToString(b[:]), err

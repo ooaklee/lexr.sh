@@ -46,6 +46,7 @@ type controllerTestCall struct {
 // Prepared, StageRepository and DecodeDockerCopy still use production authority.
 type controllerTestRunner struct {
 	t               *testing.T
+	profile         producerProfile // fixture-selected expected policy, never read from argv
 	calls           []controllerTestCall
 	captures        int
 	engine          string
@@ -71,7 +72,10 @@ func newControllerTestRunner(t *testing.T) *controllerTestRunner {
 
 // controllerTestManager pairs production orchestration with bounded fake process and transport observations.
 func controllerTestManager(r *controllerTestRunner) *Manager {
-	m := New(r)
+	return configureControllerTestManager(New(r), r)
+}
+
+func configureControllerTestManager(m *Manager, r *controllerTestRunner) *Manager {
 	// Existing controller tests deliberately simulate execution/transport. The
 	// dedicated transport tests exercise endpoint attestation and frozen argv.
 	m.bindTransport = controllerTestBindTransport
@@ -271,13 +275,13 @@ func (r *controllerTestRunner) Run(ctx context.Context, command platform.Command
 		if len(a) >= 2 && a[1] == "create" {
 			name := a[len(a)-1]
 			token := strings.TrimPrefix(name, sourceVolumePrefix)
-			if !reflect.DeepEqual(a, volumeCreateArgs(name, token)) {
+			if !reflect.DeepEqual(a, volumeCreateArgsForProfile(name, token, r.profile)) {
 				return errors.New("unexpected volume creation grammar")
 			}
 			if _, exists := r.volumes[name]; exists {
 				return errors.New("fixture volume name was reused")
 			}
-			r.volumes[name] = volumeInspection{Name: name, Driver: "local", Scope: "local", Mountpoint: "/var/lib/docker/volumes/" + name + "/_data", Labels: map[string]string{sourceOwnerLabel: sourceOwnerValue, sourceTokenLabel: token, sourceInitRecipeLabel: InitRecipeSHA256(), sourceRecipeLabel: SourceRecipeSHA256()}, Options: nil}
+			r.volumes[name] = volumeInspection{Name: name, Driver: "local", Scope: "local", Mountpoint: "/var/lib/docker/volumes/" + name + "/_data", Labels: map[string]string{sourceOwnerLabel: sourceOwnerValue, sourceTokenLabel: token, sourceInitRecipeLabel: InitRecipeSHA256(), sourceRecipeLabel: r.profile.sourceRecipeSHA256()}, Options: nil}
 			_, err = fmt.Fprintln(command.Stdout, name)
 			return err
 		}

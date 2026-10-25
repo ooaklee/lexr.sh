@@ -38,19 +38,27 @@ func validSourceVolumeIdentity(name, token string) bool {
 // A nil result is a refusal, never an empty/default Docker operation. The
 // supervisor must check it before invoking its Runner.
 func volumeCreateArgs(name, token string) []string {
-	if !validSourceVolumeIdentity(name, token) {
+	return volumeCreateArgsForProfile(name, token, producer047)
+}
+
+func volumeCreateArgsForProfile(name, token string, profile producerProfile) []string {
+	if !profile.valid() || !validSourceVolumeIdentity(name, token) {
 		return nil
 	}
 	return []string{"volume", "create", "--driver", "local",
 		"--label", sourceOwnerLabel + "=" + sourceOwnerValue,
 		"--label", sourceTokenLabel + "=" + token,
 		"--label", sourceInitRecipeLabel + "=" + InitRecipeSHA256(),
-		"--label", sourceRecipeLabel + "=" + SourceRecipeSHA256(), name}
+		"--label", sourceRecipeLabel + "=" + profile.sourceRecipeSHA256(), name}
 }
 
 // validateOwnedVolume rejects foreign volumes, driver options and recipe drift.
 func validateOwnedVolume(v volumeInspection, name, token string) error {
-	if !validSourceVolumeIdentity(name, token) || v.Name != name {
+	return validateOwnedVolumeForProfile(v, name, token, producer047)
+}
+
+func validateOwnedVolumeForProfile(v volumeInspection, name, token string, profile producerProfile) error {
+	if !profile.valid() || !validSourceVolumeIdentity(name, token) || v.Name != name {
 		return errors.New("source work volume identity differs")
 	}
 	// A local driver with driver options can represent a host bind or remote
@@ -58,7 +66,7 @@ func validateOwnedVolume(v volumeInspection, name, token string) error {
 	if v.Driver != "local" || v.Scope != "local" || len(v.Options) != 0 {
 		return errors.New("source work volume must be local with no driver options")
 	}
-	if len(v.Labels) != 4 || v.Labels[sourceOwnerLabel] != sourceOwnerValue || v.Labels[sourceTokenLabel] != token || v.Labels[sourceInitRecipeLabel] != InitRecipeSHA256() || v.Labels[sourceRecipeLabel] != SourceRecipeSHA256() {
+	if len(v.Labels) != 4 || v.Labels[sourceOwnerLabel] != sourceOwnerValue || v.Labels[sourceTokenLabel] != token || v.Labels[sourceInitRecipeLabel] != InitRecipeSHA256() || v.Labels[sourceRecipeLabel] != profile.sourceRecipeSHA256() {
 		return errors.New("source work volume ownership or recipe labels differ")
 	}
 	return nil

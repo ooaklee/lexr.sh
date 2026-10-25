@@ -51,13 +51,19 @@ func publishArtifacts(parent, buildID string, artifacts *VerifiedArtifacts, rece
 // publishArtifactsWithHooks retains partial and post-rename outcomes while
 // rechecking descriptor identities, member bytes and directory durability.
 func publishArtifactsWithHooks(parent, buildID string, artifacts *VerifiedArtifacts, receipt []byte, hooks publicationHooks) (result Publication, resultErr error) {
+	return publishArtifactsWithHooksForProfile(parent, buildID, artifacts, receipt, producer047, hooks)
+}
+
+// The compiled producer selects the expected profile; neither receipt bytes nor
+// the artifact's own claims can switch the caller's publication contract.
+func publishArtifactsWithHooksForProfile(parent, buildID string, artifacts *VerifiedArtifacts, receipt []byte, profile producerProfile, hooks publicationHooks) (result Publication, resultErr error) {
 	if err := publicationSupported(); err != nil {
 		return result, err
 	}
 	if len(buildID) != 24 || strings.Trim(buildID, "0123456789abcdef") != "" {
 		return result, errors.New("publication build ID must be exactly 24 lowercase hexadecimal digits")
 	}
-	members, links, err := publicationInputs(artifacts, receipt)
+	members, links, err := publicationInputsForProfile(artifacts, receipt, profile)
 	if err != nil {
 		return result, err
 	}
@@ -184,14 +190,21 @@ func publishArtifactsWithHooks(parent, buildID string, artifacts *VerifiedArtifa
 // publicationInputs captures defensive copies and rechecks the closed output
 // roster before any publication directory is created.
 func publicationInputs(verified *VerifiedArtifacts, receipt []byte) ([]publicationMember, []Link, error) {
+	return publicationInputsForProfile(verified, receipt, producer047)
+}
+
+func publicationInputsForProfile(verified *VerifiedArtifacts, receipt []byte, profile producerProfile) ([]publicationMember, []Link, error) {
 	trimmed := bytes.TrimSpace(receipt)
 	if len(receipt) > 1<<20 || len(trimmed) == 0 || trimmed[0] != '{' || !json.Valid(receipt) {
 		return nil, nil, errors.New("publication receipt must be a JSON object no larger than 1 MiB")
 	}
-	if verified == nil || !verified.valid {
+	if !profile.valid() || verified == nil || !verified.valid || profile == producer047 && verified.profile != artifact047 || profile == producer048 && verified.profile != artifact048 {
 		return nil, nil, errors.New("publication requires verified artifacts")
 	}
 	wanted := expectedFiles()
+	if profile == producer048 {
+		wanted = expectedFiles048()
+	}
 	files := verified.Files()
 	if len(files) != len(wanted) {
 		return nil, nil, errors.New("publication artifact roster differs")

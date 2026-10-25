@@ -44,6 +44,7 @@ var (
 // own opaque builderimage.Prepared result and authenticated source snapshot.
 // A matching spec is necessary policy, not proof of either prerequisite.
 type sourceDockerSpec struct {
+	profile            producerProfile
 	Phase              sourcePhase
 	Name               string
 	Token              string
@@ -378,7 +379,7 @@ func sourceEnvironment(imageEnv []string) ([]string, error) {
 // validateSourceSpec checks phase identities, jobs and explicit mount coordinates
 // before any Docker creation command can be assembled.
 func validateSourceSpec(spec sourceDockerSpec) error {
-	if spec.Phase != sourceInit && spec.Phase != sourceBuild || !sourceTokenPattern.MatchString(spec.Token) || spec.Name != "lexr-sensors-"+string(spec.Phase)+"-"+spec.Token || !sourceObjectID.MatchString(spec.ImageID) || spec.VolumeName != sourceVolumePrefix+spec.Token || spec.Jobs < 1 || spec.Jobs > 8 {
+	if !spec.profile.valid() || spec.Phase != sourceInit && spec.Phase != sourceBuild || !sourceTokenPattern.MatchString(spec.Token) || spec.Name != "lexr-sensors-"+string(spec.Phase)+"-"+spec.Token || !sourceObjectID.MatchString(spec.ImageID) || spec.VolumeName != sourceVolumePrefix+spec.Token || spec.Jobs < 1 || spec.Jobs > 8 {
 		return errors.New("source Docker identity or job policy differs")
 	}
 	if !sourceEqualSet(spec.Env, fixedSourceEnvironment()) {
@@ -400,10 +401,13 @@ func validateSourceSpec(spec sourceDockerSpec) error {
 
 // sourceCommand selects a bounded fixed recipe, never a caller-supplied script.
 func sourceCommand(spec sourceDockerSpec) []string {
+	if !spec.profile.valid() || spec.Phase != sourceInit && spec.Phase != sourceBuild {
+		return nil
+	}
 	if spec.Phase == sourceInit {
 		return []string{"--signal=TERM", "--kill-after=5s", "2m", "/bin/bash", "-euo", "pipefail", "-c", InitScript}
 	}
-	return []string{"--signal=TERM", "--kill-after=5s", "45m", "/bin/bash", "-euo", "pipefail", "-c", SourceScript, "lexr-sensors-source-build", strconv.Itoa(spec.Jobs)}
+	return []string{"--signal=TERM", "--kill-after=5s", "45m", "/bin/bash", "-euo", "pipefail", "-c", spec.profile.sourceScript(), "lexr-sensors-source-build", strconv.Itoa(spec.Jobs)}
 }
 
 // sourceCreateArgs encodes the validated phase's exact isolation and resource
@@ -424,7 +428,7 @@ func sourceCreateArgs(spec sourceDockerSpec) ([]string, error) {
 	if spec.Phase == sourceBuild {
 		args = append(args, "--mount", "type=bind,src="+spec.SnapshotPath+",dst=/source,readonly,bind-propagation=rprivate")
 	}
-	for _, label := range []string{sourceOwnerLabel + "=" + sourceOwnerValue, sourceTokenLabel + "=" + spec.Token, sourceInitRecipeLabel + "=" + InitRecipeSHA256(), sourceRecipeLabel + "=" + SourceRecipeSHA256(), sourcePhaseLabel + "=" + string(spec.Phase)} {
+	for _, label := range []string{sourceOwnerLabel + "=" + sourceOwnerValue, sourceTokenLabel + "=" + spec.Token, sourceInitRecipeLabel + "=" + InitRecipeSHA256(), sourceRecipeLabel + "=" + spec.profile.sourceRecipeSHA256(), sourcePhaseLabel + "=" + string(spec.Phase)} {
 		args = append(args, "--label", label)
 	}
 	for _, value := range spec.Env {
@@ -443,7 +447,7 @@ func exactContainerOwnership(c sourceContainerInspection, spec sourceDockerSpec,
 	if !sourceContainerID.MatchString(c.ID) || exactID != "" && c.ID != exactID || c.Name != "/"+spec.Name || c.Image != spec.ImageID || c.Config.Image != spec.ImageID {
 		return errors.New("owned source container identity differs")
 	}
-	for key, value := range map[string]string{sourceOwnerLabel: sourceOwnerValue, sourceTokenLabel: spec.Token, sourceInitRecipeLabel: InitRecipeSHA256(), sourceRecipeLabel: SourceRecipeSHA256(), sourcePhaseLabel: string(spec.Phase)} {
+	for key, value := range map[string]string{sourceOwnerLabel: sourceOwnerValue, sourceTokenLabel: spec.Token, sourceInitRecipeLabel: InitRecipeSHA256(), sourceRecipeLabel: spec.profile.sourceRecipeSHA256(), sourcePhaseLabel: string(spec.Phase)} {
 		if c.Config.Labels[key] != value {
 			return errors.New("owned source container recipe/phase labels differ")
 		}

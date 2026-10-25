@@ -272,6 +272,7 @@ type sensorBuildCLIReport struct {
 // the compiled manager's component-specific execution and option boundaries.
 func (a *application) newUserspaceBuildCommandWithWorkflow(workflow userspaceBuildWorkflow) *cobra.Command {
 	request := userspacebuild.Request{}
+	var sensorSourceProfile string
 	var asJSON bool
 	command := &cobra.Command{
 		Use:   "build <iptsd|camera>",
@@ -293,6 +294,15 @@ func (a *application) newUserspaceBuildCommandWithWorkflow(workflow userspaceBui
 					}
 				}
 			}()
+			if command.Flags().Changed("sensor-source-profile") {
+				if componentID != userspacemanager.SensorsComponent {
+					return fmt.Errorf("sensor-source-profile applies only to the sensors builder")
+				}
+				if sensorSourceProfile != userspacebuild.SensorSourceLegacy047 && sensorSourceProfile != userspacebuild.SensorSourceMetadata048 {
+					return fmt.Errorf("sensor-source-profile must be legacy-047 or metadata-048")
+				}
+				request.SensorSourceProfile = sensorSourceProfile
+			}
 			componentCatalog, err := a.userspace.LoadCatalog(a.userspaceCatalogPath)
 			if err != nil {
 				return err
@@ -322,7 +332,7 @@ func (a *application) newUserspaceBuildCommandWithWorkflow(workflow userspaceBui
 			if request.Component == userspacebuild.ComponentSensors && err == nil {
 				if result.Component != request.Component || result.Sensors == nil {
 					err = fmt.Errorf("sensor build returned no source-build result")
-				} else if result.Sensors.Plan.DryRun != request.DryRun || (!request.DryRun && !sensorSourceBuildComplete(result.Sensors)) {
+				} else if !sensorSourceBuildMatchesRequest(result.Sensors, request) {
 					err = fmt.Errorf("sensor source build returned incomplete publication proof")
 				}
 			}
@@ -342,7 +352,7 @@ func (a *application) newUserspaceBuildCommandWithWorkflow(workflow userspaceBui
 				return err
 			}
 			if request.Component == userspacebuild.ComponentSensors {
-				if writeErr := a.writeSensorSourceBuildResult(result.Sensors, err); writeErr != nil {
+				if writeErr := a.writeSensorSourceBuildResultForProfile(result.Sensors, err, request.SensorSourceProfile); writeErr != nil {
 					return writeErr
 				}
 				return err
@@ -362,9 +372,11 @@ func (a *application) newUserspaceBuildCommandWithWorkflow(workflow userspaceBui
 	command.Flags().StringVar(&request.Image, "image", "", "iptsd ARM64 builder image (camera uses immutable compiled policy)")
 	command.Flags().StringVar(&request.WorkVolume, "work-volume", "", "iptsd case-sensitive Docker work volume")
 	command.Flags().StringVar(&request.SensorWorkParent, "sensor-work-parent", "", "existing private sensor work parent; no automatic creation")
+	command.Flags().StringVar(&sensorSourceProfile, "sensor-source-profile", userspacebuild.SensorSourceLegacy047, "compiled sensor source profile: legacy-047 or metadata-048")
 	// Keep preparation private until the normal native producer and CLI gates
 	// pass. No shipped catalogue entry or public help advertises sensors yet.
 	_ = command.Flags().MarkHidden("sensor-work-parent")
+	_ = command.Flags().MarkHidden("sensor-source-profile")
 	command.Flags().IntVar(&request.Jobs, "jobs", 0, "parallel build jobs (zero uses the compiled workflow default)")
 	command.Flags().IntVar(&request.MinimumFreeGiB, "minimum-free-gib", 0, "camera builder minimum free space in GiB")
 	command.Flags().BoolVar(&request.NoPull, "no-pull", false, "camera builder: require an already-present image")
