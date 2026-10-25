@@ -17,9 +17,12 @@ import (
 // metadata directories are the persistent-identifier sources. All are
 // variables for test injection only.
 var (
-	mountInfoPath   = "/proc/self/mountinfo"
-	uuidMetaDir     = "/dev/disk/by-uuid"
-	partUUIDMetaDir = "/dev/disk/by-partuuid"
+	mountInfoPath    = "/proc/self/mountinfo"
+	uuidMetaDir      = "/dev/disk/by-uuid"
+	partUUIDMetaDir  = "/dev/disk/by-partuuid"
+	statxForMount    = unix.Statx
+	statForIdentity  = statUnix
+	defaultBtrfsRoot = attestBtrfsDefaultRoot
 )
 
 // Sanitised resolver errors: no paths, device names, or identifiers.
@@ -64,21 +67,21 @@ func resolvePlatform(ctx context.Context, root string) (Identity, error) {
 	// Stat the selected root and boot directory to confirm the kernel view is
 	// live. When boot belongs to root, both must sit on the same filesystem;
 	// a divergent boot directory means the mount table was raced or lies.
-	rootStat, err := statUnix(root)
+	rootStat, err := statForIdentity(root)
 	if err != nil {
 		return Identity{}, errMetadataUnavailable
 	}
-	bootStat, err := statUnix(filepath.Join(root, "boot"))
+	bootStat, err := statForIdentity(filepath.Join(root, "boot"))
 	if err != nil {
 		return Identity{}, errMetadataUnavailable
 	}
 	if rootStat.Mode&unix.S_IFMT == unix.S_IFLNK || bootStat.Mode&unix.S_IFMT == unix.S_IFLNK {
 		return Identity{}, errors.New("boot ownership requires non-symlink root and boot directories")
 	}
-	if bootWithinRoot && rootEntry.fstype == "btrfs" && statMatchesMount(rootStat, rootEntry) && !statMatchesMount(bootStat, bootEntry) {
+	if bootWithinRoot && rootEntry.fstype == "btrfs" && rootStat.Dev != bootStat.Dev {
 		return Identity{}, errors.New("boot ownership cannot attribute a boot directory spanning an unmounted btrfs subvolume; mount an explicit boot view")
 	}
-	if !statMatchesMount(rootStat, rootEntry) || !statMatchesMount(bootStat, bootEntry) {
+	if !statMatchesSelectedMount(root, rootStat, rootEntry) || !statMatchesSelectedMount(filepath.Join(root, "boot"), bootStat, bootEntry) {
 		return Identity{}, errMetadataUnavailable
 	}
 
@@ -86,6 +89,9 @@ func resolvePlatform(ctx context.Context, root string) (Identity, error) {
 	identity.Root, err = filesystemFromEntry(ctx, rootEntry)
 	if err != nil {
 		return Identity{}, err
+	}
+	if identity.Root.FSType == "btrfs" && identity.Root.FSRoot == "/" {
+		identity.Root.BtrfsDefaultRoot = defaultBtrfsRoot(ctx, root, rootStat)
 	}
 	if bootWithinRoot {
 		identity.Boot = identity.Root
@@ -112,22 +118,49 @@ func resolvePlatform(ctx context.Context, root string) (Identity, error) {
 	if err != nil || againRoot != rootEntry || againBoot != bootEntry {
 		return Identity{}, errAmbiguousIdentity
 	}
-	againRootStat, err := statUnix(root)
-	if err != nil || againRootStat.Dev != rootStat.Dev || againRootStat.Ino != rootStat.Ino {
+	againRootStat, err := statForIdentity(root)
+	if err != nil || againRootStat.Dev != rootStat.Dev || againRootStat.Ino != rootStat.Ino || !statMatchesSelectedMount(root, againRootStat, againRoot) {
 		return Identity{}, errAmbiguousIdentity
 	}
-	againBootStat, err := statUnix(filepath.Join(root, "boot"))
-	if err != nil || againBootStat.Dev != bootStat.Dev || againBootStat.Ino != bootStat.Ino {
+	againBootStat, err := statForIdentity(filepath.Join(root, "boot"))
+	if err != nil || againBootStat.Dev != bootStat.Dev || againBootStat.Ino != bootStat.Ino || !statMatchesSelectedMount(filepath.Join(root, "boot"), againBootStat, againBoot) {
 		return Identity{}, errAmbiguousIdentity
+	}
+	if identity.Root.FSType == "btrfs" && identity.Root.FSRoot == "/" &&
+		defaultBtrfsRoot(ctx, root, againRootStat) != identity.Root.BtrfsDefaultRoot {
+		return Identity{}, errAmbiguousIdentity
+	}
+	if err := ctx.Err(); err != nil {
+		return Identity{}, err
 	}
 	return identity, nil
 }
 
-// statMatchesMount verifies that the selected directory is still the view
-// described by mountinfo, including virtual device numbers used by btrfs.
+// statMatchesMount retains exact directory/device matching for ordinary views.
 func statMatchesMount(st unix.Stat_t, entry mountEntry) bool {
 	return st.Mode&unix.S_IFMT == unix.S_IFDIR &&
 		int(unix.Major(uint64(st.Dev))) == entry.devMajor && int(unix.Minor(uint64(st.Dev))) == entry.devMinor
+}
+
+// statMatchesSelectedMount reconciles only Btrfs's inode/subvolume anonymous
+// device with mountinfo's device. A matching statx mount ID plus the complete
+// live inode/device/mode proves the selected mount; fstype alone is not proof.
+// Missing statx support or a changed/malformed view remains unavailable.
+func statMatchesSelectedMount(path string, st unix.Stat_t, entry mountEntry) bool {
+	if statMatchesMount(st, entry) {
+		return true
+	}
+	if entry.fstype != "btrfs" || st.Mode&unix.S_IFMT != unix.S_IFDIR || entry.mountID <= 0 {
+		return false
+	}
+	const mask = unix.STATX_TYPE | unix.STATX_MODE | unix.STATX_INO | unix.STATX_MNT_ID
+	var sx unix.Statx_t
+	if err := statxForMount(unix.AT_FDCWD, path, unix.AT_SYMLINK_NOFOLLOW|unix.AT_NO_AUTOMOUNT, mask, &sx); err != nil {
+		return false
+	}
+	return sx.Mask&mask == mask && sx.Mnt_id == uint64(entry.mountID) &&
+		sx.Ino == st.Ino && uint32(sx.Mode) == st.Mode &&
+		sx.Dev_major == unix.Major(uint64(st.Dev)) && sx.Dev_minor == unix.Minor(uint64(st.Dev))
 }
 
 // filesystemFromEntry resolves persistent identifiers for a mountinfo record

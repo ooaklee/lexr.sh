@@ -324,7 +324,7 @@ func (state *grubIdentityContext) rootMatches(fs bootidentity.Filesystem) (bool,
 		return false, false
 	}
 	if state.subvol == "" {
-		return fs.FSRoot == "/", fs.FSRoot == "/" && state.subvolID == "5"
+		return fs.FSRoot == "/", fs.FSRoot == "/" && (state.subvolID == "5" || fs.BtrfsDefaultRoot)
 	}
 	if path.Clean(state.subvol) != state.subvol || strings.ContainsAny(state.subvol, "$(){}\\;") {
 		return false, false

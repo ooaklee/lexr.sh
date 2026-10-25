@@ -116,3 +116,6 @@ there is no CLI flag or persisted manifest which asserts runtime ownership.
   the CLI's additional ownership checks and transaction recovery.
 - Fixture and static checks do not establish physical boot or peripheral
   qualification; the original hardware test remains a separate workstream.
+
+Follow-up on 2026-10-25: [ADR057](adr-057-btrfs-mount-and-default-identity.md)
+records the separately scoped Btrfs mount and default-subvolume reconciliation.

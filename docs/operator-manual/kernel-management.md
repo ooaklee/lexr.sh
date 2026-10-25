@@ -310,11 +310,21 @@ or default. A foreign or unresolved default needs review; Doctor does not
 change it or claim that another distro is broken.
 
 Supported native mapping includes separate `/boot` and explicit Btrfs
-`rootflags=subvol=` selection. Implicit default subvolumes, unresolved device
-aliases, other boot mounts and dynamically loaded menus cannot provide the
-same proof. Do not work around missing evidence by disabling OS discovery,
-removing other systems' menu entries, or using `--force`; that flag changes
-only the running-versus-fallback comparison.
+`rootflags=subvol=` selection. Btrfs device-number differences are reconciled
+only when `statx` proves the selected mount and the live directory identity.
+A bare root selector can identify top-level ID 5 only when the installed
+system's `btrfs-progs` provides a readable, exact positive `subvolume
+get-default` result. A missing tool, another default, or unavailable proof
+leaves that implicit selector unresolved; Lexr does not install a tool or
+change the default subvolume. See [issue #79](https://github.com/ooaklee/lexr.sh/issues/79)
+and [ADR057](../adr/adr-057-btrfs-mount-and-default-identity.md).
+
+Review ownership diagnostics and use explicit, correct subvolume selectors
+when configuring the owning system. Unresolved device aliases, other boot
+mounts and dynamically loaded menus cannot provide the same proof. Do not
+work around missing evidence by disabling OS discovery, removing other
+systems' menu entries, or using `--force`; that flag changes only the
+running-versus-fallback comparison.
 
 Preflight checks existing references to shared physical boot files. A
 foreign reference to a path this transaction would change blocks installation,
