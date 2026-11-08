@@ -78,6 +78,11 @@ func validateDirectory(ctx context.Context, path string) (Manifest, error) {
 			}
 		}
 	}
+	if manifest.Source.SourceKind == build.SourceKindLocalGitCommit {
+		if err := inspectLocalSourceArchive(ctx, directory, privateProvenance(manifest.Source)); err != nil {
+			return Manifest{}, err
+		}
+	}
 	canonicalBundle, err := kernel.NewBundle(kernel.BundleOptions{
 		Release: manifest.ReleaseName, Repository: manifest.Source.GitURL,
 		RequestedBootImageMode: kernel.RequestedBootImageMode(manifest.Source.BootImageMode),
@@ -105,8 +110,12 @@ func validateDirectory(ctx context.Context, path string) (Manifest, error) {
 
 // validateManifest checks public policy, source provenance, ordering, and asset roles.
 func validateManifest(manifest Manifest) error {
-	if manifest.SchemaVersion != SchemaVersion || !safeReleaseName(manifest.ReleaseName) || manifest.GeneratedAt.IsZero() {
+	if !safeReleaseName(manifest.ReleaseName) || manifest.GeneratedAt.IsZero() {
 		return errors.New("kernel release manifest has invalid schema, name, or generation time")
+	}
+	if (manifest.SchemaVersion != SchemaVersion || manifest.Source.SourceKind != build.SourceKindHTTPSGit) &&
+		(manifest.SchemaVersion != LocalSourceSchemaVersion || manifest.Source.SourceKind != build.SourceKindLocalGitCommit) {
+		return errors.New("kernel release manifest schema does not match its source kind")
 	}
 	if !manifest.Experimental || manifest.HardwareQualified {
 		return errors.New("kernel release manifest must remain experimental and structurally unqualified")
@@ -170,18 +179,24 @@ func validateManifest(manifest Manifest) error {
 	if sourceCount == 0 || licenceCount == 0 {
 		return errors.New("kernel release manifest requires corresponding source and explicit licence evidence")
 	}
-	return nil
+	return bindLocalSourceAsset(manifest.Source, manifest.Assets)
 }
 
 // validatePublicProvenance rejects local paths, credentials, mutable images, and malformed identities.
 func validatePublicProvenance(provenance SourceProvenance) error {
-	private := build.Provenance{
+	return validateBuildProvenance(privateProvenance(provenance))
+}
+
+// privateProvenance restores source union fields for shared structural validation.
+func privateProvenance(provenance SourceProvenance) build.Provenance {
+	return build.Provenance{
 		SourceKind: provenance.SourceKind, GitURL: provenance.GitURL, GitRef: provenance.GitRef, BootImageMode: provenance.BootImageMode, RefKind: provenance.RefKind,
+		LocalSourceRevision: provenance.LocalSourceRevision, SourceArchiveName: provenance.SourceArchiveName,
+		SourceArchiveSHA256: provenance.SourceArchiveSHA256, SourceArchiveSize: provenance.SourceArchiveSize, SourceFileCount: provenance.SourceFileCount,
 		EffectiveDTBDelivery: provenance.EffectiveDTBDelivery, EmbeddedDTBCount: provenance.EmbeddedDTBCount,
 		DeviceTrees: kernel.CloneDeviceTrees(provenance.DeviceTrees), DTBSelectionProvenance: provenance.DTBSelectionProvenance,
 		Revision: provenance.Revision, Tree: provenance.Tree, CommitTime: provenance.CommitTime,
 		RecipeSHA256: provenance.RecipeSHA256, ContainerImage: provenance.ContainerImage,
 		ToolchainSHA256: provenance.ToolchainSHA256, WorkVolume: "lexr-kernel-build-0000000000000000",
 	}
-	return validateBuildProvenance(private)
 }

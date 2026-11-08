@@ -50,6 +50,15 @@ that do not apply.
 
 ---
 
+## [0.7.0-rc.3] - 2026-11-08
+
+### Added
+
+- Prepare schema-5 kernel releases from exact local committed builds while
+  retaining the producer's archive digest, size, file count and source identity.
+  Require the retained source archive once through `--source`, preserve package
+  bytes, and continue validating existing schema-4 HTTPS releases.
+
 ## [0.7.0] - Unreleased
 
 ### Added

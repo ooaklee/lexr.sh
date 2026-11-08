@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/ooaklee/lexr.sh/internal/kernel/build"
 )
 
 // prepare executes a validated plan through one fresh atomic local publication.
@@ -289,6 +291,19 @@ func renderReleaseNotesForCommand(plan Plan, commandName string) string {
 	}
 	sort.Strings(sourceNames)
 	sort.Strings(licenceNames)
+	sourceDetail := ""
+	if plan.Manifest.Source.SourceKind == build.SourceKindLocalGitCommit {
+		sourceDetail = fmt.Sprintf(`- Producer source kind: local-git-commit
+- Retained source archive SHA-256: %s
+- Retained source archive bytes: %d
+- Committed source files: %d
+
+This build used a local committed snapshot. Preparing it does not attest a
+remote fetch or independent source publication. Validation requires a Lexr release
+which supports schema-5 kernel release manifests.
+
+`, plan.Manifest.Source.SourceArchiveSHA256, plan.Manifest.Source.SourceArchiveSize, plan.Manifest.Source.SourceFileCount)
+	}
 	return fmt.Sprintf(`# Surface Pro 11 qcom-x1e kernel packages
 
 This is an experimental, unsigned Surface Pro 11 kernel bundle. Structural
@@ -308,7 +323,7 @@ qcom-x1e kernel installed and keep recovery media available.
 - Corresponding source: %s
 - Licence evidence: %s
 
-## Verify
+%s## Verify
 
 Run:
 
@@ -334,7 +349,7 @@ kernel, device trees and required hardware have been tested on the Surface.
 `, plan.Manifest.ReleaseName, plan.Manifest.ABI, plan.Manifest.Version,
 		plan.Manifest.Source.BootImageMode, plan.Manifest.Source.EffectiveDTBDelivery, plan.Manifest.Source.EmbeddedDTBCount,
 		plan.Manifest.Source.Revision, plan.Manifest.Source.Tree,
-		strings.Join(sourceNames, ", "), strings.Join(licenceNames, ", "),
+		strings.Join(sourceNames, ", "), strings.Join(licenceNames, ", "), sourceDetail,
 		commandName, commandName, commandName)
 }
 

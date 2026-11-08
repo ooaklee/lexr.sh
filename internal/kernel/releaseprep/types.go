@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	// SchemaVersion identifies the native kernel release manifest contract.
+	// SchemaVersion retains the HTTPS native kernel release manifest contract.
 	SchemaVersion = 4
+	// LocalSourceSchemaVersion adds archive-bound local committed source provenance.
+	LocalSourceSchemaVersion = 5
 	// ChecksumFileName is the sole checksum authority in a prepared directory.
 	ChecksumFileName = "SHA256SUMS"
 	// BundleFileName is the path-independent kernel bundle manifest.
@@ -77,12 +79,22 @@ type PlannedAsset struct {
 // SourceProvenance is the public subset of native build provenance. It omits
 // the local Docker volume name and every host path.
 type SourceProvenance struct {
-	// SourceKind identifies the accepted remotely fetched source contract.
+	// SourceKind preserves the producer's mutually exclusive source authority.
 	SourceKind build.SourceKind `json:"source_kind"`
 	// GitURL is the credential-free HTTPS source repository.
-	GitURL string `json:"git_url"`
+	GitURL string `json:"git_url,omitempty"`
 	// GitRef is the branch or tag selected for the build.
-	GitRef string `json:"git_ref"`
+	GitRef string `json:"git_ref,omitempty"`
+	// LocalSourceRevision is the exact local commit used by the producer.
+	LocalSourceRevision string `json:"local_source_revision,omitempty"`
+	// SourceArchiveName is the retained raw Git archive leaf.
+	SourceArchiveName string `json:"source_archive_name,omitempty"`
+	// SourceArchiveSHA256 binds the exact retained archive bytes.
+	SourceArchiveSHA256 string `json:"source_archive_sha256,omitempty"`
+	// SourceArchiveSize is the retained archive length.
+	SourceArchiveSize int64 `json:"source_archive_size_bytes,omitempty"`
+	// SourceFileCount is the producer's committed non-directory entry count.
+	SourceFileCount int `json:"source_file_count,omitempty"`
 	// BootImageMode records the requested source policy or explicit override.
 	BootImageMode build.BootImageMode `json:"requested_boot_image_mode"`
 	// EffectiveDTBDelivery is the structurally verified image result.
@@ -94,7 +106,7 @@ type SourceProvenance struct {
 	// DTBSelectionProvenance records Stubble and its HWID database for embedded builds.
 	DTBSelectionProvenance *kernel.DTBSelectionProvenance `json:"dtb_selection_provenance,omitempty"`
 	// RefKind distinguishes a fetched branch from a fetched tag.
-	RefKind string `json:"ref_kind"`
+	RefKind string `json:"ref_kind,omitempty"`
 	// Revision is the exact source commit that was built.
 	Revision string `json:"revision"`
 	// Tree is the exact Git tree identity that was built.
@@ -207,6 +219,8 @@ func (manager *Manager) Validate(ctx context.Context, directory string) (Manifes
 func publicProvenance(provenance build.Provenance) SourceProvenance {
 	return SourceProvenance{
 		SourceKind: provenance.SourceKind, GitURL: provenance.GitURL, GitRef: provenance.GitRef, BootImageMode: provenance.BootImageMode, RefKind: provenance.RefKind,
+		LocalSourceRevision: provenance.LocalSourceRevision, SourceArchiveName: provenance.SourceArchiveName,
+		SourceArchiveSHA256: provenance.SourceArchiveSHA256, SourceArchiveSize: provenance.SourceArchiveSize, SourceFileCount: provenance.SourceFileCount,
 		EffectiveDTBDelivery: provenance.EffectiveDTBDelivery, EmbeddedDTBCount: provenance.EmbeddedDTBCount,
 		DeviceTrees: kernel.CloneDeviceTrees(provenance.DeviceTrees), DTBSelectionProvenance: provenance.DTBSelectionProvenance,
 		Revision: provenance.Revision, Tree: provenance.Tree, CommitTime: provenance.CommitTime,

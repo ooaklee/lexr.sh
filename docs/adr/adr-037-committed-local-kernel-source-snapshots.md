@@ -88,3 +88,15 @@ object is independently available.
   behaviour.
 - A locally sourced build is suitable for inspection and guarded local
   installation, but not release preparation or hosted publication.
+
+## Release-preparation follow-up
+
+Schema-5 kernel release preparation now accepts this exact local-commit
+producer contract without relabelling it as an HTTPS fetch. It requires the
+retained archive leaf as a corresponding-source input, binds its digest, size,
+Git commit comment and file count, and preserves the producer's source union
+in public provenance. Preparation remains offline; independent publication and
+correspondence of the exact commit/tree and source remain operator evidence.
+The original HTTPS-only schema-4 release contract remains supported. This
+supersedes the local-release rejection above; it does not change build capture,
+compiled source policy, package bytes or hardware qualification.

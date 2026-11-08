@@ -89,14 +89,21 @@ func (manager *Manager) plan(ctx context.Context, request Request) (Plan, error)
 	if err != nil {
 		return Plan{}, err
 	}
+	if err := bindLocalSourceInput(buildDirectory, provenance, supplementary); err != nil {
+		return Plan{}, err
+	}
 	inputs = append(inputs, supplementary...)
 	sort.Slice(inputs, func(left, right int) bool { return inputs[left].Asset.Name < inputs[right].Asset.Name })
 	assets := make([]Asset, len(inputs))
 	for index, planned := range inputs {
 		assets[index] = planned.Asset
 	}
+	schema := SchemaVersion
+	if provenance.SourceKind == build.SourceKindLocalGitCommit {
+		schema = LocalSourceSchemaVersion
+	}
 	manifest := Manifest{
-		SchemaVersion: SchemaVersion, ReleaseName: request.ReleaseName,
+		SchemaVersion: schema, ReleaseName: request.ReleaseName,
 		GeneratedAt: manager.now().UTC(), Experimental: true, HardwareQualified: false,
 		ABI: bundle.ABI, Version: bundle.Version, Architecture: bundle.Architecture,
 		Source: publicProvenance(provenance), Assets: assets,
@@ -205,6 +212,12 @@ func inspectNativeBuild(ctx context.Context, directory, releaseName string) (ker
 	}
 	if len(checksums) != len(packages) {
 		return kernel.Bundle{}, build.Provenance{}, nil, errors.New("native build SHA256SUMS must cover exactly its kernel packages")
+	}
+	if provenance.SourceKind == build.SourceKindLocalGitCommit {
+		expectedEntries[build.LocalSourceArchiveName] = struct{}{}
+		if err := inspectLocalSourceArchive(ctx, directory, provenance); err != nil {
+			return kernel.Bundle{}, build.Provenance{}, nil, err
+		}
 	}
 	if err := requireExactDirectory(directory, expectedEntries); err != nil {
 		return kernel.Bundle{}, build.Provenance{}, nil, err
@@ -329,13 +342,51 @@ func validLicenceText(contents []byte) bool {
 
 // validateBuildProvenance checks the public and omitted private fields before projection.
 func validateBuildProvenance(provenance build.Provenance) error {
-	if provenance.SourceKind != build.SourceKindHTTPSGit {
-		return errors.New("kernel release preparation rejects local source snapshots; publish the commit to an HTTPS Git ref and rebuild for release")
+	switch provenance.SourceKind {
+	case build.SourceKindHTTPSGit:
+		if provenance.LocalSourceRevision != "" || provenance.SourceArchiveName != "" || provenance.SourceArchiveSHA256 != "" ||
+			provenance.SourceArchiveSize != 0 || provenance.SourceFileCount != 0 {
+			return errors.New("native HTTPS build provenance contains mixed local source fields")
+		}
+		if err := validateHTTPSProvenance(provenance); err != nil {
+			return err
+		}
+	case build.SourceKindLocalGitCommit:
+		if provenance.GitURL != "" || provenance.GitRef != "" || provenance.RefKind != "" {
+			return errors.New("native local build provenance contains mixed HTTPS source fields")
+		}
+		if provenance.LocalSourceRevision != provenance.Revision || !gitObjectExpression.MatchString(provenance.LocalSourceRevision) ||
+			provenance.SourceArchiveName != build.LocalSourceArchiveName || !digestExpression.MatchString(provenance.SourceArchiveSHA256) ||
+			provenance.SourceArchiveSize <= 0 || provenance.SourceArchiveSize > maximumAssetBytes ||
+			provenance.SourceFileCount <= 0 || provenance.SourceFileCount > maximumLocalSourceFiles {
+			return errors.New("native local build provenance contains invalid committed source or archive identity")
+		}
+	default:
+		return errors.New("native build provenance contains an unsupported source kind")
 	}
-	if provenance.LocalSourceRevision != "" || provenance.SourceArchiveName != "" || provenance.SourceArchiveSHA256 != "" ||
-		provenance.SourceArchiveSize != 0 || provenance.SourceFileCount != 0 {
-		return errors.New("native HTTPS build provenance contains mixed local source fields")
+	switch provenance.BootImageMode {
+	case build.BootImageModeSource, build.BootImageModeStubble, build.BootImageModeNoStubble:
+	default:
+		return errors.New("native build provenance contains an unsupported boot-image mode")
 	}
+	if provenance.EffectiveDTBDelivery != kernel.DTBDeliveryEmbedded && provenance.EffectiveDTBDelivery != kernel.DTBDeliveryExternalRequired {
+		return errors.New("native build provenance contains an unsupported effective DTB delivery")
+	}
+	if !gitObjectExpression.MatchString(provenance.Revision) || !gitObjectExpression.MatchString(provenance.Tree) {
+		return errors.New("native build provenance contains an invalid source identity")
+	}
+	if provenance.CommitTime.IsZero() || !digestExpression.MatchString(provenance.RecipeSHA256) ||
+		!digestExpression.MatchString(provenance.ToolchainSHA256) || !immutableImageExpression.MatchString(provenance.ContainerImage) {
+		return errors.New("native build provenance contains invalid policy or toolchain identity")
+	}
+	if !regexp.MustCompile(`^lexr-kernel-build-[0-9a-f]{16}$`).MatchString(provenance.WorkVolume) {
+		return errors.New("native build provenance contains invalid private volume identity")
+	}
+	return nil
+}
+
+// validateHTTPSProvenance retains the original HTTPS-only source checks.
+func validateHTTPSProvenance(provenance build.Provenance) error {
 	if len(provenance.GitURL) == 0 || len(provenance.GitURL) > maximumGitURLBytes || !utf8.ValidString(provenance.GitURL) {
 		return errors.New("native build provenance contains an unsafe source URL")
 	}
@@ -351,26 +402,11 @@ func validateBuildProvenance(provenance build.Provenance) error {
 			return errors.New("native build provenance contains an unsafe source URL")
 		}
 	}
-	switch provenance.BootImageMode {
-	case build.BootImageModeSource, build.BootImageModeStubble, build.BootImageModeNoStubble:
-	default:
-		return errors.New("native build provenance contains an unsupported boot-image mode")
-	}
-	if provenance.EffectiveDTBDelivery != kernel.DTBDeliveryEmbedded && provenance.EffectiveDTBDelivery != kernel.DTBDeliveryExternalRequired {
-		return errors.New("native build provenance contains an unsupported effective DTB delivery")
-	}
 	if provenance.RefKind != "branch" && provenance.RefKind != "tag" {
 		return errors.New("native build provenance contains an unsupported ref kind")
 	}
-	if !validGitRef(provenance.GitRef) || !gitObjectExpression.MatchString(provenance.Revision) || !gitObjectExpression.MatchString(provenance.Tree) {
+	if !validGitRef(provenance.GitRef) {
 		return errors.New("native build provenance contains an invalid source identity")
-	}
-	if provenance.CommitTime.IsZero() || !digestExpression.MatchString(provenance.RecipeSHA256) ||
-		!digestExpression.MatchString(provenance.ToolchainSHA256) || !immutableImageExpression.MatchString(provenance.ContainerImage) {
-		return errors.New("native build provenance contains invalid policy or toolchain identity")
-	}
-	if !regexp.MustCompile(`^lexr-kernel-build-[0-9a-f]{16}$`).MatchString(provenance.WorkVolume) {
-		return errors.New("native build provenance contains invalid private volume identity")
 	}
 	return nil
 }
