@@ -214,9 +214,11 @@ snapshot contains only the committed tree: it does not copy Git history, the
 checkout's `.git` object database, ignored files or uncommitted changes, and it
 requires no source upload or download.
 
-Use a local-source build for inspection and guarded local installation only.
-Kernel release preparation rejects it; publish the commit to an HTTPS branch or
-tag and rebuild before preparing or publishing a release. [ADR037](../adr/adr-037-committed-local-kernel-source-snapshots.md)
+Use a local-source build for inspection and guarded local installation.
+Kernel release preparation can retain this producer identity using the
+schema-5 local-source release contract described below. Independently publish
+and verify the exact commit and corresponding source before remote publication;
+preparation does not claim that the producer fetched an HTTPS ref. [ADR037](../adr/adr-037-committed-local-kernel-source-snapshots.md)
 records why the first local-source contract requires a commit instead of
 capturing mutable working-tree bytes.
 
@@ -458,6 +460,24 @@ touchscreen, pen, audio or other hardware qualification.
 ## Prepare a kernel release locally
 
 `kernel release prepare` accepts only the exact closed output from `kernel build`, one or more corresponding-source archives, explicit licence text, a tag-like release identity, and a fresh output path. The historical `6.12.0-jg-0sp11v3-qcom-x1e` ABI and separate out-of-tree touchscreen modules are rejected because the maintained kernel carries that stack in-tree. Generation numbers are scoped to each kernel patch line, so a later in-tree kernel may legitimately use `sp11v3`.
+
+A local committed build retains its original `source_kind: local-git-commit`.
+Pass that build directory's exact `lexr-kernel-source.tar` as one `--source`
+argument; an identically named copy elsewhere cannot substitute for it. The
+archive is verified against the producer's digest, byte length, Git commit
+comment and bounded path, member-type and file-count contract. Preparation does
+not extract it or contact a remote service. The public schema-5 manifest keeps
+its local revision, archive identity and committed file count, and the original
+packages are copied unchanged. Other build-directory files remain prohibited.
+
+Schema-4 HTTPS releases retain their existing format and validation behaviour.
+The kernel bundle's schema and ordered DTB inventory are unchanged, so existing
+compatible consumers can download and install the packages. Validating the
+complete local-source release requires a Lexr version with schema-5 support.
+A matching archive hash proves retained producer bytes, not independent remote
+availability or exact source correspondence; verify the published commit/tree
+and source separately before publication. Do not relabel a local producer as an
+HTTPS build to bypass these checks.
 
 A dry run hashes and validates every input without creating a parent or output directory. A real run repeats validation, copies through private staging, creates one path-free public manifest and British-English notes, checksums the complete closed set, validates it, and atomically publishes the new local directory. An existing or raced destination is never replaced. `kernel release validate` repeats the closed-directory structural checks without contacting a remote service.
 
