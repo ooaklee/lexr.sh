@@ -50,16 +50,21 @@ that do not apply.
 
 ---
 
-## [0.7.0-rc.3] - 2026-11-08
+## [0.7.1] - Unreleased
 
-### Added
+### Fixed
 
-- Prepare schema-5 kernel releases from exact local committed builds while
-  retaining the producer's archive digest, size, file count and source identity.
-  Require the retained source archive once through `--source`, preserve package
-  bytes, and continue validating existing schema-4 HTTPS releases.
+- Produce a verifiable download bundle directory. `kernel release download`
+  now keeps the release asset `lexr-kernel-bundle.json` byte-identical to the
+  published manifest, records disposable machine-local acquisition hints in a
+  relative-path sidecar (`lexr-kernel-bundle.local.json`), and writes a
+  download-scoped `SHA256SUMS` covering exactly the files in the output
+  directory, so `sha256sum --check --strict` passes locally and installation
+  succeeds from a directory lexr itself downloaded
+  ([#86](https://github.com/ooaklee/lexr.sh/pull/86),
+  [#85](https://github.com/ooaklee/lexr.sh/issues/85)).
 
-## [0.7.0] - Unreleased
+## [0.7.0] - 2026-11-08
 
 ### Added
 
@@ -74,6 +79,10 @@ that do not apply.
   granting executable policy. New declarations require Lexr `0.7.0` and omit
   unknown Lexr tested-through evidence; their empty OS test records remain
   unverified rather than claiming future qualification.
+- Prepare schema-5 kernel releases from exact local committed builds while
+  retaining the producer's archive digest, size, file count and source identity.
+  Require the retained source archive once through `--source`, preserve package
+  bytes, and continue validating existing schema-4 HTTPS releases.
 
 ### Changed
 
