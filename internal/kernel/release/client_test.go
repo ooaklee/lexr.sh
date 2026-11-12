@@ -1,6 +1,7 @@
 package release
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -187,6 +188,143 @@ func TestDownloadBundleBindsPackagesToAuthoritativeManifest(t *testing.T) {
 				t.Fatalf("DownloadBundle() error = %v, want containing %q", err, test.want)
 			}
 		})
+	}
+}
+
+// TestDownloadBundleProducesVerifiableDirectory covers #85: the downloaded
+// directory must satisfy its own SHA256SUMS with the release manifest
+// byte-identical, local acquisition state isolated in a sidecar, and no
+// release-only assets referenced.
+func TestDownloadBundleProducesVerifiableDirectory(t *testing.T) {
+	files := kernelReleaseFiles(kernel.RoleHeaders, kernel.RoleCommonHeaders)
+	// Release-only assets that must never appear in the download directory.
+	files["lexr-kernel-source-fixture.tar"] = []byte("huge source archive")
+	files["RELEASE-NOTES.md"] = []byte("# notes")
+	files["SHA256SUMS"] = kernelReleaseChecksums(files)
+	server := newKernelReleaseServer(t, files)
+	defer server.Close()
+
+	directory := t.TempDir()
+	client := NewClient(server.Client())
+	client.APIBaseURL = server.URL
+	if _, err := client.DownloadBundle(context.Background(), "owner/repository", "v21", directory, true); err != nil {
+		t.Fatal(err)
+	}
+
+	// The release manifest must remain byte-identical to the published asset.
+	manifest, err := os.ReadFile(filepath.Join(directory, releaseBundleManifestName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(manifest, files[releaseBundleManifestName]) {
+		t.Fatal("downloaded kernel bundle manifest differs from the release asset bytes")
+	}
+
+	// The sidecar must exist and carry only relative package paths.
+	sidecar, err := os.ReadFile(filepath.Join(directory, releaseBundleSidecarName))
+	if err != nil {
+		t.Fatalf("download directory has no sidecar: %v", err)
+	}
+	var recorded struct {
+		Packages []kernel.Package `json:"packages"`
+	}
+	if err := json.Unmarshal(sidecar, &recorded); err != nil {
+		t.Fatalf("decode sidecar: %v", err)
+	}
+	if len(recorded.Packages) != 4 {
+		t.Fatalf("sidecar packages = %d, want 4", len(recorded.Packages))
+	}
+	for _, pkg := range recorded.Packages {
+		if pkg.Path != filepath.Base(pkg.Path) {
+			t.Fatalf("sidecar package %s has non-relative path %q", pkg.Name, pkg.Path)
+		}
+	}
+
+	// The download-scoped SHA256SUMS must cover every directory file except
+	// the checksum manifest itself.
+	scoped, err := parseChecksums(filepath.Join(directory, "SHA256SUMS"))
+	if err != nil {
+		t.Fatalf("parse scoped SHA256SUMS: %v", err)
+	}
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != len(scoped)+1 {
+		names := make([]string, 0, len(entries))
+		for _, entry := range entries {
+			names = append(names, entry.Name())
+		}
+		t.Fatalf("directory has %d files but SHA256SUMS covers %d: %v", len(entries), len(scoped), names)
+	}
+	for _, entry := range entries {
+		if entry.Name() == "SHA256SUMS" {
+			continue
+		}
+		if _, covered := scoped[entry.Name()]; !covered {
+			t.Fatalf("SHA256SUMS does not cover directory file %s", entry.Name())
+		}
+	}
+	for name, digest := range scoped {
+		actual, _, err := hashFile(filepath.Join(directory, name))
+		if err != nil || actual != digest {
+			t.Fatalf("scoped digest mismatch for %s: %v", name, err)
+		}
+	}
+
+	// Local discovery must accept the download-produced layout end-to-end.
+	discovered, err := kernel.DiscoverLocalBundleWithOptions(directory, kernel.LocalBundleOptions{
+		PackageSet: kernel.LocalPackageSetAll,
+	})
+	if err != nil {
+		t.Fatalf("DiscoverLocalBundleWithOptions(download directory) error = %v", err)
+	}
+	if len(discovered.Packages) != 4 {
+		t.Fatalf("discovered packages = %d, want 4", len(discovered.Packages))
+	}
+}
+
+// TestDownloadBundleScopedChecksumsDetectTampering proves the negative case of
+// #85: a package mutated after download no longer satisfies the scoped
+// checksum manifest during discovery.
+func TestDownloadBundleScopedChecksumsDetectTampering(t *testing.T) {
+	files := kernelReleaseFiles()
+	server := newKernelReleaseServer(t, files)
+	defer server.Close()
+
+	directory := t.TempDir()
+	client := NewClient(server.Client())
+	client.APIBaseURL = server.URL
+	if _, err := client.DownloadBundle(context.Background(), "owner/repository", "v21", directory, false); err != nil {
+		t.Fatal(err)
+	}
+	image := filepath.Join(directory, packageName(kernel.RoleImage))
+	if err := os.WriteFile(image, []byte("tampered"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := kernel.DiscoverLocalBundle(directory)
+	if err == nil || !strings.Contains(err.Error(), packageName(kernel.RoleImage)) {
+		t.Fatalf("DiscoverLocalBundle(tampered) error = %v, want image package failure", err)
+	}
+}
+
+// TestDownloadBundleReuseExistingDirectory proves a re-download into an
+// existing directory still yields a self-consistent bundle (#85 resume case).
+func TestDownloadBundleReuseExistingDirectory(t *testing.T) {
+	files := kernelReleaseFiles()
+	server := newKernelReleaseServer(t, files)
+	defer server.Close()
+
+	directory := t.TempDir()
+	client := NewClient(server.Client())
+	client.APIBaseURL = server.URL
+	for round := 0; round < 2; round++ {
+		if _, err := client.DownloadBundle(context.Background(), "owner/repository", "v21", directory, false); err != nil {
+			t.Fatalf("round %d: DownloadBundle() error = %v", round, err)
+		}
+	}
+	if _, err := kernel.DiscoverLocalBundle(directory); err != nil {
+		t.Fatalf("DiscoverLocalBundle(re-downloaded directory) error = %v", err)
 	}
 }
 

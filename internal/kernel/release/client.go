@@ -4,6 +4,7 @@ package release
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -29,6 +30,17 @@ const DefaultRepository = "ooaklee/linux-surface-pro-11-oe"
 const (
 	// releaseBundleManifestName is the authoritative published delivery contract.
 	releaseBundleManifestName = "lexr-kernel-bundle.json"
+	// releaseBundleSidecarName records machine-local acquisition metadata for
+	// one download of the delivery contract. It is disposable location hints,
+	// never integrity authority: every entry is re-validated against the
+	// immutable release manifest at consumption time.
+	releaseBundleSidecarName = "lexr-kernel-bundle.local.json"
+	// releaseChecksumManifestName is the download-scoped checksum manifest
+	// covering exactly the files present in the output directory.
+	releaseChecksumManifestName = "SHA256SUMS"
+	// releaseChecksumInputSuffix names the temporary file used to verify the
+	// release-wide checksum manifest without copying it into the bundle.
+	releaseChecksumInputSuffix = ".lexr-checksums.download"
 	// maximumReleaseBundleBytes bounds the downloaded delivery contract.
 	maximumReleaseBundleBytes = kernel.MaximumBundleManifestBytes
 )
@@ -162,10 +174,15 @@ func (c *Client) DownloadBundle(ctx context.Context, repository, ref, directory 
 	checksumExpected := assetSHA256(checksumAsset)
 	checksumResult, err := c.Artifacts.Acquire(ctx, artifact.Source{
 		Location: checksumAsset.DownloadURL, ExpectedSHA256: checksumExpected,
-	}, filepath.Join(directory, checksumAsset.Name))
+	}, filepath.Join(directory, releaseChecksumManifestName+releaseChecksumInputSuffix))
 	if err != nil {
 		return kernel.Bundle{}, fmt.Errorf("download checksum manifest: %w", err)
 	}
+	// The release-wide manifest covers every published asset, including large
+	// source archives that do not belong in an install bundle. Verify against
+	// it in the temporary location and never copy it into the output
+	// directory; the bundle gets its own download-scoped checksum manifest.
+	defer os.Remove(checksumResult.Path)
 	checksums, err := parseChecksums(checksumResult.Path)
 	if err != nil {
 		return kernel.Bundle{}, err
@@ -188,8 +205,15 @@ func (c *Client) DownloadBundle(ctx context.Context, repository, ref, directory 
 	if err != nil {
 		return kernel.Bundle{}, fmt.Errorf("download kernel bundle manifest: %w", err)
 	}
+	// Publish the verified release asset byte-identical under its published
+	// name. A re-serialised manifest could never match the release digest
+	// again, which is exactly the class of defect fixed here (#85).
+	manifestPath := filepath.Join(directory, releaseBundleManifestName)
+	if err := atomicCopy(bundleResult.Path, manifestPath); err != nil {
+		return kernel.Bundle{}, fmt.Errorf("publish kernel bundle manifest: %w", err)
+	}
 	defer os.Remove(bundleResult.Path)
-	recorded, err := decodeReleaseBundle(bundleResult.Path)
+	recorded, err := decodeReleaseBundle(manifestPath)
 	if err != nil {
 		return kernel.Bundle{}, err
 	}
@@ -260,21 +284,132 @@ func (c *Client) DownloadBundle(ctx context.Context, repository, ref, directory 
 	if err != nil {
 		return kernel.Bundle{}, err
 	}
-	manifestPath := filepath.Join(directory, releaseBundleManifestName)
-	file, err := os.OpenFile(manifestPath+".tmp", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
-	if err != nil {
-		return kernel.Bundle{}, fmt.Errorf("create kernel bundle manifest: %w", err)
+	// Machine-local acquisition metadata lives in a disposable sidecar with
+	// relative paths. It is never merged into the verified release manifest
+	// and consumers must re-validate every hint against the manifest digests.
+	if err := writeReleaseSidecar(directory, bundle); err != nil {
+		return kernel.Bundle{}, err
 	}
-	writeErr := bundle.WriteJSON(file)
-	closeErr := file.Close()
-	if writeErr != nil || closeErr != nil {
-		_ = os.Remove(manifestPath + ".tmp")
-		return kernel.Bundle{}, errors.Join(writeErr, closeErr)
-	}
-	if err := os.Rename(manifestPath+".tmp", manifestPath); err != nil {
-		return kernel.Bundle{}, fmt.Errorf("publish kernel bundle manifest: %w", err)
+	// The download-scoped checksum manifest covers exactly the files present
+	// in the output directory so `sha256sum --check --strict` passes locally
+	// without the release-only assets (source archives, licences, notes).
+	if err := writeScopedChecksums(directory, bundle, manifestPath); err != nil {
+		return kernel.Bundle{}, err
 	}
 	return bundle, nil
+}
+
+// writeReleaseSidecar atomically records relative acquisition hints for one
+// downloaded bundle. Integrity remains anchored to the release manifest.
+func writeReleaseSidecar(directory string, bundle kernel.Bundle) error {
+	sidecar := struct {
+		SchemaVersion int              `json:"schema_version"`
+		Release       string           `json:"release"`
+		Manifest      string           `json:"manifest"`
+		Packages      []kernel.Package `json:"packages"`
+	}{
+		SchemaVersion: 1,
+		Release:       bundle.Release,
+		Manifest:      releaseBundleManifestName,
+		Packages:      make([]kernel.Package, 0, len(bundle.Packages)),
+	}
+	for _, pkg := range bundle.Packages {
+		sidecar.Packages = append(sidecar.Packages, kernel.Package{
+			Role: pkg.Role, Name: pkg.Name, Path: filepath.Base(pkg.Name),
+			URL: pkg.URL, SHA256: pkg.SHA256, Size: pkg.Size, Verified: pkg.Verified,
+		})
+	}
+	contents, err := json.MarshalIndent(sidecar, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode kernel bundle sidecar: %w", err)
+	}
+	contents = append(contents, '\n')
+	return atomicWrite(filepath.Join(directory, releaseBundleSidecarName), contents)
+}
+
+// writeScopedChecksums atomically writes a SHA256SUMS manifest covering
+// exactly the acquired packages, the byte-identical release manifest, and the
+// sidecar — the complete expected contents of the output directory.
+func writeScopedChecksums(directory string, bundle kernel.Bundle, manifestPath string) error {
+	entries := make([]scopedChecksum, 0, len(bundle.Packages)+2)
+	for _, pkg := range bundle.Packages {
+		digest, size, err := hashFile(filepath.Join(directory, pkg.Name))
+		if err != nil {
+			return fmt.Errorf("hash downloaded package %s: %w", pkg.Name, err)
+		}
+		if digest != pkg.SHA256 || size != pkg.Size {
+			return fmt.Errorf("downloaded package %s changed on disk before checksum publication", pkg.Name)
+		}
+		entries = append(entries, scopedChecksum{name: pkg.Name, digest: digest})
+	}
+	manifestDigest, _, err := hashFile(manifestPath)
+	if err != nil {
+		return fmt.Errorf("hash kernel bundle manifest: %w", err)
+	}
+	entries = append(entries, scopedChecksum{name: releaseBundleManifestName, digest: manifestDigest})
+	sidecarDigest, _, err := hashFile(filepath.Join(directory, releaseBundleSidecarName))
+	if err != nil {
+		return fmt.Errorf("hash kernel bundle sidecar: %w", err)
+	}
+	entries = append(entries, scopedChecksum{name: releaseBundleSidecarName, digest: sidecarDigest})
+	sort.Slice(entries, func(i, j int) bool { return entries[i].name < entries[j].name })
+	var builder strings.Builder
+	for _, entry := range entries {
+		fmt.Fprintf(&builder, "%s  %s\n", entry.digest, entry.name)
+	}
+	return atomicWrite(filepath.Join(directory, releaseChecksumManifestName), []byte(builder.String()))
+}
+
+// scopedChecksum is one download-scoped checksum manifest entry.
+type scopedChecksum struct {
+	name   string
+	digest string
+}
+
+// atomicWrite publishes contents to path through a temporary sibling and an
+// atomic rename.
+func atomicWrite(path string, contents []byte) error {
+	temporary := path + ".tmp"
+	file, err := os.OpenFile(temporary, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	_, writeErr := file.Write(contents)
+	closeErr := file.Close()
+	if writeErr != nil || closeErr != nil {
+		_ = os.Remove(temporary)
+		return errors.Join(writeErr, closeErr)
+	}
+	if err := os.Rename(temporary, path); err != nil {
+		_ = os.Remove(temporary)
+		return err
+	}
+	return nil
+}
+
+// atomicCopy publishes the exact bytes of source at destination through a
+// temporary sibling and an atomic rename.
+func atomicCopy(source, destination string) error {
+	contents, err := os.ReadFile(source)
+	if err != nil {
+		return err
+	}
+	return atomicWrite(destination, contents)
+}
+
+// hashFile returns the lowercase SHA-256 digest and byte length of a file.
+func hashFile(path string) (string, int64, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", 0, err
+	}
+	defer file.Close()
+	digest := sha256.New()
+	size, err := io.Copy(digest, file)
+	if err != nil {
+		return "", 0, err
+	}
+	return hex.EncodeToString(digest.Sum(nil)), size, nil
 }
 
 // decodeReleaseBundle strictly reads and canonicalises one downloaded contract.
