@@ -27,6 +27,13 @@ const (
 	maximumSourceBytes = int64(64 << 20)
 )
 
+// The metadata successor is a second exact source composition, not a version
+// range or permission to substitute arbitrary neighbouring source metadata.
+const (
+	Metadata048SourceCommit    = "037e249831b34c3786dd95453269821bd15b1a3e"
+	Metadata048SourceFileCount = 955
+)
+
 // File identifies authenticated bytes and the Git executable-bit class.
 // Path is relative to a staged composition, never a local host pathname.
 type File struct {
@@ -74,9 +81,10 @@ type metadataPin struct {
 
 // authority contains the fixed lineage and private hooks used by controlled tests.
 type authority struct {
-	commit     string
-	components []metadataPin
-	checksums  metadataPin
+	commit      string
+	components  []metadataPin
+	checksums   metadataPin
+	metadata048 bool
 	// Only unexported fixture policies use this deterministic race-test seam.
 	beforeOpen func(*os.Root, string) error
 	beforeCopy func(*os.Root, string) error
@@ -89,6 +97,17 @@ func approvedAuthority() authority {
 		{name: "libssc", sha256: "6411dd017ba6aa0d177972706158636a2945ae19db808c549785e6ebc1e2f98c", bytes: 14556, files: 77},
 		{name: "iio-sensor-proxy", sha256: "aa9ac39d11cfdb6f9e1306624458e98579e7340c976bbe573cfb5adf105f8303", bytes: 14377, files: 79},
 	}, checksums: metadataPin{name: "SOURCE.sha256", sha256: "4fd055d4d21700047d2970fdd0ae5ddf9deda350d4de7cc298a2fc7a64ae796d", bytes: 119728}}
+}
+
+// approved048Authority retains unchanged QMI/proxy identities and admits only
+// the independently frozen metadata-diagnostics SSC successor composition.
+func approved048Authority() authority {
+	policy := approvedAuthority()
+	policy.commit = Metadata048SourceCommit
+	policy.metadata048 = true
+	policy.components[1] = metadataPin{name: "libssc", sha256: "a4f8b204fae4fed651d0a4f01c6825e23b1f52f29f576ba1a7d80e28a3db01ab", bytes: 15731, files: 83}
+	policy.checksums = metadataPin{name: "SOURCE.sha256", sha256: "79d220b28c676b1f0174d29beaf84c8697d06a7237b988cf55ac1e33a08eab35", bytes: 120400}
+	return policy
 }
 
 // inventoryFile is one file description decoded from an authenticated inventory.
@@ -129,6 +148,13 @@ func Verify(repositoryRoot string) (Composition, error) {
 	return s.composition, err
 }
 
+// Verify048 authenticates only the independently compiled metadata successor.
+// The default Verify remains restricted to the original 0.4.7 composition.
+func Verify048(repositoryRoot string) (Composition, error) {
+	s, err := capture(repositoryRoot, approved048Authority())
+	return s.composition, err
+}
+
 // Stage makes an exclusively new destination containing the three components,
 // their SOURCE.json records and SOURCE.sha256. It copies only captured verified
 // bytes, rehashes the written descriptors, and never mounts mutable live source.
@@ -136,6 +162,12 @@ func Verify(repositoryRoot string) (Composition, error) {
 // any newly owned partial destination remains available for diagnosis.
 func Stage(repositoryRoot, destination string) (Composition, error) {
 	return stage(repositoryRoot, destination, approvedAuthority())
+}
+
+// Stage048 copies only the exact metadata successor into an exclusively new
+// destination, retaining Stage's descriptor checks and no-cleanup semantics.
+func Stage048(repositoryRoot, destination string) (Composition, error) {
+	return stage(repositoryRoot, destination, approved048Authority())
 }
 
 // capture opens the repository root and reads the composition under fixed policy.

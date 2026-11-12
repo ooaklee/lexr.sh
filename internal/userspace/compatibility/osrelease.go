@@ -40,6 +40,13 @@ func ReadOSRelease(directory string) (id, version string, err error) {
 	if err != nil {
 		return "", "", err
 	}
+	return ParseOSRelease(data)
+}
+
+// ParseOSRelease interprets exactly the supplied bounded bytes. It performs no
+// filesystem reads, shell evaluation or input mutation, so descriptor-bound
+// callers need not reopen a pathname to obtain the same strict semantics.
+func ParseOSRelease(data []byte) (id, version string, err error) {
 	if len(data) > MaxBytes || !utf8.Valid(data) || strings.ContainsRune(string(data), '\x00') {
 		return "", "", errors.New("invalid bounded UTF-8 os-release")
 	}

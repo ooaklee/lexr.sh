@@ -2,14 +2,20 @@
 // Its artefacts are development outputs, not installable or qualified sensors.
 package build
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/ooaklee/lexr.sh/internal/sensors/source"
+)
 
 // The source-build contract fixes archive names, source authority, private
 // provider location and the maximum accepted development archive size.
 const (
-	ArchiveName         = "sensor-source-artifacts.tar"
-	ReportName          = "build-report.json"
-	SourceCommit        = "649cc875d08c04ce33bc8afc2a0ff7a22ce362e0"
+	ArchiveName  = "sensor-source-artifacts.tar"
+	ReportName   = "build-report.json"
+	SourceCommit = "649cc875d08c04ce33bc8afc2a0ff7a22ce362e0"
+	// SourceCommit048 pins the separate, reviewed metadata-diagnostics composition.
+	SourceCommit048     = source.Metadata048SourceCommit
 	ProviderDirectory   = "/work/job/providers"
 	MaximumArchiveBytes = 128 << 20
 )
@@ -47,6 +53,26 @@ func expectedFiles() map[string]fileRule {
 // discovered from an archive or editable manifest at run time.
 func ArtifactFiles() []string {
 	files := expectedFiles()
+	names := make([]string, 0, len(files))
+	for name := range files {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// expectedFiles048 adds only the two required metadata-test evidence members.
+// It never changes the accepted 0.4.7 roster or licence authorities.
+func expectedFiles048() map[string]fileRule {
+	files := expectedFiles()
+	files["ssc-metadata-testlog.json"] = fileRule{8 << 20, 0o644, ""}
+	files["ssc-metadata-testlog.txt"] = fileRule{8 << 20, 0o644, ""}
+	return files
+}
+
+// ArtifactFiles048 returns the independently selected 18-member 0.4.8 roster.
+func ArtifactFiles048() []string {
+	files := expectedFiles048()
 	names := make([]string, 0, len(files))
 	for name := range files {
 		names = append(names, name)

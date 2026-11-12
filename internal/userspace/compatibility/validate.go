@@ -30,7 +30,7 @@ func Validate(m *Manifest) error {
 	if len(m.ComponentID) > 128 || !componentPattern.MatchString(m.ComponentID) || len(m.Release) > 128 || !releasePattern.MatchString(m.Release) {
 		return errors.New("invalid component or release identity")
 	}
-	if err := uniqueValues(m.Capabilities, []string{"audio", "pen", "camera", "firmware", "networking", "bluetooth", "power", "touchscreen"}); err != nil {
+	if err := uniqueValues(m.Capabilities, []string{"audio", "pen", "camera", "firmware", "networking", "bluetooth", "power", "touchscreen", "sensors"}); err != nil {
 		return fmt.Errorf("capabilities: %w", err)
 	}
 	if m.Description != "" {
@@ -93,7 +93,10 @@ func Validate(m *Manifest) error {
 			}
 			kernels[key] = true
 			r := kernel.ABIGeneration
-			if r.MinimumInclusive < 1 || r.TestedThroughInclusive < r.MinimumInclusive || r.MaximumExclusive < 0 || r.MaximumExclusive > 0 && (r.MaximumExclusive <= r.MinimumInclusive || r.TestedThroughInclusive >= r.MaximumExclusive) {
+			if r.MinimumInclusive < 1 || r.MaximumExclusive < 0 || r.MaximumExclusive > 0 && r.MaximumExclusive <= r.MinimumInclusive {
+				return errors.New("invalid kernel generation range")
+			}
+			if r.TestedThroughInclusive != 0 && (r.TestedThroughInclusive < r.MinimumInclusive || r.MaximumExclusive > 0 && r.TestedThroughInclusive >= r.MaximumExclusive) {
 				return errors.New("invalid kernel generation range")
 			}
 		}

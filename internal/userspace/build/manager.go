@@ -52,6 +52,9 @@ type Request struct {
 	// SensorWorkParent is an explicit existing private work parent for the
 	// sensor source builder. It has no meaning for other components.
 	SensorWorkParent string
+	// SensorSourceProfile explicitly selects one compiled sensor producer owner;
+	// empty retains the legacy-047 default. It never comes from source metadata.
+	SensorSourceProfile string
 	// Image optionally overrides the pinned builder container image.
 	Image string
 	// WorkVolume names the case-sensitive Docker volume used by the IPTSD build.
@@ -98,6 +101,8 @@ type Manager struct {
 	cameraBuilder cameraBuildManager
 	// sensorBuilder owns the authenticated native sensor source workflow.
 	sensorBuilder sensorBuildManager
+	// sensorBuilder048 owns the separately selected metadata successor contract.
+	sensorBuilder048 sensorBuildManager
 }
 
 // New returns a userspace build manager, using the host command runner when no
@@ -116,7 +121,8 @@ func New(runner platform.Runner) *Manager {
 		cameraBuilder: camerabuild.New(runner),
 		// The native sensor manager must own its diagnostic runner instead of
 		// inheriting the CLI's structured-output stream through this adapter.
-		sensorBuilder: sensorbuild.New(nil),
+		sensorBuilder:    sensorbuild.New(nil),
+		sensorBuilder048: sensorbuild.NewMetadata048(nil),
 	}
 }
 
@@ -141,8 +147,13 @@ func (m *Manager) RunWithResult(ctx context.Context, request Request) (Result, e
 		if err := validateSensorAdapterRequest(request); err != nil {
 			return Result{}, err
 		}
-	} else if request.SensorWorkParent != "" {
-		return Result{}, errors.New("sensor-work-parent applies only to the sensors builder")
+	} else {
+		if request.SensorWorkParent != "" {
+			return Result{}, errors.New("sensor-work-parent applies only to the sensors builder")
+		}
+		if request.SensorSourceProfile != "" {
+			return Result{}, errors.New("sensor-source-profile applies only to the sensors builder")
+		}
 	}
 	root, err := resolveRepositoryRoot(request.RepositoryRoot, request.Component)
 	if err != nil {

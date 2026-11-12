@@ -60,10 +60,11 @@ type KernelRule struct {
 }
 
 // GenerationRange records hard and tested limits for a scoped numeric ABI.
+// Zero tested-through evidence is omitted and never qualifies a generation.
 type GenerationRange struct {
 	MinimumInclusive       int `json:"minimum_inclusive"`
 	MaximumExclusive       int `json:"maximum_exclusive,omitempty"`
-	TestedThroughInclusive int `json:"tested_through_inclusive"`
+	TestedThroughInclusive int `json:"tested_through_inclusive,omitempty"`
 }
 
 // Reference is the independent repository-owned identity of canonical bytes.

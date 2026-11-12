@@ -14,6 +14,10 @@ branch's ADR041 to ADR049 when reconciling it with main.
 [ADR041](adr-041-unqualified-sensor-source-builds.md) retains its independent
 sensor source-build history.
 
+On 2026-10-22, [ADR050](adr-050-sensor-runtime-package-plans.md) extends the
+representation of absent kernel test evidence and the sensor packaging
+boundary. The original decision below remains intact.
+
 ## Context
 
 The userspace catalogue supplies repository policy, while downloaded bundles

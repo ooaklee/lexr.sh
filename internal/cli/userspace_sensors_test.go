@@ -243,14 +243,22 @@ func TestSensorBuildCLIMismatchedResponseDoesNotInventSuccess(t *testing.T) {
 // completedSensorCLIFixture returns complete synthetic publication and lifecycle evidence.
 func completedSensorCLIFixture() sensorbuild.Result {
 	dependency, init, source := strings.Repeat("a", 64), strings.Repeat("b", 64), strings.Repeat("c", 64)
-	return sensorbuild.Result{
-		Plan:        sensorbuild.Plan{SourceAuthenticated: true, Executable: true, Source: sensorsource.Composition{SourceCommit: sensorbuild.SourceCommit}},
-		Publication: sensorbuild.Publication{Published: true, Durable: true, LocationVerified: true, Directory: "/fixture/published"},
-		BuildReport: &sensorbuild.BuildReport{}, Artifacts: make([]sensorbuild.Artifact, len(sensorbuild.ArtifactFiles())),
+	result := sensorbuild.Result{
+		Plan:         sensorbuild.Plan{Jobs: 2, SourceAuthenticated: true, Executable: true, Source: sensorsource.Composition{SourceCommit: sensorbuild.SourceCommit}, InitRecipeSHA256: sensorbuild.InitRecipeSHA256(), SourceRecipeSHA256: sensorbuild.SourceRecipeSHA256()},
+		Publication:  sensorbuild.Publication{Published: true, Durable: true, LocationVerified: true, Directory: "/fixture/published"},
+		BuildReport:  &sensorbuild.BuildReport{Schema: "lexr-sensors-source-build-v1", SourceCommit: sensorbuild.SourceCommit, Jobs: 2, Providers: []sensorbuild.Provider{{Name: "libssc", Version: "0.4.7"}}},
 		Dependencies: builderimage.Result{ContainerID: dependency, ContainerName: "retained-dependency-name", Terminal: &builderimage.Terminal{ContainerID: dependency, Status: "exited"}},
 		Init:         sensorbuild.PhaseResult{ContainerID: init, Name: "retained-init-name", Terminal: &sensorbuild.Terminal{ContainerID: init, Status: "exited"}},
 		Source:       sensorbuild.PhaseResult{ContainerID: source, Name: "retained-source-name", Terminal: &sensorbuild.Terminal{ContainerID: source, Status: "exited"}},
 	}
+	for _, name := range sensorbuild.ArtifactFiles() {
+		artifact := sensorbuild.Artifact{Name: name, Bytes: 1, SHA256: strings.Repeat("a", 64), Mode: 0o644}
+		result.Artifacts = append(result.Artifacts, artifact)
+		if name != sensorbuild.ReportName {
+			result.BuildReport.Products = append(result.BuildReport.Products, artifact)
+		}
+	}
+	return result
 }
 
 // TestSensorBuildCLICompletionRequiresObservedSuccess checks every required completion observation.

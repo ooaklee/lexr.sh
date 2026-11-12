@@ -34,7 +34,7 @@ var buildHostRequirement = hostcap.Requirement{Operation: "native offline sensor
 // without acquiring dependencies, contacting Docker or creating build outputs.
 func (m *Manager) plan(ctx context.Context, r Request) (Plan, error) {
 	var p Plan
-	if m == nil || m.runner == nil || m.dependencies == nil || m.bindTransport == nil || m.token == nil || m.timeout <= 0 || m.initTimeout <= 0 || m.sourceTimeout <= 0 || m.recoveryTimeout <= 0 {
+	if m == nil || !m.profile.valid() || m.runner == nil || m.dependencies == nil || m.bindTransport == nil || m.token == nil || m.timeout <= 0 || m.initTimeout <= 0 || m.sourceTimeout <= 0 || m.recoveryTimeout <= 0 {
 		return p, errors.New("sensor source manager is not initialized")
 	}
 	if err := ctx.Err(); err != nil {
@@ -51,7 +51,7 @@ func (m *Manager) plan(ctx context.Context, r Request) (Plan, error) {
 			return p, errors.New("sensor source/work/output paths are required and must not contain CSV quotes, commas or controls")
 		}
 	}
-	p = Plan{RepositoryRoot: r.RepositoryRoot, WorkParent: r.WorkParent, OutputParent: r.OutputParent, Jobs: r.Jobs, DryRun: r.DryRun, NoPull: r.NoPull, InitRecipeSHA256: InitRecipeSHA256(), SourceRecipeSHA256: SourceRecipeSHA256()}
+	p = Plan{Metadata048: m.profile == producer048, RepositoryRoot: r.RepositoryRoot, WorkParent: r.WorkParent, OutputParent: r.OutputParent, Jobs: r.Jobs, DryRun: r.DryRun, NoPull: r.NoPull, InitRecipeSHA256: InitRecipeSHA256(), SourceRecipeSHA256: m.profile.sourceRecipeSHA256()}
 	availability := buildHostRequirement.Evaluate(m.host)
 	p.Executable, p.ExecutionBlocker = availability.Executable, availability.ExecutionBlocker
 	if !p.Executable {
@@ -105,14 +105,14 @@ func (m *Manager) plan(ctx context.Context, r Request) (Plan, error) {
 	if err = verifyBuildMountTopology([]string{p.RepositoryRoot, p.WorkParent, p.OutputParent}); err != nil {
 		return p, err
 	}
-	p.Source, err = source.Verify(p.RepositoryRoot)
+	p.Source, err = m.profile.verifySource(p.RepositoryRoot)
 	if err != nil {
 		return p, err
 	}
 	if err = ctx.Err(); err != nil {
 		return p, err
 	}
-	if p.Source.SourceCommit != SourceCommit {
+	if p.Source.SourceCommit != m.profile.sourceCommit() {
 		return p, errors.New("authenticated source and build policy lineage differ")
 	}
 	p.SourceAuthenticated = true
@@ -183,7 +183,7 @@ func (m *Manager) Run(ctx context.Context, r Request) (result Result, resultErr 
 	if err = ctx.Err(); err != nil {
 		return result, err
 	}
-	snapshot, err := source.StageRepository(p.RepositoryRoot, result.SnapshotDirectory)
+	snapshot, err := m.profile.stageRepository(p.RepositoryRoot, result.SnapshotDirectory)
 	if err != nil {
 		return result, err
 	}
@@ -195,20 +195,20 @@ func (m *Manager) Run(ctx context.Context, r Request) (result Result, resultErr 
 		return result, errors.New("source composition changed after planning")
 	}
 	result.VolumeName = sourceVolumePrefix + token
-	initSpec := sourceDockerSpec{Phase: sourceInit, Name: "lexr-sensors-init-" + token, Token: token, ImageID: image, VolumeName: result.VolumeName, Jobs: p.Jobs, Env: env}
+	initSpec := sourceDockerSpec{profile: m.profile, Phase: sourceInit, Name: "lexr-sensors-init-" + token, Token: token, ImageID: image, VolumeName: result.VolumeName, Jobs: p.Jobs, Env: env}
 	daemonSnapshotPath, err := m.transport.DaemonSnapshotPath(snapshot.Path())
 	if err != nil {
 		return result, err
 	}
 	result.SourceBind = &SourceBindObservation{HostSnapshotPath: snapshot.Path(), DaemonSnapshotPath: daemonSnapshotPath, EngineID: engine, ServerVersion: version}
-	sourceSpec := sourceDockerSpec{Phase: sourceBuild, Name: "lexr-sensors-build-" + token, Token: token, ImageID: image, VolumeName: result.VolumeName, SnapshotPath: snapshot.Path(), DaemonSnapshotPath: daemonSnapshotPath, Jobs: p.Jobs, Env: env}
+	sourceSpec := sourceDockerSpec{profile: m.profile, Phase: sourceBuild, Name: "lexr-sensors-build-" + token, Token: token, ImageID: image, VolumeName: result.VolumeName, SnapshotPath: snapshot.Path(), DaemonSnapshotPath: daemonSnapshotPath, Jobs: p.Jobs, Env: env}
 	result.Init.Name, result.Source.Name = initSpec.Name, sourceSpec.Name
 	// Journal every resource name before a client can create it remotely. Files
 	// are fresh and exclusive; partials and diagnostics are retained on failure.
 	intent := struct {
 		Schema, BuildID, EngineID, ImageID, VolumeName, InitName, SourceName, InitRecipeSHA256, SourceRecipeSHA256 string
 		Jobs                                                                                                       int
-	}{"lexr-sensors-build-intent-v1", token, engine, image, result.VolumeName, initSpec.Name, sourceSpec.Name, InitRecipeSHA256(), SourceRecipeSHA256(), p.Jobs}
+	}{"lexr-sensors-build-intent-v1", token, engine, image, result.VolumeName, initSpec.Name, sourceSpec.Name, InitRecipeSHA256(), m.profile.sourceRecipeSHA256(), p.Jobs}
 	if err = writeBuildRecord(result.WorkDirectory, "00-intent.json", intent); err != nil {
 		return result, err
 	}
@@ -238,7 +238,7 @@ func (m *Manager) Run(ctx context.Context, r Request) (result Result, resultErr 
 	if err = snapshot.Verify(); err != nil {
 		return result, err
 	}
-	args := volumeCreateArgs(result.VolumeName, token)
+	args := volumeCreateArgsForProfile(result.VolumeName, token, m.profile)
 	if len(args) == 0 {
 		return result, errors.New("invalid owned source volume identity")
 	}
@@ -306,7 +306,7 @@ func (m *Manager) Run(ctx context.Context, r Request) (result Result, resultErr 
 	if err = ctx.Err(); err != nil {
 		return result, err
 	}
-	verified, err := DecodeDockerCopy(copyBytes, p.Jobs)
+	verified, err := m.profile.decodeCopy(copyBytes, p.Jobs)
 	if err != nil {
 		return result, fmt.Errorf("source artifacts withheld: %w", err)
 	}
@@ -349,6 +349,7 @@ func (m *Manager) Run(ctx context.Context, r Request) (result Result, resultErr 
 	// This public receipt contains no local checkout/cache paths or captured
 	// diagnostics. Inventories and exact software outputs are descriptive proof.
 	receipt := struct {
+		Metadata048        bool                    `json:"metadata_048,omitempty"`
 		Schema             string                  `json:"schema"`
 		BuildID            string                  `json:"build_id"`
 		Scope              string                  `json:"scope"`
@@ -362,7 +363,7 @@ func (m *Manager) Run(ctx context.Context, r Request) (result Result, resultErr 
 		Init               Terminal                `json:"init"`
 		Build              Terminal                `json:"build"`
 		Products           []Artifact              `json:"products"`
-	}{"lexr-sensors-source-receipt-v1", token, "unqualified source build; not an installable bundle or physical sensor qualification", snapshot.Composition(), snapshot.Composition().Metadata(), m.prepared.Provenance(), engine, version, InitRecipeSHA256(), SourceRecipeSHA256(), *result.Init.Terminal, *result.Source.Terminal, verified.Files()}
+	}{m.profile == producer048, "lexr-sensors-source-receipt-v1", token, "unqualified source build; not an installable bundle or physical sensor qualification", snapshot.Composition(), snapshot.Composition().Metadata(), m.prepared.Provenance(), engine, version, InitRecipeSHA256(), m.profile.sourceRecipeSHA256(), *result.Init.Terminal, *result.Source.Terminal, verified.Files()}
 	receiptBytes, err := json.MarshalIndent(receipt, "", "  ")
 	if err != nil {
 		return result, err
@@ -371,7 +372,7 @@ func (m *Manager) Run(ctx context.Context, r Request) (result Result, resultErr 
 	if err = ctx.Err(); err != nil {
 		return result, err
 	}
-	result.Publication, err = publishArtifactsWithHooks(p.OutputParent, token, verified, receiptBytes, publicationHooks{
+	result.Publication, err = publishArtifactsWithHooksForProfile(p.OutputParent, token, verified, receiptBytes, m.profile, publicationHooks{
 		beforeRename: func() error {
 			if err := ctx.Err(); err != nil {
 				return err
@@ -483,7 +484,7 @@ func (m *Manager) verifyVolume(ctx context.Context, name, token string) error {
 	if err != nil {
 		return err
 	}
-	return validateOwnedVolume(v, name, token)
+	return validateOwnedVolumeForProfile(v, name, token, m.profile)
 }
 
 // inspectPhase rechecks the transport and exact container ownership before state

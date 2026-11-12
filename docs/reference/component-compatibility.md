@@ -28,6 +28,20 @@ a future Lexr release was tested. The initial declarations require stable
 Lexr `0.7.0`. A canonical `0.7.0-rc.1` is below that hard minimum, which the
 dedicated override cannot relax.
 
+Kernel `tested_through_inclusive` is also optional evidence. Omission records
+no tested kernel generation and produces `unverified` within the mandatory
+hard domain and generation bounds. Explicit zero, null and malformed evidence
+are rejected; existing nonzero canonical declarations and their pins retain
+their bytes. Older consumers reject the omitted-evidence form. See
+[ADR050](../adr/adr-050-sensor-runtime-package-plans.md) for this extension.
+
+The closed capability vocabulary includes `sensors`, but a token does not
+register an installer or widen compiled component actions. Sensor runtime
+packaging remains a separate, disabled workflow with no authored compatibility
+declaration or invented kernel floor. Follow the
+[qualification procedure](../operator-manual/sensor-runtime-packaging.md)
+before proposing deployment.
+
 An optional `description` follows `capabilities` in canonical JSON. It is
 nonblank UTF-8 text of at most 1024 bytes without control characters and is
 human-readable context only. It grants no executable policy or compatibility
