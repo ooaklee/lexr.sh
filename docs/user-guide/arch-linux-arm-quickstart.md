@@ -254,3 +254,8 @@ for the exact image digest and remaining checks, and
 [issue #52](https://github.com/ooaklee/lexr.sh/issues/52) for progress. These
 historical results do not mean a newly built USB is ready or every peripheral
 has been qualified.
+
+Surface-specific board firmware (touch, pen, Type Cover, SAM, retimers, NFC,
+camera ICP) is not part of the distro packages: pull it from the
+[sp11-firmware payload kit](https://github.com/ooaklee/sp11-firmware)
+(release `sp11-firmware-v1` ships grouped tarballs with SHA256SUMS).

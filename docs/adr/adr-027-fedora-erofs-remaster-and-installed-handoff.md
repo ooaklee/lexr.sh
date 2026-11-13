@@ -68,6 +68,14 @@ does not contain Fedora package source.
 Copying its Ubuntu-built portable executables into Fedora would bypass native
 package ownership and could leave a duplicate `/usr/local` installation.
 
+Surface-specific firmware payloads extracted from the Windows driver archive
+(touch G6, pen, Type Cover CFUs, SAM, retimers, UEFI capsule, NFC, camera ICP,
+NVMe) are published separately at
+[ooaklee/sp11-firmware](https://github.com/ooaklee/sp11-firmware) with
+per-file SHA256SUMS and licence basis. The live-image adapter does not embed
+them: board firmware beyond Fedora's `qcom-firmware` set is installed from that
+kit (or linux-firmware) at handoff time, keeping image licensing clean.
+
 ## Decision
 
 The `fedora-live` adapter will accept the pinned Fedora Workstation Live 44 ISO
