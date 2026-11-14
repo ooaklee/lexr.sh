@@ -361,6 +361,64 @@ sudo lexr --profile "$HARDWARE_PROFILE" kernel install <kernel-bundle> \
 
 Both commands use `--package-set all` by default. Add `--package-set runtime` only when you deliberately want to leave the complete matching development-header pair uninstalled.
 
+### Companion out-of-tree modules
+
+Device-critical drivers that live outside the kernel tree — on the Surface Pro
+11, for example the camera sensors `ov13858` and `vd55g1`, the display/DP
+retimer `ps883x`, and the sensor `imx681` — ship as a companion module
+package that must be rebuilt for every kernel ABI. Their `.ko` files install
+under `/usr/lib/modules/<abi>/updates/` (or the legacy
+`/lib/modules/<abi>/updates/`), and each one carries a `vermagic` string that
+must match the ABI it was compiled against. A mismatched module fails to load
+with an "Invalid module format" error, leaving camera or display support
+silently broken after a kernel bump.
+
+`kernel preflight` and `kernel install` detect this case before you reboot:
+when the target root already has out-of-tree modules under another ABI's
+`updates/` directory, and none yet for the ABI being installed, the plan
+carries an explicit warning listing each affected module with its vermagic:
+
+```text
+warning: companion out-of-tree modules on this root were built for other
+kernel ABIs and will have no matching ABI after installing <target-abi>;
+rebuild them against the new headers before relying on the device ...
+  <old-abi>: updates/ov13858.ko (vermagic <old-abi>), updates/vd55g1.ko (vermagic <old-abi>), ...
+```
+
+The warning is advisory — it never blocks installation — because the fallback
+ABI remains bootable. Treat it as a reminder to rebuild before the new kernel
+becomes the default. The check reads uncompressed modules' vermagic directly;
+compressed modules (`.ko.zst`, `.ko.xz`, `.ko.gz`) are reported using the ABI
+of the module tree that contains them.
+
+The documented rebuild pattern is a container against the freshly installed
+headers deb, keeping the host untouched:
+
+```sh
+# 1. Install the new kernel bundle (headers included, the default package set).
+sudo lexr --profile "$HARDWARE_PROFILE" kernel install <kernel-bundle> \
+  --root / --fallback-abi "$RUNNING_ABI"
+
+# 2. Rebuild the companion modules against the new headers, e.g. with a
+#    companion project that ships its own Docker build flow:
+cd sp11-selfcompile-drivers
+sudo docker run --rm \
+  --volume "$PWD:/src" \
+  --volume /usr/src/linux-headers-<target-abi>:/usr/src/linux-headers-<target-abi>:ro \
+  --volume /usr/src/linux-qcom-x1e-headers-<base>:/usr/src/linux-qcom-x1e-headers-<base>:ro \
+  <companion-build-image> make KDIR=/usr/src/linux-headers-<target-abi>
+
+# 3. Verify the vermagic of every produced module matches the new ABI, e.g.
+#    with modinfo, then install them into the new ABI's updates directory.
+modinfo -F vermagic ov13858.ko   # must print <target-abi> ...
+sudo install -D -m 0644 ov13858.ko \
+  "/usr/lib/modules/<target-abi>/updates/ov13858.ko"
+sudo depmod -a <target-abi>
+```
+
+Repeat the preflight afterwards: once modules exist under the target ABI's
+`updates/` tree, the warning no longer names them.
+
 The preflight and install dry-run text both report the verified fallback's
 boot device-tree mode and the number of covered normal or recovery GRUB
 entries. An `embedded` mode means the exact device-tree payload is in the

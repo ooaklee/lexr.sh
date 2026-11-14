@@ -52,6 +52,17 @@ that do not apply.
 
 ## [0.7.1] - Unreleased
 
+### Added
+
+- Warn when companion out-of-tree modules will lack a matching kernel ABI.
+  `kernel preflight` and `kernel install` now inspect the target root's
+  out-of-tree modules under `/usr/lib/modules/<abi>/updates/` (and the legacy
+  `/lib/modules` form) and emit an explicit non-fatal warning listing every
+  companion module built for an ABI other than the one being installed,
+  including each module's vermagic. The kernel management guide documents the
+  companion module rebuild pattern against the newly installed headers
+  ([#89](https://github.com/ooaklee/lexr.sh/issues/89)).
+
 ### Fixed
 
 - Produce a verifiable download bundle directory. `kernel release download`
