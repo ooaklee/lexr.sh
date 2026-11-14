@@ -13,6 +13,7 @@ import (
 
 	"github.com/ooaklee/lexr.sh/internal/kernel"
 	kernelbuild "github.com/ooaklee/lexr.sh/internal/kernel/build"
+	"github.com/ooaklee/lexr.sh/internal/kernel/bundlevalidate"
 	kernelinstall "github.com/ooaklee/lexr.sh/internal/kernel/install"
 	"github.com/ooaklee/lexr.sh/internal/kernel/release"
 	"github.com/ooaklee/lexr.sh/internal/kernel/releaseprep"
@@ -56,6 +57,7 @@ func (a *application) newKernelCommand() *cobra.Command {
 		a.newKernelBootCommand(),
 		a.newKernelInspectCommand(),
 		a.newKernelPreflightCommand(),
+		a.newKernelValidateCommand(),
 		a.newKernelInstallCommand(),
 		a.newKernelBuildCommand(),
 	)
@@ -266,6 +268,75 @@ func (a *application) newKernelPreflightCommand() *cobra.Command {
 	_ = command.MarkFlagRequired("root")
 	_ = command.MarkFlagRequired("fallback-abi")
 	return command
+}
+
+// newKernelValidateCommand creates the read-only target-independent bundle
+// validator. It needs no Linux target root, host privileges, or running
+// kernel: it qualifies a built bundle on any host before a device is online.
+func (a *application) newKernelValidateCommand() *cobra.Command {
+	var asJSON bool
+	command := &cobra.Command{
+		Use:   "validate <bundle-directory>",
+		Short: "Validate a kernel bundle without a Linux target",
+		Long: "Validate one local kernel build bundle on any host without root or a Linux target: " +
+			"SHA256SUMS coverage and digests, bundle and provenance manifest consistency, Debian package structure, " +
+			"ABI uniformity across image/modules/headers, and modules.dep presence. All checks run and every failure is reported.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(command *cobra.Command, args []string) error {
+			validator := &bundlevalidate.Validator{}
+			report, err := validator.Validate(command.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			return a.writeKernelBundleValidation(report, asJSON)
+		},
+	}
+	command.Flags().BoolVar(&asJSON, "json", false, "write the machine-readable validation report")
+	return command
+}
+
+// writeKernelBundleValidation emits the per-check report and a nonzero exit
+// through a returned error listing each precise failure.
+func (a *application) writeKernelBundleValidation(report bundlevalidate.Report, asJSON bool) error {
+	if asJSON {
+		if !report.OK() {
+			failures := report.Failures()
+			messages := make([]string, 0, len(failures))
+			for _, failure := range failures {
+				messages = append(messages, failure.Name+": "+failure.Details)
+			}
+			a.errOut.Write([]byte("kernel bundle validation failed:\n" + strings.Join(messages, "\n") + "\n"))
+			a.writeJSON(report)
+			return errors.New("kernel bundle validation failed")
+		}
+		return a.writeJSON(report)
+	}
+	for _, check := range report.Checks {
+		status, details := "ok", check.Details
+		if !check.Passed {
+			status, details = "fail", check.Details
+		}
+		if _, err := fmt.Fprintf(a.out, "[%s] %s: %s\n", status, check.Name, details); err != nil {
+			return err
+		}
+	}
+	for _, warning := range report.Warnings {
+		if _, err := fmt.Fprintf(a.out, "[warn] %s\n", warning); err != nil {
+			return err
+		}
+	}
+	if report.OK() {
+		_, err := fmt.Fprintf(a.out,
+			"kernel bundle valid\ndirectory: %s\nABI: %s\nversion: %s\narchitecture: %s\nno Linux target or privileges were required\n",
+			report.Directory, report.ABI, report.Version, report.Architecture)
+		return err
+	}
+	failures := report.Failures()
+	messages := make([]string, 0, len(failures))
+	for _, failure := range failures {
+		messages = append(messages, failure.Name+": "+failure.Details)
+	}
+	return fmt.Errorf("kernel bundle validation failed:\n%s", strings.Join(messages, "\n"))
 }
 
 // newKernelInstallCommand creates the guarded native package installation
