@@ -94,6 +94,9 @@ func (manager *Manager) prepare(ctx context.Context, request Request) (result Pl
 	if multiboot {
 		warnings = append(warnings, "GRUB regeneration may discover other installations; only this installation's kernel and fallback are verified, and shared boot-file conflicts block the transaction")
 	}
+	if companion := companionModuleABIWarning(root, request.Bundle.ABI); companion != "" {
+		warnings = append(warnings, companion)
+	}
 	if request.Overwrite {
 		// Overwrite replaces only the target ABI; it must never target the
 		// running ABI, which the fallback verification protects.
