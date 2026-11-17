@@ -133,7 +133,7 @@ A local bundle without an authoritative `SHA256SUMS` is rejected unless you supp
 
 ## Build without changing the host
 
-`kernel build` owns a compiled ARM64 Docker build policy and does not depend on a repository helper script. Its default source is the custom kernel's [`sp11/integration-7.2.x` branch](https://github.com/ooaklee/linux_ms_dev_kit-sp11/tree/sp11/integration-7.2.x); `--git-url` and `--git-branch` can select another HTTPS source and branch or tag.
+`kernel build` owns a compiled ARM64 Docker build policy and does not depend on a repository helper script. Its default source is the custom kernel's [`sp11/ubuntu-qcom-x1e-7.3.y` branch](https://github.com/ooaklee/linux_ms_dev_kit-sp11/tree/sp11/ubuntu-qcom-x1e-7.3.y); `--git-url` and `--git-branch` can select another HTTPS source and branch or tag.
 
 Review the non-mutating plan before starting the long build:
 
@@ -143,7 +143,7 @@ lexr kernel build --dry-run
 lexr kernel build \
   --repository-root <build-root> \
   --git-url https://github.com/ooaklee/linux_ms_dev_kit-sp11 \
-  --git-branch sp11/integration-7.2.x \
+  --git-branch sp11/ubuntu-qcom-x1e-7.3.y \
   --output-dir build/lexr/kernel-v19
 ```
 
