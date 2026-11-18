@@ -33,6 +33,18 @@ These experimental images include Lexr and the SP11 v23 kernel:
 - [Fedora Workstation Live 44](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-fedora-workstation-44-v23-20260927)
 - [Arch Linux ARM terminal image](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-arch-linux-arm-terminal-v23-20260927)
 
+These images retain their original v23 identities. For installed systems, the
+current recommended kernel is the
+[7.3.0-jg-1sp11v15 stable release](https://github.com/ooaklee/linux-surface-pro-11-oe/releases/tag/sp11-qcom-x1e-7.3.0-jg-1sp11v15);
+see [announcement #83](https://github.com/ooaklee/linux-surface-pro-11-oe/issues/83)
+for the full delta from the 7.2.0-jg-0sp11v23 baseline. Download it with
+Lexr [0.7.1-rc.1](https://github.com/ooaklee/lexr.sh/releases/tag/v0.7.1-rc.1)
+or later:
+
+```sh
+lexr kernel release download sp11-qcom-x1e-7.3.0-jg-1sp11v15 --headers --output-dir ./sp11-v15-kernel
+```
+
 On Windows, follow [Prepare a USB image with Etcher](docs/user-guide/windows-image-usb.md).
 Already using Linux? Follow the release commands and the
 [Lexr USB workflow](docs/user-guide/installation-media.md#2-review-the-usb-target).
@@ -179,7 +191,9 @@ that the image will boot or install on physical hardware.
 Fedora requires the explicit `fedora-workstation-live-44` catalogue ID and a
 patch-line-qualified verified kernel bundle. The accepted floors are
 7.2.0/sp11v19 and 7.2.2/sp11v1. External-DTB bundles, including v23, require
-`--profile x1e80100-microsoft-denali-oled`. The
+`--profile x1e80100-microsoft-denali-oled`. The current published stable
+kernel bundle is 7.3.0/1sp11v15, which carries an embedded DTB and so needs
+no external-DTB profile override. The
 [installation-media guide](docs/user-guide/installation-media.md) shows the implemented
 distribution paths, the recorded Fedora live-boot results, their hardware
 limits, and how to review a USB write safely.
